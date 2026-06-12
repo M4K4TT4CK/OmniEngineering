@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omni-context.local/schemas/requirements.schema.json",
+  "title": "OmniContext Requirements Registry",
+  "type": "object",
+  "required": [
+    "version",
+    "requirement_id_prefix",
+    "requirements"
+  ],
+  "properties": {
+    "version": {
+      "type": "string"
+    },
+    "requirement_id_prefix": {
+      "type": "string",
+      "pattern": "^[A-Z]+$"
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "category",
+          "title",
+          "description",
+          "priority",
+          "status",
+          "minimum_access_scope",
+          "acceptance_criteria",
+          "validation_required",
+          "documentation_required",
+          "risk_notes"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Z]+-[0-9]{3}$"
+          },
+          "category": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "priority": {
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "status": {
+            "enum": [
+              "completed",
+              "pending",
+              "proposed",
+              "blocked",
+              "needs_review"
+            ]
+          },
+          "minimum_access_scope": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "acceptance_criteria": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "validation_required": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "documentation_required": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "risk_notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

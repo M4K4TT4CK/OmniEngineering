@@ -1,0 +1,91 @@
+{
+  "rulepack_id": "completion_workflow",
+  "version": "1.0.0",
+  "title": "Completion Workflow Rules",
+  "purpose": "Define the gates required before an AI-assisted task can be reported complete.",
+  "applies_to": [
+    "all_tasks",
+    "final_responses",
+    "handoff"
+  ],
+  "rules": [
+    {
+      "id": "completion.documentation_gate",
+      "severity": "required",
+      "statement": "Update affected documentation before reporting completion when behavior, setup, architecture, APIs, data models, configuration, deployment, or workflows change.",
+      "scope": [
+        "documentation",
+        "completion"
+      ]
+    },
+    {
+      "id": "completion.changelog_gate",
+      "severity": "required",
+      "statement": "Update CHANGELOG.md after each completed task or explicitly report why it is not applicable.",
+      "scope": [
+        "changelog",
+        "completion"
+      ],
+      "validation": {
+        "type": "file_exists",
+        "target": "CHANGELOG.md"
+      }
+    },
+    {
+      "id": "completion.requirements_registry",
+      "severity": "required",
+      "statement": "Update .ai/requirements/requirements.json when a requirement is added, completed, blocked, or materially changed.",
+      "scope": [
+        "requirements",
+        "completion"
+      ],
+      "validation": {
+        "type": "json_parse",
+        "target": ".ai/requirements/requirements.json"
+      }
+    },
+    {
+      "id": "completion.validation",
+      "severity": "required",
+      "statement": "Run the most relevant validation available after changes and report command results.",
+      "scope": [
+        "validation",
+        "completion"
+      ]
+    },
+    {
+      "id": "completion.rebuild",
+      "severity": "required",
+      "statement": "Run the configured build or rebuild command before marking implementation complete, or explain why it could not be run.",
+      "scope": [
+        "validation",
+        "build"
+      ]
+    },
+    {
+      "id": "completion.failure_status",
+      "severity": "required",
+      "statement": "If validation or rebuild fails, mark the task needs_review or blocked and include the failing command and relevant error.",
+      "scope": [
+        "validation",
+        "reporting"
+      ]
+    },
+    {
+      "id": "completion.no_unvalidated_success",
+      "severity": "required",
+      "statement": "Do not claim success if validation was skipped; explain why it was not run and identify residual risk.",
+      "scope": [
+        "reporting"
+      ]
+    },
+    {
+      "id": "completion.required_final_fields",
+      "severity": "required",
+      "statement": "Final output must include summary, completed requirements, pending or blocked requirements, files changed, validation summary, documentation summary, changelog summary, commit entry sentence, and pull request information.",
+      "scope": [
+        "final_response"
+      ]
+    }
+  ]
+}

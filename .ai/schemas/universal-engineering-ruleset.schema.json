@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omni-context.local/schemas/universal-engineering-ruleset.schema.json",
+  "title": "Universal Engineering Ruleset",
+  "type": "object",
+  "required": [
+    "prompt_title",
+    "version",
+    "purpose",
+    "agent_role",
+    "configuration",
+    "global_operating_principles",
+    "required_startup_sequence",
+    "requirement_template",
+    "implementation_rules",
+    "quality_standards",
+    "required_output_after_each_task",
+    "final_output_required",
+    "engineer_modification_instructions"
+  ],
+  "properties": {
+    "prompt_title": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "purpose": {
+      "type": "string"
+    },
+    "agent_role": {
+      "type": "object"
+    },
+    "configuration": {
+      "type": "object",
+      "required": [
+        "project_name",
+        "repository_type",
+        "primary_language_or_stack",
+        "package_manager",
+        "build_command",
+        "test_command",
+        "lint_command",
+        "typecheck_command",
+        "changelog_location",
+        "documentation_locations",
+        "branching_or_pr_standard",
+        "comment_style",
+        "requirement_id_prefix"
+      ],
+      "properties": {
+        "project_name": {
+          "type": "string"
+        },
+        "repository_type": {
+          "type": "string"
+        },
+        "primary_language_or_stack": {
+          "type": "string"
+        },
+        "package_manager": {
+          "type": "string"
+        },
+        "build_command": {
+          "type": "string"
+        },
+        "test_command": {
+          "type": "string"
+        },
+        "lint_command": {
+          "type": "string"
+        },
+        "typecheck_command": {
+          "type": "string"
+        },
+        "changelog_location": {
+          "type": "string"
+        },
+        "documentation_locations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "branching_or_pr_standard": {
+          "type": "string"
+        },
+        "comment_style": {
+          "type": "string"
+        },
+        "requirement_id_prefix": {
+          "type": "string",
+          "pattern": "^[A-Z]+$"
+        }
+      }
+    },
+    "global_operating_principles": {
+      "type": "object"
+    },
+    "required_startup_sequence": {
+      "type": "array"
+    },
+    "requirement_template": {
+      "type": "object"
+    },
+    "implementation_rules": {
+      "type": "array"
+    },
+    "quality_standards": {
+      "type": "object"
+    },
+    "required_output_after_each_task": {
+      "type": "object"
+    },
+    "final_output_required": {
+      "type": "object"
+    },
+    "engineer_modification_instructions": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": false
+}

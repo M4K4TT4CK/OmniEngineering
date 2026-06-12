@@ -1,0 +1,115 @@
+{
+  "rulepack_id": "controlled_implementation",
+  "version": "1.0.0",
+  "title": "Controlled Implementation Rules",
+  "purpose": "Keep implementation work scoped, traceable, conservative, and maintainable.",
+  "applies_to": [
+    "all_tasks",
+    "code_changes",
+    "configuration_changes",
+    "documentation_changes"
+  ],
+  "rules": [
+    {
+      "id": "controlled.requirement_id",
+      "severity": "required",
+      "statement": "Before changing anything, confirm or assign the active requirement ID using the configured prefix.",
+      "scope": [
+        "startup",
+        "traceability"
+      ],
+      "validation": {
+        "type": "requirement_registry_entry",
+        "target": ".ai/requirements/requirements.json"
+      }
+    },
+    {
+      "id": "controlled.minimum_scope",
+      "severity": "required",
+      "statement": "State the minimum access scope before inspecting files.",
+      "scope": [
+        "startup",
+        "inspection"
+      ]
+    },
+    {
+      "id": "controlled.targeted_access",
+      "severity": "required",
+      "statement": "Inspect only files, modules, components, functions, classes, tables, routes, tests, configurations, or documentation directly required for the active task.",
+      "scope": [
+        "inspection"
+      ]
+    },
+    {
+      "id": "controlled.no_broad_scan",
+      "severity": "required",
+      "statement": "Do not scan the entire repository unless the task cannot be completed safely without broader context.",
+      "scope": [
+        "inspection"
+      ]
+    },
+    {
+      "id": "controlled.scope_expansion_reason",
+      "severity": "required",
+      "statement": "If additional access becomes necessary, state what additional area is needed and why before expanding scope.",
+      "scope": [
+        "inspection",
+        "reporting"
+      ]
+    },
+    {
+      "id": "controlled.smallest_safe_change",
+      "severity": "required",
+      "statement": "Make the smallest safe maintainable change that satisfies the active requirement.",
+      "scope": [
+        "implementation"
+      ]
+    },
+    {
+      "id": "controlled.preserve_behavior",
+      "severity": "required",
+      "statement": "Preserve existing working behavior unless it conflicts with the active requirement.",
+      "scope": [
+        "implementation"
+      ]
+    },
+    {
+      "id": "controlled.no_unrelated_changes",
+      "severity": "required",
+      "statement": "Do not modify unrelated files, deployment scripts, build scripts, automation, infrastructure, generated dependency folders, secrets, credentials, or local environment files.",
+      "scope": [
+        "implementation",
+        "security"
+      ]
+    },
+    {
+      "id": "controlled.no_unjustified_dependencies",
+      "severity": "required",
+      "statement": "Do not introduce dependencies, schema changes, destructive data changes, or public interface changes unless the active requirement explicitly requires them.",
+      "scope": [
+        "implementation",
+        "architecture",
+        "data"
+      ]
+    },
+    {
+      "id": "controlled.maintainability",
+      "severity": "required",
+      "statement": "Use clear names, focused functions, explicit data contracts, separated concerns, and existing project conventions.",
+      "scope": [
+        "implementation",
+        "quality"
+      ]
+    },
+    {
+      "id": "controlled_implementation.low_friction_rule_authoring",
+      "severity": "recommended",
+      "statement": "Prefer low-friction structured authoring commands for routine rule and requirement updates instead of manual JSON editing when the CLI can express the change safely.",
+      "scope": [
+        "authoring",
+        "maintenance",
+        "rulepacks"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "rulepack_id": "hci_ui_rules",
+  "version": "1.0.0",
+  "title": "Interface and Usability Rules",
+  "purpose": "Keep user-facing changes clear, usable, accessible, responsive, and consistent with the existing product experience.",
+  "applies_to": [
+    "ui",
+    "cli",
+    "human_facing_workflows",
+    "accessibility"
+  ],
+  "rules": [
+    {
+      "id": "hci.reduce_cognitive_load",
+      "severity": "required",
+      "statement": "Design workflows that reduce cognitive load and make the next action clear.",
+      "scope": [
+        "usability"
+      ]
+    },
+    {
+      "id": "hci.status_feedback",
+      "severity": "required",
+      "statement": "Make status, progress, errors, empty states, disabled states, loading states, and success states visible and understandable.",
+      "scope": [
+        "feedback",
+        "usability"
+      ]
+    },
+    {
+      "id": "hci.prevent_slips",
+      "severity": "required",
+      "statement": "Prevent costly accidental actions with confirmation, undo, disabled states, input constraints, or safe defaults.",
+      "scope": [
+        "error_prevention"
+      ]
+    },
+    {
+      "id": "hci.preserve_input",
+      "severity": "required",
+      "statement": "Preserve user-entered work when validation fails.",
+      "scope": [
+        "forms",
+        "validation"
+      ]
+    },
+    {
+      "id": "hci.accessibility",
+      "severity": "required",
+      "statement": "Use semantic controls, keyboard-accessible workflows, sufficient contrast, readable text, accessible names, and non-color-only state communication where the platform supports it.",
+      "scope": [
+        "accessibility"
+      ]
+    },
+    {
+      "id": "hci.responsive_layout",
+      "severity": "required",
+      "statement": "Design layouts that remain usable across expected viewport sizes, device classes, and input methods without overlapping or hidden critical content.",
+      "scope": [
+        "responsive_design"
+      ]
+    },
+    {
+      "id": "hci.existing_design_system",
+      "severity": "required",
+      "statement": "Follow the existing design system, component library, and platform conventions already present in the project.",
+      "scope": [
+        "implementation",
+        "consistency"
+      ]
+    }
+  ]
+}

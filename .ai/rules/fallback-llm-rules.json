@@ -1,0 +1,79 @@
+{
+  "rulepack_id": "fallback_llm_rules",
+  "version": "1.0.0",
+  "title": "Fallback LLM Rules",
+  "purpose": "Provide a compact operating contract when an assistant cannot access or fails to follow the full .ai configuration.",
+  "applies_to": [
+    "assistant_entrypoints",
+    "fallback_behavior",
+    "all_tasks"
+  ],
+  "rules": [
+    {
+      "id": "fallback.read_sources",
+      "severity": "required",
+      "statement": "Read .ai/core-context.md, .ai/rules/universal-engineering-ruleset.json, .ai/rules/controlled-implementation.json, .ai/rules/completion-workflow.json, .ai/project-configuration.md, and .ai/requirements/requirements.json before editing when available.",
+      "scope": [
+        "startup"
+      ]
+    },
+    {
+      "id": "fallback.report_missing_sources",
+      "severity": "required",
+      "statement": "If any required file is unavailable, say which file is unavailable and use the fallback contract as the controlling instruction set.",
+      "scope": [
+        "startup",
+        "reporting"
+      ]
+    },
+    {
+      "id": "fallback.requirement_id",
+      "severity": "required",
+      "statement": "Assign or confirm a REQ-### requirement ID before work begins.",
+      "scope": [
+        "traceability"
+      ]
+    },
+    {
+      "id": "fallback.minimum_scope",
+      "severity": "required",
+      "statement": "State the minimum access scope before inspecting files.",
+      "scope": [
+        "inspection"
+      ]
+    },
+    {
+      "id": "fallback.security_boundary",
+      "severity": "required",
+      "statement": "Do not read or expose .env files, private keys, certificates, credentials, database files, logs, build artifacts, dependency folders, cache directories, or anything listed in .ai/.ignore.",
+      "scope": [
+        "security",
+        "inspection"
+      ]
+    },
+    {
+      "id": "fallback.no_unrelated_changes",
+      "severity": "required",
+      "statement": "Do not modify unrelated files, deployment scripts, infrastructure, generated dependency folders, secrets, credentials, or local environment files.",
+      "scope": [
+        "implementation"
+      ]
+    },
+    {
+      "id": "fallback.validation",
+      "severity": "required",
+      "statement": "Run relevant validation. For OmniContext workspace changes, run python3 make_ai.py doctor; when assistant entrypoint files change, run python3 make_ai.py sync.",
+      "scope": [
+        "validation"
+      ]
+    },
+    {
+      "id": "fallback.final_output",
+      "severity": "required",
+      "statement": "Final output must include requirement ID and status, files changed, validation performed, documentation and changelog status, risks or follow-ups, a commit entry sentence, and pull request information.",
+      "scope": [
+        "final_response"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,107 @@
+{
+  "rulepack_id": "data_governance",
+  "version": "1.0.0",
+  "title": "Data Governance Rules",
+  "purpose": "Bound data-related work across contracts, validation, transformations, privacy, persistence, migrations, and testing.",
+  "applies_to": [
+    "data_structures",
+    "records",
+    "schemas",
+    "files",
+    "events",
+    "imports",
+    "exports",
+    "transformations",
+    "persistence"
+  ],
+  "rules": [
+    {
+      "id": "data.scope_boundary",
+      "severity": "required",
+      "statement": "Identify the exact data boundary before making changes: input, output, storage, transport, transformation, display, or deletion.",
+      "scope": [
+        "data",
+        "inspection"
+      ]
+    },
+    {
+      "id": "data.no_unrelated_data_access",
+      "severity": "required",
+      "statement": "Do not inspect unrelated production data, logs, exports, databases, backups, analytics stores, schemas, migrations, fixtures, APIs, or transforms.",
+      "scope": [
+        "data",
+        "privacy"
+      ]
+    },
+    {
+      "id": "data.contract_preservation",
+      "severity": "required",
+      "statement": "Preserve field names, types, nullability, units, encoding, time zone, identifiers, ordering, and cardinality unless the requirement changes them.",
+      "scope": [
+        "contracts",
+        "data"
+      ]
+    },
+    {
+      "id": "data.contract_docs",
+      "severity": "required",
+      "statement": "Document contract changes in API docs, schema docs, data model docs, migration notes, or operational docs.",
+      "scope": [
+        "contracts",
+        "documentation"
+      ]
+    },
+    {
+      "id": "data.boundary_validation",
+      "severity": "required",
+      "statement": "Validate incoming and outgoing data at system boundaries such as APIs, file exports, queues, event streams, reports, or persistence boundaries.",
+      "scope": [
+        "validation"
+      ]
+    },
+    {
+      "id": "data.no_silent_drop",
+      "severity": "required",
+      "statement": "Do not silently accept malformed data or silently drop fields, records, or errors.",
+      "scope": [
+        "validation",
+        "transformation"
+      ]
+    },
+    {
+      "id": "data.structured_parsers",
+      "severity": "recommended",
+      "statement": "Prefer structured parsers for structured formats such as JSON, YAML, CSV, XML, TOML, SQL, HTML, known logs, messages, events, and reports.",
+      "scope": [
+        "parsing",
+        "transformation"
+      ]
+    },
+    {
+      "id": "data.privacy",
+      "severity": "required",
+      "statement": "Do not expose secrets, credentials, tokens, personal data, protected records, customer data, or internal-only identifiers in logs, prompts, generated examples, fixtures, screenshots, or documentation.",
+      "scope": [
+        "privacy",
+        "security"
+      ]
+    },
+    {
+      "id": "data.migration_safety",
+      "severity": "required",
+      "statement": "Schema, migration, retention, deletion, and backfill changes require explicit requirement coverage and should be reversible where possible.",
+      "scope": [
+        "migration",
+        "persistence"
+      ]
+    },
+    {
+      "id": "data.testing",
+      "severity": "required",
+      "statement": "Test changed data behavior, validation paths, edge cases, representative success cases, and destructive or privacy-sensitive behavior when applicable.",
+      "scope": [
+        "testing"
+      ]
+    }
+  ]
+}

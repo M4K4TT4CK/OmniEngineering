@@ -1,0 +1,300 @@
+{
+  "version": "1.0.0",
+  "requirement_id_prefix": "REQ",
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "category": "AI workspace ruleset",
+      "title": "Add universal engineering ruleset",
+      "description": "Create the controlling OmniContext engineering ruleset and align the workspace instructions to it.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        ".ai/core-context.md",
+        ".ai/rules/universal-engineering-ruleset.json",
+        ".ai/rules/controlled-implementation.md",
+        ".ai/rules/completion-workflow.md",
+        ".ai/project-configuration.md",
+        "make_ai.py",
+        "CLAUDE.md",
+        ".cursorrules",
+        ".github/copilot-instructions.md",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "The global ruleset exists as a framework-agnostic source of truth.",
+        "Assistant entrypoints point to the .ai directory.",
+        "Completion workflow requires validation, documentation, changelog, and reporting."
+      ],
+      "validation_required": [
+        "json",
+        "python_compile",
+        "bootstrap"
+      ],
+      "documentation_required": [
+        "changelog",
+        "readme"
+      ],
+      "risk_notes": [
+        "Project-specific placeholders must be filled before use in a target repository."
+      ]
+    },
+    {
+      "id": "REQ-002",
+      "category": "Documentation",
+      "title": "Create OmniContext README and visual",
+      "description": "Build the public-facing README around OmniContext and include an architecture diagram.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "README.md",
+        "assets/omni-context.svg",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "README explains the OmniContext problem, pattern, setup, daily use, and validation workflow.",
+        "README includes an SVG architecture diagram.",
+        "Changelog records the documentation update."
+      ],
+      "validation_required": [
+        "svg_xml_parse",
+        "json",
+        "python_compile",
+        "bootstrap"
+      ],
+      "documentation_required": [
+        "readme",
+        "changelog"
+      ],
+      "risk_notes": [
+        "License text remains project-specific and should be filled before publication."
+      ]
+    },
+    {
+      "id": "REQ-003",
+      "category": "Executable validation",
+      "title": "Add OmniContext doctor and requirement registry",
+      "description": "Make the workspace more powerful by adding a dependency-free CLI doctor, requirement registry, and schema-backed validation documents.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        ".ai/requirements/requirements.json",
+        ".ai/schemas/requirements.schema.json",
+        ".ai/schemas/universal-engineering-ruleset.schema.json",
+        "README.md",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "CLI supports sync, doctor, and validate commands.",
+        "Doctor validates required files, JSON parsing, ruleset keys, requirements structure, assistant pointer drift, README asset reference, and changelog presence.",
+        "Requirements registry tracks completed project requirements.",
+        "README documents the new CLI workflow."
+      ],
+      "validation_required": [
+        "doctor",
+        "json",
+        "python_compile",
+        "bootstrap"
+      ],
+      "documentation_required": [
+        "readme",
+        "changelog"
+      ],
+      "risk_notes": [
+        "Doctor currently implements lightweight schema checks with the Python standard library rather than a full JSON Schema engine."
+      ]
+    },
+    {
+      "id": "REQ-004",
+      "category": "Assistant fallback rules",
+      "title": "Embed fallback rules for all LLM entrypoints",
+      "description": "Add explicit fallback operating rules to Claude, Cursor, and Copilot entrypoint files in case an assistant skips or cannot follow the primary .ai configuration.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "CLAUDE.md",
+        ".cursorrules",
+        ".github/copilot-instructions.md",
+        ".ai/rules/fallback-llm-rules.md",
+        "make_ai.py",
+        ".ai/requirements/requirements.json",
+        "README.md",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "A shared fallback rules file exists inside .ai/rules.",
+        "All assistant entrypoint files include specific fallback rules.",
+        "The sync command regenerates assistant entrypoints with fallback rules.",
+        "Doctor validates the fallback rules file as a required source-of-truth file.",
+        "README and changelog document the fallback behavior."
+      ],
+      "validation_required": [
+        "doctor",
+        "validate",
+        "sync",
+        "json",
+        "python_compile"
+      ],
+      "documentation_required": [
+        "readme",
+        "changelog"
+      ],
+      "risk_notes": [
+        "Fallback rules intentionally duplicate core constraints in assistant entrypoints to reduce skipped-context risk."
+      ]
+    },
+    {
+      "id": "REQ-005",
+      "category": "Documentation clarity",
+      "title": "Clarify OmniContext purpose and make_ai role",
+      "description": "Update README positioning to explain the unique context-drift use case and clarify that make_ai.py is optional maintenance tooling, not required for normal cloned-repo usage.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "README.md",
+        "make_ai.py",
+        ".ai/requirements/requirements.json",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "README explains OmniContext as a repo-local control plane for AI coding assistants.",
+        "README explicitly states the unique problem is AI context drift across tools.",
+        "README explains that cloned repositories do not require make_ai.py for normal usage.",
+        "make_ai.py help text describes the script as maintenance tooling.",
+        "Changelog records the documentation clarification."
+      ],
+      "validation_required": [
+        "doctor",
+        "validate",
+        "json",
+        "python_compile"
+      ],
+      "documentation_required": [
+        "readme",
+        "changelog"
+      ],
+      "risk_notes": [
+        "Clarification avoids presenting the maintenance script as mandatory setup for users who clone a complete repository."
+      ]
+    },
+    {
+      "id": "REQ-006",
+      "category": "Ruleset refinement",
+      "title": "Replace Python data rules with data governance rules",
+      "description": "Rename the Python-specific data rule file and refocus it on bounded, framework-agnostic data governance.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        ".ai/rules/python-data.md",
+        ".ai/rules/data-governance.md",
+        "make_ai.py",
+        "README.md",
+        ".ai/requirements/requirements.json",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "Python-specific data rules are removed from the universal ruleset surface.",
+        "A data-governance rule file covers data boundaries, contracts, validation, transformations, privacy, persistence, migrations, and testing.",
+        "Doctor validates the renamed rule file as required.",
+        "README references the new data governance rule name.",
+        "Changelog records the ruleset refinement."
+      ],
+      "validation_required": [
+        "doctor",
+        "validate",
+        "json",
+        "python_compile"
+      ],
+      "documentation_required": [
+        "readme",
+        "changelog"
+      ],
+      "risk_notes": [
+        "The rule is intentionally bounded to data behavior and avoids language-specific implementation guidance."
+      ]
+    },
+    {
+      "id": "REQ-007",
+      "category": "Structured rulepacks",
+      "title": "Convert enforceable rule files to JSON",
+      "description": "Replace Markdown rule implementations with schema-backed JSON rulepacks so doctor can validate rule IDs, severities, scopes, and statements.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        ".ai/rules/controlled-implementation.md",
+        ".ai/rules/controlled-implementation.json",
+        ".ai/rules/completion-workflow.md",
+        ".ai/rules/completion-workflow.json",
+        ".ai/rules/data-governance.md",
+        ".ai/rules/data-governance.json",
+        ".ai/rules/fallback-llm-rules.md",
+        ".ai/rules/fallback-llm-rules.json",
+        ".ai/rules/hci-ui-rules.md",
+        ".ai/rules/hci-ui-rules.json",
+        ".ai/rules/oop-design.md",
+        ".ai/rules/oop-design.json",
+        ".ai/schemas/rulepack.schema.json",
+        "make_ai.py",
+        "README.md",
+        ".ai/requirements/requirements.json",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "Enforceable companion rule files are represented as JSON rulepacks.",
+        "Old Markdown rule implementation files are removed from .ai/rules.",
+        "Each JSON rulepack contains stable rule IDs, severities, scopes, and statements.",
+        "A rulepack schema documents the structured rule format.",
+        "Doctor validates structured rulepacks.",
+        "README documents JSON rulepacks instead of Markdown rule implementations."
+      ],
+      "validation_required": [
+        "doctor",
+        "validate",
+        "sync",
+        "json",
+        "python_compile"
+      ],
+      "documentation_required": [
+        "readme",
+        "changelog"
+      ],
+      "risk_notes": [
+        "Markdown remains appropriate for README and core human-facing overview files; enforceable policy is now JSON."
+      ]
+    },
+    {
+      "id": "REQ-008",
+      "category": "Authoring interface",
+      "title": "Add low-friction rule and requirement editing",
+      "description": "Create an easy CLI interface for adding requirements and rulepack rules without manually editing long JSON files.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        "README.md",
+        ".ai/requirements/requirements.json",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "CLI can add requirements with defaults",
+        "CLI can add rules to rulepacks with defaults",
+        "README documents the authoring interface",
+        "Doctor validates the resulting JSON"
+      ],
+      "validation_required": [
+        "doctor",
+        "validate",
+        "json",
+        "python_compile"
+      ],
+      "documentation_required": [
+        "readme",
+        "changelog"
+      ],
+      "risk_notes": [
+        "CLI intentionally stays lightweight and flag-based to avoid adding dependencies"
+      ]
+    }
+  ]
+}
