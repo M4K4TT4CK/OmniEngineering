@@ -39,8 +39,8 @@ these fallback rules exactly:
 13. Update `.ai/requirements/requirements.json` when a requirement is added,
     completed, blocked, or materially changed.
 14. Run relevant validation. For OmniContext workspace changes, run
-    `python3 make_ai.py doctor`; when assistant entrypoint files change, run
-    `python3 make_ai.py sync`.
+    `omni doctor` or `./omni doctor`; when assistant entrypoint files change,
+    run `omni sync` or `./omni sync`.
 15. Do not claim completion if validation was skipped. Explain why it was not
     run.
 16. Final output must include requirement ID and status, files changed,

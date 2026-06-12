@@ -2,6 +2,7 @@ import argparse
 import json
 import re
 import sys
+import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -78,8 +79,8 @@ these fallback rules exactly:
 13. Update `.ai/requirements/requirements.json` when a requirement is added,
     completed, blocked, or materially changed.
 14. Run relevant validation. For OmniContext workspace changes, run
-    `python3 make_ai.py doctor`; when assistant entrypoint files change, run
-    `python3 make_ai.py sync`.
+    `omni doctor` or `./omni doctor`; when assistant entrypoint files change,
+    run `omni sync` or `./omni sync`.
 15. Do not claim completion if validation was skipped. Explain why it was not
     run.
 16. Final output must include requirement ID and status, files changed,
@@ -473,6 +474,35 @@ def validate_markdown_assets(report: DoctorReport) -> None:
         report.warning("CHANGELOG.md is missing")
 
 
+def validate_cli_entrypoints(report: DoctorReport) -> None:
+    omni_path = Path("omni")
+    if not omni_path.is_file():
+        report.error("Missing repo-local omni command shim")
+    else:
+        omni_text = omni_path.read_text(encoding="utf-8")
+        if "from make_ai import main" not in omni_text:
+            report.error("Repo-local omni command does not delegate to make_ai.main")
+        else:
+            report.pass_check("Repo-local omni command shim exists")
+
+    pyproject_path = Path("pyproject.toml")
+    if not pyproject_path.is_file():
+        report.error("Missing pyproject.toml for installable omni command")
+        return
+
+    try:
+        pyproject = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
+    except tomllib.TOMLDecodeError as exc:
+        report.error(f"Invalid pyproject.toml: line {exc.lineno}, column {exc.colno}")
+        return
+
+    script = pyproject.get("project", {}).get("scripts", {}).get("omni")
+    if script != "make_ai:main":
+        report.error("pyproject.toml must define project.scripts.omni = make_ai:main")
+    else:
+        report.pass_check("Installable omni console script is configured")
+
+
 def find_placeholders(value: Any) -> set[str]:
     placeholders: set[str] = set()
     if isinstance(value, str):
@@ -503,6 +533,7 @@ def run_doctor() -> int:
     validate_requirements(parsed.get(".ai/requirements/requirements.json"), report)
     validate_assistant_pointers(report)
     validate_markdown_assets(report)
+    validate_cli_entrypoints(report)
     report.print()
     return 0 if report.ok else 1
 

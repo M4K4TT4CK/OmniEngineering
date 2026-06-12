@@ -295,6 +295,48 @@
       "risk_notes": [
         "CLI intentionally stays lightweight and flag-based to avoid adding dependencies"
       ]
+    },
+    {
+      "id": "REQ-009",
+      "category": "CLI ergonomics",
+      "title": "Add omni command entrypoint",
+      "description": "Provide an easy omni command so users can run omni doctor and omni sync instead of python3 make_ai.py doctor and python3 make_ai.py sync.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "omni",
+        "pyproject.toml",
+        "make_ai.py",
+        "README.md",
+        ".ai/requirements/requirements.json",
+        "CHANGELOG.md",
+        "CLAUDE.md",
+        ".cursorrules",
+        ".github/copilot-instructions.md"
+      ],
+      "acceptance_criteria": [
+        "Repo-local ./omni command works",
+        "Editable install exposes omni console script",
+        "Doctor validates command entrypoints",
+        "README documents omni doctor and omni sync",
+        "Fallback instructions use omni commands"
+      ],
+      "validation_required": [
+        "doctor",
+        "validate",
+        "sync",
+        "json",
+        "python_compile",
+        "omni_doctor",
+        "omni_sync"
+      ],
+      "documentation_required": [
+        "readme",
+        "changelog"
+      ],
+      "risk_notes": [
+        "Exact omni command without ./ requires installing the package or adding the repo root to PATH"
+      ]
     }
   ]
 }

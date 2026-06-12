@@ -66,6 +66,8 @@ team into one vendor or editor.
 ├── .github/
 │   └── copilot-instructions.md
 ├── CHANGELOG.md
+├── omni
+├── pyproject.toml
 └── make_ai.py
 ```
 
@@ -118,10 +120,10 @@ assistant to the shared `.ai/` rules.
 Use `make_ai.py` only when you want to maintain or verify the OmniContext
 workspace itself:
 
-- Run `python3 make_ai.py doctor` to check whether the workspace is healthy.
-- Run `python3 make_ai.py sync` after editing fallback rules or assistant
+- Run `./omni doctor` to check whether the workspace is healthy.
+- Run `./omni sync` after editing fallback rules or assistant
   entrypoint content.
-- Run `python3 make_ai.py validate` as an alias for `doctor`.
+- Run `./omni validate` as an alias for `doctor`.
 
 In other words: `.ai/` is the product. `make_ai.py` is the maintenance tool.
 
@@ -229,13 +231,31 @@ the completion workflow in .ai/rules/completion-workflow.json.
 
 ## Maintenance CLI
 
-`make_ai.py` is a small dependency-free maintenance helper. It is not required
-for normal day-to-day AI usage after the files are already present in a repo.
+`omni` is a small dependency-free maintenance helper. It is not required for
+normal day-to-day AI usage after the files are already present in a repo.
+It requires Python 3.11 or newer.
 
 Use it when you are changing the OmniContext configuration itself.
 
+Run it directly from the repository:
+
 ```bash
-python3 make_ai.py sync
+./omni doctor
+./omni sync
+```
+
+Or install the command once from the repository root:
+
+```bash
+python3 -m pip install -e .
+```
+
+After that, use:
+
+```bash
+omni doctor
+omni sync
+omni validate
 ```
 
 `sync` verifies that the required `.ai/` source-of-truth files exist, then
@@ -246,7 +266,7 @@ It does not overwrite the `.ai/` rules. The rules are the source of truth.
 Run the doctor before publishing, copying, or adapting the workspace:
 
 ```bash
-python3 make_ai.py doctor
+omni doctor
 ```
 
 The doctor checks:
@@ -264,7 +284,7 @@ The doctor checks:
 `validate` is an alias for `doctor`:
 
 ```bash
-python3 make_ai.py validate
+omni validate
 ```
 
 ## Low-Friction Editing
@@ -275,7 +295,7 @@ Use the CLI for small, safe additions.
 Add a requirement:
 
 ```bash
-python3 make_ai.py requirement add \
+omni requirement add \
   --title "Add release checklist" \
   --description "Create a repeatable release checklist for AI-assisted changes." \
   --category "Workflow" \
@@ -289,7 +309,7 @@ If `--id` is omitted, OmniContext assigns the next `REQ-###` ID.
 Add a rule to a rulepack:
 
 ```bash
-python3 make_ai.py rule add \
+omni rule add \
   --rulepack completion \
   --name release_checklist \
   --statement "Use the release checklist before publishing a completed change." \
@@ -311,7 +331,7 @@ Rulepack aliases:
 After edits, run:
 
 ```bash
-python3 make_ai.py doctor
+omni doctor
 ```
 
 ## Fallback Rules for LLMs
@@ -331,8 +351,8 @@ The fallback contract tells every assistant to:
 - Avoid new dependencies, schema changes, destructive data changes, and public
   interface changes unless explicitly required.
 - Update docs, changelog, and requirements when work changes behavior or status.
-- Run `python3 make_ai.py doctor` for workspace changes.
-- Run `python3 make_ai.py sync` when assistant entrypoint files change.
+- Run `omni doctor` for workspace changes.
+- Run `omni sync` when assistant entrypoint files change.
 - Report validation, risks, commit sentence, and pull request information.
 
 The shared source for this behavior is:

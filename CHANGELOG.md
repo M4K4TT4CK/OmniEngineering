@@ -4,6 +4,10 @@
 
 ### Completed
 
+- `REQ-009` | CLI ergonomics | Added a repo-local `omni` command shim and
+  installable `pyproject.toml` console script so users can run `omni doctor`,
+  `omni sync`, and other maintenance commands without typing
+  `python3 make_ai.py`.
 - `REQ-008` | Authoring interface | Added low-friction CLI commands for
   appending requirements and structured rulepack rules without hand-editing
   large JSON files, documented the workflow, and used the new commands to add
