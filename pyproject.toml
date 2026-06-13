@@ -7,7 +7,7 @@ name = "omnicontext-workspace"
 version = "0.1.0"
 description = "Repo-local control plane for AI coding assistant context."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 
 [project.scripts]
 omni = "make_ai:main"

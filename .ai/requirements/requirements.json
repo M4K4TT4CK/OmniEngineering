@@ -337,6 +337,40 @@
       "risk_notes": [
         "Exact omni command without ./ requires installing the package or adding the repo root to PATH"
       ]
+    },
+    {
+      "id": "REQ-010",
+      "category": "Compatibility",
+      "title": "Remove tomllib dependency",
+      "description": "Remove the Python 3.11-only tomllib import so editors using Python 3.10 do not report unresolved imports.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        "pyproject.toml",
+        "README.md",
+        ".ai/requirements/requirements.json",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "make_ai.py has no tomllib import",
+        "Doctor still validates pyproject console script",
+        "Package metadata supports Python 3.10 or newer",
+        "Validation passes"
+      ],
+      "validation_required": [
+        "doctor",
+        "validate",
+        "json",
+        "python_compile"
+      ],
+      "documentation_required": [
+        "readme",
+        "changelog"
+      ],
+      "risk_notes": [
+        "pyproject validation is intentionally lightweight and checks the expected console script line rather than fully parsing TOML"
+      ]
     }
   ]
 }

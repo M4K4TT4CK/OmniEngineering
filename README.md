@@ -233,7 +233,7 @@ the completion workflow in .ai/rules/completion-workflow.json.
 
 `omni` is a small dependency-free maintenance helper. It is not required for
 normal day-to-day AI usage after the files are already present in a repo.
-It requires Python 3.11 or newer.
+It requires Python 3.10 or newer.
 
 Use it when you are changing the OmniContext configuration itself.
 

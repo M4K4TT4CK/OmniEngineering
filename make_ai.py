@@ -2,7 +2,6 @@ import argparse
 import json
 import re
 import sys
-import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -490,14 +489,8 @@ def validate_cli_entrypoints(report: DoctorReport) -> None:
         report.error("Missing pyproject.toml for installable omni command")
         return
 
-    try:
-        pyproject = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
-    except tomllib.TOMLDecodeError as exc:
-        report.error(f"Invalid pyproject.toml: line {exc.lineno}, column {exc.colno}")
-        return
-
-    script = pyproject.get("project", {}).get("scripts", {}).get("omni")
-    if script != "make_ai:main":
+    pyproject_text = pyproject_path.read_text(encoding="utf-8")
+    if not re.search(r'(?m)^omni\s*=\s*"make_ai:main"\s*$', pyproject_text):
         report.error("pyproject.toml must define project.scripts.omni = make_ai:main")
     else:
         report.pass_check("Installable omni console script is configured")

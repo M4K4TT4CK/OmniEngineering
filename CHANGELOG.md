@@ -4,6 +4,9 @@
 
 ### Completed
 
+- `REQ-010` | Compatibility | Removed the Python 3.11-only `tomllib`
+  dependency from the maintenance CLI, restored Python 3.10 compatibility, and
+  kept pyproject console-script validation with a lightweight text check.
 - `REQ-009` | CLI ergonomics | Added a repo-local `omni` command shim and
   installable `pyproject.toml` console script so users can run `omni doctor`,
   `omni sync`, and other maintenance commands without typing
