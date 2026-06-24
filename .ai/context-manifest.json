@@ -1,0 +1,138 @@
+{
+  "version": "1.0.0",
+  "purpose": "Machine-readable OmniContext loading order for any local or hosted LLM.",
+  "entrypoints": {
+    "universal": "LLM_CONTEXT.md",
+    "codex": "AGENTS.md",
+    "claude_code": "CLAUDE.md",
+    "cursor": ".cursorrules",
+    "github_copilot": ".github/copilot-instructions.md",
+    "kiro": ".kiro/steering/omnicontext.md",
+    "model_router": ".ai/adapters/model-router.md",
+    "openrouter": ".ai/adapters/openrouter.md"
+  },
+  "entrypoint_sources": {
+    "universal": ".ai/entrypoints/universal.md",
+    "codex": ".ai/entrypoints/codex.md",
+    "claude_code": ".ai/entrypoints/claude.md",
+    "cursor": ".ai/entrypoints/cursor.md",
+    "github_copilot": ".ai/entrypoints/copilot.md",
+    "kiro": ".ai/entrypoints/kiro.md",
+    "fallback_contract": ".ai/entrypoints/fallback-contract.md"
+  },
+  "indexes": {
+    "adapters": ".ai/adapters/README.md",
+    "playbooks": ".ai/playbooks/README.md",
+    "checklists": ".ai/checklists/README.md",
+    "swebok": ".ai/knowledge/swebok/README.md"
+  },
+  "adapter_prompts": {
+    "generic_llm": ".ai/adapters/generic-llm.md",
+    "local_model": ".ai/adapters/local-model.md",
+    "model_router": ".ai/adapters/model-router.md",
+    "openrouter": ".ai/adapters/openrouter.md",
+    "deepseek": ".ai/adapters/deepseek.md",
+    "kiro": ".ai/adapters/kiro.md"
+  },
+  "ignore_files": {
+    "prompt_exclusions": ".ai/.ignore",
+    "cursor": ".cursorignore",
+    "git": ".gitignore"
+  },
+  "project_map": ".ai/project-map.md",
+  "required_read_order": [
+    ".ai/core-context.md",
+    ".ai/project-configuration.md",
+    ".ai/requirements/requirements.json",
+    ".ai/rules/universal-engineering-ruleset.json",
+    ".ai/rules/controlled-implementation.json",
+    ".ai/rules/completion-workflow.json",
+    ".ai/rules/fallback-llm-rules.json",
+    ".ai/rules/data-governance.json",
+    ".ai/rules/oop-design.json",
+    ".ai/rules/hci-ui-rules.json"
+  ],
+  "task_playbooks": {
+    "planning": ".ai/playbooks/planning.md",
+    "implementation": ".ai/playbooks/implementation.md",
+    "review": ".ai/playbooks/review.md",
+    "testing": ".ai/playbooks/testing.md",
+    "debugging": ".ai/playbooks/debugging.md",
+    "refactoring": ".ai/playbooks/refactoring.md",
+    "migration": ".ai/playbooks/migration.md",
+    "release": ".ai/playbooks/release.md",
+    "handoff": ".ai/playbooks/handoff.md"
+  },
+  "checklists": {
+    "pre_implementation": ".ai/checklists/pre-implementation.md",
+    "pre_completion": ".ai/checklists/pre-completion.md",
+    "public_release": ".ai/checklists/public-release.md",
+    "security": ".ai/checklists/security.md"
+  },
+  "knowledge_packs": {
+    "swebok_software_requirements": ".ai/knowledge/swebok/software-requirements.md",
+    "swebok_software_design": ".ai/knowledge/swebok/software-design.md",
+    "swebok_software_construction": ".ai/knowledge/swebok/software-construction.md",
+    "swebok_software_testing": ".ai/knowledge/swebok/software-testing.md",
+    "swebok_software_maintenance": ".ai/knowledge/swebok/software-maintenance.md",
+    "swebok_software_configuration_management": ".ai/knowledge/swebok/software-configuration-management.md",
+    "swebok_software_engineering_management": ".ai/knowledge/swebok/software-engineering-management.md",
+    "swebok_software_engineering_process": ".ai/knowledge/swebok/software-engineering-process.md",
+    "swebok_software_engineering_models_and_methods": ".ai/knowledge/swebok/software-engineering-models-and-methods.md",
+    "swebok_software_quality": ".ai/knowledge/swebok/software-quality.md",
+    "swebok_software_engineering_professional_practice": ".ai/knowledge/swebok/software-engineering-professional-practice.md",
+    "swebok_software_engineering_economics": ".ai/knowledge/swebok/software-engineering-economics.md",
+    "swebok_computing_foundations": ".ai/knowledge/swebok/computing-foundations.md",
+    "swebok_mathematical_foundations": ".ai/knowledge/swebok/mathematical-foundations.md",
+    "swebok_engineering_foundations": ".ai/knowledge/swebok/engineering-foundations.md",
+    "requirements_quality_checklist": ".ai/knowledge/swebok/requirements-quality-checklist.md",
+    "design_quality_checklist": ".ai/knowledge/swebok/design-quality-checklist.md",
+    "construction_quality_checklist": ".ai/knowledge/swebok/construction-quality-checklist.md",
+    "testing_quality_checklist": ".ai/knowledge/swebok/testing-quality-checklist.md",
+    "maintenance_impact_checklist": ".ai/knowledge/swebok/maintenance-impact-checklist.md",
+    "scm_checklist": ".ai/knowledge/swebok/scm-checklist.md",
+    "engineering_management_checklist": ".ai/knowledge/swebok/engineering-management-checklist.md",
+    "process_tailoring_checklist": ".ai/knowledge/swebok/process-tailoring-checklist.md",
+    "model_method_selection_checklist": ".ai/knowledge/swebok/model-method-selection-checklist.md",
+    "quality_attribute_checklist": ".ai/knowledge/swebok/quality-attribute-checklist.md",
+    "professional_practice_checklist": ".ai/knowledge/swebok/professional-practice-checklist.md",
+    "economics_decision_checklist": ".ai/knowledge/swebok/economics-decision-checklist.md",
+    "computing_foundations_checklist": ".ai/knowledge/swebok/computing-foundations-checklist.md",
+    "mathematical_reasoning_checklist": ".ai/knowledge/swebok/mathematical-reasoning-checklist.md",
+    "engineering_foundations_checklist": ".ai/knowledge/swebok/engineering-foundations-checklist.md",
+    "srs_template": ".ai/knowledge/swebok/srs-template.md",
+    "design_brief_template": ".ai/knowledge/swebok/design-brief-template.md",
+    "test_plan_template": ".ai/knowledge/swebok/test-plan-template.md",
+    "maintenance_plan_template": ".ai/knowledge/swebok/maintenance-plan-template.md",
+    "engineering_plan_template": ".ai/knowledge/swebok/engineering-plan-template.md",
+    "process_improvement_template": ".ai/knowledge/swebok/process-improvement-template.md",
+    "quality_plan_template": ".ai/knowledge/swebok/quality-plan-template.md",
+    "tradeoff_analysis_template": ".ai/knowledge/swebok/tradeoff-analysis-template.md"
+  },
+  "security_exclusions": ".ai/.ignore",
+  "validation_commands": [
+    "./omni doctor",
+    "./omni validate"
+  ],
+  "sync_command": "./omni sync",
+  "fallback_contract_source": ".ai/entrypoints/fallback-contract.md",
+  "context_retention_strategy": {
+    "small_context_models": [
+      "Read LLM_CONTEXT.md first.",
+      "Read .ai/core-context.md and .ai/project-configuration.md.",
+      "Read only the rulepacks relevant to the active task.",
+      "Always read .ai/requirements/requirements.json before assigning or completing a requirement."
+    ],
+    "model_router_gateways": [
+      "Do not assume the selected model has prior repository memory.",
+      "Send LLM_CONTEXT.md or its distilled contents in the system/developer message.",
+      "Include the active requirement ID, minimum access scope, and relevant rulepack summaries in each new routed session.",
+      "If the router falls back to a different model, require the replacement model to reload the same manifest-driven context."
+    ],
+    "large_context_models": [
+      "Read all files in required_read_order before editing.",
+      "Use .ai/.ignore to exclude sensitive or irrelevant paths.",
+      "Use design/ for architecture and workflow context when changing project behavior."
+    ]
+  }
+}

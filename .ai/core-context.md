@@ -32,9 +32,20 @@ project-specific requirements using the ruleset requirement template.
 
 ## 3. Global Directives
 
+- **Control the context window:** Use `.ai/project-map.md`, `.ai/.ignore`,
+  `.cursorignore`, `.gitignore`, and minimum access scope to avoid loading the
+  whole repository. Attach or inspect only the files needed for the exact task,
+  and start a fresh session or compact long histories when switching tasks.
 - **Targeted access:** Inspect only the files, routes, components, functions,
   classes, data models, tests, docs, configuration, or scripts required for the
   current task.
+- **Prompt precision:** Prefer one specific prompt with the relevant language,
+  framework, pattern, requirement ID, and desired outcome. For broad work, ask
+  for or produce an outline first before implementation.
+- **Model fit:** Use cheaper or faster models and lower effort settings for
+  boilerplate, formatting, simple explanations, or mechanical edits. Reserve
+  flagship or high-effort models for architecture, complex debugging, migration,
+  security-sensitive reasoning, and high-risk design work.
 - **Requirement IDs:** Every task and code change must map to a requirement ID.
   If no ID is provided, create the next sequential ID using the configured
   prefix.
@@ -57,20 +68,22 @@ project-specific requirements using the ruleset requirement template.
 1. Confirm the active requirement ID. If none is provided, create the next
    sequential requirement ID using the configured prefix.
 2. State the minimum access scope before inspecting files.
-3. Inspect only the identified scope. Expand only when necessary and state why.
-4. Implement the smallest safe maintainable change.
-5. Add or update tests when behavior, validation, data handling, access control,
+3. Read `.ai/project-map.md` before broad traversal when it exists. Regenerate
+   it with `./omni map` when the structure changed or the map is stale.
+4. Inspect only the identified scope. Expand only when necessary and state why.
+5. Implement the smallest safe maintainable change.
+6. Add or update tests when behavior, validation, data handling, access control,
    or user flows change.
-6. Update relevant documentation, architecture notes, API docs, data model docs,
+7. Update relevant documentation, architecture notes, API docs, data model docs,
    or operational docs.
-7. Update the changelog with a requirement-linked entry.
-8. Run configured validation commands and the configured build or rebuild.
-9. Return the required completion report, commit sentence, and pull request
+8. Update the changelog with a requirement-linked entry.
+9. Run configured validation commands and the configured build or rebuild.
+10. Return the required completion report, commit sentence, and pull request
    information.
 
 ## 5. Assistant Compatibility
 
-Assistant-specific files such as `CLAUDE.md`, `.cursorrules`, and
-`.github/copilot-instructions.md` should point back to this `.ai/` directory.
-The underlying rules stay the same regardless of the assistant, editor, or
-framework being used.
+Assistant-specific files such as `AGENTS.md`, `CLAUDE.md`, `.cursorrules`, and
+`.github/copilot-instructions.md` should stay as tiny compatibility shims that
+route to `.ai/entrypoints/`. The underlying rules stay the same regardless of
+the assistant, editor, or framework being used.

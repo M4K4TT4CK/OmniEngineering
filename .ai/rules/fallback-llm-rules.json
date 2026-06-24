@@ -43,6 +43,15 @@
       ]
     },
     {
+      "id": "fallback.project_map",
+      "severity": "required",
+      "statement": "Read .ai/project-map.md before broad traversal when it is available. If it is missing or stale after structural changes, run omni map or ./omni map.",
+      "scope": [
+        "inspection",
+        "navigation"
+      ]
+    },
+    {
       "id": "fallback.security_boundary",
       "severity": "required",
       "statement": "Do not read or expose .env files, private keys, certificates, credentials, database files, logs, build artifacts, dependency folders, cache directories, or anything listed in .ai/.ignore.",

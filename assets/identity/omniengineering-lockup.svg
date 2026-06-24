@@ -1,0 +1,32 @@
+<svg width="1280" height="360" viewBox="0 0 1280 360" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">OmniEngineering lockup</title>
+  <desc id="desc">OmniEngineering wordmark with forged OE monogram.</desc>
+  <defs>
+    <linearGradient id="field" x1="0" y1="0" x2="1280" y2="360" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0E0D0B"/>
+      <stop offset="0.52" stop-color="#202426"/>
+      <stop offset="1" stop-color="#293021"/>
+    </linearGradient>
+    <linearGradient id="blade" x1="72" y1="70" x2="296" y2="292" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F4EFE4"/>
+      <stop offset="0.34" stop-color="#D88C2D"/>
+      <stop offset="0.68" stop-color="#18A999"/>
+      <stop offset="1" stop-color="#7FB069"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1280" height="360" rx="30" fill="url(#field)"/>
+  <rect x="66" y="66" width="228" height="228" rx="44" stroke="#F4EFE4" stroke-opacity="0.12" stroke-width="2"/>
+  <path d="M132 116C96 116 74 140 74 180C74 220 96 244 132 244H166C202 244 224 220 224 180C224 140 202 116 166 116H132Z" stroke="#F4EFE4" stroke-width="18"/>
+  <path d="M166 128H270" stroke="url(#blade)" stroke-width="18" stroke-linecap="round"/>
+  <path d="M166 180H256" stroke="url(#blade)" stroke-width="18" stroke-linecap="round"/>
+  <path d="M166 232H270" stroke="url(#blade)" stroke-width="18" stroke-linecap="round"/>
+  <path d="M224 180L278 126" stroke="#18A999" stroke-width="8" stroke-linecap="round"/>
+  <path d="M224 180L278 234" stroke="#7FB069" stroke-width="8" stroke-linecap="round"/>
+
+  <text x="348" y="157" font-family="Inter, Arial, sans-serif" font-size="68" font-weight="850" letter-spacing="0" fill="#F4EFE4">OmniEngineering</text>
+  <text x="352" y="207" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="650" letter-spacing="0" fill="#B9C5BE">A repo-local engineering workspace for AI-assisted delivery</text>
+  <rect x="352" y="246" width="190" height="5" rx="2.5" fill="#D88C2D"/>
+  <rect x="568" y="246" width="190" height="5" rx="2.5" fill="#18A999"/>
+  <rect x="784" y="246" width="190" height="5" rx="2.5" fill="#7FB069"/>
+</svg>

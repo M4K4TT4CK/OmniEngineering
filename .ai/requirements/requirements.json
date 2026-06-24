@@ -23,7 +23,7 @@
       ],
       "acceptance_criteria": [
         "The global ruleset exists as a framework-agnostic source of truth.",
-        "Assistant entrypoints point to the .ai directory.",
+        "Assistant entrypoint shims point to the .ai entrypoint sources.",
         "Completion workflow requires validation, documentation, changelog, and reporting."
       ],
       "validation_required": [
@@ -87,7 +87,7 @@
       ],
       "acceptance_criteria": [
         "CLI supports sync, doctor, and validate commands.",
-        "Doctor validates required files, JSON parsing, ruleset keys, requirements structure, assistant pointer drift, README asset reference, and changelog presence.",
+        "Doctor validates required files, JSON parsing, ruleset keys, requirements structure, assistant pointer drift, README architecture reference, and changelog presence.",
         "Requirements registry tracks completed project requirements.",
         "README documents the new CLI workflow."
       ],
@@ -108,25 +108,29 @@
     {
       "id": "REQ-004",
       "category": "Assistant fallback rules",
-      "title": "Embed fallback rules for all LLM entrypoints",
-      "description": "Add explicit fallback operating rules to Claude, Cursor, and Copilot entrypoint files in case an assistant skips or cannot follow the primary .ai configuration.",
+      "title": "Centralize fallback rules for LLM entrypoints",
+      "description": "Add explicit fallback operating rules for assistant entrypoints in case an assistant skips or cannot follow the primary .ai configuration.",
       "priority": "high",
       "status": "completed",
       "minimum_access_scope": [
+        ".ai/entrypoints/fallback-contract.md",
+        ".ai/rules/fallback-llm-rules.json",
+        ".ai/entrypoints/",
         "CLAUDE.md",
         ".cursorrules",
         ".github/copilot-instructions.md",
-        ".ai/rules/fallback-llm-rules.md",
         "make_ai.py",
         ".ai/requirements/requirements.json",
         "README.md",
         "CHANGELOG.md"
       ],
       "acceptance_criteria": [
-        "A shared fallback rules file exists inside .ai/rules.",
-        "All assistant entrypoint files include specific fallback rules.",
-        "The sync command regenerates assistant entrypoints with fallback rules.",
-        "Doctor validates the fallback rules file as a required source-of-truth file.",
+        "A shared fallback contract exists inside .ai/entrypoints.",
+        "A structured fallback rulepack exists inside .ai/rules.",
+        "All assistant entrypoint shims point to .ai entrypoint sources and the centralized fallback contract.",
+        "The sync command regenerates .ai entrypoint sources and assistant shims.",
+        "The sync command skips existing non-Omni files unless --force is used.",
+        "Doctor validates the fallback contract and fallback rulepack as required source-of-truth files.",
         "README and changelog document the fallback behavior."
       ],
       "validation_required": [
@@ -141,7 +145,7 @@
         "changelog"
       ],
       "risk_notes": [
-        "Fallback rules intentionally duplicate core constraints in assistant entrypoints to reduce skipped-context risk."
+        "Fallback rules intentionally duplicate core constraints in a centralized fallback contract to reduce skipped-context risk without bloating root shims."
       ]
     },
     {
@@ -316,8 +320,8 @@
       ],
       "acceptance_criteria": [
         "Repo-local ./omni command works",
-        "Editable install exposes omni console script",
-        "Doctor validates command entrypoints",
+        "Editable install can expose an optional omni console script",
+        "Doctor validates the repo-local command entrypoint and warns, rather than fails, when the optional console script is absent",
         "README documents omni doctor and omni sync",
         "Fallback instructions use omni commands"
       ],
@@ -335,7 +339,7 @@
         "changelog"
       ],
       "risk_notes": [
-        "Exact omni command without ./ requires installing the package or adding the repo root to PATH"
+        "Exact omni command without ./ requires installing the package or adding the repo root to PATH; existing projects do not need to modify pyproject.toml to use ./omni"
       ]
     },
     {
@@ -354,7 +358,7 @@
       ],
       "acceptance_criteria": [
         "make_ai.py has no tomllib import",
-        "Doctor still validates pyproject console script",
+        "Doctor treats the pyproject console script as optional",
         "Package metadata supports Python 3.10 or newer",
         "Validation passes"
       ],

@@ -55,11 +55,33 @@
     "token_and_context_efficiency": {
       "rule": "Use concise, targeted analysis and avoid unnecessary context expansion.",
       "required_behavior": [
+        "Read .ai/project-map.md before broad repository traversal when it exists.",
+        "Use .ai/.ignore, .cursorignore, .gitignore, and equivalent tool ignore files to keep logs, generated artifacts, dependency folders, environment files, and large binaries out of model context.",
+        "Manually attach or inspect only the specific files and folders needed for the task instead of allowing automatic whole-workspace scans.",
+        "Start a fresh session or compact long chat history when switching tasks so stale context does not consume tokens or steer the work.",
         "Do not reread or restate unchanged requirements.",
         "Do not summarize unrelated project areas.",
         "Avoid broad architectural commentary unless the task asks for architectural review.",
         "Prefer focused findings tied to the current requirement.",
         "Keep outputs structured and brief enough to be actionable."
+      ]
+    },
+    "prompt_optimization": {
+      "rule": "Prompts should minimize iteration by being specific, scoped, and outcome-oriented.",
+      "required_behavior": [
+        "State the framework, language, architecture pattern, requirement ID, and expected outcome in the first prompt when known.",
+        "For broad, risky, or uncertain work, produce or request an outline before implementation.",
+        "Prefer correcting the original task statement or requirement when possible instead of layering ambiguous follow-up corrections.",
+        "Avoid asking for large code generation when a short plan, patch target, or focused edit would be more efficient."
+      ]
+    },
+    "model_cascading_and_effort": {
+      "rule": "Model choice and effort level should match task complexity.",
+      "required_behavior": [
+        "Use budget-friendly or lower-effort models for boilerplate, formatting, simple log lines, straightforward documentation, and mechanical edits.",
+        "Use flagship or high-effort models for architecture, complex debugging, migrations, security-sensitive reasoning, and high-risk design decisions.",
+        "Lower effort and scope settings for simple tasks when the tool supports them.",
+        "Raise effort and scope settings only when the task needs deeper reasoning or broader synthesis."
       ]
     },
     "requirement_traceability": {
@@ -172,36 +194,41 @@
     },
     {
       "step": 3,
+      "name": "Use project map",
+      "instruction": "Read .ai/project-map.md before broad traversal when it exists. If it is missing or stale after structure changes, run ./omni map."
+    },
+    {
+      "step": 4,
       "name": "Inspect targeted scope only",
       "instruction": "Inspect only the identified scope. Do not expand unless necessary."
     },
     {
-      "step": 4,
+      "step": 5,
       "name": "Implement smallest safe change",
       "instruction": "Make the minimum maintainable change required to satisfy the requirement."
     },
     {
-      "step": 5,
+      "step": 6,
       "name": "Update tests or validation coverage",
       "instruction": "Add or update tests when the change affects behavior, validation, data handling, access control, or user flows."
     },
     {
-      "step": 6,
+      "step": 7,
       "name": "Update documentation",
       "instruction": "Update relevant project documentation, architecture notes, API docs, data model docs, or operational docs."
     },
     {
-      "step": 7,
+      "step": 8,
       "name": "Update changelog",
       "instruction": "Add a requirement-linked changelog entry with status and affected areas."
     },
     {
-      "step": 8,
+      "step": 9,
       "name": "Run validation and rebuild",
       "instruction": "Run the configured validation commands and build command before reporting completion."
     },
     {
-      "step": 9,
+      "step": 10,
       "name": "Report result",
       "instruction": "Return the required completion report, commit sentence, and PR request information."
     }
