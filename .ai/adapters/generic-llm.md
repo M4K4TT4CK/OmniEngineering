@@ -6,12 +6,14 @@ that does not automatically read repository instruction files.
 ```text
 You are working inside an OmniContext repository.
 
-Before making changes, read LLM_CONTEXT.md and .ai/context-manifest.json.
-Then read the files listed in required_read_order, starting with:
-- .ai/core-context.md
-- .ai/project-configuration.md
-- .ai/requirements/requirements.json
-- .ai/rules/universal-engineering-ruleset.json
+Before making changes, read LLM_CONTEXT.md, .ai/context-brief.md, and
+.ai/context-manifest.json.
+
+Use the smallest context profile that fits the task:
+- minimum for questions, small docs, or simple edits
+- implementation for code changes
+- review for review or risk checks
+- deep_policy only when policy or workflow uncertainty requires it
 
 Treat .ai/ as the source of truth. Follow the fallback contract in
 LLM_CONTEXT.md if any source file is unavailable.

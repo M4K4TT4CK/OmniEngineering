@@ -246,6 +246,12 @@ validation hints so tools can inspect more than file existence.
 
 OmniEngineering is designed to reduce token waste and context drift.
 
+- **Load the brief first:** `.ai/context-brief.md` is the low-token starting
+  layer. It tells assistants which small profile to load for the current task
+  instead of reading every rule, playbook, checklist, and knowledge pack.
+- **Use context profiles:** `.ai/context-manifest.json` defines minimum,
+  implementation, review, and deep-policy loading profiles. Start with the
+  smallest profile and escalate only when the task needs it.
 - **Control the context window:** Keep `.ai/.ignore`, `.cursorignore`,
   `.gitignore`, and equivalent tool ignore files aggressive. Exclude logs,
   compiled artifacts, local environment files, dependency folders, generated
@@ -269,6 +275,15 @@ OmniEngineering is designed to reduce token waste and context drift.
   formatting, simple docs, and mechanical edits. Save flagship or high-effort
   models for architecture, complex debugging, migrations, security-sensitive
   work, and high-risk design decisions.
+
+The goal is not to make every prompt larger. The default path should be:
+
+```text
+context brief -> project map -> active requirement -> one relevant playbook/checklist -> target files
+```
+
+Load full rulepacks, SWEBOK knowledge packs, templates, and design docs only
+when the task specifically needs that depth.
 
 ## If You Clone a Repo That Already Uses This Workspace
 
@@ -347,6 +362,16 @@ If the target already has `AGENTS.md`, `CLAUDE.md`, `.cursorrules`,
 `make_ai.py`, merge manually instead of replacing the file. `./omni sync` will
 skip existing non-Omni files by default. Use `./omni sync --force` only when
 replacement is intentional.
+
+You can generate a safe adoption plan before copying:
+
+```bash
+./omni adopt --target ../target-project --dry-run
+./omni adopt --target ../target-project --tools codex,cursor,universal --include-cli
+```
+
+`adopt` copies `.ai/` and selected shims, skips existing target files by
+default, and requires `--force` before replacing anything.
 
 Optional presentation assets:
 
@@ -435,6 +460,7 @@ changes should happen inside `.ai/`.
 
 | Need | Edit |
 | --- | --- |
+| Low-token loading contract | `.ai/context-brief.md` |
 | Global assistant behavior | `.ai/core-context.md` |
 | Project commands and placeholders | `.ai/project-configuration.md` |
 | Portable model loading order | `.ai/context-manifest.json` |
@@ -479,10 +505,14 @@ Run it directly from the repository:
 ./omni doctor
 ./omni sync
 ./omni map
+./omni context implementation
 ```
 
 `./omni sync` updates generated Omni files and skips existing non-Omni files.
 Use `./omni sync --force` only after manually deciding replacement is safe.
+
+`./omni context <profile>` prints the exact low-token file set for a task.
+Useful profiles are `minimum`, `implementation`, `review`, and `deep_policy`.
 
 Or install the command once from the repository root:
 
@@ -497,6 +527,7 @@ omni doctor
 omni sync
 omni validate
 omni map
+omni context review
 ```
 
 `sync` verifies that the required `.ai/` source-of-truth files exist, then

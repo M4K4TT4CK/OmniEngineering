@@ -27,6 +27,8 @@ Both delegate to `make_ai.py`.
 | `omni sync` | Refresh `.ai/entrypoints/`, assistant shims, and synced ignore files. |
 | `omni doctor` | Check workspace health and report drift. |
 | `omni validate` | Alias for `omni doctor`. |
+| `omni context` | Print the exact low-token file set for a context profile. |
+| `omni adopt` | Copy OmniEngineering into a target project without overwriting by default. |
 | `omni requirement add` | Append a requirement record without hand-editing JSON. |
 | `omni rule add` | Append a structured rule to a rulepack. |
 
@@ -51,6 +53,22 @@ It does not rewrite rulepacks, requirements, schemas, adapters, playbooks,
 checklists, the manifest, or project configuration. Adapter prompts, playbooks,
 and checklists are stable source files because teams may customize them for
 their preferred engineering process, local model, or model-router gateway.
+
+## Context Behavior
+
+`context` reads `.ai/context-manifest.json` and prints the files for a named
+profile. It is meant to reduce token cost by turning broad instructions such as
+"load OmniEngineering" into a short, explicit file list.
+
+Supported profiles are `minimum`, `implementation`, `review`, and
+`deep_policy`.
+
+## Adopt Behavior
+
+`adopt` copies `.ai/` and selected root shims into another project. It is
+dry-run friendly and skips existing target files unless `--force` is supplied.
+The command exists so adoption can be scripted without accidentally replacing a
+project's own assistant config or package metadata.
 
 ## Doctor Behavior
 

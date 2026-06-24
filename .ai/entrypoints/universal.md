@@ -6,8 +6,9 @@ Read this file first when using any local model, hosted model, chat UI,
 terminal wrapper, or coding tool that does not have a native OmniContext
 entrypoint.
 
-Then read and prioritize all rules, styles, and workflows located inside the
-`.ai/` directory before writing code. Treat
+Then read `.ai/context-brief.md` first. Use it to choose the smallest relevant
+context profile before loading deeper rules, styles, and workflows inside the
+`.ai/` directory. Treat
 `.ai/rules/universal-engineering-ruleset.json` as the controlling global
 ruleset. Apply the controlled implementation workflow, security guardrails,
 completion workflow, project configuration, and project-specific rules.

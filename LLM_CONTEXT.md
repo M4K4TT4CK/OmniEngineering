@@ -6,7 +6,8 @@ This file is intentionally small so repository-root assistant files do not
 clog the main workspace.
 
 Read `.ai/entrypoints/universal.md` for the full tool-specific instructions, then follow
-`.ai/context-manifest.json` for the complete loading order.
+`.ai/context-brief.md` and `.ai/context-manifest.json` for the complete loading
+order.
 
 If `.ai/entrypoints/universal.md` is unavailable, read `.ai/entrypoints/fallback-contract.md`
 and apply it as the controlling instruction set.

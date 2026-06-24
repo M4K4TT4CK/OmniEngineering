@@ -17,6 +17,11 @@ Read the `.ai/` directory before making implementation decisions. Treat these
 files as the controlling project instructions for scope, behavior, acceptance
 criteria, security boundaries, and completion workflow.
 
+Start with `.ai/context-brief.md` and the smallest relevant profile in
+`.ai/context-manifest.json`. Load deeper rules, playbooks, checklists,
+knowledge packs, templates, or design docs only when the active task needs
+them.
+
 The controlling global ruleset is
 `.ai/rules/universal-engineering-ruleset.json`. Follow it exactly unless the
 project owner explicitly approves a change to the ruleset.

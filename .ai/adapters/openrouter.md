@@ -14,12 +14,10 @@ the only durable source of truth.
 
 Before editing or making architectural recommendations, load:
 1. LLM_CONTEXT.md
-2. .ai/context-manifest.json
-3. .ai/core-context.md
-4. .ai/project-configuration.md
-5. .ai/requirements/requirements.json
-6. .ai/rules/universal-engineering-ruleset.json
-7. Any task-relevant .ai/rules/*.json rulepacks
+2. .ai/context-brief.md
+3. .ai/context-manifest.json
+4. The smallest context profile that fits the task
+5. One task-relevant playbook, checklist, or rulepack when needed
 
 If context is too large for the selected model, summarize each loaded file and
 ask for the next required file instead of guessing. When switching model slugs,

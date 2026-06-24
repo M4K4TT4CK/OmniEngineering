@@ -14,12 +14,10 @@ of the repository.
 
 Load context in this order:
 1. LLM_CONTEXT.md
-2. .ai/context-manifest.json
-3. .ai/core-context.md
-4. .ai/project-configuration.md
-5. .ai/requirements/requirements.json
-6. .ai/rules/universal-engineering-ruleset.json
-7. Task-relevant rulepacks from .ai/rules/
+2. .ai/context-brief.md
+3. .ai/context-manifest.json
+4. The smallest context profile that fits the task
+5. One task-relevant playbook, checklist, or rulepack when needed
 
 Treat .ai/ as the source of truth. If a routed fallback model takes over, it
 must use this same loading order before editing or answering.
@@ -28,6 +26,7 @@ For each task, restate:
 - Active REQ-### ID
 - Minimum access scope
 - Loaded OmniContext files
+- Context profile used
 - Validation expected before completion
 
 Do not read files excluded by .ai/.ignore. Do not claim completion unless

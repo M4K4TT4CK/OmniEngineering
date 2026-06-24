@@ -2,6 +2,7 @@ import argparse
 import fnmatch
 import json
 import re
+import shutil
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -10,6 +11,7 @@ from typing import Any
 
 REQUIRED_AI_FILES = [
     ".ai/core-context.md",
+    ".ai/context-brief.md",
     ".ai/project-configuration.md",
     ".ai/.ignore",
     ".ai/context-manifest.json",
@@ -172,8 +174,9 @@ Read this file first when using any local model, hosted model, chat UI,
 terminal wrapper, or coding tool that does not have a native OmniContext
 entrypoint.
 
-Then read and prioritize all rules, styles, and workflows located inside the
-`.ai/` directory before writing code. Treat
+Then read `.ai/context-brief.md` first. Use it to choose the smallest relevant
+context profile before loading deeper rules, styles, and workflows inside the
+`.ai/` directory. Treat
 `.ai/rules/universal-engineering-ruleset.json` as the controlling global
 ruleset. Apply the controlled implementation workflow, security guardrails,
 completion workflow, project configuration, and project-specific rules.
@@ -186,8 +189,9 @@ For machine-readable loading order, inspect `.ai/context-manifest.json`.
 
 {GENERATED_FILE_MARKER}
 
-Read and prioritize all rules, styles, and workflows located inside the `.ai/`
-directory before writing code. Treat `.ai/rules/universal-engineering-ruleset.json`
+Read `.ai/context-brief.md` first, then prioritize only the relevant rules,
+styles, and workflows located inside the `.ai/` directory before writing code.
+Treat `.ai/rules/universal-engineering-ruleset.json`
 as the controlling global ruleset. Apply the controlled implementation workflow,
 security guardrails, completion workflow, project configuration, and
 project-specific rules.
@@ -198,8 +202,9 @@ project-specific rules.
 
 {GENERATED_FILE_MARKER}
 
-Read and prioritize all rules, styles, and workflows located inside the `.ai/`
-directory before writing code. Treat `.ai/rules/universal-engineering-ruleset.json`
+Read `.ai/context-brief.md` first, then prioritize only the relevant rules,
+styles, and workflows located inside the `.ai/` directory before writing code.
+Treat `.ai/rules/universal-engineering-ruleset.json`
 as the controlling global ruleset. Apply the controlled implementation workflow,
 security guardrails, completion workflow, project configuration, and
 project-specific rules.
@@ -210,8 +215,9 @@ project-specific rules.
 
 {GENERATED_FILE_MARKER}
 
-Read and prioritize all rules, styles, and workflows located inside the `.ai/`
-directory before writing code. Treat `.ai/rules/universal-engineering-ruleset.json`
+Read `.ai/context-brief.md` first, then prioritize only the relevant rules,
+styles, and workflows located inside the `.ai/` directory before writing code.
+Treat `.ai/rules/universal-engineering-ruleset.json`
 as the controlling global ruleset. Apply the controlled implementation workflow,
 security guardrails, completion workflow, project configuration, and
 project-specific rules.
@@ -222,8 +228,9 @@ project-specific rules.
 
 {GENERATED_FILE_MARKER}
 
-Read and prioritize all rules, styles, and workflows located inside the `.ai/`
-directory before writing code. Treat `.ai/rules/universal-engineering-ruleset.json`
+Read `.ai/context-brief.md` first, then prioritize only the relevant rules,
+styles, and workflows located inside the `.ai/` directory before writing code.
+Treat `.ai/rules/universal-engineering-ruleset.json`
 as the controlling global ruleset. Apply the controlled implementation workflow,
 security guardrails, completion workflow, project configuration, and
 project-specific rules.
@@ -234,8 +241,9 @@ project-specific rules.
 
 {GENERATED_FILE_MARKER}
 
-Read and prioritize all rules, styles, and workflows located inside the `.ai/`
-directory before writing code. Treat `.ai/rules/universal-engineering-ruleset.json`
+Read `.ai/context-brief.md` first, then prioritize only the relevant rules,
+styles, and workflows located inside the `.ai/` directory before writing code.
+Treat `.ai/rules/universal-engineering-ruleset.json`
 as the controlling global ruleset. Apply the controlled implementation workflow,
 security guardrails, completion workflow, project configuration, and
 project-specific rules.
@@ -274,7 +282,8 @@ This file is intentionally small so repository-root assistant files do not
 clog the main workspace.
 
 Read `{source_path}` for the full tool-specific instructions, then follow
-`.ai/context-manifest.json` for the complete loading order.
+`.ai/context-brief.md` and `.ai/context-manifest.json` for the complete loading
+order.
 
 If `{source_path}` is unavailable, read `.ai/entrypoints/fallback-contract.md`
 and apply it as the controlling instruction set.
@@ -371,6 +380,41 @@ LOCAL_ONLY_PUBLIC_PATHS = [
 
 MAX_ASSISTANT_SHIM_LINES = 15
 
+CONTEXT_PROFILE_ALIASES = {
+    "min": "minimum",
+    "minimum": "minimum",
+    "impl": "implementation",
+    "implementation": "implementation",
+    "review": "review",
+    "deep": "deep_policy",
+    "deep-policy": "deep_policy",
+    "deep_policy": "deep_policy",
+}
+
+ADOPTION_TOOL_FILES = {
+    "universal": ["LLM_CONTEXT.md"],
+    "codex": ["AGENTS.md"],
+    "claude": ["CLAUDE.md"],
+    "cursor": [".cursorrules", ".cursorignore"],
+    "copilot": [".github/copilot-instructions.md"],
+    "kiro": [".kiro/steering/omnicontext.md"],
+}
+
+ADOPTION_CLI_FILES = ["omni", "make_ai.py"]
+ADOPTION_LEGAL_FILES = [
+    "LICENSE",
+    "NOTICE",
+    "TRADEMARKS.md",
+    "CONTRIBUTING.md",
+    "LICENSES",
+]
+ADOPTION_PRESENTATION_FILES = [
+    "assets/identity",
+    "assets/banners",
+    "assets/omni-context.svg",
+    "design",
+]
+
 REQUIRED_RULESET_KEYS = {
     "prompt_title",
     "version",
@@ -438,6 +482,7 @@ REQUIRED_MANIFEST_KEYS = {
     "entrypoints",
     "entrypoint_sources",
     "indexes",
+    "context_profiles",
     "adapter_prompts",
     "ignore_files",
     "project_map",
@@ -776,6 +821,7 @@ def validate_context_manifest(manifest: Any, report: DoctorReport) -> None:
         "entrypoints",
         "entrypoint_sources",
         "indexes",
+        "context_profiles",
         "adapter_prompts",
         "ignore_files",
         "task_playbooks",
@@ -1180,6 +1226,70 @@ def run_map(args: argparse.Namespace) -> int:
     return 0
 
 
+def resolve_context_profile_name(profile: str) -> str:
+    key = profile.strip().lower()
+    return CONTEXT_PROFILE_ALIASES.get(key, key)
+
+
+def run_context(args: argparse.Namespace) -> int:
+    manifest_path = Path(".ai/context-manifest.json")
+    if not manifest_path.is_file():
+        print("Missing .ai/context-manifest.json", file=sys.stderr)
+        return 1
+
+    manifest = load_json(manifest_path)
+    profiles = manifest.get("context_profiles")
+    if not isinstance(profiles, dict):
+        print("Manifest does not define context_profiles", file=sys.stderr)
+        return 1
+
+    profile_name = resolve_context_profile_name(args.profile)
+    selected = profiles.get(profile_name)
+    if not isinstance(selected, list):
+        print(f"Unknown context profile: {args.profile}", file=sys.stderr)
+        print(f"Available profiles: {', '.join(sorted(profiles))}", file=sys.stderr)
+        return 1
+
+    files = [str(item) for item in selected if isinstance(item, str)]
+    if args.extra:
+        files.extend(args.extra)
+
+    if args.json:
+        payload = {
+            "profile": profile_name,
+            "files": [
+                {
+                    "path": file_path,
+                    "exists": Path(file_path).is_file(),
+                    "lines": len(Path(file_path).read_text(encoding="utf-8").splitlines())
+                    if Path(file_path).is_file()
+                    else None,
+                }
+                for file_path in files
+            ],
+            "notes": [
+                "Read these files before task-specific project files.",
+                "Use .ai/project-map.md to choose the smallest relevant project path set.",
+                "Escalate to deep_policy only when policy or workflow uncertainty requires it.",
+            ],
+        }
+        print(json.dumps(payload, indent=2))
+        return 0
+
+    print(f"OmniEngineering context profile: {profile_name}")
+    print("")
+    for file_path in files:
+        path = Path(file_path)
+        if path.is_file():
+            line_count = len(path.read_text(encoding="utf-8").splitlines())
+            print(f"- {file_path} ({line_count} lines)")
+        else:
+            print(f"- {file_path} (missing)")
+    print("")
+    print("Then inspect only the task-relevant project files selected from .ai/project-map.md.")
+    return 0
+
+
 def run_doctor() -> int:
     report = DoctorReport()
     verify_required_ai_files(report)
@@ -1221,6 +1331,108 @@ def run_sync(args: argparse.Namespace) -> int:
         return 1
     print("Done. Assistant shims, .ai entrypoints, and ignore files are synced.")
     return 0
+
+
+def selected_adoption_files(args: argparse.Namespace) -> list[str]:
+    files = [".ai"]
+    tool_names: list[str]
+    if args.tools == "all":
+        tool_names = list(ADOPTION_TOOL_FILES)
+    elif args.tools == "none":
+        tool_names = []
+    else:
+        tool_names = [tool.strip() for tool in args.tools.split(",") if tool.strip()]
+
+    unknown = sorted(tool for tool in tool_names if tool not in ADOPTION_TOOL_FILES)
+    if unknown:
+        raise ValueError(
+            f"Unknown tool(s): {', '.join(unknown)}. "
+            f"Available: {', '.join(sorted(ADOPTION_TOOL_FILES))}, all, none"
+        )
+
+    for tool in tool_names:
+        files.extend(ADOPTION_TOOL_FILES[tool])
+    if args.include_cli:
+        files.extend(ADOPTION_CLI_FILES)
+    if args.include_legal:
+        files.extend(ADOPTION_LEGAL_FILES)
+    if args.include_presentation:
+        files.extend(ADOPTION_PRESENTATION_FILES)
+    return list(dict.fromkeys(files))
+
+
+def copy_adoption_path(source_root: Path, target_root: Path, relative_path: str, force: bool, dry_run: bool) -> str:
+    source = source_root / relative_path
+    target = target_root / relative_path
+    if not source.exists():
+        return f"missing source: {relative_path}"
+    if target.exists() and not force:
+        return f"skip existing: {relative_path}"
+    if dry_run:
+        action = "replace" if target.exists() else "copy"
+        return f"{action}: {relative_path}"
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if source.is_dir():
+        if target.exists():
+            shutil.rmtree(target)
+        shutil.copytree(
+            source,
+            target,
+            ignore=shutil.ignore_patterns(
+                "__pycache__",
+                ".pytest_cache",
+                ".mypy_cache",
+                ".ruff_cache",
+                ".DS_Store",
+            ),
+        )
+    else:
+        shutil.copy2(source, target)
+    return f"copied: {relative_path}"
+
+
+def run_adopt(args: argparse.Namespace) -> int:
+    source_root = Path(__file__).resolve().parent
+    target_root = Path(args.target).resolve()
+    if target_root == source_root:
+        print("Refusing to adopt into the source repository itself.", file=sys.stderr)
+        return 1
+    if not target_root.exists():
+        if args.dry_run:
+            print(f"Target does not exist yet: {target_root}")
+        else:
+            target_root.mkdir(parents=True)
+    if target_root.exists() and not target_root.is_dir():
+        print(f"Adoption target is not a directory: {target_root}", file=sys.stderr)
+        return 1
+
+    try:
+        files = selected_adoption_files(args)
+    except ValueError as error:
+        print(str(error), file=sys.stderr)
+        return 1
+
+    print(f"OmniEngineering adoption target: {target_root}")
+    print(f"Mode: {'dry-run' if args.dry_run else 'copy'}")
+    print(f"Force: {str(args.force).lower()}")
+    print("")
+
+    results = [
+        copy_adoption_path(source_root, target_root, relative_path, args.force, args.dry_run)
+        for relative_path in files
+    ]
+    for result in results:
+        print(f"- {result}")
+
+    skipped = [result for result in results if result.startswith("skip existing")]
+    missing = [result for result in results if result.startswith("missing source")]
+    if skipped:
+        print("")
+        print("Existing target files were skipped. Merge manually or rerun with --force if replacement is intentional.")
+    if missing:
+        return 1
+    return 1 if skipped and not args.dry_run else 0
 
 
 def run_requirement_add(args: argparse.Namespace) -> int:
@@ -1356,6 +1568,72 @@ def build_parser() -> argparse.ArgumentParser:
         help="Include .ai internals in the generated map.",
     )
 
+    context_parser = subparsers.add_parser(
+        "context",
+        help="Print the low-token file set for a context profile.",
+    )
+    context_parser.add_argument(
+        "profile",
+        nargs="?",
+        default="minimum",
+        help="Context profile: minimum, implementation, review, or deep_policy.",
+    )
+    context_parser.add_argument(
+        "--extra",
+        action="append",
+        default=[],
+        help="Additional file to include in the printed context set. May be repeated.",
+    )
+    context_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Print machine-readable JSON.",
+    )
+
+    adopt_parser = subparsers.add_parser(
+        "adopt",
+        help="Copy OmniEngineering into another project without overwriting by default.",
+    )
+    adopt_parser.add_argument(
+        "--target",
+        required=True,
+        help="Target project root.",
+    )
+    adopt_parser.add_argument(
+        "--tools",
+        default="codex,cursor,universal",
+        help=(
+            "Comma-separated shims to copy. Available: "
+            f"{', '.join(sorted(ADOPTION_TOOL_FILES))}, all, none. "
+            "Defaults to codex,cursor,universal."
+        ),
+    )
+    adopt_parser.add_argument(
+        "--include-cli",
+        action="store_true",
+        help="Copy ./omni and make_ai.py.",
+    )
+    adopt_parser.add_argument(
+        "--include-legal",
+        action="store_true",
+        help="Copy OmniEngineering license, notice, trademark, contribution, and LICENSES files.",
+    )
+    adopt_parser.add_argument(
+        "--include-presentation",
+        action="store_true",
+        help="Copy optional public assets and design docs.",
+    )
+    adopt_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Replace existing target files. Use only after manual conflict review.",
+    )
+    adopt_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be copied without writing files.",
+    )
+
     requirement_parser = subparsers.add_parser(
         "requirement",
         help="Manage requirement registry entries.",
@@ -1433,6 +1711,10 @@ def main(argv: list[str] | None = None) -> int:
         return run_doctor()
     if command == "map":
         return run_map(args)
+    if command == "context":
+        return run_context(args)
+    if command == "adopt":
+        return run_adopt(args)
     if command == "requirement":
         if args.requirement_command == "add":
             return run_requirement_add(args)

@@ -21,10 +21,44 @@
     "fallback_contract": ".ai/entrypoints/fallback-contract.md"
   },
   "indexes": {
+    "context_brief": ".ai/context-brief.md",
     "adapters": ".ai/adapters/README.md",
     "playbooks": ".ai/playbooks/README.md",
     "checklists": ".ai/checklists/README.md",
     "swebok": ".ai/knowledge/swebok/README.md"
+  },
+  "context_profiles": {
+    "minimum": [
+      ".ai/context-brief.md",
+      ".ai/project-configuration.md",
+      ".ai/project-map.md",
+      ".ai/requirements/requirements.json"
+    ],
+    "implementation": [
+      ".ai/context-brief.md",
+      ".ai/project-configuration.md",
+      ".ai/project-map.md",
+      ".ai/requirements/requirements.json",
+      ".ai/playbooks/implementation.md",
+      ".ai/checklists/pre-implementation.md",
+      ".ai/checklists/pre-completion.md"
+    ],
+    "review": [
+      ".ai/context-brief.md",
+      ".ai/project-configuration.md",
+      ".ai/project-map.md",
+      ".ai/requirements/requirements.json",
+      ".ai/playbooks/review.md",
+      ".ai/checklists/security.md"
+    ],
+    "deep_policy": [
+      ".ai/context-brief.md",
+      ".ai/core-context.md",
+      ".ai/project-configuration.md",
+      ".ai/rules/universal-engineering-ruleset.json",
+      ".ai/rules/controlled-implementation.json",
+      ".ai/rules/completion-workflow.json"
+    ]
   },
   "adapter_prompts": {
     "generic_llm": ".ai/adapters/generic-llm.md",
@@ -41,6 +75,7 @@
   },
   "project_map": ".ai/project-map.md",
   "required_read_order": [
+    ".ai/context-brief.md",
     ".ai/core-context.md",
     ".ai/project-configuration.md",
     ".ai/requirements/requirements.json",
@@ -119,8 +154,8 @@
   "context_retention_strategy": {
     "small_context_models": [
       "Read LLM_CONTEXT.md first.",
-      "Read .ai/core-context.md and .ai/project-configuration.md.",
-      "Read only the rulepacks relevant to the active task.",
+      "Read .ai/context-brief.md, .ai/project-configuration.md, .ai/project-map.md, and the active requirement.",
+      "Read only the playbook, checklist, or rulepack relevant to the active task.",
       "Always read .ai/requirements/requirements.json before assigning or completing a requirement."
     ],
     "model_router_gateways": [
@@ -130,7 +165,7 @@
       "If the router falls back to a different model, require the replacement model to reload the same manifest-driven context."
     ],
     "large_context_models": [
-      "Read all files in required_read_order before editing.",
+      "Start with the minimum or task-specific context profile before loading all files in required_read_order.",
       "Use .ai/.ignore to exclude sensitive or irrelevant paths.",
       "Use design/ for architecture and workflow context when changing project behavior."
     ]

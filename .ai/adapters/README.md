@@ -13,12 +13,12 @@ context.
 Every adapter points back to the same source of truth:
 
 1. `.ai/entrypoints/`
-2. `.ai/context-manifest.json`
-3. `.ai/project-map.md`
-4. `.ai/core-context.md`
+2. `.ai/context-brief.md`
+3. `.ai/context-manifest.json`
+4. `.ai/project-map.md`
 5. `.ai/project-configuration.md`
 6. `.ai/requirements/requirements.json`
-7. Relevant files under `.ai/rules/`
+7. One relevant playbook, checklist, or rulepack
 
 If a tool has a native instruction file, prefer its tiny root shim. If it does
 not, paste the matching adapter prompt into the model's system, developer, or
