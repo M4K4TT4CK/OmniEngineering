@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-08-27 (2)
+
+### Completed
+
+- `REQ-012` | CI / repo hygiene | Added `.github/workflows/ci.yml` running
+  `python3 omni doctor` (full-history checkout) on every push/PR to `main`,
+  and `.gitattributes` (`* text=auto eol=lf`) to stop future line-ending
+  drift -- this repo's working tree had silently drifted to CRLF against
+  an LF-committed history, masking real diffs behind whole-file noise.
+  Existing committed content is untouched; a follow-up renormalization
+  commit is intentionally out of scope here since it would touch every
+  file in the repo.
+
 ## 2026-08-27
 
 ### Completed

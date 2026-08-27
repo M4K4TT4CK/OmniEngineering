@@ -335,6 +335,7 @@ PROJECT_MAP_DEFAULT_OUTPUT = ".ai/project-map.md"
 ALLOWED_ROOT_FILES = {
     ".cursorignore",
     ".cursorrules",
+    ".gitattributes",
     ".gitignore",
     "AGENTS.md",
     "CHANGELOG.md",

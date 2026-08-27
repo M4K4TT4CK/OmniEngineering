@@ -400,6 +400,32 @@
       "risk_notes": [
         "The commit-date comparison intentionally avoids `git log <hash>..HEAD` because squash-merge PR workflows make already-integrated side-branch commits appear \"after\" the changelog commit in DAG-reachability terms even though they landed chronologically earlier; using commit timestamps instead avoids that false positive."
       ]
+    },
+    {
+      "id": "REQ-012",
+      "category": "CI / repo hygiene",
+      "title": "Wire omni doctor into CI and stop future line-ending drift",
+      "description": "Two efficiency/maintainability fixes identified while discussing how to make OmniEngineering easier to integrate and keep aligned over time: (1) added .github/workflows/ci.yml running `python3 omni doctor` (full-history checkout) on every push/PR to main, so workspace-health drift is caught automatically instead of relying on someone manually running the command or an LLM session auditing on request; (2) added .gitattributes (`* text=auto eol=lf`) so a Windows/WSL checkout stops silently diverging from committed line endings -- this repo's entire working tree had drifted to CRLF against an LF-committed history, which was masking real diffs behind whole-file noise.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        ".github/workflows/ci.yml",
+        ".gitattributes"
+      ],
+      "acceptance_criteria": [
+        "omni doctor runs automatically on every push and pull request to main and fails the build only on real errors, not warnings.",
+        ".gitattributes normalizes text files to LF so future checkouts don't silently drift from committed line endings.",
+        "Existing committed content is left untouched -- .gitattributes affects future checkouts/commits, not a retroactive rewrite."
+      ],
+      "validation_required": [
+        "manual_verification"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": [
+        "This repo's existing tracked files are still CRLF in the working tree as of this change; .gitattributes stops new drift but does not retroactively renormalize what's already committed. A follow-up `git add --renormalize .` commit would fix that but was intentionally left out of scope here since it would touch every file in the repo."
+      ]
     }
   ]
 }

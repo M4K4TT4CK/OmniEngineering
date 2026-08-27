@@ -1,0 +1,6 @@
+# Normalize line endings so a Windows/WSL checkout doesn't silently drift
+# from what's committed (every text file in this repo currently shows as
+# "modified" on a fresh WSL clone purely from CRLF vs LF -- this stops that
+# from recurring going forward). Existing tracked content is unaffected
+# until each file is next re-saved/re-committed.
+* text=auto eol=lf

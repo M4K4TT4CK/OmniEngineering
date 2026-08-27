@@ -1,0 +1,20 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  omni-doctor:
+    name: OmniEngineering workspace health (omni doctor)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # omni doctor's commit-drift check needs full history
+
+      - name: Run omni doctor
+        run: python3 omni doctor
