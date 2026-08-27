@@ -1748,7 +1748,7 @@ def run_update(args: argparse.Namespace) -> int:
 
         target_path.parent.mkdir(parents=True, exist_ok=True)
         target_path.write_text(theirs, encoding="utf-8")
-        if relative_path == "make_ai.py" and outcome in {"added", "updated", "merged", "conflict: resolve manually"}:
+        if relative_path == "make_ai.py" and outcome in {"added", "updated", "merged"}:
             make_ai_changed = True
 
     if args.dry_run:
@@ -1770,6 +1770,12 @@ def run_update(args: argparse.Namespace) -> int:
         print("Conflicts need manual resolution (look for <<<<<<< markers):")
         for relative_path in conflicts:
             print(f"- {relative_path}")
+        if "make_ai.py" in conflicts:
+            print(
+                "make_ai.py has an unresolved conflict, so sync was not re-run -- "
+                "the file isn't valid until you resolve it. Run `omni sync` yourself "
+                "once it's fixed."
+            )
         return 1
 
     print("")

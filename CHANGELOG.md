@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-08-27 (4)
+
+### Completed
+
+- `REQ-014` | CLI / template maintainability | Fixed a bug in `omni update`
+  (REQ-013) found live while dogfooding it against STEP_App's genuinely
+  diverged `make_ai.py`: a conflicted `make_ai.py` merge still triggered the
+  automatic sync re-run, crashing with a raw `SyntaxError` traceback against
+  the now-invalid file instead of a clean message. `omni update` now skips
+  the sync re-run when `make_ai.py` itself has an unresolved conflict and
+  tells the user to run `omni sync` themselves once it's fixed.
+
 ## 2026-08-27 (3)
 
 ### Completed

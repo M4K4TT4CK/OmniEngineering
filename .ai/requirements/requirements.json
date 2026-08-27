@@ -456,6 +456,27 @@
         "Requires --source to be a real git checkout (needed to reconstruct the 3-way-merge base via git show); a plain folder copy as source is explicitly rejected with a clear message rather than guessing.",
         "Fetching a template source directly from a remote git URL is an intentional follow-up, not included here -- v1 matches omni adopt's existing local-checkout-path convention."
       ]
+    },
+    {
+      "id": "REQ-014",
+      "category": "CLI / template maintainability",
+      "title": "Fix: omni update must not re-run sync when make_ai.py itself has an unresolved conflict",
+      "description": "Found live while dogfooding REQ-013 against STEP_App's genuinely diverged make_ai.py: when make_ai.py's own merge produced a conflict, the file was written with unresolved <<<<<<< markers (correct), but run_update still treated that as make_ai.py having 'changed' and re-ran sync in a fresh subprocess against the now-syntactically-invalid file, producing a raw Python SyntaxError traceback instead of a clean message. Excluded the conflict outcome from the make_ai_changed re-sync trigger, and added an explicit message telling the user sync was skipped and why, and to run it themselves once the conflict is resolved.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py"
+      ],
+      "acceptance_criteria": [
+        "omni update no longer attempts to re-run sync when make_ai.py itself has an unresolved conflict; prints a clear explanatory message instead of a raw traceback. Verified by reproducing the original crash against STEP_App before the fix and confirming a clean message after."
+      ],
+      "validation_required": [
+        "manual_verification"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
     }
   ]
 }
