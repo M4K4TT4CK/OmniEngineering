@@ -375,6 +375,31 @@
       "risk_notes": [
         "pyproject validation is intentionally lightweight and checks the expected console script line rather than fully parsing TOML"
       ]
+    },
+    {
+      "id": "REQ-011",
+      "category": "Doctor / drift detection",
+      "title": "Add project-map freshness and changelog-drift checks to omni doctor",
+      "description": "Two generic omni doctor checks, developed while auditing an adopter project (STEP) for OmniEngineering alignment and ported back here so every adopter benefits: validate_project_map_freshness warns when a top-level directory that exists on disk is missing from .ai/project-map.md's tree (catches a map that was never regenerated after a structural change); validate_recent_commits_tracked warns when commits postdate -- by commit timestamp, not git log X..HEAD DAG reachability, which squash-merge PR histories make misleading -- the last commit that touched CHANGELOG.md, naming each one so untracked work is caught automatically instead of by manual audit.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py"
+      ],
+      "acceptance_criteria": [
+        "omni doctor warns when an ALLOWED_ROOT_DIRS directory present on disk is absent from the generated project map's directory tree.",
+        "omni doctor warns, listing each commit, when commits postdate (by commit date) the last commit that touched CHANGELOG.md.",
+        "Both checks are no-ops (skip silently) when git or the relevant files are unavailable, so they never turn into false errors on a non-git or freshly-adopted workspace."
+      ],
+      "validation_required": [
+        "manual_verification"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": [
+        "The commit-date comparison intentionally avoids `git log <hash>..HEAD` because squash-merge PR workflows make already-integrated side-branch commits appear \"after\" the changelog commit in DAG-reachability terms even though they landed chronologically earlier; using commit timestamps instead avoids that false positive."
+      ]
     }
   ]
 }

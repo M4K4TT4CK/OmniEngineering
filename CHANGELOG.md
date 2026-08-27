@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-08-27
+
+### Completed
+
+- `REQ-011` | Doctor / drift detection | Added `validate_project_map_freshness`
+  (warns when a top-level directory on disk is missing from
+  `.ai/project-map.md`'s tree) and `validate_recent_commits_tracked` (warns
+  when commits postdate the last `CHANGELOG.md`-touching commit, by commit
+  timestamp rather than `git log X..HEAD` DAG reachability, which
+  squash-merge PR histories make misleading) to `omni doctor`. Developed
+  while auditing an adopter project (STEP) for OmniEngineering alignment,
+  where both gaps were found live -- a stale map missing a whole added
+  directory, and several commits merged with no requirement ID or
+  changelog entry -- then ported back here so every adopter's `omni doctor`
+  catches the same drift automatically.
+
 ## 2026-06-12
 
 ### Completed

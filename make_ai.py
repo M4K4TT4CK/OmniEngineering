@@ -3,6 +3,7 @@ import fnmatch
 import json
 import re
 import shutil
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -1002,6 +1003,90 @@ def validate_project_map(report: DoctorReport) -> None:
         report.pass_check("Generated project map exists")
 
 
+def validate_project_map_freshness(report: DoctorReport) -> None:
+    path = Path(PROJECT_MAP_DEFAULT_OUTPUT)
+    if not path.is_file():
+        return  # already reported by validate_project_map
+
+    text = path.read_text(encoding="utf-8")
+    tree_start = text.find("## Directory Tree")
+    tree_text = text[tree_start:] if tree_start != -1 else text
+
+    missing_dirs = [
+        name
+        for name in sorted(ALLOWED_ROOT_DIRS)
+        if name != ".ai"
+        and name not in DEFAULT_MAP_EXCLUDED_DIRS
+        and Path(name).is_dir()
+        and f"{name}/" not in tree_text
+    ]
+
+    if missing_dirs:
+        report.warning(
+            "Project map is stale: top-level directories exist on disk but are "
+            f"missing from the map's tree: {', '.join(missing_dirs)}. Run ./omni map "
+            "to regenerate."
+        )
+    else:
+        report.pass_check("Generated project map covers current top-level directories")
+
+
+def validate_recent_commits_tracked(report: DoctorReport) -> None:
+    changelog_path = Path("CHANGELOG.md")
+    if not Path(".git").exists() or not changelog_path.is_file():
+        return
+
+    try:
+        last_changelog_date = subprocess.run(
+            ["git", "log", "-1", "--format=%cI", "--", str(changelog_path)],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=True,
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return
+
+    if not last_changelog_date:
+        return
+
+    try:
+        head_log = subprocess.run(
+            ["git", "log", "--format=%h\t%cI\t%s", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=True,
+        ).stdout.strip().splitlines()
+    except (OSError, subprocess.CalledProcessError):
+        return
+
+    # Compare by commit date rather than DAG reachability (e.g. `X..HEAD`):
+    # squash-merge PR histories put already-integrated side-branch commits
+    # "after" the changelog commit in the graph even though they landed
+    # chronologically earlier, which would otherwise false-positive here.
+    commits_since = []
+    for line in head_log:
+        parts = line.split("\t", 2)
+        if len(parts) != 3:
+            continue
+        short_hash, commit_date, subject = parts
+        if commit_date > last_changelog_date:
+            commits_since.append(f"{short_hash} {subject}")
+
+    if commits_since:
+        preview = commits_since[:5]
+        suffix = "" if len(commits_since) <= 5 else f" (+{len(commits_since) - 5} more)"
+        report.warning(
+            f"{len(commits_since)} commit(s) postdate the last CHANGELOG.md update with "
+            f"no changelog entry of their own: {'; '.join(preview)}{suffix}. Confirm each maps "
+            "to a requirement ID and update CHANGELOG.md / .ai/requirements/requirements.json "
+            "per the completion workflow, or state explicitly why not."
+        )
+    else:
+        report.pass_check("No commits postdating the last CHANGELOG.md update are missing changelog coverage")
+
+
 def validate_cli_entrypoints(report: DoctorReport) -> None:
     omni_path = Path("omni")
     if not omni_path.is_file():
@@ -1304,6 +1389,8 @@ def run_doctor() -> int:
     validate_workspace_placement(report)
     validate_markdown_assets(report)
     validate_project_map(report)
+    validate_project_map_freshness(report)
+    validate_recent_commits_tracked(report)
     validate_cli_entrypoints(report)
     report.print()
     return 0 if report.ok else 1
