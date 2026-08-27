@@ -426,6 +426,36 @@
       "risk_notes": [
         "This repo's existing tracked files are still CRLF in the working tree as of this change; .gitattributes stops new drift but does not retroactively renormalize what's already committed. A follow-up `git add --renormalize .` commit would fix that but was intentionally left out of scope here since it would touch every file in the repo."
       ]
+    },
+    {
+      "id": "REQ-013",
+      "category": "CLI / template maintainability",
+      "title": "Add omni update: 3-way-merge template improvements into adopted workspaces",
+      "description": "The single biggest 'clunky' gap raised this session: once a project adopts OmniEngineering and customizes its rules/playbooks/checklists, there was no way to pull later template improvements in except a manual hand-diff-and-port (done twice by hand earlier this session). Adds .ai/omni-version.json (written by omni adopt, recording the source path and git ref at last sync) and a new 'omni update --source <checkout>' command that 3-way-merges every template-managed file via git merge-file: files the adopter never touched are fast-path overwritten, files only the template changed are left alone, files both sides changed are merged (or left with conflict markers on a genuine collision), and .ai/project-configuration.md, .ai/project-map.md, .ai/requirements/requirements.json, and CHANGELOG.md are never touched since those are adopter-owned. If make_ai.py itself changes, update automatically re-runs sync in a fresh process so entrypoint/pointer/ignore files regenerate from the new templates. omni doctor gained a matching check warning when .ai/omni-version.json is missing. Also adds `--bootstrap` to `omni update` (records --source's current ref as the starting point without merging anything, for a workspace adopted before update-tracking existed) and a README Quick Start section covering the adopt/doctor/update loop end to end, including the bootstrap path, since a working feature nobody can find or follow doesn't solve the 'clunky to integrate' complaint either.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        "README.md"
+      ],
+      "acceptance_criteria": [
+        "omni adopt writes .ai/omni-version.json on success.",
+        "omni update fast-path-overwrites adopter-untouched files, no-ops on adopter-only changes, cleanly merges non-overlapping changes on both sides, and leaves conflict markers on overlapping changes -- verified end to end in a scratch adopter workspace covering all four cases plus confirming requirements.json/project-map.md/project-configuration.md/CHANGELOG.md are never touched.",
+        "omni update --bootstrap writes .ai/omni-version.json against --source's current ref and merges nothing, verified end to end.",
+        "omni doctor warns when .ai/omni-version.json is missing.",
+        "README Quick Start section documents adopt, doctor, update, and the bootstrap path for pre-existing adopters."
+      ],
+      "validation_required": [
+        "manual_verification"
+      ],
+      "documentation_required": [
+        "changelog",
+        "readme"
+      ],
+      "risk_notes": [
+        "Requires --source to be a real git checkout (needed to reconstruct the 3-way-merge base via git show); a plain folder copy as source is explicitly rejected with a clear message rather than guessing.",
+        "Fetching a template source directly from a remote git URL is an intentional follow-up, not included here -- v1 matches omni adopt's existing local-checkout-path convention."
+      ]
     }
   ]
 }

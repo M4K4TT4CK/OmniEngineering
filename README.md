@@ -34,6 +34,51 @@ and completion workflows across every assistant.
 
 ![OmniEngineering architecture](assets/omni-context.svg)
 
+## Quick Start
+
+In short: a `.ai/` folder of rules, playbooks, and checklists that every AI
+coding assistant in your repo reads from instead of its own separate config
+file, plus a small dependency-free CLI (`omni`) to keep it healthy.
+
+**1. Get a checkout of this repo** (you'll adopt *from* it, so keep it around):
+
+```bash
+git clone <this-repo-url> ../OmniEngineering
+```
+
+**2. Add it to your project** (run from inside the `OmniEngineering` checkout):
+
+```bash
+cd ../OmniEngineering
+./omni adopt --target ../your-project --dry-run       # preview first
+./omni adopt --target ../your-project --include-cli    # then actually copy
+```
+
+**3. Check it's healthy** (run from inside your project):
+
+```bash
+cd ../your-project
+./omni doctor
+```
+
+**Later, pull in template improvements** (new rulepacks, new `doctor` checks,
+etc.) without losing anything you've customized:
+
+```bash
+./omni update --source ../OmniEngineering --dry-run   # preview
+./omni update --source ../OmniEngineering              # apply
+```
+
+`omni update` never touches your `requirements.json`, `project-map.md`,
+`project-configuration.md`, or `CHANGELOG.md` -- see
+[Updating an adopted workspace](#updating-an-adopted-workspace) for exactly
+how it decides what's safe to change, and what to do if your project adopted
+OmniEngineering before this command existed.
+
+That's the whole loop: adopt once, `doctor` to check health, `update` to stay
+current. Everything below explains *why* it's built this way and covers less
+common setups (bare `.ai/` copy, symlinks, CI wiring, multi-tool projects).
+
 ## Design Documents
 
 The project design source lives in `design/`. It includes product design,
@@ -371,7 +416,49 @@ You can generate a safe adoption plan before copying:
 ```
 
 `adopt` copies `.ai/` and selected shims, skips existing target files by
-default, and requires `--force` before replacing anything.
+default, and requires `--force` before replacing anything. A successful
+(non-dry-run) adoption also writes `.ai/omni-version.json`, recording the
+source path and git commit adopted from -- this is what `omni update` (below)
+diffs against later.
+
+### Updating an adopted workspace
+
+Once a project has adopted OmniEngineering and customized its rules,
+playbooks, or checklists, pulling in later template improvements is a single
+command rather than a manual re-copy:
+
+```bash
+./omni update --source ../OmniEngineering --dry-run
+./omni update --source ../OmniEngineering
+```
+
+`update` 3-way-merges every template-managed file (rulepacks, playbooks,
+checklists, SWEBOK knowledge, schemas, entrypoints, `make_ai.py`/`omni`)
+using `git merge-file` against the ref recorded in `.ai/omni-version.json`:
+
+- Untouched-by-you files that changed upstream are updated automatically.
+- Files you customized that the template didn't touch are left alone.
+- Files both sides changed are merged; a genuine conflict is left with
+  `<<<<<<<`/`>>>>>>>` markers for you to resolve by hand, same as a git merge.
+- `.ai/project-configuration.md`, `.ai/project-map.md`,
+  `.ai/requirements/requirements.json`, and `CHANGELOG.md` are never touched
+  -- those are yours, not the template's.
+
+`--source` must point to a git checkout of OmniEngineering (not a plain
+folder copy) since reconstructing the merge base requires its commit
+history. Pass `--include-legal` or `--include-presentation` to also merge
+those optional bundles.
+
+**Already adopted OmniEngineering before `omni update` existed?** There's no
+`.ai/omni-version.json` yet, so a plain `omni update` will refuse (it has
+nothing to compare against). Fix that once, from the adopted project:
+
+```bash
+./omni update --source ../OmniEngineering --bootstrap
+```
+
+This merges nothing -- it just records today as the starting point. Every
+`omni update` after that works normally.
 
 Optional presentation assets:
 

@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-08-27 (3)
+
+### Completed
+
+- `REQ-013` | CLI / template maintainability | Added `omni update` --
+  3-way-merges every template-managed file (rulepacks, playbooks, checklists,
+  SWEBOK knowledge, schemas, entrypoints, `make_ai.py`/`omni`) into an
+  already-adopted, already-customized workspace via `git merge-file`, using
+  the ref recorded in the new `.ai/omni-version.json` (written automatically
+  by `omni adopt`) as the merge base. Adopter-untouched files that changed
+  upstream fast-path update; adopter customizations the template didn't
+  touch are left alone; real collisions get `<<<<<<<` conflict markers to
+  resolve by hand, same as a git merge. `.ai/project-configuration.md`,
+  `.ai/project-map.md`, `.ai/requirements/requirements.json`, and
+  `CHANGELOG.md` are never touched -- those stay adopter-owned. If
+  `make_ai.py` itself changed, `update` re-runs `sync` in a fresh process so
+  entrypoint/pointer/ignore files regenerate from the new templates. Added
+  `--bootstrap` for workspaces adopted before this existed (records
+  `--source`'s current ref as a starting point without merging anything),
+  a matching `omni doctor` check that warns when `.ai/omni-version.json` is
+  missing, and a README Quick Start section covering the whole
+  adopt/doctor/update loop -- this was the single biggest "clunky" gap
+  raised this session: pulling template improvements into an adopted
+  project previously meant a manual hand-diff-and-port, done twice by hand
+  earlier in this same session before this command existed.
+
 ## 2026-08-27 (2)
 
 ### Completed
