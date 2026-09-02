@@ -13,5 +13,13 @@ requires-python = ">=3.10"
 [project.scripts]
 omni = "make_ai:main"
 
+[project.optional-dependencies]
+graph = [
+    "tree-sitter>=0.23,<1.0",
+    "tree-sitter-python>=0.23,<1.0",
+    "tree-sitter-javascript>=0.23,<1.0",
+    "tree-sitter-typescript>=0.23,<1.0",
+]
+
 [tool.setuptools]
-py-modules = ["make_ai"]
+py-modules = ["make_ai", "omni_graph"]

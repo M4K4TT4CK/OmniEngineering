@@ -1,0 +1,27 @@
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="omni-mark-title">
+  <title id="omni-mark-title">omni mark</title>
+  <!-- Panel frame (the workspace) -->
+  <rect x="3" y="3" width="32" height="38" rx="3" fill="none" stroke="#e0475c" stroke-width="1.5"/>
+  <!-- Corner nodes -->
+  <circle cx="3" cy="3" r="1.5" fill="#e0475c"/>
+  <circle cx="35" cy="3" r="1.5" fill="#e0475c"/>
+  <circle cx="3" cy="41" r="1.5" fill="#e0475c"/>
+  <circle cx="35" cy="41" r="1.5" fill="#e0475c"/>
+  <!-- One control plane, fanned out to many assistant adapters -->
+  <line x1="19" y1="20" x2="10" y2="10" stroke="#e0475c" stroke-width="1" opacity="0.55"/>
+  <line x1="19" y1="20" x2="28" y2="9"  stroke="#e0475c" stroke-width="1" opacity="0.45"/>
+  <line x1="19" y1="20" x2="9"  y2="27" stroke="#e0475c" stroke-width="1" opacity="0.35"/>
+  <line x1="19" y1="20" x2="29" y2="28" stroke="#e0475c" stroke-width="1" opacity="0.5"/>
+  <line x1="19" y1="20" x2="19" y2="34" stroke="#e0475c" stroke-width="1" opacity="0.3"/>
+  <circle cx="10" cy="10" r="1.4" fill="#e0475c" opacity="0.8"/>
+  <circle cx="28" cy="9"  r="1.4" fill="#e0475c" opacity="0.7"/>
+  <circle cx="9"  cy="27" r="1.4" fill="#e0475c" opacity="0.6"/>
+  <circle cx="29" cy="28" r="1.4" fill="#e0475c" opacity="0.75"/>
+  <circle cx="19" cy="34" r="1.4" fill="#e0475c" opacity="0.55"/>
+  <!-- Hub -->
+  <circle cx="19" cy="20" r="7" fill="none" stroke="#e0475c" stroke-width="0.75" opacity="0.3"/>
+  <circle cx="19" cy="20" r="3.5" fill="#e0475c" opacity="0.9"/>
+  <!-- Beacon — overlaps bottom-right corner -->
+  <circle cx="41" cy="41" r="7" fill="#e0475c"/>
+  <circle cx="41" cy="41" r="3" fill="#0f0f12"/>
+</svg>

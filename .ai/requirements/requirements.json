@@ -477,6 +477,79 @@
         "changelog"
       ],
       "risk_notes": []
+    },
+    {
+      "id": "REQ-015",
+      "category": "Code understanding",
+      "title": "Add omni graph: a deterministic tree-sitter AST code graph, not a vector index",
+      "description": "Adds `omni graph build/trace/show`, a new omni_graph.py module holding a local, deterministic code graph parsed from source with tree-sitter -- no embeddings, no vector store. Every node is a code entity read straight from a syntax tree (module/class/function/method); every edge is tagged EXTRACTED (a fact read directly from a single source site: an import statement, a call site, a base class) or INFERRED (resolved by traversing the graph across files/scopes, or by an optional configured semantic API pass). `omni graph trace <a> <b>` answers 'how are these connected' with an actual shortest path of tagged hops instead of a similarity score; `omni graph show <node>` lists a symbol's direct EXTRACTED/INFERRED edges. Covers Python, JavaScript, and TypeScript in v1. tree-sitter and the per-language grammars are an optional `[graph]` extra so the workspace stays dependency-free by default: `omni graph build` fails with an actionable install message if the extra is missing, while `trace`/`show` only read the JSON `build` wrote and need nothing beyond the standard library. The semantic pass is opt-in via `--semantic` and only calls out to a network API if OMNI_GRAPH_SEMANTIC_API_URL is explicitly configured; its findings are still validated against known graph symbol names before being added as INFERRED edges, so a hallucinated relation can't be written into the graph silently. The CLI surface (subcommand-per-verb, a --json mode on every command) is intentionally 1:1 wrappable by an MCP relay the same way omni_map/omni_doctor/omni_sync already are.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "omni_graph.py",
+        "make_ai.py",
+        "pyproject.toml",
+        "README.md"
+      ],
+      "acceptance_criteria": [
+        "omni graph build parses Python, JavaScript, and TypeScript source with tree-sitter and writes a JSON graph whose edges are each tagged provenance EXTRACTED or INFERRED, with a resolver field distinguishing syntax / graph-traversal / semantic-api.",
+        "omni graph build fails with a clear install message (not a traceback) when tree-sitter or a language grammar is missing, verified by running it against the system Python with no [graph] extra installed.",
+        "omni graph trace <a> <b> resolves symbol names (preferring real symbols over unresolved external placeholders on a name collision) and prints the shortest path between them as a sequence of tagged hops; ambiguous or missing names are reported, not guessed.",
+        "omni graph show <node> lists a symbol's direct outgoing and incoming edges with provenance tags.",
+        "Cross-file call/import/inheritance resolution (INFERRED edges) verified against this repository's own make_ai.py plus a scratch TypeScript fixture with a cross-file import, confirming resolved edges are correct and that common built-ins (e.g. print) are excluded from the ambiguous unique-name fallback.",
+        "omni graph build/trace/show and the graph JSON never require network access unless --semantic is passed and OMNI_GRAPH_SEMANTIC_API_URL is set.",
+        "omni doctor gained a non-blocking check that only validates the graph file's JSON shape when one is present, since building the graph is opt-in.",
+        "pyproject.toml exposes tree-sitter + grammars as an optional [graph] extra rather than a hard dependency."
+      ],
+      "validation_required": [
+        "doctor",
+        "python_compile",
+        "manual_verification"
+      ],
+      "documentation_required": [
+        "changelog",
+        "readme"
+      ],
+      "risk_notes": [
+        "Call/inheritance resolution uses deterministic heuristics (same-module lookup, import-alias resolution, unique-name-in-graph fallback) rather than full type inference; ambiguous or dynamically-dispatched references are correctly left EXTRACTED-only rather than guessed, which is intentional but means some real connections will not surface as INFERRED edges in v1.",
+        "Nested function/class definitions declared inside another function's body are attributed to the enclosing function rather than modeled as their own node, to keep v1's traversal bounded.",
+        "The semantic pass sends a symbol's name, qualified name, and the full list of known symbol qualified_names to the configured API; it is opt-in (--semantic flag plus an explicitly set OMNI_GRAPH_SEMANTIC_API_URL) so nothing leaves the machine by default."
+      ]
+    },
+    {
+      "id": "REQ-016",
+      "category": "Presentation / brand identity",
+      "title": "Restyle OmniEngineering's brand assets to match the ctxrelay/PathBox family",
+      "description": "OmniEngineering's presentation assets (assets/banners/omniengineering-*.svg, assets/identity/omniengineering-*.svg) used an unrelated warm-gradient/forged-OE-monogram visual system, while the two sibling projects in the same account (context-relay-mcp's CtxRelay, PathBox) share one visual family: a dark #0f0f12 ground, single #e0475c accent, monospace wordmark, a 48x48 panel-plus-corner-nodes-plus-beacon mark shape, and a matching 820x180 grid/mesh/scanline banner, all under assets/brand/. Replaced OmniEngineering's assets with a new set in that same family -- assets/brand/omni-mark.svg, omni-wordmark.svg, omni-banner.svg -- keeping the shared chrome (panel, corner nodes, beacon, banner grid/mesh/scanline/signature) pixel-identical to the siblings and giving OmniEngineering its own mark content: a central hub fanned out to five small nodes, representing the actual product (one repo-local .ai/ control plane synced out to many AI assistant entrypoints), distinct from CtxRelay's two-endpoint relay and PathBox's chat panel. The wordmark uses the literal `omni` CLI name rather than the full 'OmniEngineering' repo name, matching how the sibling brands use their short product/command name.",
+      "priority": "low",
+      "status": "completed",
+      "minimum_access_scope": [
+        "assets/brand/omni-mark.svg",
+        "assets/brand/omni-wordmark.svg",
+        "assets/brand/omni-banner.svg",
+        "README.md",
+        "make_ai.py",
+        ".gitignore"
+      ],
+      "acceptance_criteria": [
+        "New assets/brand/omni-{mark,wordmark,banner}.svg exist, are well-formed XML, and reuse the exact shared chrome (colors, panel/corner-node/beacon geometry, banner grid/mesh/scanline/signature) from context-relay-mcp's and PathBox's own assets/brand/*.svg, verified by diffing the shared elements against both sibling repos.",
+        "The old assets/banners/ and assets/identity/ directories and their omniengineering-*.svg files are removed.",
+        "README.md's top banner and its 'optional presentation assets' listing point at assets/brand/ instead of the removed directories.",
+        "make_ai.py's ADOPTION_PRESENTATION_FILES points at assets/brand instead of the removed assets/identity and assets/banners paths, so omni adopt --include-presentation still works.",
+        ".gitignore no longer excludes assets/brand/ (it silently ignored this exact directory since a June 2026 commit, which would have made the new canonical brand assets untrackable).",
+        "omni doctor and omni map both run clean after the change (the architecture diagram at assets/omni-context.svg, which doctor validates by name, is untouched)."
+      ],
+      "validation_required": [
+        "doctor",
+        "manual_verification"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": [
+        "This only restyles presentation/brand assets (logo, banner). The functional architecture diagrams under design/diagrams/ and assets/omni-context.svg were intentionally left in their existing style since they illustrate mechanism, not brand identity, and the request was scoped to 'the look', not every diagram in the repo.",
+        "Verified the new SVGs render correctly (matching structure/behavior to the already-shipped sibling files) via a local cairosvg render; a font-fallback rendering artifact on the monospace wordmark text appeared identically on PathBox's own shipped wordmark under the same renderer, confirming it is a local missing-font rendering quirk and not a defect introduced here."
+      ]
     }
   ]
 }

@@ -11,4 +11,3 @@ build/
 .env
 .env.*
 .codex-local/
-assets/brand/

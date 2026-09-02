@@ -1,6 +1,6 @@
 # OmniEngineering Workspace
 
-![OmniEngineering repository banner](assets/banners/omniengineering-hero.svg)
+![omni repository banner](assets/brand/omni-banner.svg)
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-2F6DB3?logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-Apache--2.0-3C7D5A)](LICENSE)
@@ -463,8 +463,7 @@ This merges nothing -- it just records today as the starting point. Every
 Optional presentation assets:
 
 ```text
-assets/identity/
-assets/banners/
+assets/brand/
 assets/omni-context.svg
 design/
 ```
@@ -662,6 +661,82 @@ The doctor checks:
 ```bash
 omni validate
 ```
+
+## Code Graph (omni graph)
+
+`omni map` tells an assistant where files live. `omni graph` tells it how the
+code inside those files actually connects -- which function calls which,
+which class inherits from which, which module imports which -- as a real,
+traversable graph, not a vector index. There are no embeddings and no
+similarity scores: every node is a code entity read straight out of a
+tree-sitter syntax tree, and every edge is tagged with exactly where it came
+from:
+
+- **EXTRACTED** -- a fact read directly from one source site: this import
+  statement names this module; this call site names this function; this
+  class statement names this base class. Nothing was resolved.
+- **INFERRED** -- resolved by traversing the graph itself (following imports
+  and scopes across files to find the actual definition a name refers to),
+  or, if you configure a semantic API, by that API. An INFERRED edge always
+  sits on top of an EXTRACTED edge that justifies it; an unresolved
+  reference is left EXTRACTED-only rather than guessed.
+
+Build the graph (covers Python, JavaScript, and TypeScript):
+
+```bash
+omni graph build
+```
+
+This needs tree-sitter and its per-language grammars, which are an optional
+extra so the workspace stays dependency-free by default:
+
+```bash
+python3 -m pip install -e ".[graph]"
+```
+
+Without that extra, `omni graph build` fails with a clear install message
+instead of a traceback. `trace` and `show` below only read the JSON `build`
+already wrote, so they work with just the standard library.
+
+Ask how two symbols are connected -- this is the point of the feature. A
+plain name resolves if it's unique; use `Class::method` or the full
+`file::path` id to disambiguate, the same identifiers the graph's own JSON
+uses:
+
+```bash
+omni graph trace run_doctor "DoctorReport::error"
+```
+
+```
+make_ai.py::run_doctor
+  --[calls, INFERRED]--> make_ai.py::DoctorReport
+  --[defines, EXTRACTED]--> make_ai.py::DoctorReport::error
+```
+
+Inspect one symbol's direct connections:
+
+```bash
+omni graph show "make_ai.py::DoctorReport"
+```
+
+Both commands take `--json` for machine-readable output, and every `omni
+graph` subcommand is a thin, scriptable wrapper (one verb in, one JSON
+document out) so it can be exposed 1:1 as tools by an MCP relay, the same
+way `omni_map` / `omni_doctor` / `omni_sync` already are.
+
+Add `--semantic` to `build` to also run an opt-in enrichment pass tagged
+`INFERRED` via a configured API. Nothing leaves this machine unless you set:
+
+```bash
+export OMNI_GRAPH_SEMANTIC_API_URL=https://your-endpoint
+export OMNI_GRAPH_SEMANTIC_API_KEY=...   # optional
+export OMNI_GRAPH_SEMANTIC_MODEL=...     # optional
+omni graph build --semantic
+```
+
+Every relation the API suggests is checked against known graph symbol names
+before being added as an edge, so a hallucinated relation can't be written
+into the graph silently.
 
 ## Low-Friction Editing
 

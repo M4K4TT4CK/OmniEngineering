@@ -1,5 +1,50 @@
 # Changelog
 
+## 2026-09-02
+
+### Completed
+
+- `REQ-016` | Presentation / brand identity | Restyled OmniEngineering's
+  brand assets to match the visual family already shared by the two sibling
+  projects on this account (context-relay-mcp's CtxRelay, PathBox): dark
+  `#0f0f12` ground, single `#e0475c` accent, monospace wordmark, and a
+  48x48 panel-plus-corner-nodes-plus-beacon mark under `assets/brand/`.
+  Added `assets/brand/omni-{mark,wordmark,banner}.svg` -- same shared chrome
+  as the siblings, with OmniEngineering's own mark content: a hub fanned out
+  to five nodes, standing for one repo-local `.ai/` control plane synced out
+  to many AI assistant entrypoints. Removed the old, unrelated
+  `assets/banners/` and `assets/identity/` SVGs. Updated README's banner and
+  presentation-assets list, `make_ai.py`'s `ADOPTION_PRESENTATION_FILES`
+  (so `omni adopt --include-presentation` still works), and removed a stray
+  `assets/brand/` line from `.gitignore` left over from before this became
+  the real asset directory, which would have made the new files untrackable.
+
+## 2026-09-01
+
+### Completed
+
+- `REQ-015` | Code understanding | Added `omni graph build/trace/show` and a
+  new `omni_graph.py` module: a local, deterministic code graph parsed from
+  source with tree-sitter -- explicitly not a vector index, no embeddings.
+  Nodes are code entities (module/class/function/method) read straight from
+  the syntax tree; edges are tagged `EXTRACTED` (a fact read directly from
+  one source site -- an import, a call, a base class) or `INFERRED`
+  (resolved by traversing the graph across files/scopes, or by an optional
+  configured semantic API pass). `omni graph trace <a> <b>` answers "how are
+  these connected" with an actual shortest path of tagged hops; `omni graph
+  show <node>` lists a symbol's direct edges. Covers Python, JavaScript, and
+  TypeScript. tree-sitter and its grammars ship as an optional `[graph]`
+  extra -- `build` fails with an actionable install message if it's missing,
+  while `trace`/`show` only read the JSON `build` wrote and need nothing
+  beyond the standard library. The semantic pass is opt-in
+  (`--semantic` + `OMNI_GRAPH_SEMANTIC_API_URL`) and validates every
+  API-suggested relation against known graph symbol names before adding it,
+  so a hallucinated relation can't be written in silently. `omni doctor`
+  gained a non-blocking check that validates the graph file's shape only
+  when one is present. The CLI (subcommand-per-verb, `--json` everywhere) is
+  designed to be wrapped 1:1 by an MCP relay the same way `omni_map` /
+  `omni_doctor` / `omni_sync` already are.
+
 ## 2026-08-27 (4)
 
 ### Completed

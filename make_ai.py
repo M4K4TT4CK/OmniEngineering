@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import omni_graph
+
 
 REQUIRED_AI_FILES = [
     ".ai/core-context.md",
@@ -349,6 +351,7 @@ ALLOWED_ROOT_FILES = {
     "TRADEMARKS.md",
     "make_ai.py",
     "omni",
+    "omni_graph.py",
     "pyproject.toml",
 }
 
@@ -412,8 +415,7 @@ ADOPTION_LEGAL_FILES = [
     "LICENSES",
 ]
 ADOPTION_PRESENTATION_FILES = [
-    "assets/identity",
-    "assets/banners",
+    "assets/brand",
     "assets/omni-context.svg",
     "design",
 ]
@@ -1133,6 +1135,26 @@ def validate_project_map_freshness(report: DoctorReport) -> None:
         report.pass_check("Generated project map covers current top-level directories")
 
 
+def validate_project_graph(report: DoctorReport) -> None:
+    path = Path(omni_graph.GRAPH_DEFAULT_OUTPUT)
+    if not path.is_file():
+        return  # optional artifact: omni graph build is opt-in and needs the [graph] extra
+
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        report.error(f"Generated project graph is not valid JSON: {exc}")
+        return
+
+    required_keys = {"version", "nodes", "edges", "provenance_legend"}
+    missing_keys = required_keys - data.keys()
+    if missing_keys:
+        report.error(f"Generated project graph is missing keys: {', '.join(sorted(missing_keys))}")
+        return
+
+    report.pass_check("Generated project graph is present and well-formed")
+
+
 def validate_recent_commits_tracked(report: DoctorReport) -> None:
     changelog_path = Path("CHANGELOG.md")
     if not Path(".git").exists() or not changelog_path.is_file():
@@ -1425,6 +1447,122 @@ def run_map(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_graph_build(args: argparse.Namespace) -> int:
+    root = Path(args.root)
+    if not root.is_dir():
+        print(f"Project root not found: {root}", file=sys.stderr)
+        return 1
+
+    languages = split_csv(args.languages)
+    unknown = [language for language in languages if language not in omni_graph.LANGUAGE_EXTENSIONS]
+    if unknown:
+        print(
+            f"Unsupported language(s): {', '.join(unknown)}. "
+            f"Supported: {', '.join(sorted(omni_graph.LANGUAGE_EXTENSIONS))}",
+            file=sys.stderr,
+        )
+        return 1
+
+    try:
+        graph, semantic_info = omni_graph.build_graph(root.resolve(), languages, semantic=args.semantic)
+    except omni_graph.GraphDependencyError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    output = Path(args.output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    write_json(output, graph.to_json(str(root), languages, semantic_info))
+
+    extracted = sum(1 for edge in graph.edges if edge.provenance == omni_graph.EXTRACTED)
+    inferred = sum(1 for edge in graph.edges if edge.provenance == omni_graph.INFERRED)
+    summary = {
+        "output": str(output),
+        "nodes": len(graph.nodes),
+        "edges": len(graph.edges),
+        "extracted_edges": extracted,
+        "inferred_edges": inferred,
+        "semantic_pass": semantic_info,
+    }
+    if args.json:
+        print(json.dumps(summary, indent=2))
+        return 0
+
+    print(f"Wrote {summary['nodes']} nodes and {summary['edges']} edges to {output}")
+    print(f"  EXTRACTED edges: {extracted}   INFERRED edges: {inferred}")
+    if semantic_info.get("enabled"):
+        print(
+            f"  Semantic pass: {semantic_info.get('nodes_tagged', 0)} nodes tagged, "
+            f"{semantic_info.get('edges_added', 0)} related_to edges added via {semantic_info.get('api_url')}"
+        )
+        for error in semantic_info.get("errors", []):
+            print(f"    semantic pass error: {error}", file=sys.stderr)
+    else:
+        print(f"  Semantic pass: skipped ({semantic_info.get('reason')})")
+    return 0
+
+
+def run_graph_trace(args: argparse.Namespace) -> int:
+    graph_path = Path(args.graph)
+    if not graph_path.is_file():
+        print(f"Graph file not found: {graph_path}; run ./omni graph build first", file=sys.stderr)
+        return 1
+
+    result = omni_graph.trace(graph_path, args.source, args.target)
+    if args.json:
+        print(json.dumps(result, indent=2))
+        return 0 if result.get("ok") else 1
+
+    if not result.get("ok"):
+        if result.get("error") == "ambiguous_or_not_found":
+            print("Could not uniquely resolve source/target.", file=sys.stderr)
+            print(f"  source matches: {result.get('source_matches')}", file=sys.stderr)
+            print(f"  target matches: {result.get('target_matches')}", file=sys.stderr)
+        else:
+            print(f"No path found between {result.get('source')} and {result.get('target')}", file=sys.stderr)
+        return 1
+
+    current = result["source"]
+    print(current)
+    for hop in result["hops"]:
+        if hop["source"] == current:
+            next_node = hop["target"]
+            arrow = f"  --[{hop['type']}, {hop['provenance']}]--> "
+        else:
+            next_node = hop["source"]
+            arrow = f"  <--[{hop['type']}, {hop['provenance']}]-- "
+        print(f"{arrow}{next_node}")
+        current = next_node
+    return 0
+
+
+def run_graph_show(args: argparse.Namespace) -> int:
+    graph_path = Path(args.graph)
+    if not graph_path.is_file():
+        print(f"Graph file not found: {graph_path}; run ./omni graph build first", file=sys.stderr)
+        return 1
+
+    result = omni_graph.show(graph_path, args.node)
+    if args.json:
+        print(json.dumps(result, indent=2))
+        return 0 if result.get("ok") else 1
+
+    if not result.get("ok"):
+        print(f"Could not uniquely resolve node. Matches: {result.get('matches')}", file=sys.stderr)
+        return 1
+
+    node = result["node"]
+    print(f"{node['id']} ({node['kind']})")
+    if node.get("summary"):
+        print(f"  summary: {node['summary']}")
+    print("  outgoing:")
+    for edge in result["outgoing"]:
+        print(f"    --[{edge['type']}, {edge['provenance']}]--> {edge['target']}  ({edge['detail']})")
+    print("  incoming:")
+    for edge in result["incoming"]:
+        print(f"    <--[{edge['type']}, {edge['provenance']}]-- {edge['source']}  ({edge['detail']})")
+    return 0
+
+
 def resolve_context_profile_name(profile: str) -> str:
     key = profile.strip().lower()
     return CONTEXT_PROFILE_ALIASES.get(key, key)
@@ -1504,6 +1642,7 @@ def run_doctor() -> int:
     validate_markdown_assets(report)
     validate_project_map(report)
     validate_project_map_freshness(report)
+    validate_project_graph(report)
     validate_recent_commits_tracked(report)
     validate_cli_entrypoints(report)
     validate_omni_version_present(report)
@@ -1916,6 +2055,71 @@ def build_parser() -> argparse.ArgumentParser:
         help="Include .ai internals in the generated map.",
     )
 
+    graph_parser = subparsers.add_parser(
+        "graph",
+        help="Build and query a deterministic tree-sitter AST code graph (no embeddings, no vector store).",
+    )
+    graph_subparsers = graph_parser.add_subparsers(dest="graph_command")
+
+    graph_build = graph_subparsers.add_parser(
+        "build",
+        help="Parse source with tree-sitter and write a project graph.",
+    )
+    graph_build.add_argument(
+        "--root",
+        default=".",
+        help="Project root to parse. Defaults to the current repository.",
+    )
+    graph_build.add_argument(
+        "--output",
+        default=omni_graph.GRAPH_DEFAULT_OUTPUT,
+        help=f"Graph output path. Defaults to {omni_graph.GRAPH_DEFAULT_OUTPUT}.",
+    )
+    graph_build.add_argument(
+        "--languages",
+        default="python,javascript,typescript",
+        help="Comma-separated languages to parse. Requires the [graph] extra.",
+    )
+    graph_build.add_argument(
+        "--semantic",
+        action="store_true",
+        help=(
+            "Also run a semantic enrichment pass tagged INFERRED via the API configured by "
+            f"{omni_graph.SEMANTIC_API_URL_ENV}. Nothing leaves this machine unless this flag "
+            "is set and that variable is configured."
+        ),
+    )
+    graph_build.add_argument(
+        "--json",
+        action="store_true",
+        help="Print a machine-readable build summary instead of a human summary.",
+    )
+
+    graph_trace = graph_subparsers.add_parser(
+        "trace",
+        help="Trace the shortest path between two symbols in the graph.",
+    )
+    graph_trace.add_argument("source", help="Name or qualified name to start from.")
+    graph_trace.add_argument("target", help="Name or qualified name to reach.")
+    graph_trace.add_argument(
+        "--graph",
+        default=omni_graph.GRAPH_DEFAULT_OUTPUT,
+        help=f"Graph file to read. Defaults to {omni_graph.GRAPH_DEFAULT_OUTPUT}.",
+    )
+    graph_trace.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+
+    graph_show = graph_subparsers.add_parser(
+        "show",
+        help="List the direct EXTRACTED/INFERRED edges for one symbol.",
+    )
+    graph_show.add_argument("node", help="Name or qualified name to inspect.")
+    graph_show.add_argument(
+        "--graph",
+        default=omni_graph.GRAPH_DEFAULT_OUTPUT,
+        help=f"Graph file to read. Defaults to {omni_graph.GRAPH_DEFAULT_OUTPUT}.",
+    )
+    graph_show.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+
     context_parser = subparsers.add_parser(
         "context",
         help="Print the low-token file set for a context profile.",
@@ -2093,6 +2297,14 @@ def main(argv: list[str] | None = None) -> int:
         return run_doctor()
     if command == "map":
         return run_map(args)
+    if command == "graph":
+        if args.graph_command == "build":
+            return run_graph_build(args)
+        if args.graph_command == "trace":
+            return run_graph_trace(args)
+        if args.graph_command == "show":
+            return run_graph_show(args)
+        parser.error("graph requires a subcommand (build, trace, show)")
     if command == "context":
         return run_context(args)
     if command == "adopt":
