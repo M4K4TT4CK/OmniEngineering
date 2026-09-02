@@ -688,13 +688,23 @@ omni graph build
 ```
 
 This needs tree-sitter and its per-language grammars, which are an optional
-extra so the workspace stays dependency-free by default:
+extra so the workspace stays dependency-free by default. If you cloned this
+repo (its `pyproject.toml` is present):
 
 ```bash
 python3 -m pip install -e ".[graph]"
 ```
 
-Without that extra, `omni graph build` fails with a clear install message
+If you adopted `omni`/`make_ai.py`/`omni_graph.py` into another project via
+`omni adopt --include-cli` (no `pyproject.toml` from this repo there), install
+the same packages directly instead:
+
+```bash
+python3 -m pip install "tree-sitter>=0.23,<1.0" "tree-sitter-python>=0.23,<1.0" \
+  "tree-sitter-javascript>=0.23,<1.0" "tree-sitter-typescript>=0.23,<1.0"
+```
+
+Without either, `omni graph build` fails with a clear install message
 instead of a traceback. `trace` and `show` below only read the JSON `build`
 already wrote, so they work with just the standard library.
 

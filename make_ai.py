@@ -10,7 +10,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import omni_graph
+try:
+    import omni_graph
+except ImportError:
+    # omni_graph.py should always ship alongside make_ai.py (adopt/update copy
+    # both -- see ADOPTION_CLI_FILES), but if it's ever missing (a partial
+    # copy, a manual deletion, an update that hasn't caught up yet) every
+    # other omni command must still work. Only `omni graph ...` needs it.
+    omni_graph = None
+
+GRAPH_DEFAULT_OUTPUT = ".ai/project-graph.json"
+GRAPH_SEMANTIC_API_URL_ENV = "OMNI_GRAPH_SEMANTIC_API_URL"
 
 
 REQUIRED_AI_FILES = [
@@ -406,7 +416,7 @@ ADOPTION_TOOL_FILES = {
     "kiro": [".kiro/steering/omnicontext.md"],
 }
 
-ADOPTION_CLI_FILES = ["omni", "make_ai.py"]
+ADOPTION_CLI_FILES = ["omni", "make_ai.py", "omni_graph.py"]
 ADOPTION_LEGAL_FILES = [
     "LICENSE",
     "NOTICE",
@@ -1136,7 +1146,14 @@ def validate_project_map_freshness(report: DoctorReport) -> None:
 
 
 def validate_project_graph(report: DoctorReport) -> None:
-    path = Path(omni_graph.GRAPH_DEFAULT_OUTPUT)
+    if omni_graph is None and Path("make_ai.py").is_file():
+        report.warning(
+            "omni_graph.py is missing next to make_ai.py, so `omni graph` is unavailable. "
+            "Re-run `omni adopt --include-cli` or `omni update` from a current OmniEngineering "
+            "source to restore it; every other command is unaffected."
+        )
+
+    path = Path(GRAPH_DEFAULT_OUTPUT)
     if not path.is_file():
         return  # optional artifact: omni graph build is opt-in and needs the [graph] extra
 
@@ -1447,7 +1464,22 @@ def run_map(args: argparse.Namespace) -> int:
     return 0
 
 
+def require_omni_graph() -> bool:
+    if omni_graph is not None:
+        return True
+    print(
+        "omni_graph.py is missing next to make_ai.py, so `omni graph` is unavailable. "
+        "Re-run `omni adopt --include-cli` or `omni update` from a current OmniEngineering "
+        "source to restore it.",
+        file=sys.stderr,
+    )
+    return False
+
+
 def run_graph_build(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+
     root = Path(args.root)
     if not root.is_dir():
         print(f"Project root not found: {root}", file=sys.stderr)
@@ -1502,6 +1534,9 @@ def run_graph_build(args: argparse.Namespace) -> int:
 
 
 def run_graph_trace(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+
     graph_path = Path(args.graph)
     if not graph_path.is_file():
         print(f"Graph file not found: {graph_path}; run ./omni graph build first", file=sys.stderr)
@@ -1536,6 +1571,9 @@ def run_graph_trace(args: argparse.Namespace) -> int:
 
 
 def run_graph_show(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+
     graph_path = Path(args.graph)
     if not graph_path.is_file():
         print(f"Graph file not found: {graph_path}; run ./omni graph build first", file=sys.stderr)
@@ -2072,8 +2110,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     graph_build.add_argument(
         "--output",
-        default=omni_graph.GRAPH_DEFAULT_OUTPUT,
-        help=f"Graph output path. Defaults to {omni_graph.GRAPH_DEFAULT_OUTPUT}.",
+        default=GRAPH_DEFAULT_OUTPUT,
+        help=f"Graph output path. Defaults to {GRAPH_DEFAULT_OUTPUT}.",
     )
     graph_build.add_argument(
         "--languages",
@@ -2085,7 +2123,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help=(
             "Also run a semantic enrichment pass tagged INFERRED via the API configured by "
-            f"{omni_graph.SEMANTIC_API_URL_ENV}. Nothing leaves this machine unless this flag "
+            f"{GRAPH_SEMANTIC_API_URL_ENV}. Nothing leaves this machine unless this flag "
             "is set and that variable is configured."
         ),
     )
@@ -2103,8 +2141,8 @@ def build_parser() -> argparse.ArgumentParser:
     graph_trace.add_argument("target", help="Name or qualified name to reach.")
     graph_trace.add_argument(
         "--graph",
-        default=omni_graph.GRAPH_DEFAULT_OUTPUT,
-        help=f"Graph file to read. Defaults to {omni_graph.GRAPH_DEFAULT_OUTPUT}.",
+        default=GRAPH_DEFAULT_OUTPUT,
+        help=f"Graph file to read. Defaults to {GRAPH_DEFAULT_OUTPUT}.",
     )
     graph_trace.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
 
@@ -2115,8 +2153,8 @@ def build_parser() -> argparse.ArgumentParser:
     graph_show.add_argument("node", help="Name or qualified name to inspect.")
     graph_show.add_argument(
         "--graph",
-        default=omni_graph.GRAPH_DEFAULT_OUTPUT,
-        help=f"Graph file to read. Defaults to {omni_graph.GRAPH_DEFAULT_OUTPUT}.",
+        default=GRAPH_DEFAULT_OUTPUT,
+        help=f"Graph file to read. Defaults to {GRAPH_DEFAULT_OUTPUT}.",
     )
     graph_show.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
 

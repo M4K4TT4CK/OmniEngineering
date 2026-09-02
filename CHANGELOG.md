@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-09-02 (2)
+
+### Completed
+
+- `REQ-017` | CLI / template maintainability | Fixed two bugs found by
+  actually adopting/updating a simulated pre-existing application with the
+  new `omni graph` feature in place, instead of trusting the change in
+  isolation: (1) `omni adopt --include-cli` copied `make_ai.py` (which
+  unconditionally imports `omni_graph`) without copying `omni_graph.py`
+  itself, crashing every `omni` command in the adopted project, not just
+  `graph` -- fixed by adding `omni_graph.py` to `ADOPTION_CLI_FILES`. (2) A
+  project adopted before `omni_graph.py` existed hit the same crash on its
+  first `omni update` against a current source, because `omni update`'s
+  file list is computed by the *currently running* (old) `make_ai.py`, not
+  the newer `--source` -- a structural gap that means a target can never
+  discover a brand-new template file on the very first update after it's
+  introduced. Made `make_ai.py`'s `import omni_graph` defensive instead
+  (falls back to `None`, with a shared guard on every `omni graph`
+  subcommand and a doctor warning), so a target still missing
+  `omni_graph.py` for any reason degrades to "omni graph is unavailable"
+  rather than breaking every other command. Verified end to end: fresh
+  adopt, a simulated pre-existing-adoption upgrade (crash gone, clear
+  warning, self-heals on the next update), and that adopter customizations
+  survive both update passes untouched.
+
 ## 2026-09-02
 
 ### Completed

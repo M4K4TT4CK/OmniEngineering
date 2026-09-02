@@ -550,6 +550,36 @@
         "This only restyles presentation/brand assets (logo, banner). The functional architecture diagrams under design/diagrams/ and assets/omni-context.svg were intentionally left in their existing style since they illustrate mechanism, not brand identity, and the request was scoped to 'the look', not every diagram in the repo.",
         "Verified the new SVGs render correctly (matching structure/behavior to the already-shipped sibling files) via a local cairosvg render; a font-fallback rendering artifact on the monospace wordmark text appeared identically on PathBox's own shipped wordmark under the same renderer, confirming it is a local missing-font rendering quirk and not a defect introduced here."
       ]
+    },
+    {
+      "id": "REQ-017",
+      "category": "CLI / template maintainability",
+      "title": "Fix: adopting or updating omni_graph.py must not be able to break every other command",
+      "description": "Found by end-to-end testing REQ-015 against a simulated pre-existing application: (1) ADOPTION_CLI_FILES only listed omni/make_ai.py, so `omni adopt --include-cli` copied a make_ai.py that unconditionally imports omni_graph without ever copying omni_graph.py itself, crashing every single omni command (not just `graph`) in the adopted project with a raw ModuleNotFoundError. (2) Testing the upgrade path (a project adopted before omni_graph.py existed, running `omni update` against a source that now has it) surfaced a deeper, structural gap: `omni update`'s file list (TEMPLATE_MANAGED_FILES) is evaluated by the OLD make_ai.py that is currently running the update, not by the newer --source -- so a target can never discover a brand-new template-managed file on the very first update after it's introduced, no matter what that file list contains by the time of a *later* update. Fixed both: added omni_graph.py to ADOPTION_CLI_FILES (fixes fresh `omni adopt --include-cli` immediately, and fixes `omni update` from the second update onward once a target is running post-fix code), and made make_ai.py's own `import omni_graph` defensive (try/except, falls back to None) with a shared require_omni_graph() guard on every `omni graph ...` subcommand and a doctor warning -- so a target still missing omni_graph.py (the unavoidable one-time gap on that very first update, or any other reason the file might be absent) degrades to 'omni graph is unavailable' instead of taking down doctor/sync/map/every other command.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py"
+      ],
+      "acceptance_criteria": [
+        "omni adopt --target <dir> --include-cli copies omni_graph.py alongside make_ai.py, verified against a scratch pre-existing application directory whose own pre-existing files (README, source, .gitignore) are confirmed byte-for-byte unchanged after adoption.",
+        "A project simulated as adopted before omni_graph.py existed (sourced from OmniEngineering@523c47b) that runs `omni update` against a current source no longer crashes: omni doctor, omni sync, and every non-graph command work immediately after that update even though omni_graph.py is still absent on that specific first pass, with a clear doctor warning naming the gap and the fix (re-run omni adopt --include-cli or omni update).",
+        "The same project's second `omni update` (now running the fixed make_ai.py) reports 'added: omni_graph.py', after which omni graph build/trace/show all work against the adopted project's own source files.",
+        "Adopter-owned files (.ai/project-configuration.md, .ai/project-map.md, .ai/requirements/requirements.json, CHANGELOG.md) verified untouched by both update passes in this test, including a deliberately added custom note/entry in each.",
+        "omni doctor and omni graph both continue to work correctly in this repo's own working copy (which always has omni_graph.py) after these changes."
+      ],
+      "validation_required": [
+        "doctor",
+        "python_compile",
+        "manual_verification"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": [
+        "The structural update-mechanism gap (a target's own running code decides what files it looks for) is not fully eliminated -- it is closed for every template file added from this point forward (once a target has updated past this fix, it will correctly discover any future new template file on the very next update), but a project that adopted before omni_graph.py existed will still see one warning-but-not-broken update before omni_graph.py actually arrives. A fully general fix would have run_update ask --source's own make_ai.py for its current file manifest via subprocess instead of trusting its own constant; deferred as a larger structural change beyond this fix's scope.",
+        "The defensive import is the durable half of this fix: it guarantees a missing omni_graph.py (for this reason or any other -- a bad copy, manual deletion) degrades to one feature being unavailable rather than the whole CLI being unusable, independent of whether the file-list gap above is ever fully closed."
+      ]
     }
   ]
 }
