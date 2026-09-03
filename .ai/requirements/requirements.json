@@ -607,6 +607,44 @@
       "risk_notes": [
         "Generating this diagram required networkx + numpy for the spring layout; these are one-off diagram-authoring tools, not a runtime dependency of omni_graph.py or the [graph] extra, so nothing was added to pyproject.toml."
       ]
+    },
+    {
+      "id": "REQ-019",
+      "category": "Code understanding",
+      "title": "Add omni graph render: a permanent, stdlib-only SVG visualization command",
+      "description": "REQ-018's node-link graph was a one-off script requiring networkx+numpy, run by hand and copied into the repo. User ask: this should be a permanent feature of omni itself that updates as the user's project updates, not a one-off artifact. Added `omni graph render` (and the underlying omni_graph.render()/_spring_layout()/_render_svg()/_ego_network() functions): renders .ai/project-graph.json as a force-directed node-link SVG using a small pure-Python Fruchterman-Reingold layout -- no numpy/networkx dependency, so render works with just the standard library exactly like trace/show (only build needs the [graph] extra). Nodes are colored by source language (python/javascript/typescript) and sized by kind (module > class > function/method); edges distinguish calls/imports/inherits (colored, per edge style) from defines (faint, de-emphasized) from related_to (dashed, semantic-pass edges). --max-nodes caps large graphs to the highest-degree nodes to keep the O(n^2) layout fast; --focus/--depth renders just one symbol's neighborhood instead of the whole codebase. design/diagrams/omni-code-graph.svg was regenerated using this actual shipped command (replacing the prior one-off script's output) so the committed diagram is proof the feature works, not just a description of it.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "omni_graph.py",
+        "make_ai.py",
+        "README.md",
+        "design/diagrams/omni-code-graph.svg",
+        ".gitignore"
+      ],
+      "acceptance_criteria": [
+        "omni graph render writes a well-formed SVG node-link graph from .ai/project-graph.json, verified by parsing the output as XML and rendering it to PNG for visual review.",
+        "render works via plain system Python with no tree-sitter or third-party layout library installed, verified by running it without the [graph] extra present.",
+        "Layout performance verified empirically: 112 real nodes rendered in ~0.2s, 300 nodes (max-nodes cap, including external references) in ~1.3s against this repo's own graph -- fast enough for normal CLI use.",
+        "--focus <symbol> --depth N renders only that symbol's N-hop neighborhood, verified against run_doctor at depth 1 producing a correct, legible ego-network.",
+        "--max-nodes correctly truncates to the highest-degree nodes and reports truncated:true, verified by rendering with include_external=True against a cap below the real node count.",
+        "The project's own root label in the rendered title resolves to a real folder name instead of a literal '.', verified before and after the fix.",
+        "design/diagrams/omni-code-graph.svg in this repo is the literal output of running `omni graph render` against this repo, not a hand-tuned or separately-scripted render.",
+        "omni doctor and omni graph build/trace/show continue to pass after these changes; .ai/project-graph.svg (the default output path) is gitignored the same way .ai/project-graph.json is, since it's a heavy, regeneratable, opt-in artifact, not a committed navigation aid."
+      ],
+      "validation_required": [
+        "doctor",
+        "python_compile",
+        "manual_verification"
+      ],
+      "documentation_required": [
+        "changelog",
+        "readme"
+      ],
+      "risk_notes": [
+        "The layout is O(n^2) per iteration (a deliberate simplicity/dependency tradeoff over numpy-vectorized force-directed algorithms), which is why --max-nodes defaults to 300 and truncates by degree rather than rendering arbitrarily large graphs unbounded.",
+        "Dense, highly-connected clusters (e.g. this repo's own doctor-validator cluster) still show some label overlap at default settings -- an inherent characteristic of force-directed layouts at this node density, not something --max-nodes or --focus fully eliminates; --focus on a smaller neighborhood is the escape hatch for a specific area."
+      ]
     }
   ]
 }

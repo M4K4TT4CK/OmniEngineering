@@ -733,10 +733,29 @@ Inspect one symbol's direct connections:
 omni graph show "make_ai.py::DoctorReport"
 ```
 
-Both commands take `--json` for machine-readable output, and every `omni
-graph` subcommand is a thin, scriptable wrapper (one verb in, one JSON
-document out) so it can be exposed 1:1 as tools by an MCP relay, the same
-way `omni_map` / `omni_doctor` / `omni_sync` already are.
+See the whole thing as an actual graph -- a force-directed node-link SVG,
+not a chart -- rendered by a small pure-Python layout (no numpy/networkx;
+`render`, like `trace`/`show`, only needs the standard library):
+
+```bash
+omni graph render
+```
+
+This writes `.ai/project-graph.svg`: circles are symbols (sized by
+module/class/function, colored by language), lines are resolved edges
+(`calls`/`imports`/`inherits` in color, `defines` faint). It updates every
+time you run it, so it always reflects the current state of your project --
+regenerate it after significant changes the same way you'd re-run `omni
+map`. Large graphs are capped to the highest-degree `--max-nodes` (default
+300); use `--focus <symbol> --depth 2` to render just one area's
+neighborhood instead of the whole codebase, and `--include-external` to
+also show unresolved references (stdlib calls, third-party imports).
+
+Both `trace`/`show`/`render` take `--json` for machine-readable output
+(render's is a summary, not the SVG itself), and every `omni graph`
+subcommand is a thin, scriptable wrapper (one verb in, one JSON document
+out) so it can be exposed 1:1 as tools by an MCP relay, the same way
+`omni_map` / `omni_doctor` / `omni_sync` already are.
 
 Add `--semantic` to `build` to also run an opt-in enrichment pass tagged
 `INFERRED` via a configured API. Nothing leaves this machine unless you set:

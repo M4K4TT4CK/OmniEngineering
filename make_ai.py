@@ -21,6 +21,9 @@ except ImportError:
 
 GRAPH_DEFAULT_OUTPUT = ".ai/project-graph.json"
 GRAPH_SEMANTIC_API_URL_ENV = "OMNI_GRAPH_SEMANTIC_API_URL"
+RENDER_DEFAULT_OUTPUT = ".ai/project-graph.svg"
+RENDER_DEFAULT_MAX_NODES = 300
+RENDER_DEFAULT_DEPTH = 2
 
 
 REQUIRED_AI_FILES = [
@@ -1601,6 +1604,45 @@ def run_graph_show(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_graph_render(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+
+    graph_path = Path(args.graph)
+    if not graph_path.is_file():
+        print(f"Graph file not found: {graph_path}; run ./omni graph build first", file=sys.stderr)
+        return 1
+
+    result = omni_graph.render(
+        graph_path,
+        include_external=args.include_external,
+        max_nodes=args.max_nodes,
+        focus=args.focus,
+        depth=args.depth,
+    )
+    if not result.get("ok"):
+        print(f"Could not resolve --focus symbol: {args.focus}", file=sys.stderr)
+        return 1
+
+    output = Path(args.output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(result["svg"], encoding="utf-8")
+
+    summary = {key: value for key, value in result.items() if key != "svg"}
+    summary["output"] = str(output)
+    if args.json:
+        print(json.dumps(summary, indent=2))
+        return 0
+
+    print(f"Wrote {summary['nodes_rendered']} nodes / {summary['edges_rendered']} edges to {output}")
+    if summary["truncated"]:
+        print(
+            f"  Truncated to the {args.max_nodes} highest-degree nodes out of "
+            f"{summary['nodes_total']} total; use --max-nodes or --focus to change what's shown."
+        )
+    return 0
+
+
 def resolve_context_profile_name(profile: str) -> str:
     key = profile.strip().lower()
     return CONTEXT_PROFILE_ALIASES.get(key, key)
@@ -2158,6 +2200,46 @@ def build_parser() -> argparse.ArgumentParser:
     )
     graph_show.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
 
+    graph_render = graph_subparsers.add_parser(
+        "render",
+        help="Render the graph as a force-directed SVG node-link diagram.",
+    )
+    graph_render.add_argument(
+        "--graph",
+        default=GRAPH_DEFAULT_OUTPUT,
+        help=f"Graph file to read. Defaults to {GRAPH_DEFAULT_OUTPUT}.",
+    )
+    graph_render.add_argument(
+        "--output",
+        default=RENDER_DEFAULT_OUTPUT,
+        help=f"SVG output path. Defaults to {RENDER_DEFAULT_OUTPUT}.",
+    )
+    graph_render.add_argument(
+        "--include-external",
+        action="store_true",
+        help="Also render unresolved external references (stdlib calls, third-party imports, etc.).",
+    )
+    graph_render.add_argument(
+        "--max-nodes",
+        type=int,
+        default=RENDER_DEFAULT_MAX_NODES,
+        help=(
+            f"Cap on rendered nodes, keeping the highest-degree ones if exceeded. "
+            f"Defaults to {RENDER_DEFAULT_MAX_NODES}."
+        ),
+    )
+    graph_render.add_argument(
+        "--focus",
+        help="Only render the neighborhood around this symbol (name or qualified name) instead of the whole graph.",
+    )
+    graph_render.add_argument(
+        "--depth",
+        type=int,
+        default=RENDER_DEFAULT_DEPTH,
+        help=f"Hops out from --focus to include. Defaults to {RENDER_DEFAULT_DEPTH}. Ignored without --focus.",
+    )
+    graph_render.add_argument("--json", action="store_true", help="Print a machine-readable summary instead of a human summary.")
+
     context_parser = subparsers.add_parser(
         "context",
         help="Print the low-token file set for a context profile.",
@@ -2342,7 +2424,9 @@ def main(argv: list[str] | None = None) -> int:
             return run_graph_trace(args)
         if args.graph_command == "show":
             return run_graph_show(args)
-        parser.error("graph requires a subcommand (build, trace, show)")
+        if args.graph_command == "render":
+            return run_graph_render(args)
+        parser.error("graph requires a subcommand (build, trace, show, render)")
     if command == "context":
         return run_context(args)
     if command == "adopt":

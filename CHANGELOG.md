@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-09-03 (2)
+
+### Completed
+
+- `REQ-019` | Code understanding | Added `omni graph render`, making the
+  node-link graph visualization a permanent CLI feature instead of a
+  one-off script. Renders `.ai/project-graph.json` as a force-directed SVG
+  using a small pure-Python Fruchterman-Reingold layout -- no numpy/
+  networkx dependency, so `render` works with just the standard library,
+  same as `trace`/`show` (only `build` needs the `[graph]` extra). Nodes
+  colored by language, sized by kind; edges distinguish `calls`/`imports`/
+  `inherits` from de-emphasized `defines`. `--max-nodes` caps large graphs
+  to the highest-degree nodes to keep the O(n^2) layout fast (~0.2s for 112
+  nodes, ~1.3s for 300, measured against this repo); `--focus`/`--depth`
+  renders one symbol's neighborhood instead of the whole codebase.
+  `design/diagrams/omni-code-graph.svg` was regenerated using this actual
+  command, replacing the prior one-off script's output.
+
 ## 2026-09-03
 
 ### Completed

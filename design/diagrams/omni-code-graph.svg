@@ -1,619 +1,643 @@
-<svg width="2200" height="1500" viewBox="0 0 2200 1500" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+<svg width="1600" height="1100" viewBox="0 0 1600 1100" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
 <title id="title">OmniEngineering code graph</title>
-<desc id="desc">Force-directed node-link graph of every real symbol and resolved call/containment edge in OmniEngineering, laid out with networkx spring_layout from omni graph build output.</desc>
-<defs>
-  <pattern id="grid" width="26" height="26" patternUnits="userSpaceOnUse">
-    <path d="M 26 0 L 0 0 0 26" fill="none" stroke="#e0475c" stroke-width="0.2" opacity="0.06"/>
-  </pattern>
-</defs>
-<rect width="2200" height="1500" fill="#0f0f12"/>
-<rect width="2200" height="1500" fill="url(#grid)"/>
-<text x="30" y="34" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="18" font-weight="700" fill="#e8e8e8" letter-spacing="0.5">omni engineering -- code graph</text>
-<text x="30" y="54" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="10.5" fill="#707070" letter-spacing="1.2">106 SYMBOLS &#183; 277 RESOLVED EDGES &#183; FORCE-DIRECTED LAYOUT FROM `OMNI GRAPH BUILD`'s OWN OUTPUT</text>
-<line x1="1208.4" y1="742.9" x2="565.7" y2="1330.9" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1050.1" y2="723.8" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1050.1" y1="723.8" x2="70.0" y2="806.4" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1050.1" y1="723.8" x2="2130.0" y2="818.4" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1050.1" y1="723.8" x2="1520.1" y2="172.6" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1050.1" y1="723.8" x2="2030.0" y2="1044.2" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1050.1" y1="723.8" x2="124.9" y2="980.8" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1050.1" y1="723.8" x2="193.8" y2="456.9" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="2099.5" y2="819.6" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="2048.7" y2="1016.3" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="251.8" y2="408.5" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="361.8" y2="311.4" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="2120.5" y2="704.6" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="70.9" y2="746.9" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="321.3" y2="366.4" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="2007.9" y2="1057.4" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="899.8" y2="1418.5" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1890.5" y2="349.1" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1864.5" y2="366.5" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="78.8" y2="687.4" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="119.8" y2="570.5" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="153.8" y2="513.5" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1379.1" y2="1405.9" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="2079.4" y2="931.2" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="2064.3" y2="931.9" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1470.2" y2="574.0" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1839.1" y2="629.6" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="2072.0" y2="930.5" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="202.7" y2="1089.3" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1308.5" y2="990.7" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1839.6" y2="629.7" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1839.3" y2="630.0" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1321.6" y2="674.1" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1775.0" y2="608.4" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1838.2" y2="630.1" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="2080.6" y2="931.4" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1775.6" y2="608.3" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1838.8" y2="630.1" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1774.5" y2="608.5" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1838.5" y2="629.8" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1812.3" y2="687.1" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="509.3" y2="238.0" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1996.4" y2="1076.1" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1989.1" y2="1078.2" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1978.2" y2="1079.6" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1966.3" y2="1075.8" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="102.6" y2="630.2" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1045.8" y2="854.2" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1845.0" y2="379.4" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1372.4" y2="899.0" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1376.1" y2="902.9" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="748.9" y2="159.6" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="526.4" y2="497.7" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="933.7" y2="518.4" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="899.4" y2="417.0" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="102.5" y2="923.3" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1075.6" y2="969.8" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1710.5" y2="759.3" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1580.0" y2="918.7" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="804.2" y2="1402.8" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1633.8" y2="216.1" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="956.0" y2="703.0" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1053.8" y2="664.3" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="844.7" y2="710.6" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="878.5" y2="844.5" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="664.4" y2="186.0" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1208.4" y1="742.9" x2="1183.2" y2="661.5" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="679.8" y2="1374.2" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="1015.8" y2="152.6" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="1015.8" y1="152.6" x2="1002.3" y2="130.0" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="921.0" y2="143.8" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="921.0" y1="143.8" x2="913.4" y2="132.3" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="882.4" y2="677.6" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="882.4" y1="677.6" x2="1606.2" y2="1348.6" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="882.4" y1="677.6" x2="584.4" y2="205.6" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="882.4" y1="677.6" x2="932.9" y2="162.0" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="882.4" y1="677.6" x2="800.1" y2="179.2" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="882.4" y1="677.6" x2="159.0" y2="1036.2" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="245.2" y2="1143.9" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="1746.3" y2="258.9" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="325.0" y2="1210.8" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="348.4" y2="1196.8" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="1047.3" y2="727.9" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="692.1" y2="1354.9" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="1026.6" y2="133.9" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="997.1" y2="1427.3" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="436.4" y2="274.3" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="1039.1" y2="153.0" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="730.2" y2="549.3" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="1097.5" y2="1430.0" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="1034.9" y2="134.0" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="826.3" y2="645.3" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="456.7" y2="1280.4" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="463.2" y2="1274.9" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="765.1" y2="914.8" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="1487.8" y2="1380.0" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="1210.3" y2="771.0" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="904.5" y2="727.2" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="80.1" y2="865.6" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="2019.6" y2="483.1" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="1234.6" y2="1418.4" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="1231.4" y2="1406.0" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="1118.6" y2="877.2" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="932.9" y1="823.8" x2="1049.9" y2="674.4" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
-<line x1="2099.5" y1="819.6" x2="2130.0" y2="818.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="321.3" y1="366.4" x2="361.8" y2="311.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="321.3" y1="366.4" x2="251.8" y2="408.5" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1864.5" y1="366.5" x2="1890.5" y2="349.1" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="2079.4" y1="931.2" x2="2130.0" y2="818.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="2079.4" y1="931.2" x2="2030.0" y2="1044.2" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="2064.3" y1="931.9" x2="2099.5" y2="819.6" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="2064.3" y1="931.9" x2="2030.0" y2="1044.2" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1470.2" y1="574.0" x2="2130.0" y2="818.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1470.2" y1="574.0" x2="2030.0" y2="1044.2" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1470.2" y1="574.0" x2="509.3" y2="238.0" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1470.2" y1="574.0" x2="1520.1" y2="172.6" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1839.1" y1="629.6" x2="2130.0" y2="818.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1839.1" y1="629.6" x2="2030.0" y2="1044.2" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1839.1" y1="629.6" x2="1520.1" y2="172.6" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="2072.0" y1="930.5" x2="2130.0" y2="818.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="2072.0" y1="930.5" x2="2030.0" y2="1044.2" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="202.7" y1="1089.3" x2="202.7" y2="1089.3" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1308.5" y1="990.7" x2="2130.0" y2="818.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1308.5" y1="990.7" x2="202.7" y2="1089.3" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1308.5" y1="990.7" x2="2030.0" y2="1044.2" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1839.6" y1="629.7" x2="2130.0" y2="818.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1839.6" y1="629.7" x2="1520.1" y2="172.6" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1839.6" y1="629.7" x2="2030.0" y2="1044.2" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1839.3" y1="630.0" x2="2130.0" y2="818.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1839.3" y1="630.0" x2="1520.1" y2="172.6" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1839.3" y1="630.0" x2="2030.0" y2="1044.2" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1321.6" y1="674.1" x2="102.6" y2="630.2" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1321.6" y1="674.1" x2="2130.0" y2="818.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1321.6" y1="674.1" x2="1520.1" y2="172.6" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1321.6" y1="674.1" x2="2030.0" y2="1044.2" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1775.0" y1="608.4" x2="1520.1" y2="172.6" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1775.0" y1="608.4" x2="2030.0" y2="1044.2" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1838.2" y1="630.1" x2="2030.0" y2="1044.2" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1838.2" y1="630.1" x2="2130.0" y2="818.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1838.2" y1="630.1" x2="1520.1" y2="172.6" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="2080.6" y1="931.4" x2="2130.0" y2="818.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="2080.6" y1="931.4" x2="2030.0" y2="1044.2" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1775.6" y1="608.3" x2="1520.1" y2="172.6" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1775.6" y1="608.3" x2="2030.0" y2="1044.2" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1838.8" y1="630.1" x2="1520.1" y2="172.6" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1838.8" y1="630.1" x2="2130.0" y2="818.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1838.8" y1="630.1" x2="2030.0" y2="1044.2" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1774.5" y1="608.5" x2="1520.1" y2="172.6" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1774.5" y1="608.5" x2="2030.0" y2="1044.2" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1838.5" y1="629.8" x2="2130.0" y2="818.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1838.5" y1="629.8" x2="2030.0" y2="1044.2" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1838.5" y1="629.8" x2="1520.1" y2="172.6" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1812.3" y1="687.1" x2="2007.9" y2="1057.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1812.3" y1="687.1" x2="1520.1" y2="172.6" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1812.3" y1="687.1" x2="2030.0" y2="1044.2" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="509.3" y1="238.0" x2="509.3" y2="238.0" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1989.1" y1="1078.2" x2="1996.4" y2="1076.1" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1978.2" y1="1079.6" x2="1989.1" y2="1078.2" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1966.3" y1="1075.8" x2="1989.1" y2="1078.2" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1045.8" y1="854.2" x2="1989.1" y2="1078.2" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1045.8" y1="854.2" x2="102.6" y2="630.2" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1845.0" y1="379.4" x2="1864.5" y2="366.5" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1845.0" y1="379.4" x2="1845.0" y2="379.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1372.4" y1="899.0" x2="899.8" y2="1418.5" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1372.4" y1="899.0" x2="1845.0" y2="379.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1376.1" y1="902.9" x2="1372.4" y2="899.0" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="526.4" y1="497.7" x2="748.9" y2="159.6" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="526.4" y1="497.7" x2="78.8" y2="687.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="526.4" y1="497.7" x2="904.5" y2="727.2" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="526.4" y1="497.7" x2="251.8" y2="408.5" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="933.7" y1="518.4" x2="748.9" y2="159.6" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="933.7" y1="518.4" x2="1118.6" y2="877.2" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="899.4" y1="417.0" x2="748.9" y2="159.6" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="899.4" y1="417.0" x2="1049.9" y2="674.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1075.6" y1="969.8" x2="2048.7" y2="1016.3" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1075.6" y1="969.8" x2="102.5" y2="923.3" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1710.5" y1="759.3" x2="1050.1" y2="723.8" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1710.5" y1="759.3" x2="2079.4" y2="931.2" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1710.5" y1="759.3" x2="2064.3" y2="931.9" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1710.5" y1="759.3" x2="1308.5" y2="990.7" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1710.5" y1="759.3" x2="1470.2" y2="574.0" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1710.5" y1="759.3" x2="2072.0" y2="930.5" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1710.5" y1="759.3" x2="1839.1" y2="629.6" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1710.5" y1="759.3" x2="1839.6" y2="629.7" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1710.5" y1="759.3" x2="1839.3" y2="630.0" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1710.5" y1="759.3" x2="1321.6" y2="674.1" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1710.5" y1="759.3" x2="1775.0" y2="608.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1710.5" y1="759.3" x2="1838.2" y2="630.1" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1710.5" y1="759.3" x2="2080.6" y2="931.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1710.5" y1="759.3" x2="1775.6" y2="608.3" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1710.5" y1="759.3" x2="1838.8" y2="630.1" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1710.5" y1="759.3" x2="1774.5" y2="608.5" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1710.5" y1="759.3" x2="1838.5" y2="629.8" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1710.5" y1="759.3" x2="1812.3" y2="687.1" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1580.0" y1="918.7" x2="1966.3" y2="1075.8" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1580.0" y1="918.7" x2="1050.1" y2="723.8" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1580.0" y1="918.7" x2="2079.4" y2="931.2" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1580.0" y1="918.7" x2="1978.2" y2="1079.6" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1580.0" y1="918.7" x2="1045.8" y2="854.2" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="956.0" y1="703.0" x2="804.2" y2="1402.8" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="956.0" y1="703.0" x2="1633.8" y2="216.1" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="956.0" y1="703.0" x2="321.3" y2="366.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1053.8" y1="664.3" x2="361.8" y2="311.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1053.8" y1="664.3" x2="321.3" y2="366.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1053.8" y1="664.3" x2="2007.9" y2="1057.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1053.8" y1="664.3" x2="2120.5" y2="704.6" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1053.8" y1="664.3" x2="70.9" y2="746.9" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="844.7" y1="710.6" x2="2048.7" y2="1016.3" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="844.7" y1="710.6" x2="153.8" y2="513.5" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="844.7" y1="710.6" x2="78.8" y2="687.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="844.7" y1="710.6" x2="251.8" y2="408.5" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="878.5" y1="844.5" x2="1379.1" y2="1405.9" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="878.5" y1="844.5" x2="2048.7" y2="1016.3" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="878.5" y1="844.5" x2="119.8" y2="570.5" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="878.5" y1="844.5" x2="78.8" y2="687.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="878.5" y1="844.5" x2="251.8" y2="408.5" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1183.2" y1="661.5" x2="664.4" y2="186.0" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1183.2" y1="661.5" x2="1580.0" y2="918.7" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1183.2" y1="661.5" x2="1710.5" y2="759.3" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1183.2" y1="661.5" x2="1376.1" y2="902.9" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1183.2" y1="661.5" x2="526.4" y2="497.7" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1183.2" y1="661.5" x2="933.7" y2="518.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1183.2" y1="661.5" x2="899.4" y2="417.0" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1183.2" y1="661.5" x2="2130.0" y2="818.4" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1183.2" y1="661.5" x2="1075.6" y2="969.8" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1183.2" y1="661.5" x2="956.0" y2="703.0" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1183.2" y1="661.5" x2="1053.8" y2="664.3" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1183.2" y1="661.5" x2="844.7" y2="710.6" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="1183.2" y1="661.5" x2="878.5" y2="844.5" stroke="#e0475c" stroke-width="0.7" opacity="0.35"/>
-<line x1="932.9" y1="162.0" x2="921.0" y2="143.8" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="800.1" y1="179.2" x2="584.4" y2="205.6" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="800.1" y1="179.2" x2="1015.8" y2="152.6" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="348.4" y1="1196.8" x2="325.0" y2="1210.8" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="1047.3" y1="727.9" x2="1746.3" y2="258.9" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="1047.3" y1="727.9" x2="348.4" y2="1196.8" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="692.1" y1="1354.9" x2="679.8" y2="1374.2" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="436.4" y1="274.3" x2="436.4" y2="274.3" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="1039.1" y1="153.0" x2="1026.6" y2="133.9" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="730.2" y1="549.3" x2="692.1" y2="1354.9" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="730.2" y1="549.3" x2="584.4" y2="205.6" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="730.2" y1="549.3" x2="1015.8" y2="152.6" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="730.2" y1="549.3" x2="245.2" y2="1143.9" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="730.2" y1="549.3" x2="436.4" y2="274.3" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="730.2" y1="549.3" x2="1026.6" y2="133.9" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="730.2" y1="549.3" x2="800.1" y2="179.2" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="730.2" y1="549.3" x2="932.9" y2="162.0" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="730.2" y1="549.3" x2="1039.1" y2="153.0" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="1097.5" y1="1430.0" x2="1097.5" y2="1430.0" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="1034.9" y1="134.0" x2="1026.6" y2="133.9" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="826.3" y1="645.3" x2="692.1" y2="1354.9" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="826.3" y1="645.3" x2="584.4" y2="205.6" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="826.3" y1="645.3" x2="1015.8" y2="152.6" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="826.3" y1="645.3" x2="245.2" y2="1143.9" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="826.3" y1="645.3" x2="1097.5" y2="1430.0" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="826.3" y1="645.3" x2="1026.6" y2="133.9" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="826.3" y1="645.3" x2="800.1" y2="179.2" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="826.3" y1="645.3" x2="932.9" y2="162.0" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="826.3" y1="645.3" x2="1034.9" y2="134.0" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="463.2" y1="1274.9" x2="456.7" y2="1280.4" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="765.1" y1="914.8" x2="456.7" y2="1280.4" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="765.1" y1="914.8" x2="932.9" y2="162.0" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="765.1" y1="914.8" x2="997.1" y2="1427.3" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="765.1" y1="914.8" x2="463.2" y2="1274.9" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="1210.3" y1="771.0" x2="1487.8" y2="1380.0" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="1210.3" y1="771.0" x2="932.9" y2="162.0" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="904.5" y1="727.2" x2="882.4" y2="677.6" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="904.5" y1="727.2" x2="1047.3" y2="727.9" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="904.5" y1="727.2" x2="730.2" y2="549.3" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="904.5" y1="727.2" x2="826.3" y2="645.3" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="904.5" y1="727.2" x2="765.1" y2="914.8" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="904.5" y1="727.2" x2="1210.3" y2="771.0" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="1231.4" y1="1406.0" x2="1234.6" y2="1418.4" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="1118.6" y1="877.2" x2="80.1" y2="865.6" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="1118.6" y1="877.2" x2="2019.6" y2="483.1" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="1118.6" y1="877.2" x2="1231.4" y2="1406.0" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="1049.9" y1="674.4" x2="80.1" y2="865.6" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<line x1="1049.9" y1="674.4" x2="2019.6" y2="483.1" stroke="#4fb3bf" stroke-width="0.7" opacity="0.35"/>
-<circle cx="1208.4" cy="742.9" r="16" fill="#e0475c" fill-opacity="0.9" stroke="#0f0f12" stroke-width="1"/>
-<text x="1228.4" y="745.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">make_ai</text>
-<text x="1228.4" y="745.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">make_ai</text>
-<circle cx="565.7" cy="1330.9" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="575.2" y="1333.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">render_assistant_pointer</text>
-<text x="575.2" y="1333.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">render_assistant_pointer</text>
-<circle cx="1050.1" cy="723.8" r="11" fill="#e0475c" fill-opacity="0.9" stroke="#0f0f12" stroke-width="1"/>
-<text x="1065.1" y="726.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">DoctorReport</text>
-<text x="1065.1" y="726.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">DoctorReport</text>
-<circle cx="70.0" cy="806.4" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="79.5" y="808.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">__init__</text>
-<text x="79.5" y="808.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">__init__</text>
-<circle cx="2130.0" cy="818.4" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="2140.5" y="821.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">error</text>
-<text x="2140.5" y="821.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">error</text>
-<circle cx="1520.1" cy="172.6" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1530.6" y="175.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">warning</text>
-<text x="1530.6" y="175.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">warning</text>
-<circle cx="2030.0" cy="1044.2" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="2040.5" y="1047.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">pass_check</text>
-<text x="2040.5" y="1047.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">pass_check</text>
-<circle cx="124.9" cy="980.8" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="134.4" y="983.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">print</text>
-<text x="134.4" y="983.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">print</text>
-<circle cx="193.8" cy="456.9" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="203.3" y="459.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">ok</text>
-<text x="203.3" y="459.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">ok</text>
-<circle cx="2099.5" cy="819.6" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="2109.0" y="822.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">read_json</text>
-<text x="2109.0" y="822.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">read_json</text>
-<circle cx="2048.7" cy="1016.3" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="2059.2" y="1019.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">load_json</text>
-<text x="2059.2" y="1019.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">load_json</text>
-<circle cx="251.8" cy="408.5" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="262.3" y="411.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">write_json</text>
-<text x="262.3" y="411.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">write_json</text>
-<circle cx="361.8" cy="311.4" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="371.3" y="313.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">git_current_ref</text>
-<text x="371.3" y="313.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">git_current_ref</text>
-<circle cx="2120.5" cy="704.6" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="2130.0" y="707.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">git_show_file</text>
-<text x="2130.0" y="707.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">git_show_file</text>
-<circle cx="70.9" cy="746.9" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="80.4" y="749.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">three_way_merge</text>
-<text x="80.4" y="749.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">three_way_merge</text>
-<circle cx="321.3" cy="366.4" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="331.8" y="369.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">write_omni_version_file</text>
-<text x="331.8" y="369.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">write_omni_version_file</text>
-<circle cx="2007.9" cy="1057.4" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="2017.4" y="1059.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">read_omni_version_file</text>
-<text x="2017.4" y="1059.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">read_omni_version_file</text>
-<circle cx="899.8" cy="1418.5" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="909.3" y="1421.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">read_ignore_patterns</text>
-<text x="909.3" y="1421.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">read_ignore_patterns</text>
-<circle cx="1890.5" cy="349.1" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1900.0" y="351.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">path_matches_pattern</text>
-<text x="1900.0" y="351.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">path_matches_pattern</text>
-<circle cx="1864.5" cy="366.5" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1874.0" y="369.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">should_skip_map_path</text>
-<text x="1874.0" y="369.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">should_skip_map_path</text>
-<circle cx="78.8" cy="687.4" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="89.3" y="690.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">split_csv</text>
-<text x="89.3" y="690.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">split_csv</text>
-<circle cx="119.8" cy="570.5" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="129.3" y="573.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">slugify</text>
-<text x="129.3" y="573.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">slugify</text>
-<circle cx="153.8" cy="513.5" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="163.3" y="516.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">next_requirement_id</text>
-<text x="163.3" y="516.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">next_requirement_id</text>
-<circle cx="1379.1" cy="1405.9" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1388.6" y="1408.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">resolve_rulepack_path</text>
-<text x="1388.6" y="1408.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">resolve_rulepack_path</text>
-<circle cx="2079.4" cy="931.2" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="2089.9" y="934.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">verify_required_ai_files</text>
-<text x="2089.9" y="934.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">verify_required_ai_files</text>
-<circle cx="2064.3" cy="931.9" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="2074.8" y="934.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_json_files</text>
-<text x="2074.8" y="934.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_json_files</text>
-<circle cx="1470.2" cy="574.0" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1480.7" y="577.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_ruleset</text>
-<text x="1480.7" y="577.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_ruleset</text>
-<circle cx="1839.1" cy="629.6" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1849.6" y="632.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_requirements</text>
-<text x="1849.6" y="632.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_requirements</text>
-<circle cx="2072.0" cy="930.5" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="2082.5" y="933.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_rulepacks</text>
-<text x="2082.5" y="933.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_rulepacks</text>
-<circle cx="202.7" cy="1089.3" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="213.2" y="1092.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">manifest_paths</text>
-<text x="213.2" y="1092.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">manifest_paths</text>
-<circle cx="1308.5" cy="990.7" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1319.0" y="993.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_context_manifest</text>
-<text x="1319.0" y="993.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_context_manifest</text>
-<circle cx="1839.6" cy="629.7" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1850.1" y="632.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_assistant_pointers</text>
-<text x="1850.1" y="632.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_assistant_pointers</text>
-<circle cx="1839.3" cy="630.0" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1849.8" y="633.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_entrypoint_sources</text>
-<text x="1849.8" y="633.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_entrypoint_sources</text>
-<circle cx="1321.6" cy="674.1" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1332.1" y="677.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_synced_ignore_files</text>
-<text x="1332.1" y="677.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_synced_ignore_files</text>
-<circle cx="1775.0" cy="608.4" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1785.5" y="611.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_workspace_placement</text>
-<text x="1785.5" y="611.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_workspace_placement</text>
-<circle cx="1838.2" cy="630.1" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1848.7" y="633.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_markdown_assets</text>
-<text x="1848.7" y="633.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_markdown_assets</text>
-<circle cx="2080.6" cy="931.4" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="2091.1" y="934.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_project_map</text>
-<text x="2091.1" y="934.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_project_map</text>
-<circle cx="1775.6" cy="608.3" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1786.1" y="611.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_project_map_freshness</text>
-<text x="1786.1" y="611.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_project_map_freshness</text>
-<circle cx="1838.8" cy="630.1" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1849.3" y="633.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_project_graph</text>
-<text x="1849.3" y="633.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_project_graph</text>
-<circle cx="1774.5" cy="608.5" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1785.0" y="611.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_recent_commits_tracked</text>
-<text x="1785.0" y="611.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_recent_commits_tracked</text>
-<circle cx="1838.5" cy="629.8" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1849.0" y="632.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_cli_entrypoints</text>
-<text x="1849.0" y="632.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_cli_entrypoints</text>
-<circle cx="1812.3" cy="687.1" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1822.8" y="690.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_omni_version_present</text>
-<text x="1822.8" y="690.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_omni_version_present</text>
-<circle cx="509.3" cy="238.0" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="519.8" y="241.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">find_placeholders</text>
-<text x="519.8" y="241.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">find_placeholders</text>
-<circle cx="1996.4" cy="1076.1" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="2005.9" y="1078.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">is_generated_file</text>
-<text x="2005.9" y="1078.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">is_generated_file</text>
-<circle cx="1989.1" cy="1078.2" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1999.6" y="1081.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">write_generated_file</text>
-<text x="1999.6" y="1081.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">write_generated_file</text>
-<circle cx="1978.2" cy="1079.6" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1987.7" y="1082.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">write_assistant_pointers</text>
-<text x="1987.7" y="1082.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">write_assistant_pointers</text>
-<circle cx="1966.3" cy="1075.8" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1975.8" y="1078.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">write_entrypoint_sources</text>
-<text x="1975.8" y="1078.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">write_entrypoint_sources</text>
-<circle cx="102.6" cy="630.2" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="112.1" y="632.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">rendered_ignore_file</text>
-<text x="112.1" y="632.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">rendered_ignore_file</text>
-<circle cx="1045.8" cy="854.2" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1056.3" y="857.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">write_synced_ignore_files</text>
-<text x="1056.3" y="857.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">write_synced_ignore_files</text>
-<circle cx="1845.0" cy="379.4" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1855.5" y="382.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">collect_map_entries</text>
-<text x="1855.5" y="382.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">collect_map_entries</text>
-<circle cx="1372.4" cy="899.0" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1382.9" y="902.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">render_project_map</text>
-<text x="1382.9" y="902.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">render_project_map</text>
-<circle cx="1376.1" cy="902.9" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1385.6" y="905.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">run_map</text>
-<text x="1385.6" y="905.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">run_map</text>
-<circle cx="748.9" cy="159.6" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="759.4" y="162.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">require_omni_graph</text>
-<text x="759.4" y="162.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">require_omni_graph</text>
-<circle cx="526.4" cy="497.7" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="536.9" y="500.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">run_graph_build</text>
-<text x="536.9" y="500.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">run_graph_build</text>
-<circle cx="933.7" cy="518.4" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="944.2" y="521.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">run_graph_trace</text>
-<text x="944.2" y="521.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">run_graph_trace</text>
-<circle cx="899.4" cy="417.0" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="909.9" y="420.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">run_graph_show</text>
-<text x="909.9" y="420.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">run_graph_show</text>
-<circle cx="102.5" cy="923.3" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="112.0" y="925.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">resolve_context_profile_name</text>
-<text x="112.0" y="925.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">resolve_context_profile_name</text>
-<circle cx="1075.6" cy="969.8" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1086.1" y="972.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">run_context</text>
-<text x="1086.1" y="972.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">run_context</text>
-<circle cx="1710.5" cy="759.3" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1721.0" y="762.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">run_doctor</text>
-<text x="1721.0" y="762.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">run_doctor</text>
-<circle cx="1580.0" cy="918.7" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1590.5" y="921.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">run_sync</text>
-<text x="1590.5" y="921.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">run_sync</text>
-<circle cx="804.2" cy="1402.8" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="813.7" y="1405.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">selected_adoption_files</text>
-<text x="813.7" y="1405.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">selected_adoption_files</text>
-<circle cx="1633.8" cy="216.1" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1643.3" y="218.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">copy_adoption_path</text>
-<text x="1643.3" y="218.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">copy_adoption_path</text>
-<circle cx="956.0" cy="703.0" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="966.5" y="706.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">run_adopt</text>
-<text x="966.5" y="706.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">run_adopt</text>
-<circle cx="1053.8" cy="664.3" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1064.3" y="667.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">run_update</text>
-<text x="1064.3" y="667.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">run_update</text>
-<circle cx="844.7" cy="710.6" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="855.2" y="713.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">run_requirement_add</text>
-<text x="855.2" y="713.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">run_requirement_add</text>
-<circle cx="878.5" cy="844.5" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="889.0" y="847.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">run_rule_add</text>
-<text x="889.0" y="847.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">run_rule_add</text>
-<circle cx="664.4" cy="186.0" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="673.9" y="188.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">build_parser</text>
-<text x="673.9" y="188.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">build_parser</text>
-<circle cx="1183.2" cy="661.5" r="6.5" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1193.7" y="664.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">main</text>
-<text x="1193.7" y="664.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">main</text>
-<circle cx="932.9" cy="823.8" r="16" fill="#4fb3bf" fill-opacity="0.9" stroke="#0f0f12" stroke-width="1"/>
-<text x="952.9" y="826.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">omni_graph</text>
-<text x="952.9" y="826.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">omni_graph</text>
-<circle cx="679.8" cy="1374.2" r="11" fill="#4fb3bf" fill-opacity="0.9" stroke="#0f0f12" stroke-width="1"/>
-<text x="694.8" y="1377.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">GraphDependencyError</text>
-<text x="694.8" y="1377.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">GraphDependencyError</text>
-<circle cx="1015.8" cy="152.6" r="11" fill="#4fb3bf" fill-opacity="0.9" stroke="#0f0f12" stroke-width="1"/>
-<text x="1030.8" y="155.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">GraphNode</text>
-<text x="1030.8" y="155.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">GraphNode</text>
-<circle cx="1002.3" cy="130.0" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1011.8" y="132.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">to_json</text>
-<text x="1011.8" y="132.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">to_json</text>
-<circle cx="921.0" cy="143.8" r="11" fill="#4fb3bf" fill-opacity="0.9" stroke="#0f0f12" stroke-width="1"/>
-<text x="936.0" y="146.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">GraphEdge</text>
-<text x="936.0" y="146.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">GraphEdge</text>
-<circle cx="913.4" cy="132.3" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="922.9" y="134.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">to_json</text>
-<text x="922.9" y="134.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">to_json</text>
-<circle cx="882.4" cy="677.6" r="11" fill="#4fb3bf" fill-opacity="0.9" stroke="#0f0f12" stroke-width="1"/>
-<text x="897.4" y="680.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">Graph</text>
-<text x="897.4" y="680.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">Graph</text>
-<circle cx="1606.2" cy="1348.6" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1615.7" y="1351.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">__init__</text>
-<text x="1615.7" y="1351.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">__init__</text>
-<circle cx="584.4" cy="205.6" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="594.9" y="208.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">add_node</text>
-<text x="594.9" y="208.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">add_node</text>
-<circle cx="932.9" cy="162.0" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="943.4" y="165.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">add_edge</text>
-<text x="943.4" y="165.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">add_edge</text>
-<circle cx="800.1" cy="179.2" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="810.6" y="182.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">ensure_external</text>
-<text x="810.6" y="182.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">ensure_external</text>
-<circle cx="159.0" cy="1036.2" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="168.5" y="1038.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">to_json</text>
-<text x="168.5" y="1038.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">to_json</text>
-<circle cx="245.2" cy="1143.9" r="11" fill="#4fb3bf" fill-opacity="0.9" stroke="#0f0f12" stroke-width="1"/>
-<text x="260.2" y="1146.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">FileFacts</text>
-<text x="260.2" y="1146.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">FileFacts</text>
-<circle cx="1746.3" cy="258.9" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1755.8" y="261.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">_read_ignore_patterns</text>
-<text x="1755.8" y="261.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">_read_ignore_patterns</text>
-<circle cx="325.0" cy="1210.8" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="334.5" y="1213.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">_path_matches_pattern</text>
-<text x="334.5" y="1213.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">_path_matches_pattern</text>
-<circle cx="348.4" cy="1196.8" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="357.9" y="1199.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">_should_skip</text>
-<text x="357.9" y="1199.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">_should_skip</text>
-<circle cx="1047.3" cy="727.9" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1057.8" y="730.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">discover_source_files</text>
-<text x="1057.8" y="730.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">discover_source_files</text>
-<circle cx="692.1" cy="1354.9" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="702.6" y="1357.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">load_language</text>
-<text x="702.6" y="1357.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">load_language</text>
-<circle cx="1026.6" cy="133.9" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1037.1" y="136.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">_text</text>
-<text x="1037.1" y="136.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">_text</text>
-<circle cx="997.1" cy="1427.3" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1006.6" y="1429.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">_split_qualifier</text>
-<text x="1006.6" y="1429.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">_split_qualifier</text>
-<circle cx="436.4" cy="274.3" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="446.9" y="277.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">_iter_calls_py</text>
-<text x="446.9" y="277.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">_iter_calls_py</text>
-<circle cx="1039.1" cy="153.0" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1048.6" y="155.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">_import_name_and_alias</text>
-<text x="1048.6" y="155.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">_import_name_and_alias</text>
-<circle cx="730.2" cy="549.3" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="740.7" y="552.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">parse_python_file</text>
-<text x="740.7" y="552.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">parse_python_file</text>
-<circle cx="1097.5" cy="1430.0" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1108.0" y="1433.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">_iter_calls_js</text>
-<text x="1108.0" y="1433.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">_iter_calls_js</text>
-<circle cx="1034.9" cy="134.0" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1044.4" y="136.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">_js_import_clause_names</text>
-<text x="1044.4" y="136.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">_js_import_clause_names</text>
-<circle cx="826.3" cy="645.3" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="836.8" y="648.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">parse_js_like_file</text>
-<text x="836.8" y="648.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">parse_js_like_file</text>
-<circle cx="456.7" cy="1280.4" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="466.2" y="1282.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">_resolve_import_target</text>
-<text x="466.2" y="1282.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">_resolve_import_target</text>
-<circle cx="463.2" cy="1274.9" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="472.7" y="1277.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">_resolve_reference</text>
-<text x="472.7" y="1277.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">_resolve_reference</text>
-<circle cx="765.1" cy="914.8" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="775.6" y="917.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">_resolve_graph</text>
-<text x="775.6" y="917.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">_resolve_graph</text>
-<circle cx="1487.8" cy="1380.0" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1497.3" y="1382.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">_call_semantic_api</text>
-<text x="1497.3" y="1382.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">_call_semantic_api</text>
-<circle cx="1210.3" cy="771.0" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1220.8" y="774.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">run_semantic_pass</text>
-<text x="1220.8" y="774.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">run_semantic_pass</text>
-<circle cx="904.5" cy="727.2" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="915.0" y="730.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">build_graph</text>
-<text x="915.0" y="730.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">build_graph</text>
-<circle cx="80.1" cy="865.6" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="89.6" y="868.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">load_graph</text>
-<text x="89.6" y="868.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">load_graph</text>
-<circle cx="2019.6" cy="483.1" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="2029.1" y="485.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">find_nodes</text>
-<text x="2029.1" y="485.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">find_nodes</text>
-<circle cx="1234.6" cy="1418.4" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1244.1" y="1420.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">_adjacency</text>
-<text x="1244.1" y="1420.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">_adjacency</text>
-<circle cx="1231.4" cy="1406.0" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1240.9" y="1408.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" stroke="#0f0f12" stroke-width="2.5" fill="none">shortest_path</text>
-<text x="1240.9" y="1408.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" fill="#707070">shortest_path</text>
-<circle cx="1118.6" cy="877.2" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1129.1" y="880.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">trace</text>
-<text x="1129.1" y="880.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">trace</text>
-<circle cx="1049.9" cy="674.4" r="6.5" fill="#4fb3bf" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
-<text x="1060.4" y="677.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">show</text>
-<text x="1060.4" y="677.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">show</text>
-<rect x="1870" y="1350" width="300" height="120" rx="8" fill="rgba(15,15,18,0.85)" stroke="#e0475c" stroke-width="0.75" opacity="0.9"/>
-<circle cx="1892" cy="1374" r="6" fill="#e0475c"/>
-<text x="1908" y="1378" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9.5" fill="#e8e8e8">make_ai.py</text>
-<circle cx="1892" cy="1394" r="6" fill="#4fb3bf"/>
-<text x="1908" y="1398" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9.5" fill="#e8e8e8">omni_graph.py</text>
-<line x1="1884" y1="1414" x2="1900" y2="1414" stroke="#e0475c" stroke-width="1" opacity="0.6"/>
-<text x="1908" y="1418" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" fill="#707070">calls (INFERRED)</text>
-<line x1="1884" y1="1432" x2="1900" y2="1432" stroke="#2a2a2e" stroke-width="1"/>
-<text x="1908" y="1436" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" fill="#707070">defines (EXTRACTED)</text>
-<text x="1884" y="1456" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="8.5" fill="#707070">node size = module &gt; class &gt; function</text>
-<text x="2180" y="1486" text-anchor="end" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="8" fill="#2a2a2e" letter-spacing="1">OMNI-CODE-GRAPH&#183;v1</text>
+<desc id="desc">Force-directed node-link graph generated by omni graph render from omni graph build output -- not hand-drawn.</desc>
+<defs><pattern id="og-grid" width="26" height="26" patternUnits="userSpaceOnUse"><path d="M 26 0 L 0 0 0 26" fill="none" stroke="#e0475c" stroke-width="0.2" opacity="0.06"/></pattern></defs>
+<rect width="1600" height="1100" fill="#0f0f12"/>
+<rect width="1600" height="1100" fill="url(#og-grid)"/>
+<text x="24" y="30" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="15" font-weight="700" fill="#e8e8e8" letter-spacing="0.5">OmniEngineering -- code graph</text>
+<text x="24" y="48" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9.5" fill="#707070" letter-spacing="1.1">112 SYMBOLS · 290 RESOLVED EDGES · GENERATED BY OMNI GRAPH RENDER</text>
+<line x1="960.0" y1="291.3" x2="766.3" y2="185.4" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="1273.6" y2="205.1" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="1273.6" y1="205.1" x2="1530.0" y2="165.6" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="1273.6" y1="205.1" x2="1081.5" y2="247.1" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="1273.6" y1="205.1" x2="1169.7" y2="185.1" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="1273.6" y1="205.1" x2="1128.9" y2="208.0" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="1273.6" y1="205.1" x2="1441.0" y2="120.0" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="1273.6" y1="205.1" x2="1494.6" y2="140.3" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="920.8" y2="223.7" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="944.0" y2="358.9" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="864.8" y2="389.9" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="733.7" y2="289.3" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="792.5" y2="251.4" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="752.7" y2="240.5" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="793.2" y2="329.3" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="854.8" y2="222.6" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="668.6" y2="238.3" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="825.5" y2="183.6" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="774.9" y2="204.5" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="924.9" y2="408.7" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="1117.2" y2="375.0" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="1059.1" y2="386.1" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="1075.0" y2="356.1" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="1109.8" y2="269.0" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="977.6" y2="222.9" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="1207.9" y2="235.4" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="1055.2" y2="197.5" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="1013.6" y2="245.2" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="899.1" y2="176.9" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="983.1" y2="205.4" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="1171.8" y2="221.8" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="1148.4" y2="235.2" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="1190.6" y2="248.5" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="1094.6" y2="177.9" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="1105.6" y2="219.9" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="1159.9" y2="262.8" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="1046.3" y2="177.3" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="1099.6" y2="197.3" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="1193.1" y2="207.0" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="1051.1" y2="212.7" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="996.5" y2="190.3" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="1273.4" y2="270.7" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="1258.2" y2="341.2" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="1206.4" y2="347.6" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="1234.5" y2="318.5" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="1148.2" y2="339.8" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="1239.7" y2="292.4" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="1188.1" y2="320.3" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="717.1" y2="218.8" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="705.7" y2="257.2" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="790.2" y2="302.3" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="812.2" y2="411.2" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="800.8" y2="480.3" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="723.6" y2="452.6" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="764.9" y2="454.7" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="736.2" y2="347.0" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="827.8" y2="354.6" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="1076.0" y2="235.5" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="1130.5" y2="299.0" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="665.8" y2="283.6" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="665.6" y2="307.1" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="737.7" y2="319.7" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="814.9" y2="281.1" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="954.6" y2="381.6" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="996.5" y2="373.3" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="891.1" y2="324.3" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="960.0" y1="291.3" x2="897.4" y2="350.2" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="192.0" y2="885.5" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="427.3" y2="909.6" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="427.3" y1="909.6" x2="428.0" y2="1001.8" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="437.4" y2="931.3" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="437.4" y1="931.3" x2="456.1" y2="1030.0" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="632.8" y2="859.2" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="632.8" y1="859.2" x2="821.4" y2="919.7" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="632.8" y1="859.2" x2="580.4" y2="906.1" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="632.8" y1="859.2" x2="546.9" y2="867.0" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="632.8" y1="859.2" x2="539.0" y2="900.8" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="632.8" y1="859.2" x2="763.8" y2="942.6" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="403.4" y2="879.3" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="216.0" y2="781.3" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="137.8" y2="854.9" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="202.6" y2="815.4" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="343.8" y2="768.7" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="328.0" y2="877.7" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="341.6" y2="853.8" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="460.6" y2="813.7" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="274.7" y2="890.4" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="265.8" y2="850.2" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="434.0" y2="851.9" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="346.1" y2="898.7" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="287.3" y2="868.3" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="459.9" y2="855.9" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="531.9" y2="833.5" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="584.6" y2="823.9" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="552.3" y2="804.6" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="459.0" y2="771.9" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="529.1" y2="790.5" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="570.3" y2="731.9" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="416.2" y2="706.5" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="383.3" y2="698.9" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="195.2" y2="737.0" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="314.3" y2="709.7" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="476.3" y2="640.9" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="529.8" y2="638.5" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="70.0" y2="798.4" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="74.2" y2="821.4" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="141.9" y2="761.8" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="106.5" y2="835.4" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="133.2" y2="793.9" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="353.3" y1="801.1" x2="259.7" y2="743.6" stroke="#2a2a2e" stroke-width="0.6" opacity="0.5"/>
+<line x1="920.8" y1="223.7" x2="1081.5" y2="247.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="793.2" y1="329.3" x2="733.7" y2="289.3" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="793.2" y1="329.3" x2="864.8" y2="389.9" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="774.9" y1="204.5" x2="825.5" y2="183.6" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1109.8" y1="269.0" x2="1081.5" y2="247.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1109.8" y1="269.0" x2="1128.9" y2="208.0" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="977.6" y1="222.9" x2="920.8" y2="223.7" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="977.6" y1="222.9" x2="1128.9" y2="208.0" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1207.9" y1="235.4" x2="1081.5" y2="247.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1207.9" y1="235.4" x2="1128.9" y2="208.0" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1207.9" y1="235.4" x2="1273.4" y2="270.7" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1207.9" y1="235.4" x2="1169.7" y2="185.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1055.2" y1="197.5" x2="1081.5" y2="247.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1055.2" y1="197.5" x2="1128.9" y2="208.0" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1055.2" y1="197.5" x2="1169.7" y2="185.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1013.6" y1="245.2" x2="1081.5" y2="247.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1013.6" y1="245.2" x2="1128.9" y2="208.0" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="899.1" y1="176.9" x2="899.1" y2="176.9" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="983.1" y1="205.4" x2="1081.5" y2="247.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="983.1" y1="205.4" x2="899.1" y2="176.9" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="983.1" y1="205.4" x2="1128.9" y2="208.0" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1171.8" y1="221.8" x2="1081.5" y2="247.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1171.8" y1="221.8" x2="1169.7" y2="185.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1171.8" y1="221.8" x2="1128.9" y2="208.0" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1148.4" y1="235.2" x2="1081.5" y2="247.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1148.4" y1="235.2" x2="1169.7" y2="185.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1148.4" y1="235.2" x2="1128.9" y2="208.0" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1190.6" y1="248.5" x2="1239.7" y2="292.4" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1190.6" y1="248.5" x2="1081.5" y2="247.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1190.6" y1="248.5" x2="1169.7" y2="185.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1190.6" y1="248.5" x2="1128.9" y2="208.0" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1094.6" y1="177.9" x2="1169.7" y2="185.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1094.6" y1="177.9" x2="1128.9" y2="208.0" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1105.6" y1="219.9" x2="1128.9" y2="208.0" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1105.6" y1="219.9" x2="1081.5" y2="247.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1105.6" y1="219.9" x2="1169.7" y2="185.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1159.9" y1="262.8" x2="1081.5" y2="247.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1159.9" y1="262.8" x2="1128.9" y2="208.0" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1046.3" y1="177.3" x2="1169.7" y2="185.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1046.3" y1="177.3" x2="1128.9" y2="208.0" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1099.6" y1="197.3" x2="1169.7" y2="185.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1099.6" y1="197.3" x2="1081.5" y2="247.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1099.6" y1="197.3" x2="1128.9" y2="208.0" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1193.1" y1="207.0" x2="1169.7" y2="185.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1193.1" y1="207.0" x2="1128.9" y2="208.0" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1051.1" y1="212.7" x2="1081.5" y2="247.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1051.1" y1="212.7" x2="1128.9" y2="208.0" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1051.1" y1="212.7" x2="1169.7" y2="185.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="996.5" y1="190.3" x2="854.8" y2="222.6" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="996.5" y1="190.3" x2="1169.7" y2="185.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="996.5" y1="190.3" x2="1128.9" y2="208.0" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1273.4" y1="270.7" x2="1273.4" y2="270.7" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1206.4" y1="347.6" x2="1258.2" y2="341.2" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1234.5" y1="318.5" x2="1206.4" y2="347.6" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1148.2" y1="339.8" x2="1206.4" y2="347.6" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1188.1" y1="320.3" x2="1206.4" y2="347.6" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1188.1" y1="320.3" x2="1239.7" y2="292.4" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="717.1" y1="218.8" x2="774.9" y2="204.5" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="717.1" y1="218.8" x2="717.1" y2="218.8" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="705.7" y1="257.2" x2="668.6" y2="238.3" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="705.7" y1="257.2" x2="717.1" y2="218.8" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="790.2" y1="302.3" x2="705.7" y2="257.2" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="800.8" y1="480.3" x2="812.2" y2="411.2" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="800.8" y1="480.3" x2="924.9" y2="408.7" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="800.8" y1="480.3" x2="570.3" y2="731.9" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="800.8" y1="480.3" x2="864.8" y2="389.9" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="723.6" y1="452.6" x2="812.2" y2="411.2" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="723.6" y1="452.6" x2="476.3" y2="640.9" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="764.9" y1="454.7" x2="812.2" y2="411.2" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="764.9" y1="454.7" x2="529.8" y2="638.5" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="827.8" y1="354.6" x2="944.0" y2="358.9" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="827.8" y1="354.6" x2="736.2" y2="347.0" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1076.0" y1="235.5" x2="1273.6" y2="205.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1076.0" y1="235.5" x2="1109.8" y2="269.0" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1076.0" y1="235.5" x2="977.6" y2="222.9" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1076.0" y1="235.5" x2="983.1" y2="205.4" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1076.0" y1="235.5" x2="1207.9" y2="235.4" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1076.0" y1="235.5" x2="1013.6" y2="245.2" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1076.0" y1="235.5" x2="1055.2" y2="197.5" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1076.0" y1="235.5" x2="1171.8" y2="221.8" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1076.0" y1="235.5" x2="1148.4" y2="235.2" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1076.0" y1="235.5" x2="1190.6" y2="248.5" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1076.0" y1="235.5" x2="1094.6" y2="177.9" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1076.0" y1="235.5" x2="1105.6" y2="219.9" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1076.0" y1="235.5" x2="1159.9" y2="262.8" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1076.0" y1="235.5" x2="1046.3" y2="177.3" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1076.0" y1="235.5" x2="1099.6" y2="197.3" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1076.0" y1="235.5" x2="1193.1" y2="207.0" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1076.0" y1="235.5" x2="1051.1" y2="212.7" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1076.0" y1="235.5" x2="996.5" y2="190.3" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1130.5" y1="299.0" x2="1148.2" y2="339.8" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1130.5" y1="299.0" x2="1273.6" y2="205.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1130.5" y1="299.0" x2="1109.8" y2="269.0" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1130.5" y1="299.0" x2="1234.5" y2="318.5" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="1130.5" y1="299.0" x2="1188.1" y2="320.3" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="737.7" y1="319.7" x2="665.8" y2="283.6" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="737.7" y1="319.7" x2="665.6" y2="307.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="737.7" y1="319.7" x2="793.2" y2="329.3" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="814.9" y1="281.1" x2="733.7" y2="289.3" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="814.9" y1="281.1" x2="793.2" y2="329.3" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="814.9" y1="281.1" x2="854.8" y2="222.6" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="814.9" y1="281.1" x2="792.5" y2="251.4" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="814.9" y1="281.1" x2="752.7" y2="240.5" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="954.6" y1="381.6" x2="944.0" y2="358.9" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="954.6" y1="381.6" x2="1059.1" y2="386.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="954.6" y1="381.6" x2="924.9" y2="408.7" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="954.6" y1="381.6" x2="864.8" y2="389.9" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="996.5" y1="373.3" x2="1075.0" y2="356.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="996.5" y1="373.3" x2="944.0" y2="358.9" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="996.5" y1="373.3" x2="1117.2" y2="375.0" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="996.5" y1="373.3" x2="924.9" y2="408.7" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="996.5" y1="373.3" x2="864.8" y2="389.9" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="897.4" y1="350.2" x2="891.1" y2="324.3" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="897.4" y1="350.2" x2="1130.5" y2="299.0" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="897.4" y1="350.2" x2="1076.0" y2="235.5" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="897.4" y1="350.2" x2="790.2" y2="302.3" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="897.4" y1="350.2" x2="800.8" y2="480.3" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="897.4" y1="350.2" x2="723.6" y2="452.6" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="897.4" y1="350.2" x2="764.9" y2="454.7" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="897.4" y1="350.2" x2="1081.5" y2="247.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="897.4" y1="350.2" x2="827.8" y2="354.6" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="897.4" y1="350.2" x2="737.7" y2="319.7" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="897.4" y1="350.2" x2="814.9" y2="281.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="897.4" y1="350.2" x2="954.6" y2="381.6" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="897.4" y1="350.2" x2="996.5" y2="373.3" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="546.9" y1="867.0" x2="437.4" y2="931.3" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="539.0" y1="900.8" x2="580.4" y2="906.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="539.0" y1="900.8" x2="427.3" y2="909.6" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="202.6" y1="815.4" x2="137.8" y2="854.9" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="343.8" y1="768.7" x2="216.0" y2="781.3" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="343.8" y1="768.7" x2="202.6" y2="815.4" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="328.0" y1="877.7" x2="192.0" y2="885.5" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="274.7" y1="890.4" x2="274.7" y2="890.4" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="265.8" y1="850.2" x2="341.6" y2="853.8" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="434.0" y1="851.9" x2="328.0" y2="877.7" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="434.0" y1="851.9" x2="580.4" y2="906.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="434.0" y1="851.9" x2="427.3" y2="909.6" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="434.0" y1="851.9" x2="403.4" y2="879.3" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="434.0" y1="851.9" x2="274.7" y2="890.4" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="434.0" y1="851.9" x2="341.6" y2="853.8" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="434.0" y1="851.9" x2="539.0" y2="900.8" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="434.0" y1="851.9" x2="546.9" y2="867.0" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="434.0" y1="851.9" x2="265.8" y2="850.2" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="346.1" y1="898.7" x2="346.1" y2="898.7" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="287.3" y1="868.3" x2="341.6" y2="853.8" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="459.9" y1="855.9" x2="328.0" y2="877.7" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="459.9" y1="855.9" x2="580.4" y2="906.1" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="459.9" y1="855.9" x2="427.3" y2="909.6" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="459.9" y1="855.9" x2="403.4" y2="879.3" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="459.9" y1="855.9" x2="346.1" y2="898.7" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="459.9" y1="855.9" x2="341.6" y2="853.8" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="459.9" y1="855.9" x2="539.0" y2="900.8" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="459.9" y1="855.9" x2="546.9" y2="867.0" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="459.9" y1="855.9" x2="287.3" y2="868.3" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="584.6" y1="823.9" x2="531.9" y2="833.5" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="552.3" y1="804.6" x2="531.9" y2="833.5" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="552.3" y1="804.6" x2="546.9" y2="867.0" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="552.3" y1="804.6" x2="460.6" y2="813.7" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="552.3" y1="804.6" x2="584.6" y2="823.9" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="529.1" y1="790.5" x2="459.0" y2="771.9" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="529.1" y1="790.5" x2="546.9" y2="867.0" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="570.3" y1="731.9" x2="632.8" y2="859.2" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="570.3" y1="731.9" x2="343.8" y2="768.7" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="570.3" y1="731.9" x2="434.0" y2="851.9" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="570.3" y1="731.9" x2="459.9" y2="855.9" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="570.3" y1="731.9" x2="552.3" y2="804.6" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="570.3" y1="731.9" x2="529.1" y2="790.5" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="314.3" y1="709.7" x2="195.2" y2="737.0" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="476.3" y1="640.9" x2="416.2" y2="706.5" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="476.3" y1="640.9" x2="383.3" y2="698.9" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="476.3" y1="640.9" x2="314.3" y2="709.7" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="529.8" y1="638.5" x2="416.2" y2="706.5" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="529.8" y1="638.5" x2="383.3" y2="698.9" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="133.2" y1="793.9" x2="106.5" y2="835.4" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="133.2" y1="793.9" x2="70.0" y2="798.4" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="133.2" y1="793.9" x2="74.2" y2="821.4" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="259.7" y1="743.6" x2="416.2" y2="706.5" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="259.7" y1="743.6" x2="383.3" y2="698.9" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="259.7" y1="743.6" x2="141.9" y2="761.8" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<line x1="259.7" y1="743.6" x2="133.2" y2="793.9" stroke="#e0475c" stroke-width="0.8" opacity="0.35"/>
+<circle cx="427.3" cy="909.6" r="10" fill="#e0475c" fill-opacity="0.9" stroke="#0f0f12" stroke-width="1"/>
+<text x="441.3" y="912.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">GraphNode</text>
+<text x="441.3" y="912.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">GraphNode</text>
+<circle cx="960.0" cy="291.3" r="14" fill="#e0475c" fill-opacity="0.9" stroke="#0f0f12" stroke-width="1"/>
+<text x="978.0" y="294.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">make_ai</text>
+<text x="978.0" y="294.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">make_ai</text>
+<circle cx="996.5" cy="373.3" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1006.5" y="376.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">run_rule_add</text>
+<text x="1006.5" y="376.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">run_rule_add</text>
+<circle cx="287.3" cy="868.3" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="297.3" y="871.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">_js_import_clause_names</text>
+<text x="297.3" y="871.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">_js_import_clause_names</text>
+<circle cx="1273.4" cy="270.7" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1283.4" y="273.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">find_placeholders</text>
+<text x="1283.4" y="273.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">find_placeholders</text>
+<circle cx="899.1" cy="176.9" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="909.1" y="179.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">manifest_paths</text>
+<text x="909.1" y="179.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">manifest_paths</text>
+<circle cx="897.4" cy="350.2" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="907.4" y="353.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">main</text>
+<text x="907.4" y="353.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">main</text>
+<circle cx="1099.6" cy="197.3" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1109.6" y="200.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_project_graph</text>
+<text x="1109.6" y="200.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_project_graph</text>
+<circle cx="195.2" cy="737.0" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="205.2" y="740.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">_adjacency</text>
+<text x="205.2" y="740.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">_adjacency</text>
+<circle cx="259.7" cy="743.6" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="269.7" y="746.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">render</text>
+<text x="269.7" y="746.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">render</text>
+<circle cx="854.8" cy="222.6" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="864.8" y="225.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">read_omni_version_file</text>
+<text x="864.8" y="225.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">read_omni_version_file</text>
+<circle cx="539.0" cy="900.8" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="549.0" y="903.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">ensure_external</text>
+<text x="549.0" y="903.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">ensure_external</text>
+<circle cx="996.5" cy="190.3" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1006.5" y="193.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_omni_version_present</text>
+<text x="1006.5" y="193.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_omni_version_present</text>
+<circle cx="274.7" cy="890.4" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="284.7" y="893.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">_iter_calls_py</text>
+<text x="284.7" y="893.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">_iter_calls_py</text>
+<circle cx="825.5" cy="183.6" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="835.5" y="186.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">path_matches_pattern</text>
+<text x="835.5" y="186.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">path_matches_pattern</text>
+<circle cx="459.9" cy="855.9" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="469.9" y="858.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">parse_js_like_file</text>
+<text x="469.9" y="858.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">parse_js_like_file</text>
+<circle cx="1055.2" cy="197.5" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1065.2" y="200.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_requirements</text>
+<text x="1065.2" y="200.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_requirements</text>
+<circle cx="202.6" cy="815.4" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="212.6" y="818.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">_should_skip</text>
+<text x="212.6" y="818.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">_should_skip</text>
+<circle cx="717.1" cy="218.8" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="727.1" y="221.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">collect_map_entries</text>
+<text x="727.1" y="221.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">collect_map_entries</text>
+<circle cx="529.8" cy="638.5" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="539.8" y="641.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">show</text>
+<text x="539.8" y="641.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">show</text>
+<circle cx="1148.2" cy="339.8" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1158.2" y="342.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">write_entrypoint_sources</text>
+<text x="1158.2" y="342.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">write_entrypoint_sources</text>
+<circle cx="1159.9" cy="262.8" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1169.9" y="265.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_project_map</text>
+<text x="1169.9" y="265.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_project_map</text>
+<circle cx="531.9" cy="833.5" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="541.9" y="836.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">_resolve_import_target</text>
+<text x="541.9" y="836.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">_resolve_import_target</text>
+<circle cx="705.7" cy="257.2" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="715.7" y="260.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">render_project_map</text>
+<text x="715.7" y="260.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">render_project_map</text>
+<circle cx="1148.4" cy="235.2" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1158.4" y="238.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_entrypoint_sources</text>
+<text x="1158.4" y="238.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_entrypoint_sources</text>
+<circle cx="1239.7" cy="292.4" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1249.7" y="295.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">rendered_ignore_file</text>
+<text x="1249.7" y="295.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">rendered_ignore_file</text>
+<circle cx="1193.1" cy="207.0" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1203.1" y="210.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_recent_commits_tracked</text>
+<text x="1203.1" y="210.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_recent_commits_tracked</text>
+<circle cx="341.6" cy="853.8" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="351.6" y="856.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">_text</text>
+<text x="351.6" y="856.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">_text</text>
+<circle cx="416.2" cy="706.5" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="426.2" y="709.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">load_graph</text>
+<text x="426.2" y="709.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">load_graph</text>
+<circle cx="1013.6" cy="245.2" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1023.6" y="248.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_rulepacks</text>
+<text x="1023.6" y="248.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_rulepacks</text>
+<circle cx="1117.2" cy="375.0" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1127.2" y="378.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">slugify</text>
+<text x="1127.2" y="378.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">slugify</text>
+<circle cx="1128.9" cy="208.0" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1138.9" y="211.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">pass_check</text>
+<text x="1138.9" y="211.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">pass_check</text>
+<circle cx="106.5" cy="835.4" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="116.5" y="838.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">_spring_layout</text>
+<text x="116.5" y="838.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">_spring_layout</text>
+<circle cx="1059.1" cy="386.1" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1069.1" y="389.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">next_requirement_id</text>
+<text x="1069.1" y="389.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">next_requirement_id</text>
+<circle cx="1169.7" cy="185.1" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1179.7" y="188.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">warning</text>
+<text x="1179.7" y="188.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">warning</text>
+<circle cx="1494.6" cy="140.3" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1504.6" y="143.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">ok</text>
+<text x="1504.6" y="143.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">ok</text>
+<circle cx="343.8" cy="768.7" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="353.8" y="771.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">discover_source_files</text>
+<text x="353.8" y="771.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">discover_source_files</text>
+<circle cx="74.2" cy="821.4" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="84.2" y="824.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">_node_color</text>
+<text x="84.2" y="824.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">_node_color</text>
+<circle cx="403.4" cy="879.3" r="10" fill="#e0475c" fill-opacity="0.9" stroke="#0f0f12" stroke-width="1"/>
+<text x="417.4" y="882.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">FileFacts</text>
+<text x="417.4" y="882.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">FileFacts</text>
+<circle cx="733.7" cy="289.3" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="743.7" y="292.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">git_current_ref</text>
+<text x="743.7" y="292.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">git_current_ref</text>
+<circle cx="133.2" cy="793.9" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="143.2" y="796.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">_render_svg</text>
+<text x="143.2" y="796.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">_render_svg</text>
+<circle cx="1171.8" cy="221.8" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1181.8" y="224.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_assistant_pointers</text>
+<text x="1181.8" y="224.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_assistant_pointers</text>
+<circle cx="800.8" cy="480.3" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="810.8" y="483.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">run_graph_build</text>
+<text x="810.8" y="483.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">run_graph_build</text>
+<circle cx="1109.8" cy="269.0" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1119.8" y="272.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">verify_required_ai_files</text>
+<text x="1119.8" y="272.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">verify_required_ai_files</text>
+<circle cx="764.9" cy="454.7" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="774.9" y="457.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">run_graph_show</text>
+<text x="774.9" y="457.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">run_graph_show</text>
+<circle cx="580.4" cy="906.1" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="590.4" y="909.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">add_node</text>
+<text x="590.4" y="909.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">add_node</text>
+<circle cx="1130.5" cy="299.0" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1140.5" y="302.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">run_sync</text>
+<text x="1140.5" y="302.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">run_sync</text>
+<circle cx="763.8" cy="942.6" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="773.8" y="945.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">to_json</text>
+<text x="773.8" y="945.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">to_json</text>
+<circle cx="665.6" cy="307.1" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="675.6" y="310.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">copy_adoption_path</text>
+<text x="675.6" y="310.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">copy_adoption_path</text>
+<circle cx="552.3" cy="804.6" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="562.3" y="807.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">_resolve_graph</text>
+<text x="562.3" y="807.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">_resolve_graph</text>
+<circle cx="668.6" cy="238.3" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="678.6" y="241.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">read_ignore_patterns</text>
+<text x="678.6" y="241.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">read_ignore_patterns</text>
+<circle cx="1105.6" cy="219.9" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1115.6" y="222.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_markdown_assets</text>
+<text x="1115.6" y="222.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_markdown_assets</text>
+<circle cx="812.2" cy="411.2" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="822.2" y="414.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">require_omni_graph</text>
+<text x="822.2" y="414.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">require_omni_graph</text>
+<circle cx="944.0" cy="358.9" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="954.0" y="361.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">load_json</text>
+<text x="954.0" y="361.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">load_json</text>
+<circle cx="459.0" cy="771.9" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="469.0" y="774.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">_call_semantic_api</text>
+<text x="469.0" y="774.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">_call_semantic_api</text>
+<circle cx="920.8" cy="223.7" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="930.8" y="226.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">read_json</text>
+<text x="930.8" y="226.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">read_json</text>
+<circle cx="353.3" cy="801.1" r="14" fill="#e0475c" fill-opacity="0.9" stroke="#0f0f12" stroke-width="1"/>
+<text x="371.3" y="804.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">omni_graph</text>
+<text x="371.3" y="804.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">omni_graph</text>
+<circle cx="1076.0" cy="235.5" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1086.0" y="238.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">run_doctor</text>
+<text x="1086.0" y="238.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">run_doctor</text>
+<circle cx="924.9" cy="408.7" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="934.9" y="411.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">split_csv</text>
+<text x="934.9" y="411.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">split_csv</text>
+<circle cx="383.3" cy="698.9" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="393.3" y="701.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">find_nodes</text>
+<text x="393.3" y="701.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">find_nodes</text>
+<circle cx="827.8" cy="354.6" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="837.8" y="357.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">run_context</text>
+<text x="837.8" y="357.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">run_context</text>
+<circle cx="346.1" cy="898.7" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="356.1" y="901.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">_iter_calls_js</text>
+<text x="356.1" y="901.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">_iter_calls_js</text>
+<circle cx="983.1" cy="205.4" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="993.1" y="208.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_context_manifest</text>
+<text x="993.1" y="208.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_context_manifest</text>
+<circle cx="665.8" cy="283.6" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="675.8" y="286.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">selected_adoption_files</text>
+<text x="675.8" y="286.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">selected_adoption_files</text>
+<circle cx="1094.6" cy="177.9" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1104.6" y="180.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_workspace_placement</text>
+<text x="1104.6" y="180.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_workspace_placement</text>
+<circle cx="977.6" cy="222.9" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="987.6" y="225.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_json_files</text>
+<text x="987.6" y="225.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_json_files</text>
+<circle cx="1441.0" cy="120.0" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1451.0" y="123.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">print</text>
+<text x="1451.0" y="123.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">print</text>
+<circle cx="460.6" cy="813.7" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="470.6" y="816.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">_split_qualifier</text>
+<text x="470.6" y="816.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">_split_qualifier</text>
+<circle cx="456.1" cy="1030.0" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="466.1" y="1033.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">to_json</text>
+<text x="466.1" y="1033.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">to_json</text>
+<circle cx="216.0" cy="781.3" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="226.0" y="784.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">_read_ignore_patterns</text>
+<text x="226.0" y="784.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">_read_ignore_patterns</text>
+<circle cx="1081.5" cy="247.1" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1091.5" y="250.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">error</text>
+<text x="1091.5" y="250.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">error</text>
+<circle cx="314.3" cy="709.7" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="324.3" y="712.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">shortest_path</text>
+<text x="324.3" y="712.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">shortest_path</text>
+<circle cx="774.9" cy="204.5" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="784.9" y="207.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">should_skip_map_path</text>
+<text x="784.9" y="207.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">should_skip_map_path</text>
+<circle cx="1234.5" cy="318.5" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1244.5" y="321.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">write_assistant_pointers</text>
+<text x="1244.5" y="321.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">write_assistant_pointers</text>
+<circle cx="790.2" cy="302.3" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="800.2" y="305.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">run_map</text>
+<text x="800.2" y="305.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">run_map</text>
+<circle cx="1188.1" cy="320.3" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1198.1" y="323.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">write_synced_ignore_files</text>
+<text x="1198.1" y="323.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">write_synced_ignore_files</text>
+<circle cx="723.6" cy="452.6" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="733.6" y="455.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">run_graph_trace</text>
+<text x="733.6" y="455.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">run_graph_trace</text>
+<circle cx="434.0" cy="851.9" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="444.0" y="854.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">parse_python_file</text>
+<text x="444.0" y="854.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">parse_python_file</text>
+<circle cx="1051.1" cy="212.7" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1061.1" y="215.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_cli_entrypoints</text>
+<text x="1061.1" y="215.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_cli_entrypoints</text>
+<circle cx="437.4" cy="931.3" r="10" fill="#e0475c" fill-opacity="0.9" stroke="#0f0f12" stroke-width="1"/>
+<text x="451.4" y="934.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">GraphEdge</text>
+<text x="451.4" y="934.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">GraphEdge</text>
+<circle cx="428.0" cy="1001.8" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="438.0" y="1004.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">to_json</text>
+<text x="438.0" y="1004.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">to_json</text>
+<circle cx="737.7" cy="319.7" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="747.7" y="322.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">run_adopt</text>
+<text x="747.7" y="322.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">run_adopt</text>
+<circle cx="1273.6" cy="205.1" r="10" fill="#e0475c" fill-opacity="0.9" stroke="#0f0f12" stroke-width="1"/>
+<text x="1287.6" y="208.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">DoctorReport</text>
+<text x="1287.6" y="208.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">DoctorReport</text>
+<circle cx="1206.4" cy="347.6" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1216.4" y="350.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">write_generated_file</text>
+<text x="1216.4" y="350.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">write_generated_file</text>
+<circle cx="814.9" cy="281.1" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="824.9" y="284.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">run_update</text>
+<text x="824.9" y="284.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">run_update</text>
+<circle cx="954.6" cy="381.6" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="964.6" y="384.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">run_requirement_add</text>
+<text x="964.6" y="384.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">run_requirement_add</text>
+<circle cx="864.8" cy="389.9" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="874.8" y="392.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">write_json</text>
+<text x="874.8" y="392.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">write_json</text>
+<circle cx="546.9" cy="867.0" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="556.9" y="870.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">add_edge</text>
+<text x="556.9" y="870.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">add_edge</text>
+<circle cx="192.0" cy="885.5" r="10" fill="#e0475c" fill-opacity="0.9" stroke="#0f0f12" stroke-width="1"/>
+<text x="206.0" y="888.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">GraphDependencyError</text>
+<text x="206.0" y="888.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">GraphDependencyError</text>
+<circle cx="141.9" cy="761.8" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="151.9" y="764.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">_ego_network</text>
+<text x="151.9" y="764.8" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">_ego_network</text>
+<circle cx="766.3" cy="185.4" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="776.3" y="188.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">render_assistant_pointer</text>
+<text x="776.3" y="188.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">render_assistant_pointer</text>
+<circle cx="891.1" cy="324.3" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="901.1" y="327.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">build_parser</text>
+<text x="901.1" y="327.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">build_parser</text>
+<circle cx="1190.6" cy="248.5" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1200.6" y="251.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_synced_ignore_files</text>
+<text x="1200.6" y="251.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_synced_ignore_files</text>
+<circle cx="1207.9" cy="235.4" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1217.9" y="238.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_ruleset</text>
+<text x="1217.9" y="238.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_ruleset</text>
+<circle cx="752.7" cy="240.5" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="762.7" y="243.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">three_way_merge</text>
+<text x="762.7" y="243.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">three_way_merge</text>
+<circle cx="632.8" cy="859.2" r="10" fill="#e0475c" fill-opacity="0.9" stroke="#0f0f12" stroke-width="1"/>
+<text x="646.8" y="862.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">Graph</text>
+<text x="646.8" y="862.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">Graph</text>
+<circle cx="1530.0" cy="165.6" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1540.0" y="168.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">__init__</text>
+<text x="1540.0" y="168.6" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">__init__</text>
+<circle cx="736.2" cy="347.0" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="746.2" y="350.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">resolve_context_profile_name</text>
+<text x="746.2" y="350.0" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">resolve_context_profile_name</text>
+<circle cx="1075.0" cy="356.1" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1085.0" y="359.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">resolve_rulepack_path</text>
+<text x="1085.0" y="359.1" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">resolve_rulepack_path</text>
+<circle cx="792.5" cy="251.4" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="802.5" y="254.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">git_show_file</text>
+<text x="802.5" y="254.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">git_show_file</text>
+<circle cx="265.8" cy="850.2" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="275.8" y="853.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">_import_name_and_alias</text>
+<text x="275.8" y="853.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">_import_name_and_alias</text>
+<circle cx="1046.3" cy="177.3" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1056.3" y="180.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">validate_project_map_freshness</text>
+<text x="1056.3" y="180.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">validate_project_map_freshness</text>
+<circle cx="1258.2" cy="341.2" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="1268.2" y="344.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">is_generated_file</text>
+<text x="1268.2" y="344.2" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">is_generated_file</text>
+<circle cx="137.8" cy="854.9" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="147.8" y="857.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">_path_matches_pattern</text>
+<text x="147.8" y="857.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">_path_matches_pattern</text>
+<circle cx="570.3" cy="731.9" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="580.3" y="734.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">build_graph</text>
+<text x="580.3" y="734.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">build_graph</text>
+<circle cx="70.0" cy="798.4" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="80.0" y="801.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">_escape_svg_text</text>
+<text x="80.0" y="801.4" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">_escape_svg_text</text>
+<circle cx="821.4" cy="919.7" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="831.4" y="922.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">__init__</text>
+<text x="831.4" y="922.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">__init__</text>
+<circle cx="584.6" cy="823.9" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="594.6" y="826.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">_resolve_reference</text>
+<text x="594.6" y="826.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="7" font-weight="700" fill="#e8e8e8">_resolve_reference</text>
+<circle cx="529.1" cy="790.5" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="539.1" y="793.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">run_semantic_pass</text>
+<text x="539.1" y="793.5" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">run_semantic_pass</text>
+<circle cx="476.3" cy="640.9" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="486.3" y="643.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">trace</text>
+<text x="486.3" y="643.9" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">trace</text>
+<circle cx="793.2" cy="329.3" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="803.2" y="332.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">write_omni_version_file</text>
+<text x="803.2" y="332.3" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">write_omni_version_file</text>
+<circle cx="328.0" cy="877.7" r="6" fill="#e0475c" fill-opacity="0.75" stroke="#0f0f12" stroke-width="1"/>
+<text x="338.0" y="880.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" stroke="#0f0f12" stroke-width="3" fill="none">load_language</text>
+<text x="338.0" y="880.7" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9" font-weight="700" fill="#e8e8e8">load_language</text>
+<rect x="1340" y="1004" width="240" height="86" rx="8" fill="rgba(15,15,18,0.85)" stroke="#e0475c" stroke-width="0.75" opacity="0.9"/>
+<circle cx="1358" cy="1026" r="6" fill="#e0475c"/>
+<text x="1372" y="1030" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="9.5" fill="#e8e8e8">python</text>
+<line x1="1352" y1="1048" x2="1368" y2="1048" stroke="#707070" stroke-width="1" opacity="0.7"/>
+<text x="1374" y="1052" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="8.5" fill="#707070">calls / imports / inherits</text>
+<line x1="1352" y1="1068" x2="1368" y2="1068" stroke="#2a2a2e" stroke-width="1"/>
+<text x="1374" y="1072" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="8.5" fill="#707070">defines (module/class contents)</text>
+<text x="1584" y="1088" text-anchor="end" font-family="'Share Tech Mono','JetBrains Mono','Courier New',monospace" font-size="8" fill="#2a2a2e" letter-spacing="1">OMNI-GRAPH-RENDER</text>
 </svg>

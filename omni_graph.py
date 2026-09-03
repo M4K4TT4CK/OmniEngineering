@@ -15,15 +15,20 @@ with where it came from:
   -- an unresolved reference stays EXTRACTED-only rather than being guessed.
 
 `omni graph build` is the only entry point that needs tree-sitter installed
-(the `[graph]` extra). `omni graph trace` / `omni graph show` only read the
-JSON this module writes, so they work with just the standard library.
+(the `[graph]` extra). `omni graph trace` / `omni graph show` / `omni graph
+render` only read the JSON this module writes, so they work with just the
+standard library -- including the SVG renderer's force-directed layout,
+which is a small pure-Python spring embedder rather than a numpy/networkx
+dependency.
 """
 
 from __future__ import annotations
 
 import fnmatch
 import json
+import math
 import os
+import random
 import urllib.error
 import urllib.request
 from collections import deque
@@ -936,3 +941,321 @@ def show(graph_path: Path, query: str) -> dict[str, Any]:
     outgoing = [edge for edge in graph_data["edges"] if edge["source"] == node_id]
     incoming = [edge for edge in graph_data["edges"] if edge["target"] == node_id]
     return {"ok": True, "node": node, "outgoing": outgoing, "incoming": incoming}
+
+
+# --------------------------------------------------------------------------
+# SVG rendering -- a real node-link graph, not a chart. Pure stdlib (a small
+# Fruchterman-Reingold spring embedder) so `omni graph render`, like trace
+# and show, never needs tree-sitter or any third-party layout library.
+# --------------------------------------------------------------------------
+
+RENDER_DEFAULT_OUTPUT = ".ai/project-graph.svg"
+RENDER_DEFAULT_MAX_NODES = 300
+RENDER_DEFAULT_ITERATIONS = 150
+RENDER_DEFAULT_DEPTH = 2
+
+_LANGUAGE_COLORS = {
+    "python": "#e0475c",
+    "javascript": "#4fb3bf",
+    "typescript": "#c9a869",
+}
+_DEFAULT_NODE_COLOR = "#9a9a9a"
+_KIND_RADIUS = {"module": 14, "class": 10, "function": 6, "method": 6, "external": 3}
+_SVG_BG = "#0f0f12"
+_SVG_TEXT = "#e8e8e8"
+_SVG_DIM = "#707070"
+_SVG_FAINT = "#2a2a2e"
+_SVG_FONT = "'Share Tech Mono','JetBrains Mono','Courier New',monospace"
+
+
+def _escape_svg_text(text: str) -> str:
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _node_color(node: dict[str, Any]) -> str:
+    return _LANGUAGE_COLORS.get(node.get("language"), _DEFAULT_NODE_COLOR)
+
+
+def _ego_network(edges: list[dict[str, Any]], focus_ids: list[str], depth: int) -> set[str]:
+    adjacency: dict[str, set[str]] = {}
+    for edge in edges:
+        adjacency.setdefault(edge["source"], set()).add(edge["target"])
+        adjacency.setdefault(edge["target"], set()).add(edge["source"])
+    visited = set(focus_ids)
+    frontier = set(focus_ids)
+    for _ in range(max(depth, 0)):
+        next_frontier: set[str] = set()
+        for node_id in frontier:
+            next_frontier |= adjacency.get(node_id, set())
+        next_frontier -= visited
+        if not next_frontier:
+            break
+        visited |= next_frontier
+        frontier = next_frontier
+    return visited
+
+
+def _spring_layout(
+    node_ids: list[str], pair_edges: list[tuple[str, str]], iterations: int, seed: int
+) -> dict[str, tuple[float, float]]:
+    """A small Fruchterman-Reingold force-directed layout. O(n^2) per iteration,
+    which is fine for the few hundred nodes this renders (see max_nodes)."""
+    n = len(node_ids)
+    if n == 0:
+        return {}
+    if n == 1:
+        return {node_ids[0]: (0.0, 0.0)}
+
+    rng = random.Random(seed)
+    pos = {node_id: [rng.uniform(-1.0, 1.0), rng.uniform(-1.0, 1.0)] for node_id in node_ids}
+    k = math.sqrt(1.0 / n)
+    temperature = 0.1
+    cooling = temperature / (iterations + 1)
+
+    for _ in range(iterations):
+        disp = {node_id: [0.0, 0.0] for node_id in node_ids}
+
+        for i in range(n):
+            vi = node_ids[i]
+            xi, yi = pos[vi]
+            for j in range(i + 1, n):
+                vj = node_ids[j]
+                xj, yj = pos[vj]
+                dx, dy = xi - xj, yi - yj
+                dist = math.hypot(dx, dy) or 1e-6
+                force = (k * k) / dist
+                ux, uy = dx / dist, dy / dist
+                disp[vi][0] += ux * force
+                disp[vi][1] += uy * force
+                disp[vj][0] -= ux * force
+                disp[vj][1] -= uy * force
+
+        for source, target in pair_edges:
+            xi, yi = pos[source]
+            xj, yj = pos[target]
+            dx, dy = xi - xj, yi - yj
+            dist = math.hypot(dx, dy) or 1e-6
+            force = (dist * dist) / k
+            ux, uy = dx / dist, dy / dist
+            disp[source][0] -= ux * force
+            disp[source][1] -= uy * force
+            disp[target][0] += ux * force
+            disp[target][1] += uy * force
+
+        for node_id in node_ids:
+            dx, dy = disp[node_id]
+            dist = math.hypot(dx, dy) or 1e-6
+            capped = min(dist, temperature)
+            pos[node_id][0] += dx / dist * capped
+            pos[node_id][1] += dy / dist * capped
+
+        temperature -= cooling
+
+    return {node_id: (pos[node_id][0], pos[node_id][1]) for node_id in node_ids}
+
+
+def _render_svg(
+    nodes: list[dict[str, Any]],
+    edges: list[dict[str, Any]],
+    root_label: str,
+    truncated: bool,
+    iterations: int,
+    seed: int,
+) -> str:
+    node_ids = [node["id"] for node in nodes]
+    by_id = {node["id"]: node for node in nodes}
+    pair_edges = [(edge["source"], edge["target"]) for edge in edges]
+    positions = _spring_layout(node_ids, pair_edges, iterations=iterations, seed=seed)
+
+    width, height, margin = 1600, 1100, 70
+    if positions:
+        xs = [point[0] for point in positions.values()]
+        ys = [point[1] for point in positions.values()]
+        minx, maxx = min(xs), max(xs)
+        miny, maxy = min(ys), max(ys)
+        span_x = (maxx - minx) or 1.0
+        span_y = (maxy - miny) or 1.0
+    else:
+        minx = miny = 0.0
+        span_x = span_y = 1.0
+
+    def sx(x: float) -> float:
+        return margin + (x - minx) / span_x * (width - 2 * margin)
+
+    def sy(y: float) -> float:
+        return margin + 50 + (y - miny) / span_y * (height - 2 * margin - 50)
+
+    languages_present = sorted({node.get("language") for node in nodes if node.get("language")})
+
+    parts: list[str] = [
+        f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" fill="none" '
+        'xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">',
+        f'<title id="title">{_escape_svg_text(root_label)} code graph</title>',
+        '<desc id="desc">Force-directed node-link graph generated by omni graph render from '
+        'omni graph build output -- not hand-drawn.</desc>',
+        '<defs><pattern id="og-grid" width="26" height="26" patternUnits="userSpaceOnUse">'
+        f'<path d="M 26 0 L 0 0 0 26" fill="none" stroke="{_LANGUAGE_COLORS["python"]}" '
+        'stroke-width="0.2" opacity="0.06"/></pattern></defs>',
+        f'<rect width="{width}" height="{height}" fill="{_SVG_BG}"/>',
+        f'<rect width="{width}" height="{height}" fill="url(#og-grid)"/>',
+        f'<text x="24" y="30" font-family="{_SVG_FONT}" font-size="15" font-weight="700" '
+        f'fill="{_SVG_TEXT}" letter-spacing="0.5">{_escape_svg_text(root_label)} -- code graph</text>',
+    ]
+
+    subtitle = f"{len(nodes)} SYMBOLS · {len(edges)} RESOLVED EDGES · GENERATED BY OMNI GRAPH RENDER"
+    if truncated:
+        subtitle += " · TRUNCATED TO HIGHEST-DEGREE NODES"
+    parts.append(
+        f'<text x="24" y="48" font-family="{_SVG_FONT}" font-size="9.5" fill="{_SVG_DIM}" '
+        f'letter-spacing="1.1">{_escape_svg_text(subtitle)}</text>'
+    )
+
+    edge_style = {
+        "calls": (0.35, False),
+        "imports": (0.6, False),
+        "inherits": (0.6, True),
+        "related_to": (0.55, True),
+    }
+    for edge in edges:
+        source = by_id.get(edge["source"])
+        target = by_id.get(edge["target"])
+        if source is None or target is None:
+            continue
+        x1, y1 = sx(positions[edge["source"]][0]), sy(positions[edge["source"]][1])
+        x2, y2 = sx(positions[edge["target"]][0]), sy(positions[edge["target"]][1])
+        if edge["type"] == "defines":
+            parts.append(
+                f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" '
+                f'stroke="{_SVG_FAINT}" stroke-width="0.6" opacity="0.5"/>'
+            )
+            continue
+        opacity, dashed = edge_style.get(edge["type"], (0.3, False))
+        color = _node_color(source)
+        dash = ' stroke-dasharray="3,3"' if dashed else ""
+        parts.append(
+            f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" '
+            f'stroke="{color}" stroke-width="0.8" opacity="{opacity}"{dash}/>'
+        )
+
+    degree: dict[str, int] = {}
+    for edge in edges:
+        degree[edge["source"]] = degree.get(edge["source"], 0) + 1
+        degree[edge["target"]] = degree.get(edge["target"], 0) + 1
+
+    for node in nodes:
+        node_id = node["id"]
+        x, y = sx(positions[node_id][0]), sy(positions[node_id][1])
+        radius = _KIND_RADIUS.get(node["kind"], 6)
+        color = _node_color(node)
+        fill_opacity = "0.9" if node["kind"] in ("module", "class") else "0.75"
+        parts.append(
+            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{radius}" fill="{color}" '
+            f'fill-opacity="{fill_opacity}" stroke="{_SVG_BG}" stroke-width="1"/>'
+        )
+        deg = degree.get(node_id, 0)
+        if node["kind"] in ("module", "class") or deg >= 4:
+            size = 9
+        elif deg >= 1:
+            size = 7
+        else:
+            continue
+        tx, ty = x + radius + 4, y + 3
+        text = _escape_svg_text(node["name"])
+        parts.append(
+            f'<text x="{tx:.1f}" y="{ty:.1f}" font-family="{_SVG_FONT}" font-size="{size}" '
+            f'font-weight="700" stroke="{_SVG_BG}" stroke-width="3" fill="none">{text}</text>'
+        )
+        parts.append(
+            f'<text x="{tx:.1f}" y="{ty:.1f}" font-family="{_SVG_FONT}" font-size="{size}" '
+            f'font-weight="700" fill="{_SVG_TEXT}">{text}</text>'
+        )
+
+    legend_rows = len(languages_present) + 2
+    legend_x, legend_y = width - 260, height - (30 + 22 * legend_rows)
+    legend_h = 20 + 22 * legend_rows
+    parts.append(
+        f'<rect x="{legend_x}" y="{legend_y}" width="240" height="{legend_h}" rx="8" '
+        f'fill="rgba(15,15,18,0.85)" stroke="{_LANGUAGE_COLORS["python"]}" stroke-width="0.75" opacity="0.9"/>'
+    )
+    row = legend_y + 22
+    for language in languages_present:
+        color = _LANGUAGE_COLORS.get(language, _DEFAULT_NODE_COLOR)
+        parts.append(f'<circle cx="{legend_x+18}" cy="{row}" r="6" fill="{color}"/>')
+        parts.append(
+            f'<text x="{legend_x+32}" y="{row+4}" font-family="{_SVG_FONT}" font-size="9.5" '
+            f'fill="{_SVG_TEXT}">{_escape_svg_text(language)}</text>'
+        )
+        row += 22
+    parts.append(f'<line x1="{legend_x+12}" y1="{row}" x2="{legend_x+28}" y2="{row}" stroke="{_SVG_DIM}" stroke-width="1" opacity="0.7"/>')
+    parts.append(
+        f'<text x="{legend_x+34}" y="{row+4}" font-family="{_SVG_FONT}" font-size="8.5" '
+        f'fill="{_SVG_DIM}">calls / imports / inherits</text>'
+    )
+    row += 20
+    parts.append(f'<line x1="{legend_x+12}" y1="{row}" x2="{legend_x+28}" y2="{row}" stroke="{_SVG_FAINT}" stroke-width="1"/>')
+    parts.append(
+        f'<text x="{legend_x+34}" y="{row+4}" font-family="{_SVG_FONT}" font-size="8.5" '
+        f'fill="{_SVG_DIM}">defines (module/class contents)</text>'
+    )
+
+    parts.append(
+        f'<text x="{width-16}" y="{height-12}" text-anchor="end" font-family="{_SVG_FONT}" '
+        f'font-size="8" fill="{_SVG_FAINT}" letter-spacing="1">OMNI-GRAPH-RENDER</text>'
+    )
+    parts.append("</svg>")
+    return "\n".join(parts)
+
+
+def render(
+    graph_path: Path,
+    include_external: bool = False,
+    max_nodes: int = RENDER_DEFAULT_MAX_NODES,
+    focus: str | None = None,
+    depth: int = RENDER_DEFAULT_DEPTH,
+    iterations: int = RENDER_DEFAULT_ITERATIONS,
+    seed: int = 7,
+) -> dict[str, Any]:
+    graph_data = load_graph(graph_path)
+    all_nodes = {node["id"]: node for node in graph_data["nodes"]}
+    all_edges = graph_data["edges"]
+
+    if focus:
+        matches = find_nodes(graph_data, focus)
+        if not matches:
+            return {"ok": False, "error": "focus_not_found"}
+        focus_ids = [node["id"] for node in matches]
+        keep_ids = _ego_network(all_edges, focus_ids, depth)
+    else:
+        keep_ids = set(all_nodes)
+
+    if not include_external:
+        keep_ids = {node_id for node_id in keep_ids if all_nodes[node_id]["kind"] != "external"}
+
+    truncated = False
+    if len(keep_ids) > max_nodes:
+        degree: dict[str, int] = {}
+        for edge in all_edges:
+            if edge["source"] in keep_ids:
+                degree[edge["source"]] = degree.get(edge["source"], 0) + 1
+            if edge["target"] in keep_ids:
+                degree[edge["target"]] = degree.get(edge["target"], 0) + 1
+        ranked = sorted(keep_ids, key=lambda node_id: degree.get(node_id, 0), reverse=True)
+        keep_ids = set(ranked[:max_nodes])
+        truncated = True
+
+    render_nodes = [all_nodes[node_id] for node_id in keep_ids]
+    render_edges = [edge for edge in all_edges if edge["source"] in keep_ids and edge["target"] in keep_ids]
+
+    raw_root = str(graph_data.get("root") or "").strip()
+    root_label = Path(raw_root).resolve().name if raw_root in ("", ".") else raw_root
+    svg_text = _render_svg(render_nodes, render_edges, root_label, truncated, iterations, seed)
+
+    return {
+        "ok": True,
+        "svg": svg_text,
+        "nodes_rendered": len(render_nodes),
+        "edges_rendered": len(render_edges),
+        "nodes_total": len(all_nodes),
+        "edges_total": len(all_edges),
+        "truncated": truncated,
+    }
