@@ -580,6 +580,33 @@
         "The structural update-mechanism gap (a target's own running code decides what files it looks for) is not fully eliminated -- it is closed for every template file added from this point forward (once a target has updated past this fix, it will correctly discover any future new template file on the very next update), but a project that adopted before omni_graph.py existed will still see one warning-but-not-broken update before omni_graph.py actually arrives. A fully general fix would have run_update ask --source's own make_ai.py for its current file manifest via subprocess instead of trusting its own constant; deferred as a larger structural change beyond this fix's scope.",
         "The defensive import is the durable half of this fix: it guarantees a missing omni_graph.py (for this reason or any other -- a bad copy, manual deletion) degrades to one feature being unavailable rather than the whole CLI being unusable, independent of whether the file-list gap above is ever fully closed."
       ]
+    },
+    {
+      "id": "REQ-018",
+      "category": "Presentation / documentation",
+      "title": "Replace the hierarchical code-map diagram with a real node-link graph",
+      "description": "The first design/diagrams/omni-code-map.svg (REQ-015 follow-up) was a hierarchical org-chart-style diagram (boxes, arrows, a text-list panel for doctor checks) built from omni graph build's own output. User feedback: it didn't read as 'a graph' in the conventional sense. Replaced it with design/diagrams/omni-code-graph.svg -- a real force-directed node-link layout (networkx spring_layout) over all 106 real (non-external) symbols and 277 resolved calls/defines edges from the same .ai/project-graph.json, rendered as circles (sized by kind, colored by source module) and lines (calls vs. defines distinguished). No fabricated structure: same underlying data, different -- and correctly graph-shaped -- visual form.",
+      "priority": "low",
+      "status": "completed",
+      "minimum_access_scope": [
+        "design/diagrams/omni-code-graph.svg",
+        "README.md"
+      ],
+      "acceptance_criteria": [
+        "design/diagrams/omni-code-map.svg (the org-chart version) is removed.",
+        "design/diagrams/omni-code-graph.svg exists, is well-formed XML, and renders as a force-directed node-link graph (verified via a local cairosvg render) rather than a hierarchical chart.",
+        "README's Design Documents list points at the new file with an accurate description."
+      ],
+      "validation_required": [
+        "doctor",
+        "manual_verification"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": [
+        "Generating this diagram required networkx + numpy for the spring layout; these are one-off diagram-authoring tools, not a runtime dependency of omni_graph.py or the [graph] extra, so nothing was added to pyproject.toml."
+      ]
     }
   ]
 }

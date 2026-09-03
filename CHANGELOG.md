@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-09-03
+
+### Completed
+
+- `REQ-018` | Presentation / documentation | Replaced
+  `design/diagrams/omni-code-map.svg` (a hierarchical org-chart-style
+  diagram) with `design/diagrams/omni-code-graph.svg` -- user feedback was
+  that the first version didn't read as "a graph." The new version is a
+  real force-directed node-link layout (networkx `spring_layout`) over all
+  106 real symbols and 277 resolved edges from the same
+  `.ai/project-graph.json` `omni graph build` output: circles sized by kind
+  and colored by source module, lines distinguishing `calls` from
+  `defines`. Same underlying data, correctly graph-shaped this time.
+
 ## 2026-09-02 (2)
 
 ### Completed
