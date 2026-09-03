@@ -11,3 +11,4 @@ build/
 .env
 .env.*
 .codex-local/
+.ai/project-graph.json
