@@ -7,8 +7,9 @@ these fallback rules exactly:
 
 1. Read `.ai/core-context.md`, `.ai/rules/universal-engineering-ruleset.json`,
    `.ai/rules/controlled-implementation.json`, `.ai/rules/completion-workflow.json`,
-   `.ai/project-configuration.md`, and `.ai/requirements/requirements.json`
-   before editing when they are available.
+   and `.ai/project-configuration.md` before editing when they are available.
+   Query the requirements registry with `omni requirement show|list|search`;
+   do not read `.ai/requirements/requirements.json` in full.
 2. If any required file is unavailable, say which file is unavailable and use
    this fallback contract as the controlling instruction set.
 3. Assign or confirm a `REQ-###` requirement ID before work begins.
@@ -32,11 +33,13 @@ these fallback rules exactly:
 12. Update relevant docs when behavior, setup, commands, architecture, APIs,
     data models, or workflows change.
 13. Update `CHANGELOG.md` after each completed task.
-14. Update `.ai/requirements/requirements.json` when a requirement is added,
-    completed, blocked, or materially changed.
+14. Update the requirements registry with `omni requirement add|update|complete`
+    (never by hand-editing the JSON) when a requirement is added, completed,
+    blocked, or materially changed.
 15. Run relevant validation. For OmniContext workspace changes, run
     `omni doctor` or `./omni doctor`; when assistant entrypoint files change,
-    run `omni sync` or `./omni sync`.
+    run `omni sync` or `./omni sync`. Before claiming completion, run
+    `omni gate` and fix or explicitly waive every failure it reports.
 16. Do not claim completion if validation was skipped. Explain why it was not
     run.
 17. Final output must include requirement ID and status, files changed,

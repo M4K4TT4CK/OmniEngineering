@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-09-18
+
+### Completed
+
+- `REQ-020` | Enforcement | Completion rules are now executed instead of
+  merely documented. Rulepack `validation` blocks were never run by any
+  code, and `omni doctor` only checked that requirement keys existed, never
+  their types -- so an adopter's assistant skipped changelog/registry updates
+  at will and hand-wrote 25 schema-violating registry fields that `doctor`
+  passed. New: `omni gate` executes `co_changed` rules (changed files must
+  be accompanied by a `CHANGELOG.md` and requirements-registry change) over
+  the working tree plus every commit since the merge-base with `origin/main`,
+  so committing cannot hide a missing update; `omni waive <rule> --reason`
+  records an auditable line in `.ai/gate-waivers.jsonl` (only waivers added
+  in the current change set count); `omni hook install` wires a Claude Code
+  Stop hook (`omni gate --hook`) that exits 2 to block finishing, at most
+  once per distinct failing state and never when `stop_hook_active` is set.
+  `omni requirement show|list|search|update|complete|archive` replace reading
+  and hand-editing the registry JSON (an adopter's had grown to 531 KB and
+  the `minimum` context profile told every session to load it); archived
+  entries stay queryable and ids are never reused. `doctor` now type- and
+  enum-checks the registry and its archive. `classification_banner` and
+  `allowed_root_paths` are new `configuration` keys: the banner is rendered
+  into every assistant shim and its absence is a `doctor` error (plain
+  `sync` used to silently strip a hand-added CUI marking), and doctor no
+  longer flags git-ignored root paths or IDE/assistant state directories.
+  The Claude entrypoint no longer embeds a duplicate copy of the fallback
+  contract. Verified by a 42-check end-to-end script in a throwaway git repo;
+  the Stop hook itself was exercised by piping hook JSON, not inside a live
+  Claude Code session.
+
 ## 2026-09-03 (2)
 
 ### Completed

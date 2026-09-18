@@ -645,6 +645,46 @@
         "The layout is O(n^2) per iteration (a deliberate simplicity/dependency tradeoff over numpy-vectorized force-directed algorithms), which is why --max-nodes defaults to 300 and truncates by degree rather than rendering arbitrarily large graphs unbounded.",
         "Dense, highly-connected clusters (e.g. this repo's own doctor-validator cluster) still show some label overlap at default settings -- an inherent characteristic of force-directed layouts at this node density, not something --max-nodes or --focus fully eliminates; --focus on a smaller neighborhood is the escape hatch for a specific area."
       ]
+    },
+    {
+      "id": "REQ-020",
+      "category": "Enforcement",
+      "title": "Make completion enforcement real: executable gates, registry CLI, typed validation, config-driven banner",
+      "description": "Rulepack validation blocks were never executed and omni doctor checked that registry keys existed but never their types, so assistants could skip changelog/registry updates and hand-write malformed requirement entries (25 schema violations in one adopter) without any check failing. The 531 KB adopter registry was also pushed into every context profile. Adds omni gate (co_changed rule execution against the git change set plus doctor errors) with auditable waivers and a Claude Code Stop hook, requirement show/list/search/update/complete/archive so nobody reads or hand-edits the registry JSON, type and enum validation of the registry and its archive, and config-driven classification_banner and allowed_root_paths.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        ".ai/rules/completion-workflow.json",
+        ".ai/rules/universal-engineering-ruleset.json",
+        ".ai/context-manifest.json",
+        ".ai/context-brief.md",
+        ".ai/entrypoints",
+        "README.md",
+        "design/cli-design.md"
+      ],
+      "acceptance_criteria": [
+        "omni gate fails when files change without CHANGELOG and registry updates",
+        "Waivers need a reason and only count when added in the current change set",
+        "Stop hook exits 2 at most once per failing state and never when stop_hook_active is set",
+        "doctor rejects string-instead-of-array registry fields",
+        "requirement archive keeps ids unique and archived entries queryable",
+        "classification banner rendered into every shim and enforced by doctor",
+        "git-ignored root paths are not flagged by doctor"
+      ],
+      "validation_required": [
+        "42-check end-to-end script in a throwaway git repo",
+        "omni doctor",
+        "omni gate"
+      ],
+      "documentation_required": [
+        "changelog",
+        "README",
+        "design/cli-design.md"
+      ],
+      "risk_notes": [
+        "Stop hook was verified by piping hook JSON to omni gate --hook and not inside a live Claude Code session; omni gate compares against origin/main or main so a repo with neither ref falls back to HEAD and only sees uncommitted changes; co_changed globs are path-only and cannot judge whether the changelog text is adequate"
+      ]
     }
   ]
 }

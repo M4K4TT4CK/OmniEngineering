@@ -39,7 +39,9 @@
     "allow_dependency_changes": false,
     "allow_schema_changes": false,
     "allow_destructive_data_changes": false,
-    "require_user_confirmation_for_destructive_actions": true
+    "require_user_confirmation_for_destructive_actions": true,
+    "classification_banner": "",
+    "allowed_root_paths": []
   },
   "global_operating_principles": {
     "targeted_access_only": {

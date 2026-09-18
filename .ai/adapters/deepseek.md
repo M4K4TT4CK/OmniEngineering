@@ -11,7 +11,7 @@ Read LLM_CONTEXT.md first. Then read .ai/context-brief.md and
 .ai/context-manifest.json. Use the smallest context profile that fits the task.
 Read the universal ruleset only when policy depth is needed.
 
-Use .ai/requirements/requirements.json for task traceability. Use .ai/.ignore
+Use `omni requirement show|list|search` for task traceability (never load the whole registry file). Use .ai/.ignore
 as a hard prompt-level exclusion list. If you cannot access a required file,
 name the missing file and apply the fallback operating contract in
 LLM_CONTEXT.md.

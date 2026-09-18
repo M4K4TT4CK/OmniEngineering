@@ -27,21 +27,52 @@
         "completion"
       ],
       "validation": {
-        "type": "file_exists",
-        "target": "CHANGELOG.md"
+        "type": "co_changed",
+        "when_changed": [
+          "**"
+        ],
+        "ignore": [
+          "CHANGELOG.md",
+          ".ai/project-map.md",
+          ".ai/project-graph.json",
+          ".ai/project-graph.svg",
+          ".ai/omni-version.json",
+          ".ai/context-log.md",
+          ".ai/gate-waivers.jsonl",
+          ".ai/requirements/**"
+        ],
+        "must_also_change": [
+          "CHANGELOG.md"
+        ]
       }
     },
     {
       "id": "completion.requirements_registry",
       "severity": "required",
-      "statement": "Update .ai/requirements/requirements.json when a requirement is added, completed, blocked, or materially changed.",
+      "statement": "Update the requirements registry when a requirement is added, completed, blocked, or materially changed, using `omni requirement add|update|complete` rather than hand-editing the JSON. `omni gate` fails when changed files have no matching registry change.",
       "scope": [
         "requirements",
         "completion"
       ],
       "validation": {
-        "type": "json_parse",
-        "target": ".ai/requirements/requirements.json"
+        "type": "co_changed",
+        "when_changed": [
+          "**"
+        ],
+        "ignore": [
+          "CHANGELOG.md",
+          ".ai/project-map.md",
+          ".ai/project-graph.json",
+          ".ai/project-graph.svg",
+          ".ai/omni-version.json",
+          ".ai/context-log.md",
+          ".ai/gate-waivers.jsonl",
+          ".ai/requirements/**"
+        ],
+        "must_also_change": [
+          ".ai/requirements/requirements.json",
+          ".ai/requirements/requirements-archive.json"
+        ]
       }
     },
     {
@@ -85,6 +116,15 @@
       "statement": "Final output must include summary, completed requirements, pending or blocked requirements, files changed, validation summary, documentation summary, changelog summary, commit entry sentence, and pull request information.",
       "scope": [
         "final_response"
+      ]
+    },
+    {
+      "id": "completion.gate_before_completion",
+      "severity": "required",
+      "statement": "Run `omni gate` before reporting completion and resolve or explicitly waive (`omni waive <rule-id> --reason \"...\"`) every failure it reports. Do not claim completion while it fails.",
+      "scope": [
+        "completion",
+        "validation"
       ]
     }
   ]

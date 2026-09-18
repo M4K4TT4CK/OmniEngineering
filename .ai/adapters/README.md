@@ -17,7 +17,7 @@ Every adapter points back to the same source of truth:
 3. `.ai/context-manifest.json`
 4. `.ai/project-map.md`
 5. `.ai/project-configuration.md`
-6. `.ai/requirements/requirements.json`
+6. Requirement lookups: `./omni requirement show <ID>` (do not load the registry file whole)
 7. One relevant playbook, checklist, or rulepack
 
 If a tool has a native instruction file, prefer its tiny root shim. If it does

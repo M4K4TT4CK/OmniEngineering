@@ -31,14 +31,12 @@
     "minimum": [
       ".ai/context-brief.md",
       ".ai/project-configuration.md",
-      ".ai/project-map.md",
-      ".ai/requirements/requirements.json"
+      ".ai/project-map.md"
     ],
     "implementation": [
       ".ai/context-brief.md",
       ".ai/project-configuration.md",
       ".ai/project-map.md",
-      ".ai/requirements/requirements.json",
       ".ai/playbooks/implementation.md",
       ".ai/checklists/pre-implementation.md",
       ".ai/checklists/pre-completion.md"
@@ -47,7 +45,6 @@
       ".ai/context-brief.md",
       ".ai/project-configuration.md",
       ".ai/project-map.md",
-      ".ai/requirements/requirements.json",
       ".ai/playbooks/review.md",
       ".ai/checklists/security.md"
     ],
@@ -78,7 +75,6 @@
     ".ai/context-brief.md",
     ".ai/core-context.md",
     ".ai/project-configuration.md",
-    ".ai/requirements/requirements.json",
     ".ai/rules/universal-engineering-ruleset.json",
     ".ai/rules/controlled-implementation.json",
     ".ai/rules/completion-workflow.json",
@@ -147,16 +143,17 @@
   "security_exclusions": ".ai/.ignore",
   "validation_commands": [
     "./omni doctor",
-    "./omni validate"
+    "./omni validate",
+    "./omni gate"
   ],
   "sync_command": "./omni sync",
   "fallback_contract_source": ".ai/entrypoints/fallback-contract.md",
   "context_retention_strategy": {
     "small_context_models": [
       "Read LLM_CONTEXT.md first.",
-      "Read .ai/context-brief.md, .ai/project-configuration.md, .ai/project-map.md, and the active requirement.",
+      "Read .ai/context-brief.md, .ai/project-configuration.md, .ai/project-map.md, and the active requirement (via `./omni requirement show <ID>`).",
       "Read only the playbook, checklist, or rulepack relevant to the active task.",
-      "Always read .ai/requirements/requirements.json before assigning or completing a requirement."
+      "Before assigning or completing a requirement, query the registry with `./omni requirement list --status pending` or `show <ID>`; never load the whole registry file."
     ],
     "model_router_gateways": [
       "Do not assume the selected model has prior repository memory.",
@@ -169,5 +166,24 @@
       "Use .ai/.ignore to exclude sensitive or irrelevant paths.",
       "Use design/ for architecture and workflow context when changing project behavior."
     ]
+  },
+  "requirement_access": {
+    "policy": "Never read .ai/requirements/requirements.json in full and never hand-edit it; hand-written entries repeatedly broke the registry schema.",
+    "read": [
+      "./omni requirement list --status pending",
+      "./omni requirement show <ID>",
+      "./omni requirement search <text>"
+    ],
+    "write": [
+      "./omni requirement add --title ... --description ...",
+      "./omni requirement update <ID> --status <status> --note <text>",
+      "./omni requirement complete <ID>"
+    ],
+    "archive": "./omni requirement archive moves older completed entries to .ai/requirements/requirements-archive.json; archived entries stay queryable with show, search, and list --all."
+  },
+  "completion_gate": {
+    "command": "./omni gate",
+    "purpose": "Executes the co_changed validations in the completion rulepack against the git change set. Waive a non-applicable gate explicitly with ./omni waive <rule-id> --reason \"...\".",
+    "claude_code_hook": "./omni hook install"
   }
 }

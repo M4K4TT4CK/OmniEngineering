@@ -30,7 +30,48 @@ Both delegate to `make_ai.py`.
 | `omni context` | Print the exact low-token file set for a context profile. |
 | `omni adopt` | Copy OmniEngineering into a target project without overwriting by default. |
 | `omni requirement add` | Append a requirement record without hand-editing JSON. |
+| `omni requirement show <ID>` | Print one requirement (active or archived). |
+| `omni requirement list` | One line per requirement; filter with `--status`, `--last N`, `--all`. |
+| `omni requirement search <text>` | Case-insensitive search across active and archived requirements. |
+| `omni requirement update <ID>` | Change status/title/description or append a risk note. |
+| `omni requirement complete <ID>` | Mark a requirement completed. |
+| `omni requirement archive` | Move older completed requirements to `requirements-archive.json`. |
+| `omni gate` | Execute the rulepack `co_changed` validations against the git change set. |
+| `omni waive <rule-id>` | Record an explicit, auditable waiver in `.ai/gate-waivers.jsonl`. |
+| `omni hook install` | Install the Claude Code Stop hook that blocks completion while the gate fails. |
 | `omni rule add` | Append a structured rule to a rulepack. |
+
+## Completion Gate
+
+Rulepack `validation` blocks used to be documentation only. A rule whose
+`validation.type` is `co_changed` is now executed by `omni gate`:
+
+```json
+"validation": {
+  "type": "co_changed",
+  "when_changed": ["backend/src/**"],
+  "ignore": ["**/*.md"],
+  "must_also_change": ["CHANGELOG.md"]
+}
+```
+
+When any changed path matches `when_changed` (and not `ignore`), at least one
+changed path must match `must_also_change`. The change set is the working tree
+plus every commit since the merge-base with `origin/main` (or `main`), so
+committing does not hide missing governance. A rule that genuinely does not
+apply is waived with `omni waive <rule-id> --reason "..."`; only waivers
+added in the current change set count, and each one is a tracked, reviewable
+line in `.ai/gate-waivers.jsonl`.
+
+`omni gate --hook` is the Claude Code Stop-hook entry point (`omni hook
+install` wires it into `.claude/settings.json`). It exits 2 to block the
+assistant from finishing, at most once per distinct failing state, and never
+when `stop_hook_active` is set, so it cannot loop.
+
+Project configuration (`configuration` in the universal ruleset) also accepts
+`classification_banner` (rendered into every assistant shim and enforced by
+`omni doctor`) and `allowed_root_paths` (root names doctor should not flag).
+Git-ignored root paths are never flagged.
 
 ## Sync Behavior
 

@@ -790,6 +790,25 @@ omni requirement add \
 
 If `--id` is omitted, the CLI assigns the next `REQ-###` ID.
 
+Query and update the registry without opening the file (it grows large):
+
+```bash
+omni requirement list --status pending
+omni requirement show REQ-042
+omni requirement search "login"
+omni requirement update REQ-042 --status blocked --note "waiting on API key"
+omni requirement complete REQ-042
+omni requirement archive --keep-recent 25   # move old completed entries aside
+```
+
+Enforce the completion rulepack instead of trusting the assistant to remember it:
+
+```bash
+omni gate            # fail if changed files lack changelog/registry updates
+omni waive completion.changelog_gate --reason "docs-only typo fix"
+omni hook install    # Claude Code Stop hook: blocks finishing while the gate fails
+```
+
 Add a rule to a rulepack:
 
 ```bash
