@@ -29,3 +29,4 @@ coverage/
 *.sqlite
 *.sqlite3
 *.db
+.ai/graph-viewer/

@@ -36,6 +36,8 @@ Both delegate to `make_ai.py`.
 | `omni requirement update <ID>` | Change status/title/description or append a risk note. |
 | `omni requirement complete <ID>` | Mark a requirement completed. |
 | `omni requirement archive` | Move older completed requirements to `requirements-archive.json`. |
+| `omni graph show --all` | List every graph node (grouped by file, with in/out degree); filter by `--kind`, `--language`, `--file`; `--edges` adds the edges. |
+| `omni graph view` | Write an offline, interactive 3D HTML viewer (vendored 3d-force-graph, MIT) with search, filters, click-to-read, and expand-neighbours. |
 | `omni gate` | Execute the rulepack `co_changed` validations against the git change set. |
 | `omni waive <rule-id>` | Record an explicit, auditable waiver in `.ai/gate-waivers.jsonl`. |
 | `omni hook install` | Install the Claude Code Stop hook that blocks completion while the gate fails. |

@@ -25,10 +25,12 @@ dependency.
 from __future__ import annotations
 
 import fnmatch
+import html
 import json
 import math
 import os
 import random
+import re
 import urllib.error
 import urllib.request
 from collections import deque
@@ -941,6 +943,241 @@ def show(graph_path: Path, query: str) -> dict[str, Any]:
     outgoing = [edge for edge in graph_data["edges"] if edge["source"] == node_id]
     incoming = [edge for edge in graph_data["edges"] if edge["target"] == node_id]
     return {"ok": True, "node": node, "outgoing": outgoing, "incoming": incoming}
+
+
+# --------------------------------------------------------------------------
+# Listing everything (`omni graph show --all`)
+# --------------------------------------------------------------------------
+
+
+def _degree_maps(graph_data: dict[str, Any]) -> tuple[dict[str, int], dict[str, int]]:
+    indegree: dict[str, int] = {}
+    outdegree: dict[str, int] = {}
+    for edge in graph_data["edges"]:
+        outdegree[edge["source"]] = outdegree.get(edge["source"], 0) + 1
+        indegree[edge["target"]] = indegree.get(edge["target"], 0) + 1
+    return indegree, outdegree
+
+
+def _file_filter(pattern: str | None):
+    if not pattern:
+        return lambda file_path: True
+    if any(char in pattern for char in "*?["):
+        return lambda file_path: fnmatch.fnmatch(file_path or "", pattern)
+    return lambda file_path: pattern in (file_path or "")
+
+
+def list_nodes(
+    graph_path: Path,
+    kind: str | None = None,
+    language: str | None = None,
+    file_pattern: str | None = None,
+    include_external: bool = False,
+    include_edges: bool = False,
+    sort: str = "file",
+    limit: int = 0,
+) -> dict[str, Any]:
+    graph_data = load_graph(graph_path)
+    indegree, outdegree = _degree_maps(graph_data)
+    file_matches = _file_filter(file_pattern)
+
+    rows = []
+    for node in graph_data["nodes"]:
+        if node["kind"] == "external" and not include_external and kind != "external":
+            continue
+        if kind and node["kind"] != kind:
+            continue
+        if language and node.get("language") != language:
+            continue
+        if not file_matches(node.get("file")):
+            continue
+        rows.append(
+            {
+                "id": node["id"],
+                "kind": node["kind"],
+                "name": node["name"],
+                "file": node.get("file"),
+                "language": node.get("language"),
+                "start_line": node.get("start_line"),
+                "end_line": node.get("end_line"),
+                "in": indegree.get(node["id"], 0),
+                "out": outdegree.get(node["id"], 0),
+            }
+        )
+
+    if sort == "degree":
+        rows.sort(key=lambda row: (-(row["in"] + row["out"]), row["id"]))
+    elif sort == "name":
+        rows.sort(key=lambda row: (row["name"].lower(), row["id"]))
+    else:
+        rows.sort(key=lambda row: (row["file"] or "~", row["start_line"] or 0, row["name"]))
+    matched = len(rows)
+    if limit and limit > 0:
+        rows = rows[:limit]
+
+    result: dict[str, Any] = {
+        "ok": True,
+        "root": graph_data.get("root"),
+        "generated_at": graph_data.get("generated_at"),
+        "nodes_total": len(graph_data["nodes"]),
+        "edges_total": len(graph_data["edges"]),
+        "nodes_matched": matched,
+        "nodes": rows,
+        "node_kinds": _count_by(graph_data["nodes"], "kind"),
+        "edge_types": _count_by(graph_data["edges"], "type"),
+        "externals_hidden": (
+            0
+            if include_external or kind == "external"
+            else sum(1 for node in graph_data["nodes"] if node["kind"] == "external")
+        ),
+    }
+    if include_edges:
+        keep = {row["id"] for row in rows}
+        result["edges"] = [
+            edge for edge in graph_data["edges"] if edge["source"] in keep and edge["target"] in keep
+        ]
+    return result
+
+
+def _count_by(items: list[dict[str, Any]], key: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for item in items:
+        counts[str(item.get(key))] = counts.get(str(item.get(key)), 0) + 1
+    return dict(sorted(counts.items(), key=lambda pair: (-pair[1], pair[0])))
+
+
+# --------------------------------------------------------------------------
+# Interactive 3D view (`omni graph view`): one self-contained HTML file.
+# The 3D engine is the unmodified, vendored 3d-force-graph bundle (MIT, plus
+# the permissively licensed packages it contains -- see
+# .ai/graph-viewer/THIRD_PARTY_NOTICES.md). Nothing is fetched at view time,
+# so the page works offline / on an isolated network.
+# --------------------------------------------------------------------------
+
+VIEW_DEFAULT_OUTPUT = ".ai/project-graph.html"
+VIEW_DEFAULT_MAX_INITIAL = 500
+VIEWER_DIR_PARTS = (".ai", "graph-viewer")
+VIEWER_ASSETS = ("viewer.html", "3d-force-graph.min.js", "THIRD_PARTY_NOTICES.md")
+_VIEW_SUMMARY_LIMIT = 400
+_VIEW_DETAIL_LIMIT = 140
+
+
+def _viewer_asset_path(name: str) -> Path | None:
+    for base in (Path(__file__).resolve().parent, Path.cwd()):
+        candidate = base.joinpath(*VIEWER_DIR_PARTS, name)
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _trim(text: Any, limit: int) -> str | None:
+    if text is None:
+        return None
+    text = str(text)
+    return text if len(text) <= limit else text[: limit - 1] + "…"
+
+
+def build_view_html(
+    graph_path: Path,
+    include_external: bool = False,
+    max_initial: int = VIEW_DEFAULT_MAX_INITIAL,
+    start_all: bool = False,
+    focus: str | None = None,
+    depth: int = 2,
+) -> dict[str, Any]:
+    missing = [name for name in VIEWER_ASSETS if _viewer_asset_path(name) is None]
+    if missing:
+        return {"ok": False, "error": "missing_assets", "missing": missing}
+
+    template = _viewer_asset_path("viewer.html").read_text(encoding="utf-8")
+    library = _viewer_asset_path("3d-force-graph.min.js").read_text(encoding="utf-8")
+    notices = _viewer_asset_path("THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
+
+    graph_data = load_graph(graph_path)
+    all_nodes = {node["id"]: node for node in graph_data["nodes"]}
+    edges = graph_data["edges"]
+    indegree, outdegree = _degree_maps(graph_data)
+
+    def degree(node_id: str) -> int:
+        return indegree.get(node_id, 0) + outdegree.get(node_id, 0)
+
+    def allowed(node_id: str) -> bool:
+        return include_external or all_nodes[node_id]["kind"] != "external"
+
+    note = ""
+    if focus:
+        matches = find_nodes(graph_data, focus)
+        if not matches:
+            return {"ok": False, "error": "focus_not_found"}
+        initial_ids = {node_id for node_id in _ego_network(edges, [n["id"] for n in matches], depth) if allowed(node_id)}
+        note = f"focused on {focus} ({depth} hop{'s' if depth != 1 else ''})"
+    else:
+        candidates = [node_id for node_id in all_nodes if allowed(node_id)]
+        if start_all or len(candidates) <= max_initial:
+            initial_ids = set(candidates)
+        else:
+            candidates.sort(key=lambda node_id: (-degree(node_id), node_id))
+            initial_ids = set(candidates[:max_initial])
+            note = f"top {max_initial} by connections; double-click a node to expand it"
+
+    compact_nodes = []
+    for node in graph_data["nodes"]:
+        entry = {
+            "id": node["id"],
+            "name": node["name"],
+            "qn": node.get("qualified_name"),
+            "kind": node["kind"],
+            "file": node.get("file"),
+            "start": node.get("start_line"),
+            "end": node.get("end_line"),
+            "lang": node.get("language"),
+            "summary": _trim(node.get("summary"), _VIEW_SUMMARY_LIMIT),
+        }
+        compact_nodes.append({key: value for key, value in entry.items() if value not in (None, "")})
+    compact_edges = [
+        {
+            "s": edge["source"],
+            "t": edge["target"],
+            "type": edge["type"],
+            "prov": edge["provenance"],
+            "detail": _trim(edge.get("detail"), _VIEW_DETAIL_LIMIT) or "",
+        }
+        for edge in edges
+    ]
+
+    raw_root = str(graph_data.get("root") or "").strip()
+    root_label = Path(raw_root).resolve().name if raw_root in ("", ".") else raw_root
+    generated = str(graph_data.get("generated_at") or "")[:10]
+    payload = {
+        "nodes": compact_nodes,
+        "edges": compact_edges,
+        "initial": sorted(initial_ids),
+        "meta": {"root": root_label, "generated_at": generated, "note": note},
+    }
+    data_json = (
+        json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
+        .replace("<", "\\u003c")
+        .replace(" ", "\\u2028")
+        .replace(" ", "\\u2029")
+    )
+
+    values = {
+        "__OMNI_TITLE__": html.escape(f"{root_label} code graph (3D)"),
+        "__OMNI_NOTICES__": html.escape(notices),
+        "/*__OMNI_DATA__*/": data_json,
+        "/*__OMNI_LIB__*/": library,
+    }
+    pattern = re.compile("|".join(re.escape(key) for key in values))
+    page = pattern.sub(lambda match: values[match.group(0)], template)
+
+    return {
+        "ok": True,
+        "html": page,
+        "nodes_total": len(all_nodes),
+        "edges_total": len(edges),
+        "nodes_initial": len(initial_ids),
+        "note": note,
+    }
 
 
 # --------------------------------------------------------------------------

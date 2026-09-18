@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-09-18 (2)
+
+### Completed
+
+- `REQ-021` | Code understanding | The code graph can now be listed in full and
+  explored in 3D. `omni graph show --all` prints every node grouped by file
+  with in/out edge counts (filter with `--kind`, `--language`, `--file`;
+  `--edges`, `--sort file|degree|name`, `--limit`, `--json`; external
+  placeholders hidden unless `--include-external`). `omni graph view` writes
+  `.ai/project-graph.html`, one self-contained offline page (nothing fetched
+  at view time) with orbit/pan/zoom, search, language and edge-type filters,
+  colouring by language/kind/top-level directory, a detail panel listing each
+  symbol's callers and callees (click to jump), and double-click to expand a
+  node's neighbours; it starts with the 500 best-connected symbols
+  (`--max-initial`, `--all`, or `--focus <symbol> --depth N`). The 3D engine is
+  the unmodified 3d-force-graph 1.80.0 bundle (MIT, Copyright (c) Vasco
+  Asturiano) which renders with three.js (MIT) and contains 33 other
+  permissively licensed packages; `.ai/graph-viewer/THIRD_PARTY_NOTICES.md`
+  is generated from each package's own license file, the same text is
+  embedded in every generated page, and `NOTICE` points at it. The vendored
+  assets are copied by `adopt --include-cli`/`update`, excluded from
+  assistant prompt context via `.ai/.ignore`, and never parsed by `graph
+  build`. README also documents the virtualenv route for PEP 668 systems,
+  where `pip install` of tree-sitter is refused. Verified by a 56-check
+  end-to-end script and a headless-Chromium (software WebGL) run of search,
+  select, expand and isolate; a real bug found that way (the library clears
+  its host element, wiping the status bar) is fixed. Not verified on touch
+  devices or with a hardware GPU.
+
 ## 2026-09-18
 
 ### Completed

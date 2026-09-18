@@ -685,6 +685,50 @@
       "risk_notes": [
         "Stop hook was verified by piping hook JSON to omni gate --hook and not inside a live Claude Code session; omni gate compares against origin/main or main so a repo with neither ref falls back to HEAD and only sees uncommitted changes; co_changed globs are path-only and cannot judge whether the changelog text is adequate"
       ]
+    },
+    {
+      "id": "REQ-021",
+      "category": "Code understanding",
+      "title": "omni graph show --all and an offline interactive 3D graph viewer (omni graph view)",
+      "description": "The code graph could only be inspected one symbol at a time (show) or as a static 2D SVG capped at 300 nodes (render). Adds omni graph show --all (every node grouped by file with in/out degree; filter by kind/language/file glob; --edges; --sort; --limit; --json) and omni graph view, which writes one self-contained offline HTML page built on the unmodified vendored 3d-force-graph bundle (MIT; three.js and 33 other permissively licensed packages) with orbit/pan/zoom, search, language/edge-type filters, colour by language/kind/directory, click-to-read detail panel listing callers and callees, and double-click expand-neighbours. Attribution: NOTICE, .ai/graph-viewer/THIRD_PARTY_NOTICES.md generated from each package's own license file, and the same notices embedded in every generated page.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "omni_graph.py",
+        "make_ai.py",
+        ".ai/graph-viewer",
+        ".ai/.ignore",
+        "README.md",
+        "design/cli-design.md",
+        "NOTICE",
+        ".gitignore"
+      ],
+      "acceptance_criteria": [
+        "show --all lists all nodes with degree and supports kind/language/file/edges/sort/limit/json",
+        "view writes a self-contained HTML that loads with no network",
+        "viewer renders in WebGL and supports search and select and expand and isolate",
+        "notices for all 35 bundled packages are embedded in the page and the repository",
+        "assets are copied by adopt --include-cli and excluded from assistant prompt context",
+        "graph build never parses the vendored bundle"
+      ],
+      "validation_required": [
+        "56-check end-to-end script including graph show and view and adopt",
+        "headless Chromium WebGL run with search and select and expand and isolate and screenshots",
+        "omni doctor",
+        "omni gate"
+      ],
+      "documentation_required": [
+        "changelog",
+        "README",
+        "design/cli-design.md",
+        "NOTICE"
+      ],
+      "risk_notes": [
+        "Adds a 1.3 MB vendored minified bundle to .ai/graph-viewer so every adopter carries it and omni update merges it as an opaque file",
+        "viewer needs WebGL and was verified in Chromium with software rendering only",
+        "initial view is capped at 500 nodes by default and Show all on very large graphs may be slow",
+        "the viewer was not exercised on touch devices"
+      ]
     }
   ]
 }

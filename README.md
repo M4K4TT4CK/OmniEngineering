@@ -708,6 +708,17 @@ python3 -m pip install "tree-sitter>=0.23,<1.0" "tree-sitter-python>=0.23,<1.0" 
   "tree-sitter-javascript>=0.23,<1.0" "tree-sitter-typescript>=0.23,<1.0"
 ```
 
+On Debian/Ubuntu (and other PEP 668 "externally managed" Pythons) `pip`
+refuses system-wide installs. Use a virtualenv and run `build` with its
+interpreter, rather than `--break-system-packages`:
+
+```bash
+python3 -m venv ~/.venvs/omni-graph
+~/.venvs/omni-graph/bin/pip install "tree-sitter>=0.23,<1.0" "tree-sitter-python>=0.23,<1.0" \
+  "tree-sitter-javascript>=0.23,<1.0" "tree-sitter-typescript>=0.23,<1.0"
+~/.venvs/omni-graph/bin/python ./omni graph build
+```
+
 Without either, `omni graph build` fails with a clear install message
 instead of a traceback. `trace` and `show` below only read the JSON `build`
 already wrote, so they work with just the standard library.
@@ -751,7 +762,41 @@ map`. Large graphs are capped to the highest-degree `--max-nodes` (default
 neighborhood instead of the whole codebase, and `--include-external` to
 also show unresolved references (stdlib calls, third-party imports).
 
-Both `trace`/`show`/`render` take `--json` for machine-readable output
+List everything the graph knows, not just one symbol:
+
+```bash
+omni graph show --all                       # every symbol, grouped by file, with in/out edge counts
+omni graph show --all --kind class --sort degree --limit 20
+omni graph show --all --file 'frontend/*' --language typescript
+omni graph show --all --edges --include-external   # also print edges and unresolved references
+```
+
+Explore it interactively in 3D -- rotate, pan, zoom, click a node to read
+it, double-click to pull its neighbours into the view:
+
+```bash
+omni graph view --open
+```
+
+This writes `.ai/project-graph.html`, one self-contained file (about 1.5 MB
+plus your graph) that works offline: nothing is fetched at view time. It
+starts with the 500 best-connected symbols (`--max-initial`, or `--all`,
+or `--focus <symbol> --depth 2` for one neighbourhood) and grows as you
+expand. The page has search (`/`), language and edge-type filters, colouring
+by language, kind or top-level directory, an INFERRED-edge toggle, and a
+detail panel that lists each symbol's callers and callees -- click any of
+them to jump there. It needs a WebGL-capable browser; the SVG from `omni
+graph render` and `show --all` remain for everything else. The output is
+git-ignored like the JSON and SVG.
+
+The 3D engine is the unmodified [3d-force-graph](https://github.com/vasturiano/3d-force-graph)
+bundle (MIT, (c) Vasco Asturiano), which renders with [three.js](https://threejs.org)
+(MIT) and contains 33 other permissively licensed packages. Their notices
+live in `.ai/graph-viewer/THIRD_PARTY_NOTICES.md` and are embedded in every
+generated page. The assets in `.ai/graph-viewer/` are excluded from
+`.ai/.ignore` so assistants do not read the 1.3 MB minified bundle.
+
+Both `trace`/`show`/`render` for machine-readable output
 (render's is a summary, not the SVG itself), and every `omni graph`
 subcommand is a thin, scriptable wrapper (one verb in, one JSON document
 out) so it can be exposed 1:1 as tools by an MCP relay, the same way

@@ -27,6 +27,8 @@ RENDER_DEFAULT_OUTPUT = ".ai/project-graph.svg"
 RENDER_DEFAULT_MAX_NODES = 300
 RENDER_DEFAULT_DEPTH = 2
 
+VIEW_DEFAULT_OUTPUT = ".ai/project-graph.html"
+VIEW_DEFAULT_MAX_INITIAL = 500
 REQUIREMENTS_PATH = Path(".ai/requirements/requirements.json")
 REQUIREMENTS_ARCHIVE_PATH = Path(".ai/requirements/requirements-archive.json")
 GATE_WAIVERS_PATH = Path(".ai/gate-waivers.jsonl")
@@ -454,7 +456,14 @@ ADOPTION_TOOL_FILES = {
     "kiro": [".kiro/steering/omnicontext.md"],
 }
 
-ADOPTION_CLI_FILES = ["omni", "make_ai.py", "omni_graph.py"]
+ADOPTION_CLI_FILES = [
+    "omni",
+    "make_ai.py",
+    "omni_graph.py",
+    ".ai/graph-viewer/viewer.html",
+    ".ai/graph-viewer/3d-force-graph.min.js",
+    ".ai/graph-viewer/THIRD_PARTY_NOTICES.md",
+]
 ADOPTION_LEGAL_FILES = [
     "LICENSE",
     "NOTICE",
@@ -1679,6 +1688,12 @@ def run_graph_show(args: argparse.Namespace) -> int:
         print(f"Graph file not found: {graph_path}; run ./omni graph build first", file=sys.stderr)
         return 1
 
+    if args.all:
+        return run_graph_show_all(args, graph_path)
+    if not args.node:
+        print("Provide a node to inspect, or use --all to list every node.", file=sys.stderr)
+        return 1
+
     result = omni_graph.show(graph_path, args.node)
     if args.json:
         print(json.dumps(result, indent=2))
@@ -1698,6 +1713,114 @@ def run_graph_show(args: argparse.Namespace) -> int:
     print("  incoming:")
     for edge in result["incoming"]:
         print(f"    <--[{edge['type']}, {edge['provenance']}]-- {edge['source']}  ({edge['detail']})")
+    return 0
+
+
+def run_graph_show_all(args: argparse.Namespace, graph_path: Path) -> int:
+    result = omni_graph.list_nodes(
+        graph_path,
+        kind=args.kind,
+        language=args.language,
+        file_pattern=args.file,
+        include_external=args.include_external,
+        include_edges=args.edges,
+        sort=args.sort,
+        limit=args.limit,
+    )
+    if args.json:
+        print(json.dumps(result, indent=2))
+        return 0
+
+    nodes = result["nodes"]
+    print(
+        f"Graph: {result['nodes_total']} nodes, {result['edges_total']} edges"
+        + (f" (root {result['root']}, built {str(result['generated_at'])[:10]})" if result.get("root") else "")
+    )
+    print("  node kinds: " + ", ".join(f"{kind} {count}" for kind, count in result["node_kinds"].items()))
+    print("  edge types: " + ", ".join(f"{kind} {count}" for kind, count in result["edge_types"].items()))
+    shown = f"{len(nodes)} of {result['nodes_matched']} matching nodes"
+    if result["externals_hidden"]:
+        shown += f"; {result['externals_hidden']} external placeholders hidden (use --include-external)"
+    print(f"  listing {shown}")
+    print("")
+
+    def describe(row: dict[str, Any]) -> str:
+        span = f"L{row['start_line']}-{row['end_line']}" if row.get("start_line") else ""
+        return f"in {row['in']:<3} out {row['out']:<3} {span}"
+
+    if args.sort == "file":
+        current_file = object()
+        for row in nodes:
+            if row["file"] != current_file:
+                current_file = row["file"]
+                print(f"{current_file or '(external)'}  [{row.get('language') or '-'}]")
+            print(f"  {row['kind']:<9} {row['name']:<44} {describe(row)}")
+    else:
+        for row in nodes:
+            print(f"{row['kind']:<9} {describe(row):<26} {row['id']}")
+
+    if args.edges:
+        print("")
+        print(f"Edges among the listed nodes ({len(result['edges'])}):")
+        for edge in result["edges"]:
+            print(f"  {edge['source']} --[{edge['type']}, {edge['provenance']}]--> {edge['target']}")
+    return 0
+
+
+def run_graph_view(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+
+    graph_path = Path(args.graph)
+    if not graph_path.is_file():
+        print(f"Graph file not found: {graph_path}; run ./omni graph build first", file=sys.stderr)
+        return 1
+
+    result = omni_graph.build_view_html(
+        graph_path,
+        include_external=args.include_external,
+        max_initial=args.max_initial,
+        start_all=args.all,
+        focus=args.focus,
+        depth=args.depth,
+    )
+    if not result.get("ok"):
+        if result.get("error") == "missing_assets":
+            print(
+                "The 3D viewer assets are missing: "
+                + ", ".join(f".ai/graph-viewer/{name}" for name in result["missing"])
+                + ". Run `./omni update --source <OmniEngineering checkout>` to restore them.",
+                file=sys.stderr,
+            )
+        else:
+            print(f"Could not resolve --focus symbol: {args.focus}", file=sys.stderr)
+        return 1
+
+    output = Path(args.output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(result["html"], encoding="utf-8")
+    size_mb = output.stat().st_size / (1024 * 1024)
+    print(
+        f"Wrote {output} ({size_mb:.1f} MB): {result['nodes_initial']} of {result['nodes_total']} nodes "
+        f"in the initial view, {result['edges_total']} edges available."
+    )
+    if result["note"]:
+        print(f"  {result['note']}")
+    uri = output.resolve().as_uri()
+    print(f"Open in a browser (works offline): {uri}")
+    try:
+        windows_path = subprocess.run(
+            ["wslpath", "-w", str(output.resolve())], capture_output=True, text=True, timeout=5
+        ).stdout.strip()
+        if windows_path:
+            print(f"  Windows path: {windows_path}")
+    except (OSError, subprocess.SubprocessError):
+        pass
+    if args.open:
+        import webbrowser
+
+        if not webbrowser.open(uri):
+            print("  (no browser could be launched automatically; open the file by hand)")
     return 0
 
 
@@ -2805,15 +2928,36 @@ def build_parser() -> argparse.ArgumentParser:
 
     graph_show = graph_subparsers.add_parser(
         "show",
-        help="List the direct EXTRACTED/INFERRED edges for one symbol.",
+        help="List the direct EXTRACTED/INFERRED edges for one symbol, or every node with --all.",
     )
-    graph_show.add_argument("node", help="Name or qualified name to inspect.")
+    graph_show.add_argument("node", nargs="?", help="Name, qualified name, or full id to inspect (omit with --all).")
     graph_show.add_argument(
         "--graph",
         default=GRAPH_DEFAULT_OUTPUT,
         help=f"Graph file to read. Defaults to {GRAPH_DEFAULT_OUTPUT}.",
     )
     graph_show.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+    graph_show.add_argument("--all", action="store_true", help="List every node instead of inspecting one (externals hidden unless --include-external).")
+    graph_show.add_argument("--kind", choices=["module", "class", "function", "method", "external"], help="With --all: only this node kind.")
+    graph_show.add_argument("--language", choices=["python", "javascript", "typescript"], help="With --all: only this language.")
+    graph_show.add_argument("--file", help="With --all: only files matching this glob, or containing this text.")
+    graph_show.add_argument("--include-external", action="store_true", help="With --all: include external placeholder nodes.")
+    graph_show.add_argument("--edges", action="store_true", help="With --all: also print the edges among the listed nodes.")
+    graph_show.add_argument("--sort", choices=["file", "degree", "name"], default="file", help="With --all: ordering (default file).")
+    graph_show.add_argument("--limit", type=int, default=0, help="With --all: list at most N nodes.")
+
+    graph_view = graph_subparsers.add_parser(
+        "view",
+        help="Write an interactive, offline 3D viewer (rotate, pan, zoom, click to read, double-click to expand).",
+    )
+    graph_view.add_argument("--graph", default=GRAPH_DEFAULT_OUTPUT, help=f"Graph file to read. Defaults to {GRAPH_DEFAULT_OUTPUT}.")
+    graph_view.add_argument("--output", default=VIEW_DEFAULT_OUTPUT, help=f"HTML output path. Defaults to {VIEW_DEFAULT_OUTPUT}.")
+    graph_view.add_argument("--focus", help="Start with only this symbol's neighbourhood.")
+    graph_view.add_argument("--depth", type=int, default=RENDER_DEFAULT_DEPTH, help=f"Hops around --focus. Defaults to {RENDER_DEFAULT_DEPTH}.")
+    graph_view.add_argument("--max-initial", type=int, default=VIEW_DEFAULT_MAX_INITIAL, help=f"Nodes in the starting view, highest-degree first. Defaults to {VIEW_DEFAULT_MAX_INITIAL}.")
+    graph_view.add_argument("--all", action="store_true", help="Start with every node in view (may be slow on large graphs).")
+    graph_view.add_argument("--include-external", action="store_true", help="Start with external placeholder nodes visible.")
+    graph_view.add_argument("--open", action="store_true", help="Open the result in the default browser.")
 
     graph_render = graph_subparsers.add_parser(
         "render",
@@ -3089,7 +3233,9 @@ def main(argv: list[str] | None = None) -> int:
             return run_graph_show(args)
         if args.graph_command == "render":
             return run_graph_render(args)
-        parser.error("graph requires a subcommand (build, trace, show, render)")
+        if args.graph_command == "view":
+            return run_graph_view(args)
+        parser.error("graph requires a subcommand (build, trace, show, render, view)")
     if command == "context":
         return run_context(args)
     if command == "adopt":

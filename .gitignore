@@ -13,3 +13,4 @@ build/
 .codex-local/
 .ai/project-graph.json
 .ai/project-graph.svg
+.ai/project-graph.html
