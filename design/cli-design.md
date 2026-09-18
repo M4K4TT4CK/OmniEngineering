@@ -31,6 +31,8 @@ Both delegate to `make_ai.py`.
 | `omni adopt` | Copy OmniEngineering into a target project without overwriting by default. |
 | `omni requirement add` | Append a requirement record without hand-editing JSON. |
 | `omni rule add` | Append a structured rule to a rulepack. |
+| `omni agents install` | Render the senior-engineering-agent team and copy it into a project. |
+| `omni agents doctor` | Check the agent package for stale or invalid rendered output. |
 
 ## Sync Behavior
 
@@ -102,3 +104,29 @@ The CLI should remain predictable:
 - No runtime dependencies outside the Python standard library.
 - No destructive operations.
 - No automatic edits outside the known workspace files.
+
+## Agent Team Behavior
+
+`agents` is a thin driver over the
+[senior-engineering-agent](https://github.com/M4K4TT4CK/senior-engineering-agent)
+package. Role definitions deliberately do not live in `.ai/`: they are identical
+across every project that adopts them and are versioned with that package, while
+`.ai/` carries project-specific governance. Keeping them separate means a role fix
+ships once instead of drifting per repository.
+
+`agents install` locates the package -- `--source` on first use, `.ai/agent-team.json`
+afterwards -- delegates rendering to its `build.py`, and records the resolved source
+path, git ref, and install time. The renderer is standard-library only by contract, so
+driving it adds no dependency to omni or to the adopting project.
+
+Installation is collision-safe in the same way `sync` is. Any `.md` in `.claude/agents/`
+missing the generated banner is treated as project-owned: `install` refuses and names
+the files rather than overwriting them. `--force` overrides that.
+
+`doctor` has two halves. `omni agents doctor` asks the package whether its rendered
+output is current, which needs the package present. The `validate_agent_team` check
+folded into `omni doctor` is repo-local: it verifies that installed agents still carry
+the generated banner and that every skill they reference resolves to a real `SKILL.md`.
+That half works on a clone that has the rendered agents but not the renderer, and it is
+skipped entirely when `.ai/agent-team.json` is absent, so projects that never installed
+an agent team see no new output.

@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-09-18
+
+### Completed
+
+- Code understanding | Added `omni agents`, a driver for the
+  senior-engineering-agent package. `omni agents install` renders that package's
+  canonical role definitions into Claude Code subagents (and optionally Managed
+  Agents definitions for `ant apply`) and copies them plus the shared skills into
+  a project; `omni agents doctor` asks the package whether its rendered output is
+  current. The roles stay versioned with the package rather than in `.ai/`, since
+  they are identical across adopting projects while `.ai/` carries
+  project-specific governance. Install is collision-safe like `sync`: a `.md` in
+  `.claude/agents/` without the generated banner is treated as project-owned and
+  refused unless `--force`. A new repo-local `validate_agent_team` check joins
+  `omni doctor`, flagging hand-edited agent definitions and skill references with
+  no `SKILL.md`; it is skipped when `.ai/agent-team.json` is absent, so projects
+  without an agent team see no change. The package's renderer is standard-library
+  only, so this adds no dependency.
+
 ## 2026-09-03 (2)
 
 ### Completed
