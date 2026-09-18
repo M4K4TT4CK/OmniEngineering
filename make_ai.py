@@ -1585,6 +1585,44 @@ def require_omni_graph() -> bool:
     return False
 
 
+def graph_python_candidates() -> list[str]:
+    candidates = []
+    explicit = os.environ.get("OMNI_GRAPH_PYTHON")
+    if explicit:
+        candidates.append(explicit)
+    candidates.append(str(Path.home() / ".venvs" / "omni-graph" / "bin" / "python"))
+    return candidates
+
+
+def reexec_with_graph_python() -> None:
+    """Re-run this command under a venv interpreter that has tree-sitter, if one exists."""
+    if os.environ.get("OMNI_GRAPH_REEXEC"):
+        return
+    probe = "import tree_sitter, tree_sitter_python, tree_sitter_javascript, tree_sitter_typescript"
+    for candidate in graph_python_candidates():
+        if not Path(candidate).is_file() or os.path.abspath(candidate) == os.path.abspath(sys.executable):
+            continue
+        try:
+            ok = subprocess.run([candidate, "-c", probe], capture_output=True, timeout=30).returncode == 0
+        except (OSError, subprocess.SubprocessError):
+            continue
+        if ok:
+            print(f"tree-sitter is not installed for {sys.executable}; re-running with {candidate}", file=sys.stderr)
+            os.environ["OMNI_GRAPH_REEXEC"] = "1"
+            os.execv(candidate, [candidate, *sys.argv])
+
+
+GRAPH_INSTALL_HELP = """
+Install tree-sitter into a virtualenv (system-wide pip is refused on PEP 668 "externally managed" Pythons):
+
+  python3 -m venv ~/.venvs/omni-graph
+  ~/.venvs/omni-graph/bin/pip install "tree-sitter>=0.23,<1.0" "tree-sitter-python>=0.23,<1.0" \\
+    "tree-sitter-javascript>=0.23,<1.0" "tree-sitter-typescript>=0.23,<1.0"
+
+omni then finds ~/.venvs/omni-graph on its own (or set OMNI_GRAPH_PYTHON to another interpreter).
+Elsewhere, `pip install "omniengineering-workspace[graph]"` also works."""
+
+
 def run_graph_build(args: argparse.Namespace) -> int:
     if not require_omni_graph():
         return 1
@@ -1607,7 +1645,8 @@ def run_graph_build(args: argparse.Namespace) -> int:
     try:
         graph, semantic_info = omni_graph.build_graph(root.resolve(), languages, semantic=args.semantic)
     except omni_graph.GraphDependencyError as exc:
-        print(str(exc), file=sys.stderr)
+        reexec_with_graph_python()
+        print(str(exc) + GRAPH_INSTALL_HELP, file=sys.stderr)
         return 1
 
     output = Path(args.output)

@@ -719,6 +719,12 @@ python3 -m venv ~/.venvs/omni-graph
 ~/.venvs/omni-graph/bin/python ./omni graph build
 ```
 
+You do not have to remember the long form: if `omni graph build` finds tree-sitter
+missing, it re-runs itself under `~/.venvs/omni-graph/bin/python` (or the
+interpreter named by `OMNI_GRAPH_PYTHON`) when that venv has the packages, so a
+plain `./omni graph build` works. If no such venv exists it prints the setup
+commands above instead of a `pip install` that would be refused.
+
 Without either, `omni graph build` fails with a clear install message
 instead of a traceback. `trace` and `show` below only read the JSON `build`
 already wrote, so they work with just the standard library.

@@ -727,7 +727,8 @@
         "Adds a 1.3 MB vendored minified bundle to .ai/graph-viewer so every adopter carries it and omni update merges it as an opaque file",
         "viewer needs WebGL and was verified in Chromium with software rendering only",
         "initial view is capped at 500 nodes by default and Show all on very large graphs may be slow",
-        "the viewer was not exercised on touch devices"
+        "the viewer was not exercised on touch devices",
+        "Follow-up: omni graph build re-runs itself under ~/.venvs/omni-graph (or OMNI_GRAPH_PYTHON) when tree-sitter is missing, and prints venv setup instructions instead of a pip install that PEP 668 systems refuse. Verified by plain ./omni graph build from a system Python without tree-sitter and by the failure path with HOME pointed at an empty directory."
       ]
     }
   ]

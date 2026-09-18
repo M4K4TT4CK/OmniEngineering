@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-09-18 (3)
+
+### Completed
+
+- `REQ-021` | Code understanding | Follow-up: `omni graph build` no longer
+  dead-ends on PEP 668 systems. When tree-sitter is missing it looks for
+  `~/.venvs/omni-graph/bin/python` (or the interpreter in `OMNI_GRAPH_PYTHON`)
+  and, if that has the packages, re-runs itself under it (guarded by an
+  environment variable so it cannot loop); otherwise it prints the
+  virtualenv setup commands instead of a `pip install` the OS refuses. A
+  plain `./omni graph build` now just works once the venv exists. Verified
+  from a system Python without tree-sitter, with no venv available, and with
+  a deliberately failing `OMNI_GRAPH_PYTHON`; two new checks added to the
+  end-to-end script (60 total).
+
 ## 2026-09-18 (2)
 
 ### Completed
