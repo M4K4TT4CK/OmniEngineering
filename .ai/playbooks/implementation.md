@@ -19,11 +19,18 @@ Use this when changing code, configuration, docs, tests, or assets.
 9. For algorithm, runtime, persistence, network, concurrency, or quantitative
    changes, apply the relevant foundations knowledge pack.
 10. Inspect the minimum access scope.
-11. Make the smallest maintainable change.
-12. Update tests or validation fixtures when behavior changes.
-13. Update docs when behavior, setup, architecture, or workflows change.
-14. Run validation.
-15. Report outcome honestly.
+11. Before editing a file or symbol, run `omni graph why <path or symbol>` to see
+    the requirements, tests, changelog entries and earlier failures that touch
+    it. Do not reintroduce a recorded failure; run the regression tests of any
+    failure that affected the code you are changing.
+12. Make the smallest maintainable change.
+13. Update tests or validation fixtures when behavior changes.
+14. Update docs when behavior, setup, architecture, or workflows change.
+15. Run validation.
+16. If anything failed on the way and was fixed, record it in the failure ledger
+    (`omni failure add|update`) with its root cause, regression test and
+    prevention.
+17. Report outcome honestly.
 
 ## Engineering Rules
 

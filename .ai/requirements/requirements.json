@@ -733,6 +733,55 @@
         "Follow-up: viewer rebranded (title OmniEngineering CodeGraph, brand mark and palette) and made readable at distance: outlier nodes grow with distance from the core cluster, node and edge sizes compensate for camera distance, brighter edge colours, Edge strength slider, unrelated nodes recede on selection. Verified in headless Chromium only.",
         "Follow-up: multi-language graph (Java, Kotlin, C/C++, Go, Rust, etc. via a generic tree-sitter extractor; Flyway SQL migrations replayed into a table schema; omni graph schema). Verified on STEP_App: 5881 nodes / 19421 edges. Supersedes the earlier note that only Python and JS/TS are covered. The SQL parser skips unusual DDL."
       ]
+    },
+    {
+      "id": "REQ-022",
+      "category": "Code understanding",
+      "title": "Five-layer code graph (code, governance, history, assurance, workspace) with a failure ledger, project-focused test suites, and configuration that works for any project",
+      "description": "The code graph showed only what the code says. It now has five layers: code; governance (requirements, changelog); history (every commit, tied to the changelog entries it wrote, the requirements it delivered and the files it changed); assurance (the project's tests and test suites, the failure ledger with root-cause reasoning and regression tests); and workspace (OmniEngineering's rules, playbooks, checklists and own code). omni graph why and timeline traverse them, omni failure and omni test manage the ledger and suite registry, the viewer has layer/kind filters with All/None and a kind-filtered search, and an optional graph-config makes the whole thing work for any project layout. Rules and playbooks make recording, testing and preventing failures part of the standard workflow.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "omni_graph.py",
+        "make_ai.py",
+        ".ai/graph-viewer",
+        ".ai/failures",
+        ".ai/schemas",
+        ".ai/rules",
+        ".ai/playbooks",
+        ".ai/checklists",
+        ".ai/entrypoints",
+        "tests",
+        "README.md",
+        "design",
+        ".ai/requirements",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "graph build adds governance and assurance layers with per-layer stats",
+        "omni graph why joins requirements changelog commits tests failures and rules for a file or symbol",
+        "omni failure add|update|show|list|search|check work and doctor rejects an incomplete fixed failure",
+        "omni requirement complete refuses defect requirements with no failure entry",
+        "viewer has layer toggles and a stacked-planes mode",
+        "completion and controlled-implementation rulepacks and the playbooks and checklists require recording and consulting failures",
+        "unit tests cover the layers ledger why and CLI"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests",
+        "omni doctor",
+        "omni gate",
+        "graph build against STEP_App (6450 nodes / 24250 edges)",
+        "viewer driven in headless Chromium"
+      ],
+      "documentation_required": [
+        "changelog",
+        "README",
+        "design docs"
+      ],
+      "risk_notes": [
+        "Test detection is by naming convention so unconventionally named tests only join the graph when a ledger entry names them;verifies edges are aggregated per test file and inferred from calls/imports;governance edges from declared scope are broad for directory-wide scopes and are ranked below git-proven links;stack-layers force verified numerically in headless Chromium only",
+        "History layer: all commits (not only those naming a requirement), tied to changelog entries by the heading each commit added; INFERRED requirement ties for squash commits use the changelog entry heading ids"
+      ]
     }
   ]
 }

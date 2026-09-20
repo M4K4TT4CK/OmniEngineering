@@ -126,6 +126,65 @@
         "completion",
         "validation"
       ]
+    },
+    {
+      "id": "completion.failure_ledger",
+      "severity": "required",
+      "statement": "When a defect, failed validation or build, reverted change, or user-reported regression is found and fixed, record it in the failure ledger with `omni failure add|update` before reporting completion: the symptom, the root cause (why it happened, not only what changed), the affected files or symbols, the regression test, and the rule or playbook that prevents a repeat. `omni requirement complete` refuses defect, bug, fix and regression requirements that have no ledger entry unless `--no-failure-entry \"<reason>\"` is given, and `omni doctor` fails a fixed entry that lacks a root cause, fix, test-or-reason, or prevention.",
+      "scope": [
+        "failures",
+        "completion",
+        "reporting"
+      ]
+    },
+    {
+      "id": "completion.regression_test",
+      "severity": "required",
+      "statement": "Every fixed failure gets a regression test that fails without the fix, named in the ledger's regression_tests so the graph links it to the failure. When no automated test is practical, record an honest no_test_reason instead; a fixed failure with neither is a doctor error. Do not weaken or delete a test to make it pass; if a test was wrong, record that as its own failure.",
+      "scope": [
+        "failures",
+        "testing",
+        "completion"
+      ]
+    },
+    {
+      "id": "completion.failure_becomes_rule",
+      "severity": "required",
+      "statement": "A failure that a rule, playbook or checklist should have prevented, or that no instruction covered, must change that rulepack, playbook or checklist in the same task, and the ledger entry must name it in prevention_rules. The goal is that the same class of error is not incorporated again; a repeat of a recorded failure is recorded with recurrence_of and treated as evidence that the earlier prevention was insufficient.",
+      "scope": [
+        "failures",
+        "rules",
+        "completion"
+      ]
+    },
+    {
+      "id": "completion.rebuild_graph_layers",
+      "severity": "recommended",
+      "statement": "After adding or changing requirements, changelog entries, tests or failure-ledger entries, rebuild the graph with `omni graph build` so the governance and assurance layers stay traversable, and use `omni graph why <path>` to confirm the new links resolve.",
+      "scope": [
+        "graph",
+        "completion"
+      ]
+    },
+    {
+      "id": "completion.verify_target_environment",
+      "severity": "recommended",
+      "statement": "Verify a command or generated artifact in the environment the user actually runs it in (for example WSL with a Windows browser, an externally-managed system Python, CRLF checkouts), not only the one it was written in, and say in the report which environments were not verified. A defect that only appears in the user's environment is still a defect: record it in the failure ledger.",
+      "scope": [
+        "validation",
+        "reporting",
+        "failures"
+      ]
+    },
+    {
+      "id": "completion.register_test_suites",
+      "severity": "required",
+      "statement": "Register every test suite of the project OmniEngineering is embedded in, including validation scripts, smoke checks and end-to-end tests that no naming convention finds: `omni test detect` proposes suites from file contents and CI commands and `omni test add` records the paths, framework, run command and the code each suite covers in the test suite registry. Add a suite when a new test framework, test directory or check script appears, and keep `omni test check` and `omni doctor` clean. The assurance layer describes the project's tests, not OmniEngineering's own tooling.",
+      "scope": [
+        "testing",
+        "completion",
+        "graph"
+      ]
     }
   ]
 }

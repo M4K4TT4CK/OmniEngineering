@@ -828,6 +828,128 @@ Every relation the API suggests is checked against known graph symbol names
 before being added as an edge, so a hallucinated relation can't be written
 into the graph silently.
 
+### Five layers: code, governance, history, assurance, workspace
+
+`omni graph build` builds five layers in one graph, each with its own nodes and
+edge types, so a single traversal can go from a line of code to why it exists,
+when it changed, how it is proven, and which rule stops it breaking again. This
+is what keeps long histories manageable: instead of rereading a changelog or a
+git log, ask the graph what is tied to the thing you are about to touch.
+
+| Layer | Nodes | Edges | Source |
+| --- | --- | --- | --- |
+| **code** | modules, classes, functions, tables | `calls`, `imports`, `defines`, `inherits`, ... | your source (tree-sitter, SQL migrations) |
+| **governance** | `requirement`, `changelog` | `touches`, `records`, `mentions` | requirement files, changelog |
+| **history** | `commit` | `delivers`, `modifies`, `logged_in`, `follows` | the git log |
+| **assurance** | test files, `suite`, `failure` | `verifies`, `contains`, `covers`, `affects`, `arose_in`, `guards`, `fixed_by`, `recurs` | tests, the suite registry, the failure ledger |
+| **workspace** | `rulepack`, `rule`, `playbook`, `checklist`, and OmniEngineering's own code | `defines`, `prevented_by` | `.ai/rules`, `.ai/playbooks`, `.ai/checklists`, `make_ai.py`, `omni_graph.py` |
+
+- A requirement `touches` the files in its declared scope (EXTRACTED) and the
+  files changed by commits that deliver it (INFERRED). Changelog entries `record`
+  the requirements they name and `mention` the files they cite.
+- Every commit is a node, chained in order (`follows`). A commit `delivers` the
+  requirement named in its subject line (a body that cites another project's id is
+  ignored), `modifies` the files it changed, and is `logged_in` the changelog entry
+  whose heading it added. A squash commit with no id in its message is tied to the
+  requirement its changelog entry records (INFERRED).
+- The assurance layer is about **your project's tests**. Test files (`test_*.py`,
+  `*.test.ts`, `*Test.java`, `tests/`, ...) and anything a registered suite claims
+  move to it, and `verifies` edges connect each test file to the code it calls.
+  OmniEngineering's own files are tooling: they sit in the workspace layer and are
+  never counted as tests, suites, or coverage. A suite groups its test files, says
+  how to run them, and `covers` the code it is meant to cover.
+- The failure ledger adds a `failure` node per entry with its symptom and root
+  cause, linked to the code it affected, the requirement, the tests or suite that
+  `guard` it, the rule or playbook that prevents a repeat (`prevented_by`, into the
+  workspace layer), and any earlier failure it repeats.
+
+Traverse across the layers:
+
+```bash
+omni graph why omni_graph.py        # requirements, changelog, commits, tests, suites, failures, rules
+omni graph why REQ-021              # files touched, changelog entries, commits, failures
+omni graph why FAIL-003             # affected code, regression tests, prevention, fix commits
+omni graph why a1b2c3d              # a commit: requirements, changelog entry, files, previous/next commit
+omni graph why backend-junit        # a suite: its test files, what it covers
+omni graph timeline REQ-021         # everything dated that is tied to it, oldest first
+omni graph show --all --layer history --kind commit
+omni graph build --layers code,governance      # skip layers; --max-commits N bounds the git scan
+```
+
+In `omni graph view`, the **Layers**, **Node kinds**, **Languages** and **Edge types**
+groups each have **All / None** buttons, and **stack layers in 3D** pulls the layers
+onto separate planes so the links between them are easy to follow. **Search** takes
+a name, a `REQ-###`, a date, a file or text, can be limited to one kind of node
+(requirement, commit, changelog, failure, suite, rule, ...), sorts by match, date,
+name or connections, and with an empty query lists every node of the chosen kind
+(scroll the list; **Add all to view** / **Only these** put the results in the 3D
+view). `omni graph render` draws the code layer only unless you pass `--all-layers`.
+
+### Using it in your own project
+
+Nothing is hard-wired to OmniEngineering's layout. Ask what the build would read
+from your project, and what it is missing:
+
+```bash
+omni graph sources             # per layer: files found, counts, what is missing, how to fix it
+omni graph sources --write     # draft .ai/graph-config.json from what it found
+```
+
+Only the settings that differ from the defaults belong in `.ai/graph-config.json`:
+
+| Key | Default | Use it when |
+| --- | --- | --- |
+| `requirements_files` | `.ai/requirements/requirements*.json` | your requirements or issues live elsewhere (a JSON list, or an object with `requirements`, of `{id/key, title/summary, status, scope/files}`) |
+| `requirement_id_pattern` | derived from your ids | your ids are unusual (`#42`); by default the exact ids in your registry are matched, so `PROJ-12`, `FEAT_7` and `REQ-001` all work |
+| `changelog_files` | `CHANGELOG.md`, `HISTORY.md`, `docs/CHANGELOG.md`, ... | your changelog is named or placed differently (dated `## 2026-01-31`, versioned `## [1.2.0] - 2026-01-31` and `## v1.2.0 (2026-01-31)` headings all work) |
+| `test_globs` / `exclude_test_globs` | naming conventions | your tests do not follow them |
+| `test_suites_file`, `failure_ledger` | `.ai/test-suites.json`, `.ai/failures/failure-ledger.json` | you keep them elsewhere |
+| `ci_files` | GitHub, GitLab, Cloud Build, Azure, Jenkins, Makefile | extra CI files hold your test commands |
+| `rules_dir`, `playbook_dirs`, `checklist_dirs` | `.ai/...` | your rules and playbooks live elsewhere |
+| `max_commits` | 400 | you want more or less history |
+| `tooling_paths` | `make_ai.py`, `omni_graph.py`, `omni`, `.ai/*` | set to `[]` if OmniEngineering itself is your project |
+
+A project with no `.ai/`, no git, no requirements, or no tests still builds: each
+missing source becomes a note that says what was looked for and how to point at it.
+Malformed JSON is reported by file and line instead of silently ignored, and `omni
+doctor` validates the config. The suite registry is managed with `omni test`:
+
+```bash
+omni test detect [--write]   # find suites from file contents and CI commands; register them
+omni test add --name "Backend JUnit" --paths backend/src/test --framework junit --command "cd backend && mvn test" --covers backend/src/main
+omni test list | check | remove <id>
+```
+
+## Failure Ledger
+
+Errors are only useful if they are not made twice. The failure ledger
+(`.ai/failures/failure-ledger.json`, schema `.ai/schemas/failure-ledger.schema.json`)
+records what went wrong, why, the test that now catches it, and the rule or
+playbook that prevents a repeat. Manage it with the CLI, not by hand:
+
+```bash
+omni failure add --requirement REQ-042 --title "Rounding drops cents" \
+  --symptom "total is 10.00, expected 10.05"
+omni failure update FAIL-001 --status fixed \
+  --root-cause "float used for money" --fix "use Decimal" \
+  --tests tests/test_totals.py::test_keeps_cents \
+  --affected src/totals.py --prevention-rules money.no_floats
+omni failure list --status open
+omni failure search "rounding"
+omni failure check       # complete, and every file/test/rule it names exists
+```
+
+`omni doctor` fails a `fixed` entry that lacks a root cause, a fix, a regression
+test (or an honest `no_test_reason`), or a prevention. `omni requirement complete`
+refuses a defect/bug/fix/regression requirement that has no ledger entry unless
+`--no-failure-entry "<reason>"` is given (the reason is recorded as a risk note).
+The rules `completion.failure_ledger`, `completion.regression_test`,
+`completion.failure_becomes_rule` and `controlled.consult_failure_history`, and
+steps in the debugging, testing, implementation, review, planning, handoff and
+release playbooks, make consulting and recording failures part of the standard
+workflow. `omni adopt` ships an empty ledger, an empty suite registry and no graph config,
+never this repository's own.
+
 ## Low-Friction Editing
 
 Most people should not need to hand-edit large JSON files for routine updates.

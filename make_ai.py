@@ -31,6 +31,8 @@ VIEW_DEFAULT_OUTPUT = ".ai/project-graph.html"
 VIEW_DEFAULT_MAX_INITIAL = 500
 REQUIREMENTS_PATH = Path(".ai/requirements/requirements.json")
 REQUIREMENTS_ARCHIVE_PATH = Path(".ai/requirements/requirements-archive.json")
+FAILURE_LEDGER_PATH = Path(".ai/failures/failure-ledger.json")
+TEST_SUITES_PATH = Path(".ai/test-suites.json")
 GATE_WAIVERS_PATH = Path(".ai/gate-waivers.jsonl")
 RULESET_PATH = Path(".ai/rules/universal-engineering-ruleset.json")
 REQUIREMENT_STATUSES = ["completed", "pending", "proposed", "blocked", "needs_review"]
@@ -131,8 +133,12 @@ REQUIRED_AI_FILES = [
     ".ai/rules/oop-design.json",
     ".ai/rules/hci-ui-rules.json",
     ".ai/requirements/requirements.json",
+    ".ai/failures/failure-ledger.json",
+    ".ai/test-suites.json",
     ".ai/schemas/rulepack.schema.json",
     ".ai/schemas/requirements.schema.json",
+    ".ai/schemas/failure-ledger.schema.json",
+    ".ai/schemas/test-suites.schema.json",
     ".ai/schemas/universal-engineering-ruleset.schema.json",
 ]
 
@@ -196,13 +202,20 @@ these fallback rules exactly:
 14. Update the requirements registry with `omni requirement add|update|complete`
     (never by hand-editing the JSON) when a requirement is added, completed,
     blocked, or materially changed.
-15. Run relevant validation. For OmniContext workspace changes, run
+15. Learn from failures. Before editing a file, run `omni graph why <path>` (or
+    `omni failure search <text>`) to see the requirements, tests and earlier
+    failures that touch it. When you fix a defect, a failed validation or build,
+    or a regression, record it with `omni failure add|update`: the symptom, the
+    root cause (why, not just what), the regression test, and the rule or
+    playbook that stops it recurring. If the failure exposes a missing or unclear
+    instruction, change that rulepack or playbook in the same task.
+16. Run relevant validation. For OmniContext workspace changes, run
     `omni doctor` or `./omni doctor`; when assistant entrypoint files change,
     run `omni sync` or `./omni sync`. Before claiming completion, run
     `omni gate` and fix or explicitly waive every failure it reports.
-16. Do not claim completion if validation was skipped. Explain why it was not
+17. Do not claim completion if validation was skipped. Explain why it was not
     run.
-17. Final output must include requirement ID and status, files changed,
+18. Final output must include requirement ID and status, files changed,
     validation performed, documentation and changelog status, risks or
     follow-ups, a commit entry sentence, and pull request information.
 """
@@ -256,6 +269,11 @@ project-specific rules.
 - Never read `.ai/requirements/requirements.json` in full and never hand-edit it.
   Query with `./omni requirement show <ID>`, `list --status pending`, or
   `search <text>`; change it with `./omni requirement add|update|complete`.
+- Failures are data, not noise. Before editing a file run `./omni graph why <path>`;
+  when you fix a defect or a failed check, record it with `./omni failure add`
+  (symptom, root cause, regression test, the rule or playbook that prevents a
+  repeat). `./omni requirement complete` refuses defect requirements without an
+  entry.
 - Before reporting a task complete, run `./omni gate`. If it fails, fix the gap
   or record an explicit waiver with `./omni waive <rule-id> --reason "..."`.
   Do not claim completion while it fails.
@@ -358,8 +376,12 @@ JSON_FILES = [
     ".ai/rules/universal-engineering-ruleset.json",
     *RULEPACK_FILES,
     ".ai/requirements/requirements.json",
+    ".ai/failures/failure-ledger.json",
+    ".ai/test-suites.json",
     ".ai/schemas/rulepack.schema.json",
     ".ai/schemas/requirements.schema.json",
+    ".ai/schemas/failure-ledger.schema.json",
+    ".ai/schemas/test-suites.schema.json",
     ".ai/schemas/universal-engineering-ruleset.schema.json",
 ]
 
@@ -414,6 +436,7 @@ ALLOWED_ROOT_DIRS = {
     "LICENSES",
     "assets",
     "design",
+    "tests",
 }
 
 ROOT_CLUTTER_DIRS = {
@@ -485,6 +508,8 @@ ADOPTER_OWNED_FILES = {
     ".ai/project-configuration.md",
     ".ai/project-map.md",
     ".ai/requirements/requirements.json",
+    ".ai/failures/failure-ledger.json",
+    ".ai/test-suites.json",
 }
 
 # Files omni update is allowed to 3-way-merge: every required .ai file that
@@ -926,6 +951,50 @@ def validate_requirements(requirements: Any, report: DoctorReport) -> None:
         report.pass_check("Requirements registry is structurally valid (types and enums checked)")
     elif seen_ids:
         report.warning("Requirements registry was partially readable")
+
+
+def validate_failure_ledger(ledger: Any, report: DoctorReport) -> None:
+    if ledger is None:
+        return  # missing or unreadable files are already reported by the required-file and JSON checks
+    if not isinstance(ledger, dict) or not isinstance(ledger.get("failures"), list):
+        report.error("Failure ledger must be a JSON object with a failures array")
+        return
+    if omni_graph is None:
+        return
+    result = omni_graph.check_failure_ledger(Path("."))
+    for problem in result["problems"]:
+        report.error(f"Failure ledger: {problem}")
+    if result["ok"]:
+        report.pass_check(f"Failure ledger is complete ({result['failures']} failure(s) recorded)")
+
+
+def validate_test_suites(config: Any, report: DoctorReport) -> None:
+    if config is None or omni_graph is None:
+        return
+    if not isinstance(config, dict) or not isinstance(config.get("suites"), list):
+        report.error("Test suite registry must be a JSON object with a suites array")
+        return
+    result = omni_graph.check_test_suites(Path("."), project_source_files())
+    for problem in result["problems"]:
+        report.error(f"Test suites: {problem}")
+    if result["unregistered_files"]:
+        report.warning(
+            f"{len(result['unregistered_files'])} detected test file(s) are not in a registered suite "
+            f"({', '.join(result['unregistered_suites'][:4])}); run `omni test detect --write` or `omni test add`"
+        )
+    if result["ok"]:
+        report.pass_check(f"Test suite registry is valid ({result['suites']} suite(s) registered)")
+
+
+def validate_graph_config(report: DoctorReport) -> None:
+    if omni_graph is None or not Path(omni_graph.GRAPH_CONFIG_PATH).is_file():
+        return
+    problems: list[str] = []
+    omni_graph.graph_config(Path("."), problems)
+    for problem in problems:
+        report.error(problem)
+    if not problems:
+        report.pass_check(f"{omni_graph.GRAPH_CONFIG_PATH} is valid")
 
 
 def validate_rulepacks(parsed: dict[str, Any], report: DoctorReport) -> None:
@@ -1646,8 +1715,16 @@ def run_graph_build(args: argparse.Namespace) -> int:
         )
         return 1
 
+    layers = set(split_csv(args.layers)) if args.layers else set(omni_graph.LAYERS)
+    bad_layers = layers - set(omni_graph.LAYERS)
+    if bad_layers:
+        print(f"Unknown layer(s): {', '.join(sorted(bad_layers))}. Layers: {', '.join(omni_graph.LAYERS)}", file=sys.stderr)
+        return 1
+
     try:
-        graph, semantic_info = omni_graph.build_graph(root.resolve(), languages, semantic=args.semantic)
+        graph, semantic_info = omni_graph.build_graph(
+            root.resolve(), languages, semantic=args.semantic, layers=layers, max_commits=args.max_commits
+        )
     except omni_graph.GraphDependencyError as exc:
         reexec_with_graph_python()
         print(str(exc) + GRAPH_INSTALL_HELP, file=sys.stderr)
@@ -1666,6 +1743,7 @@ def run_graph_build(args: argparse.Namespace) -> int:
         "extracted_edges": extracted,
         "inferred_edges": inferred,
         "languages": graph.stats,
+        "layers": graph.layer_stats,
         "notes": graph.notes,
         "semantic_pass": semantic_info,
     }
@@ -1678,6 +1756,30 @@ def run_graph_build(args: argparse.Namespace) -> int:
     for language, stats in sorted(graph.stats.items()):
         detail = f"{stats.get('tables', 0)} tables" if stats.get("mode") == "schema" else f"{stats.get('symbols', 0)} symbols"
         print(f"  {language:<11} {stats['files']:>5} files  {detail:>12}  [{stats['mode']}]")
+    stats_by_layer = graph.layer_stats
+    if omni_graph.LAYER_GOVERNANCE in stats_by_layer:
+        g = stats_by_layer[omni_graph.LAYER_GOVERNANCE]
+        print(f"  governance  {g['requirements']} requirements, {g['changelog_entries']} changelog entries, {g['touches']} touches edges")
+    if omni_graph.LAYER_HISTORY in stats_by_layer:
+        h = stats_by_layer[omni_graph.LAYER_HISTORY]
+        span = f", {h['first_date']} to {h['last_date']}" if h.get("first_date") else ""
+        print(
+            f"  history     {h['commits']} commits{span}: {h['with_requirements']} tied to requirements, "
+            f"{h['logged_in']} changelog links, {h['modifies']} file links"
+        )
+    if omni_graph.LAYER_ASSURANCE in stats_by_layer:
+        a = stats_by_layer[omni_graph.LAYER_ASSURANCE]
+        print(
+            f"  assurance   {a['suites']} test suites ({a['suites_manual']} registered, {a['suites_auto']} auto-detected), "
+            f"{a['test_files']} test files, {a['verifies']} verifies edges, {a['failures']} ledger failures "
+            f"({a['guards']} regression-test links, {a['unresolved']} unresolved refs)"
+        )
+    if omni_graph.LAYER_WORKSPACE in stats_by_layer:
+        w = stats_by_layer[omni_graph.LAYER_WORKSPACE]
+        print(
+            f"  workspace   {w['rulepacks']} rulepacks, {w['rules']} rules, {w['playbooks']} playbooks, {w['checklists']} checklists"
+            + (f", {w['tooling_nodes']} nodes of OmniEngineering's own code" if w.get("tooling_nodes") else "")
+        )
     for note in graph.notes:
         print(f"  note: {note}")
     if semantic_info.get("enabled"):
@@ -1776,6 +1878,7 @@ def run_graph_show_all(args: argparse.Namespace, graph_path: Path) -> int:
         include_edges=args.edges,
         sort=args.sort,
         limit=args.limit,
+        layer=args.layer,
     )
     if args.json:
         print(json.dumps(result, indent=2))
@@ -1786,6 +1889,7 @@ def run_graph_show_all(args: argparse.Namespace, graph_path: Path) -> int:
         f"Graph: {result['nodes_total']} nodes, {result['edges_total']} edges"
         + (f" (root {result['root']}, built {str(result['generated_at'])[:10]})" if result.get("root") else "")
     )
+    print("  layers: " + ", ".join(f"{name} {count}" for name, count in result["layers"].items()))
     print("  node kinds: " + ", ".join(f"{kind} {count}" for kind, count in result["node_kinds"].items()))
     print("  edge types: " + ", ".join(f"{kind} {count}" for kind, count in result["edge_types"].items()))
     shown = f"{len(nodes)} of {result['nodes_matched']} matching nodes"
@@ -1946,6 +2050,519 @@ def run_graph_schema(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_graph_sources(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+    root = Path(args.root).resolve()
+    report = omni_graph.describe_sources(root)
+    if args.write:
+        target = root / omni_graph.GRAPH_CONFIG_PATH
+        if target.exists() and not args.force:
+            print(f"{omni_graph.GRAPH_CONFIG_PATH} already exists; pass --force to overwrite it.", file=sys.stderr)
+            return 1
+        draft = omni_graph.draft_graph_config(root)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        write_json(target, {"_comment": "Only keys that differ from the defaults are needed. Keys: " + ", ".join(sorted(omni_graph._DEFAULT_GRAPH_CONFIG)), **draft})
+        print(f"Wrote {omni_graph.GRAPH_CONFIG_PATH} with {len(draft)} setting(s) that differ from the defaults.")
+    if args.json:
+        print(json.dumps(report, indent=2))
+        return 0
+
+    layers = report["layers"]
+    print(f"Graph sources for {root}")
+    print(f"  config: {report['config_file']} ({'present' if report['config_present'] else 'not present; defaults apply'})")
+    for problem in report["problems"]:
+        print(f"    ! {problem}")
+    g = layers["governance"]
+    print("  governance")
+    for r in g["requirements"]:
+        state = f"{r['requirements']} requirement(s)" if r["exists"] else "not found"
+        print(f"    requirements  {r['path']}: {state}")
+        for problem in r["problems"]:
+            print(f"      ! {problem}")
+    for c in g["changelog"]:
+        print(f"    changelog     {c['path']}: {c['entries']} entr{'y' if c['entries'] == 1 else 'ies'} ({c['dated']} dated, {c['versioned']} versioned)")
+    if not g["changelog"]:
+        print("    changelog     none found")
+    h = layers["history"]
+    print(f"  history       {'git repository, ' + str(h['commits']) + ' commit(s)' if h['git'] else 'not a git repository'} (scans up to {h['max_commits']})")
+    a = layers["assurance"]
+    print(f"  assurance     {len(a['registered_suites'])} registered suite(s), {len(a['detected_suites'])} detected but unregistered; "
+          f"failure ledger {'present' if a['failure_ledger']['exists'] else 'absent'} ({a['failure_ledger']['path']}); {a['ci_commands']} CI test command(s) found")
+    for s in a["detected_suites"]:
+        print(f"      detected  {s['id']}  [{s['framework']}] {s['files']} file(s)  {s['command'] or '-'}")
+    w = layers["workspace"]
+    print(f"  workspace     {w['rulepacks']} rulepack file(s), {w['playbooks']} playbook(s), {w['checklists']} checklist(s)" + ("" if w["ai_dir"] else " (no .ai/ directory)"))
+    print(f"  code          {layers['code']['source_files']} source file(s)")
+    if report["hints"]:
+        print("\nTo improve the graph:")
+        for hint in report["hints"]:
+            print(f"  - {hint}")
+    return 0
+
+
+def run_graph_timeline(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+
+    graph_path = Path(args.graph)
+    if not graph_path.is_file():
+        print(f"Graph file not found: {graph_path}; run ./omni graph build first", file=sys.stderr)
+        return 1
+
+    result = omni_graph.timeline(graph_path, args.node, depth=args.depth)
+    if args.json:
+        print(json.dumps(result, indent=2))
+        return 0 if result.get("ok") else 1
+    if not result.get("ok"):
+        print(f"Could not uniquely resolve node. Matches: {result.get('matches')}", file=sys.stderr)
+        return 1
+
+    events = result["events"]
+    print(f"{result['node']['name']} ({result['node']['kind']}): {len(events)} dated event(s) within {args.depth} hop(s)")
+    shown = events[-args.limit:] if args.limit else events
+    if len(shown) < len(events):
+        print(f"  (showing the newest {len(shown)}; --limit 0 for all)")
+    last_date = None
+    for event in shown:
+        if event["date"] != last_date:
+            print(f"\n{event['date']}")
+            last_date = event["date"]
+        print(f"  {event['kind']:<10} {event['name']:<16} {event['summary'][:100]}")
+    return 0
+
+
+def run_graph_why(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+
+    graph_path = Path(args.graph)
+    if not graph_path.is_file():
+        print(f"Graph file not found: {graph_path}; run ./omni graph build first", file=sys.stderr)
+        return 1
+
+    result = omni_graph.why(graph_path, args.node)
+    if args.json:
+        print(json.dumps(result, indent=2))
+        return 0 if result.get("ok") else 1
+    if not result.get("ok"):
+        print(f"Could not uniquely resolve node. Matches: {result.get('matches')}", file=sys.stderr)
+        return 1
+
+    node = result["node"]
+    print(f"{node['name']} ({node['kind']})" + (f"  {node['file']}" if node.get("file") else ""))
+    if node.get("summary"):
+        print(f"  {node['summary']}")
+    if not result["sections"]:
+        print("  Nothing in the governance or assurance layers touches this node.")
+        print("  (If you expected something, rebuild with `omni graph build` and check `omni graph show --all --layer governance`.)")
+        return 0
+    order = [
+        "requirements", "requirement", "files touched", "affected code", "changelog", "changelog entries", "commits", "fix commits",
+        "files modified", "files mentioned", "previous commit", "next commit", "test files", "tests", "test suites", "covers",
+        "guards", "regression tests", "failures", "repeats", "repeated by", "prevented by",
+        "rules and playbooks from those failures", "failures it prevents", "rules", "gaps",
+    ]
+    for section in sorted(result["sections"], key=lambda name: order.index(name) if name in order else len(order)):
+        items = result["sections"][section]
+        print(f"\n{section} ({len(items)})")
+        for item in items[: args.limit]:
+            extras = [item.get(key) for key in ("status", "date", "severity") if item.get(key)]
+            line = f"  {item['name']}" + (f"  [{', '.join(str(e) for e in extras)}]" if extras else "")
+            if item.get("summary"):
+                line += f"  {item['summary'][:110]}"
+            if item.get("via"):
+                line += f"  <{item['via'][:80]}>"
+            print(line)
+        if len(items) > args.limit:
+            print(f"  ... and {len(items) - args.limit} more (--limit or --json)")
+    return 0
+
+
+# --------------------------------------------------------------------------
+# Failure ledger: what went wrong, why, and what now prevents it
+# --------------------------------------------------------------------------
+
+FAILURE_STATUSES = ["open", "fixed", "mitigated", "wontfix"]
+FAILURE_LIST_FIELDS = ("affected", "fix_commits", "regression_tests", "prevention_rules")
+
+
+def failure_ledger_path() -> Path:
+    return Path(omni_graph.graph_config(Path("."))["failure_ledger"]) if omni_graph else FAILURE_LEDGER_PATH
+
+
+def test_suites_path() -> Path:
+    return Path(omni_graph.graph_config(Path("."))["test_suites_file"]) if omni_graph else TEST_SUITES_PATH
+
+
+def load_failure_ledger() -> dict[str, Any]:
+    if failure_ledger_path().is_file():
+        return load_json(failure_ledger_path())
+    return {"version": "1.0.0", "failure_id_prefix": "FAIL", "failures": []}
+
+
+def next_failure_id(ledger: dict[str, Any]) -> str:
+    prefix = str(ledger.get("failure_id_prefix", "FAIL"))
+    numbers = [
+        int(match.group(1))
+        for item in ledger.get("failures", [])
+        if isinstance(item, dict) and (match := re.fullmatch(rf"{re.escape(prefix)}-(\d+)", str(item.get("id", ""))))
+    ]
+    return f"{prefix}-{(max(numbers) + 1) if numbers else 1:03d}"
+
+
+def normalize_failure_id(value: str, ledger: dict[str, Any]) -> str:
+    value = value.strip().upper()
+    if value.isdigit():
+        return f"{ledger.get('failure_id_prefix', 'FAIL')}-{int(value):03d}"
+    return value
+
+
+def find_failure(ledger: dict[str, Any], failure_id: str) -> dict[str, Any] | None:
+    wanted = normalize_failure_id(failure_id, ledger)
+    for item in ledger.get("failures", []):
+        if isinstance(item, dict) and item.get("id") == wanted:
+            return item
+    return None
+
+
+def format_failure(item: dict[str, Any]) -> str:
+    lines = [f"{item.get('id')}  [{item.get('status')}]  {item.get('title')}"]
+    for label, key in (
+        ("date", "date"), ("severity", "severity"), ("requirement", "requirement"), ("symptom", "symptom"),
+        ("how detected", "how_detected"), ("root cause", "root_cause"), ("fix", "fix_summary"),
+        ("no test because", "no_test_reason"), ("prevention notes", "prevention_notes"), ("repeats", "recurrence_of"),
+    ):
+        if item.get(key):
+            lines.append(f"  {label}: {item[key]}")
+    for label, key in (
+        ("affected", "affected"), ("fix commits", "fix_commits"), ("regression tests", "regression_tests"),
+        ("prevention rules", "prevention_rules"),
+    ):
+        if item.get(key):
+            lines.append(f"  {label}: {', '.join(str(v) for v in item[key])}")
+    return "\n".join(lines)
+
+
+def run_failure_add(args: argparse.Namespace) -> int:
+    ledger = load_failure_ledger()
+    failure_id = args.id or next_failure_id(ledger)
+    if find_failure(ledger, failure_id) is not None:
+        print(f"Failure already exists: {failure_id}", file=sys.stderr)
+        return 1
+    if args.requirement and known_requirement_ids() and normalize_requirement_id(args.requirement) not in known_requirement_ids():
+        print(f"Warning: {args.requirement} is not in the requirements registry.", file=sys.stderr)
+    item: dict[str, Any] = {
+        "id": failure_id,
+        "date": args.date or datetime.now().strftime("%Y-%m-%d"),
+        "title": args.title,
+        "status": args.status,
+        "severity": args.severity,
+        "symptom": args.symptom,
+        "how_detected": args.detected or "",
+        "root_cause": args.root_cause or "",
+        "requirement": normalize_requirement_id(args.requirement) if args.requirement else "",
+        "affected": split_csv(args.affected),
+        "fix_summary": args.fix or "",
+        "fix_commits": split_csv(args.commits),
+        "regression_tests": split_csv(args.tests),
+        "no_test_reason": args.no_test_reason or "",
+        "prevention_rules": split_csv(args.prevention_rules),
+        "prevention_notes": args.prevention_notes or "",
+        "recurrence_of": normalize_failure_id(args.recurrence_of, ledger) if args.recurrence_of else "",
+    }
+    ledger.setdefault("failures", []).append(item)
+    failure_ledger_path().parent.mkdir(parents=True, exist_ok=True)
+    write_json(failure_ledger_path(), ledger)
+    print(f"Recorded {failure_id}: {args.title}")
+    if item["recurrence_of"] and find_failure(ledger, item["recurrence_of"]) is None:
+        print(f"Warning: {item['recurrence_of']} is not in the ledger.", file=sys.stderr)
+    _print_failure_gaps(item)
+    return 0
+
+
+def _print_failure_gaps(item: dict[str, Any]) -> None:
+    gaps = omni_graph_failure_gaps(item)
+    for gap in gaps:
+        print(f"  still needed: {gap}")
+
+
+def omni_graph_failure_gaps(item: dict[str, Any]) -> list[str]:
+    gaps = []
+    if item.get("status") in ("fixed", "mitigated"):
+        if not item.get("root_cause"):
+            gaps.append("root_cause (--root-cause): why it happened, not just what broke")
+        if not item.get("fix_summary"):
+            gaps.append("fix_summary (--fix)")
+        if not item.get("regression_tests") and not item.get("no_test_reason"):
+            gaps.append("a regression test (--tests) or an honest --no-test-reason")
+        if not item.get("prevention_rules") and not item.get("prevention_notes"):
+            gaps.append("what stops it recurring (--prevention-rules or --prevention-notes)")
+    elif item.get("status") == "open" and not item.get("root_cause"):
+        gaps.append("root_cause once it is understood (omni failure update --root-cause ...)")
+    return gaps
+
+
+def run_failure_list(args: argparse.Namespace) -> int:
+    ledger = load_failure_ledger()
+    items = [i for i in ledger.get("failures", []) if isinstance(i, dict) and (not args.status or i.get("status") == args.status)]
+    if not items:
+        print("No failures recorded." if not args.status else f"No failures with status {args.status}.")
+        return 0
+    for item in items:
+        tests = len(item.get("regression_tests") or [])
+        print(f"{item.get('id')}  {str(item.get('status')):<9}  {str(item.get('date', '')):<10}  {tests} test(s)  {item.get('title')}")
+    return 0
+
+
+def run_failure_show(args: argparse.Namespace) -> int:
+    ledger = load_failure_ledger()
+    item = find_failure(ledger, args.id)
+    if item is None:
+        print(f"Failure not found: {args.id}", file=sys.stderr)
+        return 1
+    print(format_failure(item))
+    return 0
+
+
+def run_failure_search(args: argparse.Namespace) -> int:
+    ledger = load_failure_ledger()
+    needle = args.text.lower()
+    hits = [i for i in ledger.get("failures", []) if isinstance(i, dict) and needle in json.dumps(i).lower()]
+    if not hits:
+        print("No matches.")
+        return 0
+    for item in hits:
+        print(f"{item.get('id')}  [{item.get('status')}]  {item.get('title')}")
+    return 0
+
+
+def run_failure_update(args: argparse.Namespace) -> int:
+    ledger = load_failure_ledger()
+    item = find_failure(ledger, args.id)
+    if item is None:
+        print(f"Failure not found: {args.id}", file=sys.stderr)
+        return 1
+    changed: list[str] = []
+    for field, value in (
+        ("status", args.status), ("severity", args.severity), ("title", args.title), ("symptom", args.symptom),
+        ("how_detected", args.detected), ("root_cause", args.root_cause), ("fix_summary", args.fix),
+        ("no_test_reason", args.no_test_reason), ("prevention_notes", args.prevention_notes),
+    ):
+        if value:
+            item[field] = value
+            changed.append(field)
+    if args.requirement:
+        item["requirement"] = normalize_requirement_id(args.requirement)
+        changed.append("requirement")
+    if args.recurrence_of:
+        item["recurrence_of"] = normalize_failure_id(args.recurrence_of, ledger)
+        changed.append("recurrence_of")
+    for field, value in (
+        ("affected", args.affected), ("fix_commits", args.commits), ("regression_tests", args.tests),
+        ("prevention_rules", args.prevention_rules),
+    ):
+        additions = [v for v in split_csv(value) if v not in (item.get(field) or [])]
+        if additions:
+            item[field] = list(item.get(field) or []) + additions
+            changed.append(field)
+    if not changed:
+        print("Nothing to update: pass --status, --root-cause, --fix, --tests, --prevention-rules, etc.", file=sys.stderr)
+        return 1
+    write_json(failure_ledger_path(), ledger)
+    print(f"Updated {item['id']} ({', '.join(changed)}); status is {item.get('status')}.")
+    _print_failure_gaps(item)
+    return 0
+
+
+def run_failure_check(args: argparse.Namespace) -> int:
+    """Ledger completeness, plus whether every reference resolves to something real."""
+    problems: list[str] = []
+    if not failure_ledger_path().is_file():
+        print("No failure ledger yet; nothing to check.")
+        return 0
+    if omni_graph is not None:
+        problems.extend(omni_graph.check_failure_ledger(Path("."))["problems"])
+    ledger = load_failure_ledger()
+    ids = known_requirement_ids()
+    known = {i.get("id") for i in ledger.get("failures", []) if isinstance(i, dict)}
+    for item in ledger.get("failures", []):
+        if not isinstance(item, dict):
+            continue
+        fid = item.get("id")
+        if item.get("requirement") and ids and item["requirement"] not in ids:
+            problems.append(f"{fid}: requirement {item['requirement']} is not in the registry")
+        if item.get("recurrence_of") and item["recurrence_of"] not in known:
+            problems.append(f"{fid}: recurrence_of {item['recurrence_of']} is not in the ledger")
+        for path in list(item.get("regression_tests") or []) + list(item.get("affected") or []):
+            file_part = re.split(r"::|#", str(path))[0]
+            file_part = re.sub(r":\d+(?:-\d+)?$", "", file_part)
+            if ("/" in file_part or re.search(r"\.\w{1,5}$", file_part)) and not Path(file_part).exists():
+                problems.append(f"{fid}: '{path}' does not exist on disk")
+        rule_ids = _all_rule_ids()
+        for ref in item.get("prevention_rules") or []:
+            if ref not in rule_ids and not Path(str(ref)).exists():
+                problems.append(f"{fid}: prevention rule '{ref}' is neither a rule id in .ai/rules nor an existing file")
+    if problems:
+        print(f"Failure ledger: {len(problems)} problem(s)")
+        for problem in problems:
+            print(f"  - {problem}")
+        return 1
+    print(f"Failure ledger OK ({len(known)} failure(s)).")
+    return 0
+
+
+def _all_rule_ids() -> set[str]:
+    ids: set[str] = set()
+    for file_path in RULEPACK_FILES:
+        try:
+            pack = load_json(Path(file_path))
+        except (OSError, json.JSONDecodeError):
+            continue
+        for rule in pack.get("rules", []) if isinstance(pack, dict) else []:
+            if isinstance(rule, dict) and rule.get("id"):
+                ids.add(str(rule["id"]))
+    return ids
+
+
+def known_requirement_ids() -> set[str]:
+    """Ids from the configured requirement files (any project's), else from the OmniEngineering registry."""
+    if omni_graph is not None:
+        ids = {item["id"] for item in omni_graph._load_requirement_items(Path("."))}
+        if ids:
+            return ids
+    return all_requirement_ids()
+
+
+def failures_referencing(requirement_id: str) -> list[str]:
+    ledger = load_failure_ledger() if failure_ledger_path().is_file() else {"failures": []}
+    return [str(i.get("id")) for i in ledger.get("failures", []) if isinstance(i, dict) and i.get("requirement") == requirement_id]
+
+
+# --------------------------------------------------------------------------
+# Test suites: which tests exist, where, and how to run them
+# --------------------------------------------------------------------------
+
+
+def project_source_files() -> list[str]:
+    if omni_graph is None:
+        return []
+    root = Path(".").resolve()
+    return sorted(
+        path.relative_to(root).as_posix()
+        for path, _language in omni_graph.discover_source_files(root, sorted(omni_graph.language_extensions()))
+    )
+
+
+def load_test_suites_config() -> dict[str, Any]:
+    if test_suites_path().is_file():
+        return load_json(test_suites_path())
+    return {"version": "1.0.0", "suites": []}
+
+
+def suite_entry(suite: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": suite["id"], "name": suite.get("name") or suite["id"], "kind": suite.get("kind") or "unit",
+        "framework": suite.get("framework") or "", "paths": list(suite.get("paths") or []),
+        "command": suite.get("command") or "", "covers": list(suite.get("covers") or []), "notes": suite.get("notes") or "",
+    }
+
+
+def run_test_detect(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+    files = project_source_files()
+    registered = omni_graph.resolve_test_suites(Path("."), files)
+    proposals = registered["auto"]
+    if args.json:
+        print(json.dumps({"registered": [s["id"] for s in registered["manual"]], "detected": proposals}, indent=2))
+    elif not proposals:
+        print(f"Nothing new: every detected test file is already in a registered suite ({len(registered['manual'])} registered).")
+    else:
+        print(f"{len(proposals)} detected suite(s) not yet in {test_suites_path()}:")
+        for suite in proposals:
+            print(f"\n  {suite['id']}  [{suite['kind']}, {suite['framework']}]  {len(suite['files'])} file(s)")
+            print(f"    paths:   {', '.join(suite['paths'][:6])}{' ...' if len(suite['paths']) > 6 else ''}")
+            print(f"    command: {suite['command'] or '(unknown; pass --command to omni test add)'}")
+            if suite["covers"]:
+                print(f"    covers:  {', '.join(suite['covers'])}")
+    if args.write and proposals:
+        config = load_test_suites_config()
+        config.setdefault("suites", []).extend(suite_entry(s) for s in proposals)
+        test_suites_path().parent.mkdir(parents=True, exist_ok=True)
+        write_json(test_suites_path(), config)
+        print(f"\nRegistered {len(proposals)} suite(s) in {test_suites_path()}. Review the commands and paths, then `omni graph build`.")
+    elif proposals and not args.json:
+        print("\nRegister them with `omni test detect --write`, or add one by hand with `omni test add`.")
+    return 0
+
+
+def run_test_add(args: argparse.Namespace) -> int:
+    config = load_test_suites_config()
+    suite_id = args.id or re.sub(r"[^a-z0-9]+", "-", args.name.lower()).strip("-")
+    if any(isinstance(s, dict) and s.get("id") == suite_id for s in config.get("suites", [])):
+        print(f"Test suite already exists: {suite_id} (remove it first with `omni test remove {suite_id}`)", file=sys.stderr)
+        return 1
+    paths = split_csv(args.paths)
+    if not paths:
+        print("--paths is required: files, directories or globs that hold this suite's tests.", file=sys.stderr)
+        return 1
+    if omni_graph is not None and not args.allow_missing:
+        _files, gone = omni_graph._expand_suite_paths(Path("."), paths, project_source_files())
+        if gone:
+            print(f"These paths match no source file: {', '.join(gone)}. Fix them, or pass --allow-missing.", file=sys.stderr)
+            return 1
+    config.setdefault("suites", []).append(suite_entry({
+        "id": suite_id, "name": args.name, "kind": args.kind, "framework": args.framework, "paths": paths,
+        "command": args.run_command, "covers": split_csv(args.covers), "notes": args.notes,
+    }))
+    test_suites_path().parent.mkdir(parents=True, exist_ok=True)
+    write_json(test_suites_path(), config)
+    print(f"Registered test suite {suite_id}: {args.name}")
+    return 0
+
+
+def run_test_remove(args: argparse.Namespace) -> int:
+    config = load_test_suites_config()
+    before = len(config.get("suites", []))
+    config["suites"] = [s for s in config.get("suites", []) if not (isinstance(s, dict) and s.get("id") == args.id)]
+    if len(config["suites"]) == before:
+        print(f"Test suite not found: {args.id}", file=sys.stderr)
+        return 1
+    write_json(test_suites_path(), config)
+    print(f"Removed test suite {args.id}")
+    return 0
+
+
+def run_test_list(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+    resolved = omni_graph.resolve_test_suites(Path("."), project_source_files())
+    if not resolved["suites"]:
+        print("No test suites registered or detected.")
+        return 0
+    for suite in resolved["suites"]:
+        tag = "registered" if suite["source"] == "manual" else "detected  "
+        print(f"{tag}  {suite['id']:<32} {suite['kind']:<11} {suite['framework']:<10} {len(suite['files']):>3} file(s)  {suite['command'] or '-'}")
+    return 0
+
+
+def run_test_check(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+    result = omni_graph.check_test_suites(Path("."), project_source_files())
+    if not result["present"]:
+        print(f"No {test_suites_path()} yet; run `omni test detect --write` to register what was found.")
+    for problem in result["problems"]:
+        print(f"  - {problem}")
+    if result["unregistered_files"]:
+        print(f"note: {len(result['unregistered_files'])} detected test file(s) are not in a registered suite: run `omni test detect`.")
+    if result["problems"]:
+        return 1
+    print(f"Test suites OK ({result['suites']} registered).")
+    return 0
+
+
 def run_graph_render(args: argparse.Namespace) -> int:
     if not require_omni_graph():
         return 1
@@ -1961,6 +2578,7 @@ def run_graph_render(args: argparse.Namespace) -> int:
         max_nodes=args.max_nodes,
         focus=args.focus,
         depth=args.depth,
+        all_layers=args.all_layers,
     )
     if not result.get("ok"):
         print(f"Could not resolve --focus symbol: {args.focus}", file=sys.stderr)
@@ -2059,6 +2677,9 @@ def build_doctor_report() -> DoctorReport:
     validate_ruleset(parsed.get(".ai/rules/universal-engineering-ruleset.json"), report)
     validate_rulepacks(parsed, report)
     validate_requirements(parsed.get(".ai/requirements/requirements.json"), report)
+    validate_failure_ledger(parsed.get(".ai/failures/failure-ledger.json"), report)
+    validate_test_suites(parsed.get(".ai/test-suites.json"), report)
+    validate_graph_config(report)
     validate_assistant_pointers(report)
     validate_entrypoint_sources(report)
     validate_synced_ignore_files(report)
@@ -2159,6 +2780,16 @@ def copy_adoption_path(source_root: Path, target_root: Path, relative_path: str,
         )
     else:
         shutil.copy2(source, target)
+    if relative_path == ".ai":
+        # The source repository's own failure history and test suites are not the adopter's; ship empty ones.
+        for reset_path, empty in (
+            (FAILURE_LEDGER_PATH, {"version": "1.0.0", "failure_id_prefix": "FAIL", "failures": []}),
+            (TEST_SUITES_PATH, {"version": "1.0.0", "suites": []}),
+        ):
+            if (target_root / reset_path).is_file():
+                write_json(target_root / reset_path, empty)
+        # graph-config.json in this repository marks OmniEngineering itself as the project; an adopter's differs.
+        (target_root / ".ai/graph-config.json").unlink(missing_ok=True)
     return f"copied: {relative_path}"
 
 
@@ -2586,7 +3217,26 @@ def run_requirement_update(args: argparse.Namespace) -> int:
     return 0
 
 
+DEFECT_CATEGORY = re.compile(r"defect|bug|fix|regress|incident|failure", re.IGNORECASE)
+
+
 def run_requirement_complete(args: argparse.Namespace) -> int:
+    found = find_requirement(args.id)
+    if found is not None and DEFECT_CATEGORY.search(str(found[2].get("category", ""))):
+        requirement_id = str(found[2].get("id"))
+        reason = (getattr(args, "no_failure_entry", None) or "").strip()
+        if not failures_referencing(requirement_id):
+            if len(reason) < 10:
+                print(
+                    f"{requirement_id} is a {found[2].get('category')} requirement, so completing it needs a failure-ledger entry\n"
+                    f"recording what broke, why (root cause), the regression test, and what prevents a repeat:\n"
+                    f'  ./omni failure add --requirement {requirement_id} --title "..." --symptom "..." --root-cause "..." --status fixed \\\n'
+                    f'      --fix "..." --tests <test path or name> --prevention-rules <rule id>\n'
+                    f'If this really was not a failure worth recording: --no-failure-entry "<why, 10+ chars>".',
+                    file=sys.stderr,
+                )
+                return 1
+            args.note = f"No failure-ledger entry: {reason}" + (f" | {args.note}" if getattr(args, "note", None) else "")
     args.status = "completed"
     args.title = None
     args.description = None
@@ -3025,6 +3675,21 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     graph_build.add_argument(
+        "--layers",
+        default="",
+        help=(
+            "Comma-separated layers to build: code, governance (requirements, changelog), history (git commits), "
+            "assurance (tests, suites, failure ledger), workspace (rulepacks, rules, playbooks, checklists). "
+            "Defaults to all five; code is always built."
+        ),
+    )
+    graph_build.add_argument(
+        "--max-commits",
+        type=int,
+        default=None,
+        help="Most recent commits scanned when building the history layer (default: max_commits in .ai/graph-config.json, else 400).",
+    )
+    graph_build.add_argument(
         "--semantic",
         action="store_true",
         help=(
@@ -3064,13 +3729,45 @@ def build_parser() -> argparse.ArgumentParser:
     )
     graph_show.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
     graph_show.add_argument("--all", action="store_true", help="List every node instead of inspecting one (externals hidden unless --include-external).")
-    graph_show.add_argument("--kind", choices=["module", "class", "interface", "function", "method", "table", "external"], help="With --all: only this node kind.")
+    graph_show.add_argument("--kind", choices=["module", "class", "interface", "function", "method", "table", "external", "file", "requirement", "changelog", "commit", "failure", "rule", "suite", "rulepack", "playbook", "checklist"], help="With --all: only this node kind.")
+    graph_show.add_argument("--layer", choices=["code", "governance", "history", "assurance", "workspace"], help="With --all: only this layer.")
     graph_show.add_argument("--language", help="With --all: only this language (python, java, sql, go, ...).")
     graph_show.add_argument("--file", help="With --all: only files matching this glob, or containing this text.")
     graph_show.add_argument("--include-external", action="store_true", help="With --all: include external placeholder nodes.")
     graph_show.add_argument("--edges", action="store_true", help="With --all: also print the edges among the listed nodes.")
     graph_show.add_argument("--sort", choices=["file", "degree", "name"], default="file", help="With --all: ordering (default file).")
     graph_show.add_argument("--limit", type=int, default=0, help="With --all: list at most N nodes.")
+
+    graph_why = graph_subparsers.add_parser(
+        "why",
+        help=(
+            "Cross-layer traversal for a file, symbol, requirement or failure: the requirements, changelog entries, "
+            "commits, tests, failures and rules that touch it."
+        ),
+    )
+    graph_why.add_argument("node", help="File path, symbol, requirement id (REQ-021) or failure id (FAIL-001).")
+    graph_why.add_argument("--graph", default=GRAPH_DEFAULT_OUTPUT, help=f"Graph file to read. Defaults to {GRAPH_DEFAULT_OUTPUT}.")
+    graph_why.add_argument("--limit", type=int, default=12, help="Items shown per section (default 12).")
+    graph_why.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+
+    graph_sources = graph_subparsers.add_parser(
+        "sources",
+        help="Show what each layer would read from this project (requirements, changelog, git, tests, ledger) and what is missing.",
+    )
+    graph_sources.add_argument("--root", default=".", help="Project root. Defaults to the current repository.")
+    graph_sources.add_argument("--write", action="store_true", help="Draft .ai/graph-config.json from what was found (only settings that differ from the defaults).")
+    graph_sources.add_argument("--force", action="store_true", help="With --write: overwrite an existing config.")
+    graph_sources.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+
+    graph_timeline = graph_subparsers.add_parser(
+        "timeline",
+        help="Chronology of everything tied to a file, symbol, requirement or failure: commits, changelog entries, failures.",
+    )
+    graph_timeline.add_argument("node", help="File path, symbol, requirement id (REQ-021) or failure id (FAIL-001).")
+    graph_timeline.add_argument("--graph", default=GRAPH_DEFAULT_OUTPUT, help=f"Graph file to read. Defaults to {GRAPH_DEFAULT_OUTPUT}.")
+    graph_timeline.add_argument("--depth", type=int, default=1, help="Hops across the layers to follow (default 1: what is directly tied to the node).")
+    graph_timeline.add_argument("--limit", type=int, default=40, help="Show the newest N events (0 for all; default 40).")
+    graph_timeline.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
 
     graph_view = graph_subparsers.add_parser(
         "view",
@@ -3130,6 +3827,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=RENDER_DEFAULT_DEPTH,
         help=f"Hops out from --focus to include. Defaults to {RENDER_DEFAULT_DEPTH}. Ignored without --focus.",
+    )
+    graph_render.add_argument(
+        "--all-layers",
+        action="store_true",
+        help="Also render the governance and assurance layers (requirements, changelog, commits, tests, failures, rules).",
     )
     graph_render.add_argument("--json", action="store_true", help="Print a machine-readable summary instead of a human summary.")
 
@@ -3296,6 +3998,74 @@ def build_parser() -> argparse.ArgumentParser:
     requirement_complete = requirement_subparsers.add_parser("complete", help="Mark a requirement completed.")
     requirement_complete.add_argument("id", help="Requirement ID.")
     requirement_complete.add_argument("--note", help="Append a risk note.")
+    requirement_complete.add_argument(
+        "--no-failure-entry",
+        help="For defect/bug/fix requirements only: why no failure-ledger entry is warranted (10+ characters, recorded as a risk note).",
+    )
+
+    test_parser = subparsers.add_parser(
+        "test",
+        help="Register and inspect test suites (paths, framework, command); auto-detected suites feed the graph.",
+    )
+    test_subparsers = test_parser.add_subparsers(dest="test_command")
+    test_detect = test_subparsers.add_parser("detect", help="Find test suites from file contents and CI commands; --write registers them.")
+    test_detect.add_argument("--write", action="store_true", help=f"Add the detected suites to {TEST_SUITES_PATH}.")
+    test_detect.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+    test_add = test_subparsers.add_parser("add", help="Register a test suite by hand.")
+    test_add.add_argument("--name", required=True, help="Human name, e.g. 'Backend JUnit'.")
+    test_add.add_argument("--id", help="Suite id; defaults to a slug of the name.")
+    test_add.add_argument("--paths", required=True, help="Comma-separated files, directories or globs that hold the tests.")
+    test_add.add_argument("--kind", choices=["unit", "integration", "e2e", "validation", "smoke", "other"], default="unit")
+    test_add.add_argument("--framework", default="", help="junit, vitest, jest, pytest, playwright, script, ...")
+    test_add.add_argument("--command", dest="run_command", default="", help="How to run it, e.g. 'cd backend && mvn test'.")
+    test_add.add_argument("--covers", default="", help="Comma-separated code paths this suite is meant to cover.")
+    test_add.add_argument("--notes", default="")
+    test_add.add_argument("--allow-missing", action="store_true", help="Register even if a path matches no file yet.")
+    test_remove = test_subparsers.add_parser("remove", help="Remove a registered suite.")
+    test_remove.add_argument("id")
+    test_subparsers.add_parser("list", help="Registered suites plus any detected but unregistered.")
+    test_subparsers.add_parser("check", help="Verify every registered path matches files, and report unregistered tests.")
+
+    failure_parser = subparsers.add_parser(
+        "failure",
+        help="Record what went wrong, why, and what now prevents it (the failure ledger, a graph layer).",
+    )
+    failure_subparsers = failure_parser.add_subparsers(dest="failure_command")
+
+    def add_failure_fields(sub: argparse.ArgumentParser, creating: bool) -> None:
+        sub.add_argument("--status", choices=FAILURE_STATUSES, default="open" if creating else None, help="open, fixed, mitigated or wontfix.")
+        sub.add_argument("--severity", choices=["critical", "high", "medium", "low"], default="medium" if creating else None)
+        sub.add_argument("--requirement", help="Requirement being worked when this surfaced (REQ-###).")
+        sub.add_argument("--symptom", required=creating, help="What was observed: the error text or wrong behaviour.")
+        sub.add_argument("--root-cause", help="WHY it happened. The reasoning is the point of the ledger.")
+        sub.add_argument("--detected", help="How it was found (test, review, user report, production).")
+        sub.add_argument("--affected", help="Comma-separated files, directories or symbols it affected.")
+        sub.add_argument("--fix", help="What changed to fix it.")
+        sub.add_argument("--commits", help="Comma-separated commit hashes that fixed it.")
+        sub.add_argument("--tests", help="Comma-separated regression tests (path, path::name, or qualified name).")
+        sub.add_argument("--no-test-reason", help="If no regression test is practical, say why.")
+        sub.add_argument("--prevention-rules", help="Comma-separated rule ids (or playbook paths) that stop it recurring.")
+        sub.add_argument("--prevention-notes", help="What now prevents a repeat, in words.")
+        sub.add_argument("--recurrence-of", help="Earlier failure id this repeats.")
+
+    failure_add = failure_subparsers.add_parser("add", help="Record a failure.")
+    failure_add.add_argument("--id", help="Failure ID. Defaults to the next FAIL-###.")
+    failure_add.add_argument("--title", required=True, help="Short title.")
+    failure_add.add_argument("--date", help="YYYY-MM-DD; defaults to today.")
+    add_failure_fields(failure_add, creating=True)
+
+    failure_update = failure_subparsers.add_parser("update", help="Add reasoning, tests or prevention to a failure. Lists append; scalars replace.")
+    failure_update.add_argument("id", help="Failure ID.")
+    failure_update.add_argument("--title", help="New title.")
+    add_failure_fields(failure_update, creating=False)
+
+    failure_show = failure_subparsers.add_parser("show", help="Print one failure.")
+    failure_show.add_argument("id")
+    failure_list = failure_subparsers.add_parser("list", help="One line per failure.")
+    failure_list.add_argument("--status", choices=FAILURE_STATUSES)
+    failure_search = failure_subparsers.add_parser("search", help="Case-insensitive text search across failures.")
+    failure_search.add_argument("text")
+    failure_subparsers.add_parser("check", help="Verify the ledger is complete and every reference resolves.")
 
     requirement_archive = requirement_subparsers.add_parser(
         "archive",
@@ -3371,7 +4141,29 @@ def main(argv: list[str] | None = None) -> int:
             return run_graph_view(args)
         if args.graph_command == "schema":
             return run_graph_schema(args)
-        parser.error("graph requires a subcommand (build, trace, show, render, view, schema)")
+        if args.graph_command == "why":
+            return run_graph_why(args)
+        if args.graph_command == "timeline":
+            return run_graph_timeline(args)
+        if args.graph_command == "sources":
+            return run_graph_sources(args)
+        parser.error("graph requires a subcommand (build, trace, show, why, timeline, sources, render, view, schema)")
+    if command == "test":
+        handlers = {
+            "detect": run_test_detect, "add": run_test_add, "remove": run_test_remove,
+            "list": run_test_list, "check": run_test_check,
+        }
+        if args.test_command in handlers:
+            return handlers[args.test_command](args)
+        parser.error("test requires a subcommand (detect, add, remove, list, check)")
+    if command == "failure":
+        handlers = {
+            "add": run_failure_add, "update": run_failure_update, "show": run_failure_show,
+            "list": run_failure_list, "search": run_failure_search, "check": run_failure_check,
+        }
+        if args.failure_command in handlers:
+            return handlers[args.failure_command](args)
+        parser.error("failure requires a subcommand (add, update, show, list, search, check)")
     if command == "context":
         return run_context(args)
     if command == "adopt":

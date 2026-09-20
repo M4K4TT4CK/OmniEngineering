@@ -1,5 +1,73 @@
 # Changelog
 
+## 2026-09-20
+
+### Completed
+
+- `REQ-022` | Code understanding | The code graph now has five layers, and the
+  history of the project (requirements, changelog, commits, tests, failures, and
+  the rules that came out of them) is one traversable structure that works for any
+  project.
+  - **Layers.** `code`, `governance` (requirements, changelog entries),
+    `history` (every commit, chained in order, tied to the changelog entry whose
+    heading it added, the requirement named in its subject, and the files it
+    changed; a squash commit with no id is tied through its changelog entry),
+    `assurance` (the project's tests, test suites, the failure ledger) and
+    `workspace` (rulepacks, rules, playbooks, checklists, and OmniEngineering's own
+    code). Requirements `touch` the files they declare and the files their commits
+    changed, ranked git-proven first and directory-wide last.
+  - **Test suites, focused on the host project.** `.ai/test-suites.json`
+    registers suites (paths as files, directories or globs; framework; run
+    command; what they cover) with `omni test detect|add|remove|list|check`.
+    Detection reads test-framework signals in file contents (never comments, never
+    `src/main`) and the commands CI files run, so JUnit, Vitest, Jest, pytest,
+    Playwright, and validation scripts are found; a registered suite wins over a
+    detected one. Suites become `suite` nodes that `contain` their test files and
+    `cover` code. OmniEngineering's own files (`tooling_paths`) move to the
+    workspace layer and are never counted as the project's tests.
+  - **Failure ledger** (`.ai/failures/failure-ledger.json`,
+    `omni failure add|update|show|list|search|check`): symptom, root cause,
+    regression test or suite, prevention. `omni doctor` fails an incomplete fixed
+    entry; `omni requirement complete` refuses defect requirements with no entry.
+  - **Traversal.** `omni graph why <file|symbol|REQ|FAIL|commit|suite>` joins the
+    layers and flags code no test reaches; `omni graph timeline <node>` lists
+    everything dated that is tied to it, oldest first; `show --all --layer`.
+  - **Works on any project.** Optional `.ai/graph-config.json` (requirement and
+    changelog locations, test globs, ledger and registry paths, extra CI files,
+    history depth, tooling paths); requirement ids are matched exactly as they
+    appear in the project's own registry, so `PROJ-12`, `FEAT_7` and `REQ-001`
+    all work; dated, versioned (`## [1.2.0] - 2026-01-31`) and `# 2026-01-31`
+    changelogs parse; no `.ai/`, no git, no commits, a shallow clone, a subfolder
+    of a larger repository, unicode paths and symlink loops each degrade to a
+    clear note; malformed JSON is reported by file instead of ignored.
+    `omni graph sources` shows what each layer would read and what is missing;
+    `--write` drafts the config.
+  - **Viewer.** A larger banner; All/None on the Layers, Node kinds, Languages and
+    Edge types groups; a Node kinds filter; five layer planes when stacked; and a
+    new search: any name, `REQ-###`, date, file or text, limited to a kind, sorted
+    by match, date, name or connections, with a scrollable result list, a browse
+    mode that lists every node of a kind, and Add all to view / Only these.
+  - **Rules and playbooks.** `completion.failure_ledger`, `completion.regression_test`,
+    `completion.failure_becomes_rule`, `completion.register_test_suites`,
+    `completion.verify_target_environment`, `completion.rebuild_graph_layers` and
+    `controlled.consult_failure_history`, with matching steps in the debugging,
+    testing, implementation, review, planning, handoff and release playbooks, both
+    checklists and every assistant entrypoint. `omni adopt` ships an empty ledger,
+    an empty suite registry and no graph config.
+  - **Tests.** `tests/` holds the first automated suite (72 unittest cases: the
+    layers, ledger, `why`/`timeline`, suites and detection, the CLI gates, and a
+    robustness matrix of awkward projects). The ledger records eight real failures
+    from this work (`FAIL-001` to `FAIL-008`), six with regression tests.
+  - Verified on STEP_App (6,804 nodes, 27,378 edges: 166 requirements, 168
+    changelog entries, 298 commits over three months, 6 detected test suites, 57
+    rules) and on this repository, with `omni graph why`/`timeline` on real files,
+    mutation-checking that tests fail when behaviour breaks, and the viewer driven
+    in headless Chromium (search by kind, browse, sort, All/None, layer stacking).
+    Not verified in a real Windows Chrome or with hardware WebGL. Test detection is
+    signal- and convention-based, so an unusual test layout needs a registered
+    suite or a `test_globs` entry; `verifies` edges are inferred from calls and
+    imports at test-file granularity.
+
 ## 2026-09-18 (6)
 
 ### Completed

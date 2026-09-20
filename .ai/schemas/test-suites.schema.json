@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omni-context.local/schemas/test-suites.schema.json",
+  "title": "OmniContext Test Suite Registry",
+  "description": "The authoritative list of test suites: where their tests live, the framework, and how to run them. Merged with auto-detected suites when `omni graph build` writes the assurance layer.",
+  "type": "object",
+  "required": ["version", "suites"],
+  "properties": {
+    "version": { "type": "string" },
+    "suites": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "paths"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "kind": { "enum": ["unit", "integration", "e2e", "validation", "smoke", "other"] },
+          "framework": { "type": "string" },
+          "paths": { "type": "array", "items": { "type": "string" }, "minItems": 1, "description": "Files, directories or globs. Every source file under them becomes a test in the graph, whatever it is named." },
+          "command": { "type": "string" },
+          "covers": { "type": "array", "items": { "type": "string" }, "description": "Code paths this suite is meant to cover." },
+          "notes": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "version": "1.0.0",
+  "suites": [
+    {
+      "id": "omni-unittest",
+      "name": "OmniEngineering unittest",
+      "kind": "unit",
+      "framework": "unittest",
+      "paths": [
+        "tests"
+      ],
+      "command": "python3 -m unittest discover -s tests",
+      "covers": [
+        "omni_graph.py",
+        "make_ai.py"
+      ],
+      "notes": "Layers, failure ledger, why traversal, CLI gates, repo hygiene regressions."
+    }
+  ]
+}

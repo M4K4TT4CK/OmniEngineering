@@ -14,12 +14,13 @@
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:13px/1.45 "Share Tech Mono","JetBrains Mono",ui-monospace,Menlo,Consolas,"Courier New",monospace}
   #app{display:grid;grid-template-columns:290px minmax(0,1fr) 350px;grid-template-rows:auto minmax(0,1fr);height:100%}
-  header{grid-column:1/4;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline;padding:8px 14px;border-bottom:1px solid var(--line);background:var(--panel)}
-  header h1{margin:0;font-size:15px;letter-spacing:.04em}
-  .brand{display:flex;align-items:center;gap:10px;font-weight:700}
+  header{grid-column:1/4;display:flex;flex-wrap:wrap;gap:8px 26px;align-items:center;padding:16px 22px;border-bottom:2px solid var(--accent);background:linear-gradient(180deg,#191920,var(--panel))}
+  header h1{margin:0;font-size:30px;line-height:1.1;letter-spacing:.05em}
+  .brand{display:flex;align-items:center;gap:16px;font-weight:700}
   .brand svg{flex:none}.brand .w{color:var(--text)}.brand .cg{color:var(--accent)}
   header .dim,.dim{color:var(--dim)}
-  header .help{margin-left:auto;font-size:12px}
+  header .help{margin-left:auto;font-size:13px;max-width:46ch;text-align:right}
+  header #meta{font-size:15px;color:var(--text)}
   aside{overflow:auto;background:var(--panel);padding:12px 14px}
   #left{border-right:1px solid var(--line)} #right{border-left:1px solid var(--line)}
   #stage{position:relative;min-width:0;min-height:0;overflow:hidden}
@@ -27,6 +28,9 @@
   #nogl{display:none;position:absolute;inset:0;padding:24px;color:var(--accent);z-index:2}
   h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:16px 0 6px}
   h2:first-child{margin-top:0}
+  h2{display:flex;align-items:center;gap:8px}
+  h2 .tools{margin-left:auto;display:flex;gap:4px;text-transform:none;letter-spacing:0}
+  button.mini{padding:0 7px;font-size:11px;line-height:18px;color:var(--dim)}
   input[type=search],select{width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:3px;padding:6px 8px;font:inherit}
   input:focus-visible,select:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
   button{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:3px;padding:5px 9px;font:inherit;cursor:pointer}
@@ -39,8 +43,17 @@
   .sw{display:inline-block;width:11px;height:11px;border-radius:50%;flex:none}
   .sw.line{border-radius:2px;height:4px;width:16px}
   .count{margin-left:auto;color:var(--dim)}
-  #results button{display:block;width:100%;text-align:left;margin:3px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  #results .k{color:var(--dim)}
+  #qkind{min-width:0}
+  #results{max-height:42vh;overflow:auto;margin:6px 0;border:1px solid var(--line);border-radius:3px;background:var(--bg)}
+  #results:empty{display:none}
+  #results button.res{display:block;width:100%;text-align:left;margin:0;border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent;padding:5px 8px}
+  #results button.res:hover{background:var(--panel2)}
+  #results .r1{display:flex;gap:8px;align-items:baseline}
+  #results .r1 .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
+  #results .r1 .dt{margin-left:auto;color:var(--dim);font-size:11px;flex:none}
+  #results .r2{color:var(--dim);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #results .k{color:var(--dim);font-size:10.5px;text-transform:uppercase;border:1px solid var(--line);border-radius:3px;padding:0 5px;flex:none}
+  #qinfo{color:var(--dim);font-size:12px;margin:4px 0}
   .badge{display:inline-block;padding:1px 7px;border:1px solid var(--line);border-radius:3px;color:var(--dim);font-size:11px;text-transform:uppercase;vertical-align:middle}
   #detail h3{margin:0 0 4px;font-size:15px;word-break:break-word}
   #detail .where{color:var(--dim);word-break:break-all;margin-bottom:8px}
@@ -68,14 +81,17 @@
 <body>
 <div id="app">
   <header>
-    <h1 class="brand"><svg width="30" height="30" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="OmniEngineering mark"><rect x="3" y="3" width="32" height="38" rx="3" stroke="#e0475c" stroke-width="1.5"/><circle cx="3" cy="3" r="1.5" fill="#e0475c"/><circle cx="35" cy="3" r="1.5" fill="#e0475c"/><circle cx="3" cy="41" r="1.5" fill="#e0475c"/><circle cx="35" cy="41" r="1.5" fill="#e0475c"/><line x1="19" y1="20" x2="10" y2="10" stroke="#e0475c" opacity=".55"/><line x1="19" y1="20" x2="28" y2="9" stroke="#e0475c" opacity=".45"/><line x1="19" y1="20" x2="9" y2="27" stroke="#e0475c" opacity=".35"/><line x1="19" y1="20" x2="29" y2="28" stroke="#e0475c" opacity=".5"/><line x1="19" y1="20" x2="19" y2="34" stroke="#e0475c" opacity=".3"/><circle cx="10" cy="10" r="1.4" fill="#e0475c" opacity=".8"/><circle cx="28" cy="9" r="1.4" fill="#e0475c" opacity=".7"/><circle cx="9" cy="27" r="1.4" fill="#e0475c" opacity=".6"/><circle cx="29" cy="28" r="1.4" fill="#e0475c" opacity=".75"/><circle cx="19" cy="34" r="1.4" fill="#e0475c" opacity=".55"/><circle cx="19" cy="20" r="7" stroke="#e0475c" stroke-width=".75" opacity=".3"/><circle cx="19" cy="20" r="3.5" fill="#e0475c" opacity=".9"/><circle cx="41" cy="41" r="7" fill="#e0475c"/><circle cx="41" cy="41" r="3" fill="#0f0f12"/></svg><span><span class="w">OmniEngineering</span> <span class="cg">CodeGraph</span></span></h1>
+    <h1 class="brand"><svg width="56" height="56" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="OmniEngineering mark"><rect x="3" y="3" width="32" height="38" rx="3" stroke="#e0475c" stroke-width="1.5"/><circle cx="3" cy="3" r="1.5" fill="#e0475c"/><circle cx="35" cy="3" r="1.5" fill="#e0475c"/><circle cx="3" cy="41" r="1.5" fill="#e0475c"/><circle cx="35" cy="41" r="1.5" fill="#e0475c"/><line x1="19" y1="20" x2="10" y2="10" stroke="#e0475c" opacity=".55"/><line x1="19" y1="20" x2="28" y2="9" stroke="#e0475c" opacity=".45"/><line x1="19" y1="20" x2="9" y2="27" stroke="#e0475c" opacity=".35"/><line x1="19" y1="20" x2="29" y2="28" stroke="#e0475c" opacity=".5"/><line x1="19" y1="20" x2="19" y2="34" stroke="#e0475c" opacity=".3"/><circle cx="10" cy="10" r="1.4" fill="#e0475c" opacity=".8"/><circle cx="28" cy="9" r="1.4" fill="#e0475c" opacity=".7"/><circle cx="9" cy="27" r="1.4" fill="#e0475c" opacity=".6"/><circle cx="29" cy="28" r="1.4" fill="#e0475c" opacity=".75"/><circle cx="19" cy="34" r="1.4" fill="#e0475c" opacity=".55"/><circle cx="19" cy="20" r="7" stroke="#e0475c" stroke-width=".75" opacity=".3"/><circle cx="19" cy="20" r="3.5" fill="#e0475c" opacity=".9"/><circle cx="41" cy="41" r="7" fill="#e0475c"/><circle cx="41" cy="41" r="3" fill="#0f0f12"/></svg><span><span class="w">OmniEngineering</span> <span class="cg">CodeGraph</span></span></h1>
     <span class="dim" id="meta"></span>
     <span class="dim help">drag: rotate &middot; right-drag: pan &middot; scroll: zoom &middot; click: select &middot; double-click: expand neighbours &middot; <b>/</b> search &middot; <b>e</b> expand &middot; <b>f</b> fit &middot; <b>Esc</b> clear</span>
   </header>
 
   <aside id="left" aria-label="Search and filters">
     <h2>Search</h2>
-    <input id="q" type="search" placeholder="symbol, qualified name or file" autocomplete="off" aria-label="Search symbols">
+    <input id="q" type="search" placeholder="name, REQ-###, commit, date, file, text" autocomplete="off" aria-label="Search nodes">
+    <div class="row" style="margin-bottom:0"><select id="qkind" aria-label="Limit search to one kind of node" style="flex:1"><option value="">any kind</option></select><select id="qsort" aria-label="Sort results" style="width:auto"><option value="relevance">best match</option><option value="newest">newest first</option><option value="oldest">oldest first</option><option value="name">name</option><option value="connections">most connected</option></select></div>
+    <div id="qinfo">Search, or pick a kind (requirement, commit, changelog, failure, suite, ...) to browse all of them.</div>
+    <div class="row" id="resactions" style="display:none"><button id="showres" type="button" title="Add every result to the 3D view">Add all to view</button><button id="onlyres" type="button" title="Show only the results">Only these</button></div>
     <div id="results" role="list"></div>
 
     <h2>View</h2>
@@ -91,10 +107,14 @@
     <label class="chk"><input type="checkbox" id="labelson" checked> name labels (when &le; 200 nodes in view)</label>
     <div style="margin-top:8px"><label for="edgeboost" class="dim">Edge strength</label><input type="range" id="edgeboost" min="1" max="6" step="0.5" value="3"></div>
     <div style="margin-top:8px"><label for="colormode" class="dim">Colour nodes by</label>
-      <select id="colormode"><option value="language">language</option><option value="kind">kind</option><option value="directory">top-level directory</option><option value="layer">layer (Spring stereotype / table)</option></select></div>
+      <select id="colormode"><option value="language">language</option><option value="kind">kind</option><option value="directory">top-level directory</option><option value="layer">layer (code / governance / assurance)</option><option value="role">role (Spring stereotype / table)</option></select></div>
 
-    <h2>Languages</h2><div id="langs"></div>
-    <h2>Edge types</h2><div id="types"></div>
+    <h2>Layers<span class="tools" data-for="layers"></span></h2><div id="layers"></div>
+    <label class="chk" title="Pull the three layers onto separate planes so the links between them are easy to see"><input type="checkbox" id="stack"> stack layers in 3D</label>
+
+    <h2>Node kinds<span class="tools" data-for="kinds"></span></h2><div id="kinds"></div>
+    <h2>Languages<span class="tools" data-for="langs"></span></h2><div id="langs"></div>
+    <h2>Edge types<span class="tools" data-for="types"></span></h2><div id="types"></div>
     <h2 id="legend-title">Legend</h2><div id="legend"></div>
 
     <div class="attrib">
@@ -128,14 +148,20 @@
   var $ = function (id) { return document.getElementById(id); };
 
   var LANG_COLORS = { python: '#e0475c', javascript: '#4fb3bf', typescript: '#c9a869', java: '#f0a23c', sql: '#b48ead', go: '#5fd0e0', rust: '#e58b5a', csharp: '#8fbf6a' };
-  var KIND_COLORS = { module: '#e8e8e8', 'class': '#e0475c', 'interface': '#7fd0dc', 'function': '#4fb3bf', method: '#c9a869', table: '#ffb454', external: '#6b6b78' };
-  var LAYER_COLORS = { controller: '#e0475c', service: '#4fb3bf', repository: '#c9a869', entity: '#ffb454', component: '#9ece6a', configuration: '#b48ead', table: '#ffb454' };
+  var KIND_COLORS = { module: '#e8e8e8', 'class': '#e0475c', 'interface': '#7fd0dc', 'function': '#4fb3bf', method: '#c9a869', table: '#ffb454', external: '#6b6b78', requirement: '#f2c14e', changelog: '#8fbf6a', commit: '#7d8590', failure: '#ff5c5c', rule: '#5fd0e0', file: '#a0a0ab', suite: '#b48ead', rulepack: '#4aa3b5', playbook: '#7fd0dc', checklist: '#9be3ee' };
+  var LAYER_ORDER = ['code', 'governance', 'history', 'assurance', 'workspace'];
+  var PLANE_COLORS = { code: '#e8e8e8', governance: '#f2c14e', history: '#8fa1b3', assurance: '#ff5c5c', workspace: '#5fd0e0' };
+  var PLANE_Z = { workspace: 300, governance: 150, code: 0, assurance: -150, history: -300 };
+  var KIND_ORDER = ['requirement', 'commit', 'changelog', 'failure', 'suite', 'rule', 'rulepack', 'playbook', 'checklist', 'module', 'file', 'class', 'interface', 'function', 'method', 'table'];
+  var ROLE_COLORS = { controller: '#e0475c', service: '#4fb3bf', repository: '#c9a869', entity: '#ffb454', component: '#9ece6a', configuration: '#b48ead', table: '#ffb454' };
   // Edges are light on the near-black ground so they read at a glance; defines stays quieter.
-  var TYPE_COLORS = { calls: '#f0f0f0', imports: '#7fd0dc', inherits: '#ff6b81', implements: '#ffc36b', defines: '#8d8d99', references: '#c792ea', maps_to: '#f78c6c', uses: '#8a8a99' };
-  var TYPE_WIDTH = { calls: 0.9, imports: 0.9, inherits: 1.6, implements: 1.3, defines: 0.55, references: 1.5, maps_to: 1.4, uses: 0.5 };
+  var TYPE_COLORS = { calls: '#f0f0f0', imports: '#7fd0dc', inherits: '#ff6b81', implements: '#ffc36b', defines: '#8d8d99', references: '#c792ea', maps_to: '#f78c6c', uses: '#8a8a99',
+    touches: '#f2c14e', records: '#8fbf6a', mentions: '#6f9a55', delivers: '#c9d1d9', modifies: '#7d8590', verifies: '#5fd0e0', affects: '#ff5c5c', arose_in: '#ff9f6b', guards: '#7ee787', prevented_by: '#5fd0e0', fixed_by: '#7ee787', recurs: '#ff5c5c', logged_in: '#8fbf6a', follows: '#5a6270', contains: '#b48ead', covers: '#c9a0dc' };
+  var TYPE_WIDTH = { calls: 0.9, imports: 0.9, inherits: 1.6, implements: 1.3, defines: 0.55, references: 1.5, maps_to: 1.4, uses: 0.5,
+    touches: 0.9, records: 1.0, mentions: 0.7, delivers: 1.0, modifies: 0.6, verifies: 0.8, affects: 1.7, arose_in: 1.2, guards: 1.6, prevented_by: 1.5, fixed_by: 1.3, recurs: 1.8, logged_in: 1.3, follows: 0.6, contains: 0.8, covers: 0.9 };
   var RADIAL_GAIN = 0.9;   // extra size per median-radius beyond the core cluster (outliers grow)
   var DEPTH_EXP = 0.85;    // how strongly size/thickness follow camera distance (1 = constant on-screen size)
-  var KIND_SCALE = { module: 3.2, 'class': 2.4, 'interface': 2.4, table: 2.8, 'function': 1.3, method: 1.0, external: 0.6 };
+  var KIND_SCALE = { module: 3.2, 'class': 2.4, 'interface': 2.4, table: 2.8, 'function': 1.3, method: 1.0, external: 0.6, requirement: 3.0, changelog: 1.8, commit: 1.0, failure: 3.2, rule: 1.6, file: 1.6, suite: 2.8, rulepack: 2.4, playbook: 2.0, checklist: 1.8 };
   var DEFAULT_COLOR = '#9a9a9a', DIM_COLOR = '#3d3d4d', SELECT_COLOR = '#ffffff';
   var edgeBoost = 3;
   var EXPAND_CAP = 60;
@@ -151,21 +177,23 @@
     (out[e.s] || (out[e.s] = [])).push(i); (inn[e.t] || (inn[e.t] = [])).push(i);
     if (byId[e.s]) byId[e.s].deg++; if (byId[e.t]) byId[e.t].deg++;
   });
-  function layerOf(n) { return (n.attrs && n.attrs.stereotype) || (n.kind === 'table' ? 'table' : null); }
+  function roleOf(n) { return (n.attrs && n.attrs.stereotype) || (n.kind === 'table' ? 'table' : null); }
+  function layerName(n) { return n.layer || 'code'; }
   function langColor(l) { return LANG_COLORS[l] || (l ? hashColor(l) : DEFAULT_COLOR); }
   function topDir(n) { var f = n.file || ''; var i = f.indexOf('/'); return i > 0 ? f.slice(0, i) : (f || '(root)'); }
   function hashColor(s) { var h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return 'hsl(' + (h % 360) + ',62%,62%)'; }
 
   var visible = new Set(DATA.initial), initial = DATA.initial.slice();
-  var langOn = {}, typeOn = {};
+  var langOn = {}, typeOn = {}, layerOn = {}, kindOn = {}, suspended = 0;
   var showInferred = true, showExternal = false, colorMode = 'language', arrows = true;
   var selected = null, neighborSet = new Set(), wantFit = true, flyPending = false;
 
-  function nodeAllowed(n) {
-    if (!n || !visible.has(n.id)) return false;
+  function passesFilters(n) {
     if (n.kind === 'external') return showExternal;
-    return langOn[n.lang || 'other'] !== false;
+    if (layerOn[layerName(n)] === false || kindOn[n.kind] === false) return false;
+    return !n.lang || langOn[n.lang] !== false;
   }
+  function nodeAllowed(n) { return !!n && visible.has(n.id) && passesFilters(n); }
   function edgeAllowed(e) {
     var a = byId[e.s], b = byId[e.t];
     if (!nodeAllowed(a) || !nodeAllowed(b)) return false;
@@ -181,7 +209,9 @@
   function baseColor(n) {
     if (colorMode === 'kind') return KIND_COLORS[n.kind] || DEFAULT_COLOR;
     if (colorMode === 'directory') return hashColor(topDir(n));
-    if (colorMode === 'layer') return LAYER_COLORS[layerOf(n)] || '#5a5a66';
+    if (colorMode === 'layer') return PLANE_COLORS[layerName(n)] || DEFAULT_COLOR;
+    if (colorMode === 'role') return ROLE_COLORS[roleOf(n)] || '#5a5a66';
+    if (!n.lang && KIND_COLORS[n.kind] && (n.layer || n.kind === 'file')) return KIND_COLORS[n.kind];
     return langColor(n.lang);
   }
   function nodeColor(n) {
@@ -205,7 +235,8 @@
   function linkOpacity() { return Math.min(1, 0.35 + edgeBoost * 0.11); }
   function tip(n) {
     return '<div style="font:12px monospace;background:#141418;border:1px solid #252525;padding:6px 8px;border-radius:3px;max-width:380px">' +
-      '<b>' + esc(n.name) + '</b> <span style="color:#8a8a90">' + esc(n.kind) + (n.lang ? ' &middot; ' + esc(n.lang) : '') + '</span><br>' +
+      '<b>' + esc(n.name) + '</b> <span style="color:#8a8a90">' + esc(n.kind) + (n.lang ? ' &middot; ' + esc(n.lang) : '') + (n.layer ? ' &middot; ' + esc(n.layer) + ' layer' : '') + '</span><br>' +
+      (n.summary ? '<span style="color:#c8c8d0">' + esc(n.summary.slice(0, 140)) + '</span><br>' : '') +
       '<span style="color:#8a8a90">' + esc(n.file || '') + (n.start ? ':' + esc(n.start) : '') + '</span></div>';
   }
 
@@ -294,6 +325,7 @@
   function status(msg) { $('status').textContent = msg; }
   function shownCounts() { var d = Graph ? Graph.graphData() : { nodes: [], links: [] }; return d.nodes.length + ' of ' + nodes.length + ' nodes · ' + d.links.length + ' links'; }
   function refresh(note) {
+    if (suspended) return;
     if (Graph) { Graph.graphData(currentData()); setTimeout(function () { computeStats(); scheduleSizes(); }, 400); }
     $('meta').textContent = (meta.root ? meta.root + ' · ' : '') + shownCounts() + (meta.generated_at ? ' · built ' + meta.generated_at : '');
     status((note ? note + ' — ' : '') + shownCounts());
@@ -307,7 +339,7 @@
     return res;
   }
   function expandCandidates(id) {
-    return neighborsOf(id).filter(function (m) { return !visible.has(m.id) && (m.kind !== 'external' || showExternal) && langOn[m.lang || 'other'] !== false; });
+    return neighborsOf(id).filter(function (m) { return !visible.has(m.id) && passesFilters(m); });
   }
   function hiddenExternals(id) {
     return showExternal ? 0 : neighborsOf(id).filter(function (m) { return !visible.has(m.id) && m.kind === 'external'; }).length;
@@ -336,8 +368,11 @@
     var n = byId[id]; if (!n) return false;
     var changed = false;
     if (n.kind === 'external' && !showExternal) { showExternal = true; $('external').checked = true; changed = true; }
-    var l = n.lang || 'other';
-    if (langOn[l] === false) { langOn[l] = true; var cb = document.querySelector('[data-lang="' + l + '"]'); if (cb) cb.checked = true; changed = true; }
+    var l = n.lang;
+    if (l && langOn[l] === false) { langOn[l] = true; var cb = document.querySelector('[data-lang="' + l + '"]'); if (cb) cb.checked = true; changed = true; }
+    if (kindOn[n.kind] === false) { kindOn[n.kind] = true; var kcb = document.querySelector('[data-kind="' + n.kind + '"]'); if (kcb) kcb.checked = true; changed = true; }
+    var ly = layerName(n);
+    if (layerOn[ly] === false) { layerOn[ly] = true; var lcb = document.querySelector('[data-layer="' + ly + '"]'); if (lcb) lcb.checked = true; changed = true; }
     if (!visible.has(id)) { visible.add(id); changed = true; }
     if (changed) refresh();
     return changed;
@@ -395,6 +430,12 @@
     if (a.endpoint) meta.push(a.endpoint);
     if (a.annotations && a.annotations.length) meta.push('@' + a.annotations.join(' @'));
     if (a.table_name) meta.push('table ' + a.table_name);
+    if (a.test) meta.push('test code (assurance layer)');
+    ['status', 'priority', 'category', 'severity', 'date'].forEach(function (k) { if (a[k]) meta.push(k + ': ' + a[k]); });
+    [['symptom', 'symptom'], ['root_cause', 'root cause'], ['fix_summary', 'fix'], ['no_test_reason', 'no test because'], ['prevention_notes', 'prevention']].forEach(function (p) { if (a[p[0]]) meta.push(p[1] + ': ' + a[p[0]]); });
+    if (a.requirements && a.requirements.length) meta.push('requirements: ' + a.requirements.join(', '));
+    ['hash', 'framework', 'command', 'suite', 'first_commit', 'last_commit', 'commits', 'files_changed', 'test_files', 'source'].forEach(function (k) { if (a[k] != null && a[k] !== '') meta.push(k.replace('_', ' ') + ': ' + a[k]); });
+    if (a.scope && a.scope.length) meta.push('scope: ' + a.scope.join(', '));
     if (meta.length) d.appendChild(styled(el('div', 'summary', meta.join('\n')), 'max-height:none'));
     if (a.columns && a.columns.length) {
       var fk = {}; (a.foreign_keys || []).forEach(function (f) { f.columns.forEach(function (c) { fk[c] = f.table + '(' + (f.ref_columns.join(',') || '?') + ')'; }); });
@@ -433,10 +474,60 @@
     d.appendChild(edgeSection('Outgoing', o, 'out')); d.appendChild(edgeSection('Incoming', i, 'in'));
   }
 
+  // Turning a layer on should show something: bring in its anchor nodes (requirements, changelog, failures, rules).
+  function surfaceLayer(y) {
+    var added = 0;
+    nodes.forEach(function (n) {
+      if (layerName(n) === y && ['requirement', 'changelog', 'failure', 'suite', 'rulepack', 'playbook', 'checklist', 'commit'].indexOf(n.kind) > -1 && !visible.has(n.id) && added < 800) { visible.add(n.id); added++; }
+    });
+    if (added) wantFit = true;
+  }
+  var stackForce = (function () {
+    var ns = [];
+    function force(alpha) { for (var i = 0; i < ns.length; i++) { var n = ns[i], t = PLANE_Z[layerName(n)] || 0; n.vz += (t - (n.z || 0)) * 0.3; } }  // constant pull: an alpha-scaled force fades out before the planes form
+    force.initialize = function (list) { ns = list; };
+    return force;
+  })();
+  function applyStack(on) {
+    if (!Graph) return;
+    Graph.d3Force('layerz', on ? stackForce : null);
+    Graph.d3ReheatSimulation(); wantFit = true;
+    status(on ? 'layers stacked: governance above, code in the middle, assurance below' : 'layers merged');
+  }
   function fit() { if (Graph) Graph.zoomToFit(700, 40); }
   function renderFilters() {
     var lc = {}, tc = {};
-    nodes.forEach(function (n) { if (n.kind !== 'external') { var l = n.lang || 'other'; lc[l] = (lc[l] || 0) + 1; } });
+    var yc = {}, kc = {};
+    nodes.forEach(function (n) { if (n.kind !== 'external') { var y = layerName(n); yc[y] = (yc[y] || 0) + 1; kc[n.kind] = (kc[n.kind] || 0) + 1; if (n.lang) lc[n.lang] = (lc[n.lang] || 0) + 1; } });
+    var kindNames = Object.keys(kc).sort(function (a, b) { var ia = KIND_ORDER.indexOf(a), ib = KIND_ORDER.indexOf(b); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b); });
+    kindNames.forEach(function (k) {
+      kindOn[k] = true;
+      var lab = el('label', 'chk'), cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = true; cb.setAttribute('data-kind', k);
+      cb.addEventListener('change', function () { kindOn[k] = cb.checked; refresh(); });
+      var sw = el('span', 'sw'); sw.style.background = KIND_COLORS[k] || DEFAULT_COLOR;
+      lab.appendChild(cb); lab.appendChild(sw); lab.appendChild(el('span', null, k)); lab.appendChild(el('span', 'count', String(kc[k]))); $('kinds').appendChild(lab);
+    });
+    var qk = $('qkind'); kindNames.forEach(function (k) { var o = el('option', null, k + ' (' + kc[k] + ')'); o.value = k; qk.appendChild(o); });
+    Array.prototype.forEach.call(document.querySelectorAll('.tools[data-for]'), function (t) {
+      var box = $(t.getAttribute('data-for'));
+      [['All', true], ['None', false]].forEach(function (b) {
+        var btn = el('button', 'mini', b[0]); btn.type = 'button'; btn.title = (b[1] ? 'Check' : 'Uncheck') + ' everything in this group';
+        btn.addEventListener('click', function () {
+          suspended++;
+          Array.prototype.forEach.call(box.querySelectorAll('input[type=checkbox]'), function (cb) { if (cb.checked !== b[1]) { cb.checked = b[1]; cb.dispatchEvent(new Event('change')); } });
+          suspended--; refresh(); wantFit = true;
+        });
+        t.appendChild(btn);
+      });
+    });
+    LAYER_ORDER.forEach(function (y) {
+      if (!yc[y]) return;
+      layerOn[y] = true;
+      var lab = el('label', 'chk'), cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = true; cb.setAttribute('data-layer', y);
+      cb.addEventListener('change', function () { layerOn[y] = cb.checked; if (cb.checked) surfaceLayer(y); refresh(); });
+      var sw = el('span', 'sw'); sw.style.background = PLANE_COLORS[y];
+      lab.appendChild(cb); lab.appendChild(sw); lab.appendChild(el('span', null, y)); lab.appendChild(el('span', 'count', String(yc[y]))); $('layers').appendChild(lab);
+    });
     edges.forEach(function (e) { tc[e.type] = (tc[e.type] || 0) + 1; });
     var L = $('langs'), T = $('types');
     Object.keys(lc).sort().forEach(function (l) {
@@ -447,7 +538,7 @@
       lab.appendChild(cb); lab.appendChild(sw); lab.appendChild(el('span', null, l)); lab.appendChild(el('span', 'count', String(lc[l]))); L.appendChild(lab);
     });
     Object.keys(tc).sort().forEach(function (t) {
-      typeOn[t] = t !== 'uses';
+      typeOn[t] = t !== 'uses' && t !== 'modifies';
       var lab = el('label', 'chk'), cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = typeOn[t];
       cb.addEventListener('change', function () { typeOn[t] = cb.checked; refresh(); });
       var sw = el('span', 'sw line'); sw.style.background = TYPE_COLORS[t] || '#6b6b78';
@@ -457,35 +548,74 @@
   function renderLegend() {
     var lg = $('legend'); lg.textContent = '';
     var counts = {}, shown = Graph ? Graph.graphData().nodes : [];
-    shown.forEach(function (n) { var key = colorMode === 'kind' ? n.kind : colorMode === 'directory' ? topDir(n) : colorMode === 'layer' ? (layerOf(n) || '(other)') : (n.lang || 'other'); counts[key] = (counts[key] || 0) + 1; });
+    shown.forEach(function (n) { var key = colorMode === 'kind' ? n.kind : colorMode === 'directory' ? topDir(n) : colorMode === 'layer' ? layerName(n) : colorMode === 'role' ? (roleOf(n) || '(other)') : (n.lang || n.kind); counts[key] = (counts[key] || 0) + 1; });
     Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; }).slice(0, 14).forEach(function (k) {
       var lab = el('div', 'chk'), sw = el('span', 'sw');
-      sw.style.background = colorMode === 'kind' ? (KIND_COLORS[k] || DEFAULT_COLOR) : colorMode === 'directory' ? hashColor(k) : colorMode === 'layer' ? (LAYER_COLORS[k] || '#5a5a66') : langColor(k);
+      sw.style.background = colorMode === 'kind' ? (KIND_COLORS[k] || DEFAULT_COLOR) : colorMode === 'directory' ? hashColor(k) : colorMode === 'layer' ? (PLANE_COLORS[k] || DEFAULT_COLOR) : colorMode === 'role' ? (ROLE_COLORS[k] || '#5a5a66') : (KIND_COLORS[k] && !LANG_COLORS[k] ? KIND_COLORS[k] : langColor(k));
       lab.appendChild(sw); lab.appendChild(el('span', null, k)); lab.appendChild(el('span', 'count', String(counts[k]))); lg.appendChild(lab);
     });
     $('legend-title').textContent = 'Legend · by ' + colorMode + ' (in view)';
   }
 
-  var timer = null;
-  $('q').addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(runSearch, 120); });
+  var timer = null, lastResults = [], RESULT_CAP = 400, ADD_CAP = 800;
+  function schedule() { clearTimeout(timer); timer = setTimeout(runSearch, 120); }
+  $('q').addEventListener('input', schedule); $('qkind').addEventListener('change', runSearch); $('qsort').addEventListener('change', runSearch);
+  function dateOf(n) { var a = n.attrs || {}; return a.date || a.first_commit || ''; }
+  function score(n, q) {
+    var name = (n.name || '').toLowerCase(), qn = (n.qn || '').toLowerCase(), f = (n.file || '').toLowerCase(), sm = (n.summary || '').toLowerCase(), a = n.attrs || {}, s = 0;
+    if (name === q) s = 100; else if (name.indexOf(q) === 0) s = 80; else if (name.indexOf(q) > -1) s = 60; else if (qn.indexOf(q) > -1) s = 40;
+    else if ((a.requirements || []).some(function (r) { return r.toLowerCase() === q; })) s = 45;   // commits/changelog entries that name the requirement
+    else if (f.indexOf(q) > -1) s = 20; else if (sm.indexOf(q) > -1) s = 15; else if ((a.date || '').indexOf(q) === 0) s = 12;
+    else if (['status', 'category', 'root_cause', 'symptom', 'command', 'framework'].some(function (k) { return a[k] && String(a[k]).toLowerCase().indexOf(q) > -1; })) s = 10;
+    return s;
+  }
   function runSearch() {
-    var q = $('q').value.trim().toLowerCase(), box = $('results'); box.textContent = '';
-    if (!q) return;
+    var q = $('q').value.trim().toLowerCase(), kind = $('qkind').value, sort = $('qsort').value, box = $('results'), info = $('qinfo');
+    box.textContent = ''; lastResults = []; $('resactions').style.display = 'none';
+    if (!q && !kind) { info.textContent = 'Search, or pick a kind (requirement, commit, changelog, failure, suite, ...) to browse all of them.'; return; }
     var scored = [];
     nodes.forEach(function (n) {
-      var name = (n.name || '').toLowerCase(), qn = (n.qn || '').toLowerCase(), f = (n.file || '').toLowerCase(), s = 0;
-      if (name === q) s = 100; else if (name.indexOf(q) === 0) s = 80; else if (name.indexOf(q) > -1) s = 60; else if (qn.indexOf(q) > -1) s = 40; else if (f.indexOf(q) > -1) s = 20;
-      if (s && n.kind === 'external') s -= 15;
-      if (s) scored.push([s + Math.min(n.deg, 30) / 100, n]);
+      if (kind && n.kind !== kind) return;
+      if (n.kind === 'external' && !kind) return;
+      var s = q ? score(n, q) : 1;
+      if (s) scored.push({ n: n, s: s + Math.min(n.deg, 30) / 100 });
     });
-    scored.sort(function (a, b) { return b[0] - a[0]; });
-    scored.slice(0, 15).forEach(function (p) {
-      var n = p[1], b = el('button'); b.type = 'button';
-      b.appendChild(document.createTextNode(n.name + ' ')); b.appendChild(el('span', 'k', n.kind + ' · ' + (n.file || 'external') + (visible.has(n.id) ? '' : ' · not in view')));
+    var cmp = {
+      relevance: function (x, y) { return y.s - x.s; },
+      newest: function (x, y) { return (dateOf(y.n) || '').localeCompare(dateOf(x.n) || '') || y.s - x.s; },
+      oldest: function (x, y) { return (dateOf(x.n) || '9999').localeCompare(dateOf(y.n) || '9999') || y.s - x.s; },
+      name: function (x, y) { return (x.n.name || '').localeCompare(y.n.name || '', undefined, { numeric: true }); },
+      connections: function (x, y) { return y.n.deg - x.n.deg; }
+    };
+    if (!q && sort === 'relevance') sort = scored.some(function (r) { return dateOf(r.n); }) ? 'newest' : 'connections';
+    scored.sort(cmp[sort]);
+    lastResults = scored.map(function (r) { return r.n; });
+    info.textContent = scored.length + ' match' + (scored.length === 1 ? '' : 'es') + (kind ? ' in ' + kind : '') + (scored.length > RESULT_CAP ? ' (first ' + RESULT_CAP + ' listed; narrow the search)' : '') + ' — scroll the list';
+    scored.slice(0, RESULT_CAP).forEach(function (r) {
+      var n = r.n, b = el('button', 'res'); b.type = 'button';
+      var r1 = el('div', 'r1'); r1.appendChild(el('span', 'nm', n.name)); r1.appendChild(el('span', 'k', n.kind));
+      var d = dateOf(n); if (d) r1.appendChild(el('span', 'dt', d)); else if (!visible.has(n.id)) r1.appendChild(el('span', 'dt', 'not in view'));
+      b.appendChild(r1);
+      var sub = n.summary || n.file || ''; if (sub) b.appendChild(el('div', 'r2', sub));
       b.addEventListener('click', function () { select(n.id, true); }); box.appendChild(b);
     });
     if (!scored.length) box.appendChild(el('div', 'dim', 'no matches'));
+    else $('resactions').style.display = 'flex';
   }
+  function addResults(only) {
+    var take = lastResults.slice(0, ADD_CAP);
+    if (only) visible = new Set();
+    take.forEach(function (n) {
+      visible.add(n.id);
+      if (kindOn[n.kind] === false) { kindOn[n.kind] = true; var c = document.querySelector('[data-kind="' + n.kind + '"]'); if (c) c.checked = true; }
+      var ly = layerName(n); if (layerOn[ly] === false) { layerOn[ly] = true; var lc2 = document.querySelector('[data-layer="' + ly + '"]'); if (lc2) lc2.checked = true; }
+      if (n.lang && langOn[n.lang] === false) { langOn[n.lang] = true; var l2 = document.querySelector('[data-lang="' + n.lang + '"]'); if (l2) l2.checked = true; }
+    });
+    wantFit = true; refresh((only ? 'showing only ' : 'added ') + take.length + ' result' + (take.length === 1 ? '' : 's') + (lastResults.length > ADD_CAP ? ' (capped at ' + ADD_CAP + ')' : ''));
+    updateSelection();
+  }
+  $('showres').addEventListener('click', function () { addResults(false); });
+  $('onlyres').addEventListener('click', function () { addResults(true); });
 
   $('fit').addEventListener('click', fit);
   $('reset').addEventListener('click', function () { visible = new Set(initial); selected = null; refresh('reset'); updateSelection(); renderDetail(); wantFit = true; });
@@ -505,6 +635,7 @@
     typeOn.references = true; typeOn.maps_to = true;
     visible = ids; selected = null; refresh('schema: tables, foreign keys and mapped entities'); updateSelection(); renderDetail(); wantFit = true;
   });
+  $('stack').addEventListener('change', function (e) { applyStack(e.target.checked); });
   $('inferred').addEventListener('change', function (e) { showInferred = e.target.checked; refresh(); });
   $('external').addEventListener('change', function (e) { showExternal = e.target.checked; refresh(); });
   $('arrows').addEventListener('change', function (e) { arrows = e.target.checked; if (Graph) Graph.linkDirectionalArrowLength(function (l) { return (arrows && l.type !== 'defines') ? 3.2 : 0; }); });
@@ -520,7 +651,8 @@
   renderFilters(); refresh(meta.note || ''); renderDetail();
   if (Graph) setTimeout(function () { if (wantFit) { wantFit = false; fit(); } }, 6000);
   window.omniGraphViewer = {
-    state: function () { var d = Graph ? Graph.graphData() : { nodes: [], links: [] }; return { shownNodes: d.nodes.length, shownLinks: d.links.length, totalNodes: nodes.length, totalEdges: edges.length, selected: selected && selected.id, webgl: glOk }; },
+    state: function () { var d = Graph ? Graph.graphData() : { nodes: [], links: [] }; var z = {}, zc = {}; d.nodes.forEach(function (n) { var y = layerName(n); z[y] = (z[y] || 0) + (n.z || 0); zc[y] = (zc[y] || 0) + 1; }); Object.keys(z).forEach(function (y) { z[y] = Math.round(z[y] / zc[y]); });
+      return { layerMeanZ: z, shownNodes: d.nodes.length, shownLinks: d.links.length, totalNodes: nodes.length, totalEdges: edges.length, selected: selected && selected.id, webgl: glOk }; },
     select: select, expand: expand, fit: fit
   };
 })();

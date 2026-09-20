@@ -38,6 +38,13 @@ Both delegate to `make_ai.py`.
 | `omni requirement archive` | Move older completed requirements to `requirements-archive.json`. |
 | `omni graph show --all` | List every graph node (grouped by file, with in/out degree); filter by `--kind`, `--language`, `--file`; `--edges` adds the edges. |
 | `omni graph view` | Write an offline, interactive 3D HTML viewer (vendored 3d-force-graph, MIT) with search, filters, click-to-read, and expand-neighbours. |
+| `omni graph show --all --layer <code\|governance\|history\|assurance\|workspace>` | Restrict the listing to one graph layer. |
+| `omni graph timeline <node>` | Chronology of the commits, changelog entries and failures tied to a file, symbol, requirement or failure. |
+| `omni graph sources [--write]` | Report what each layer would read from this project and what is missing; `--write` drafts `.ai/graph-config.json`. |
+| `omni test detect\|add\|remove\|list\|check` | Register and inspect the project's test suites; detection reads test-framework signals in files and CI commands. |
+| `omni graph why <node>` | Cross-layer traversal: the requirements, changelog entries, commits, tests, failures and rules that touch a file, symbol, `REQ-###` or `FAIL-###`. |
+| `omni graph build --layers ... --max-commits N` | Choose which layers to build and how much git history feeds the governance layer. |
+| `omni failure add\|update\|show\|list\|search\|check` | Maintain the failure ledger: symptom, root cause, regression tests, prevention. `check` verifies completeness and that every reference resolves. |
 | `omni gate` | Execute the rulepack `co_changed` validations against the git change set. |
 | `omni waive <rule-id>` | Record an explicit, auditable waiver in `.ai/gate-waivers.jsonl`. |
 | `omni hook install` | Install the Claude Code Stop hook that blocks completion while the gate fails. |
@@ -122,6 +129,8 @@ project's own assistant config or package metadata.
 - Universal ruleset keys.
 - Rulepack structure.
 - Requirement registry structure.
+- Failure ledger completeness (a fixed failure needs a root cause, fix,
+  regression test or reason, and prevention).
 - Assistant pointer drift.
 - Assistant entrypoint source drift.
 - Synced ignore file drift.

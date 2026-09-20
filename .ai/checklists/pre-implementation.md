@@ -10,6 +10,8 @@
 - Computing, mathematical, or engineering foundations checklist considered when
   the task depends on those assumptions.
 - Minimum access scope stated.
+- `omni graph why <file or symbol>` run for the code to be changed; earlier
+  failures and their regression tests noted.
 - `.ai/project-map.md` read before broad traversal, or regenerated with
   `./omni map` when stale or missing.
 - `.ai/.ignore` exclusions respected.

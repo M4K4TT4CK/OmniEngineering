@@ -18,6 +18,8 @@ Include:
 - Current blockers and decisions when the work spans multiple steps.
 - Quality, process, or professional-practice concerns that affect the next
   actor.
+- Failures recorded or still open (`omni failure list`) and any that lack a root
+  cause, regression test, or prevention.
 
 ## Router And Local Model Handoff
 

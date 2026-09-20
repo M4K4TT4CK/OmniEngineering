@@ -14,6 +14,11 @@ project-specific rules.
 - Never read `.ai/requirements/requirements.json` in full and never hand-edit it.
   Query with `./omni requirement show <ID>`, `list --status pending`, or
   `search <text>`; change it with `./omni requirement add|update|complete`.
+- Failures are data, not noise. Before editing a file run `./omni graph why <path>`;
+  when you fix a defect or a failed check, record it with `./omni failure add`
+  (symptom, root cause, regression test, the rule or playbook that prevents a
+  repeat). `./omni requirement complete` refuses defect requirements without an
+  entry.
 - Before reporting a task complete, run `./omni gate`. If it fails, fix the gap
   or record an explicit waiver with `./omni waive <rule-id> --reason "..."`.
   Do not claim completion while it fails.

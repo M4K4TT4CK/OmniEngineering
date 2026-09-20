@@ -1,0 +1,198 @@
+{
+  "version": "1.0.0",
+  "failure_id_prefix": "FAIL",
+  "failures": [
+    {
+      "id": "FAIL-001",
+      "date": "2026-09-20",
+      "title": "./omni cannot start on WSL: CRLF in the launcher shebang",
+      "status": "fixed",
+      "severity": "high",
+      "symptom": "env: 'python3\\r': No such file or directory / env: use -[v]S to pass options in shebang lines",
+      "how_detected": "running ./omni doctor and ./omni gate from WSL during REQ-022",
+      "root_cause": "The working-tree copy of omni had CRLF line endings, so the shebang named an interpreter called 'python3\\r'. .gitattributes already declares eol=lf and the committed blob is LF; the checkout was written by a Windows tool before that rule applied, and git does not rewrite an unchanged file, so nothing flagged it.",
+      "requirement": "REQ-022",
+      "affected": [
+        "omni"
+      ],
+      "fix_summary": "Converted the working copy to LF (no content change in git) and added a test that fails if the launcher or the scripts contain CR.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_repo_hygiene.py::test_launcher_and_scripts_use_lf"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "completion.verify_target_environment"
+      ],
+      "prevention_notes": ".gitattributes eol=lf plus a test that reads the bytes on disk; git status alone cannot show a stale CRLF working copy.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-002",
+      "date": "2026-09-18",
+      "title": "omni graph build dead-ends on an externally-managed Python",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "tree-sitter is not installed. Install it with: pip install ... -- and that pip install is refused (PEP 668 externally-managed-environment)",
+      "how_detected": "running a plain ./omni graph build on Debian with the system Python",
+      "root_cause": "The error message assumed pip install works in the interpreter running omni. On a PEP 668 system it does not, so the only instruction given was one the machine refuses, and no code path looked for a virtualenv that already had the packages.",
+      "requirement": "REQ-021",
+      "affected": [
+        "make_ai.py"
+      ],
+      "fix_summary": "graph build now re-runs itself under ~/.venvs/omni-graph (or OMNI_GRAPH_PYTHON) when tree-sitter is missing and prints venv setup commands instead of a refused pip install.",
+      "fix_commits": [
+        "a259e0d"
+      ],
+      "regression_tests": [],
+      "no_test_reason": "The failing environment is a system Python with no tree-sitter; reproducing it in a test means altering the interpreter. Verified by hand with a plain ./omni graph build, the no-venv path and a failing OMNI_GRAPH_PYTHON.",
+      "prevention_rules": [
+        "completion.verify_target_environment"
+      ],
+      "prevention_notes": "",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-003",
+      "date": "2026-09-18",
+      "title": "omni graph view prints a link Windows Chrome cannot open from WSL",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "The 3D graph page did not open properly in Chrome: the printed URL was file:///mnt/c/... and --open used a Linux launcher",
+      "how_detected": "user report after opening the page from a WSL shell",
+      "root_cause": "The URL was built from the Linux path, which only the WSL side can resolve; the code was only exercised where the browser and the shell share a filesystem view, so the browser-on-Windows case was never tried.",
+      "requirement": "REQ-021",
+      "affected": [
+        "make_ai.py"
+      ],
+      "fix_summary": "Detect WSL with wslpath -w, print the file:///C:/... URL and Windows path, and launch the Windows browser through cmd.exe.",
+      "fix_commits": [
+        "d419643"
+      ],
+      "regression_tests": [],
+      "no_test_reason": "Needs WSL and a Windows browser. The page itself was checked for JS errors at three window sizes in headless Chromium; a real Windows Chrome was not available.",
+      "prevention_rules": [
+        "completion.verify_target_environment"
+      ],
+      "prevention_notes": "",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-004",
+      "date": "2026-09-20",
+      "title": "Viewer checkbox label shows a literal \\u2264",
+      "status": "fixed",
+      "severity": "low",
+      "symptom": "The label read 'name labels (when \\u2264 200 nodes in view)' in the page",
+      "how_detected": "reviewing a headless screenshot of the regenerated viewer",
+      "root_cause": "A JavaScript-style escape was written into HTML text. Escapes are only decoded inside a JS string, so the browser printed the six characters as-is.",
+      "requirement": "REQ-021",
+      "affected": [
+        ".ai/graph-viewer/viewer.html"
+      ],
+      "fix_summary": "Replaced the escape with the &le; entity.",
+      "fix_commits": [
+        "d419643"
+      ],
+      "regression_tests": [
+        "tests/test_repo_hygiene.py::test_markup_has_no_literal_unicode_escapes"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [],
+      "prevention_notes": "The test scans the markup portion of the template for backslash-u escapes.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-005",
+      "date": "2026-09-20",
+      "title": "Test detection classed a production Java class as a test",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "backend-junit listed AdminAuditLogEntry.java (src/main) as a test file, so it moved to the assurance layer",
+      "how_detected": "reading omni graph why output against STEP_App during REQ-022",
+      "root_cause": "The JUnit signal matched the text '@WebMvcTest' anywhere in a file, including a code comment, and content detection ignored where the file lives.",
+      "requirement": "REQ-022",
+      "affected": [
+        "omni_graph.py"
+      ],
+      "fix_summary": "Annotation signals must start a line, and content detection skips src/main paths.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_graph_robustness.py::test_detects_a_maven_and_a_vitest_project_with_their_ci_commands"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [],
+      "prevention_notes": "Signals are anchored to line starts; the fixture keeps a comment that mentions a test annotation in production code.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-006",
+      "date": "2026-09-20",
+      "title": "Commits were tied to another project's requirement",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "omni_graph.py showed REQ-021 (STEP_App's Select layout fix) because a commit body said 'pulled OmniEngineering REQ-021'",
+      "how_detected": "reading omni graph why omni_graph.py against STEP_App",
+      "root_cause": "Requirement ids were read from the whole commit message. A body may cite an id from another project, and ids that also exist in this registry collide.",
+      "requirement": "REQ-022",
+      "affected": [
+        "omni_graph.py"
+      ],
+      "fix_summary": "The subject line is authoritative; the body is consulted only when the subject names no requirement, and changelog-derived ties prefer ids in the entry heading.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_graph_layers.py::test_commits_deliver_requirements_and_prove_what_they_touched"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [],
+      "prevention_notes": "A fixture commit carries a foreign id in its body and the test asserts it is ignored.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-007",
+      "date": "2026-09-20",
+      "title": "omni test add --command was rejected as an unknown command",
+      "status": "fixed",
+      "severity": "low",
+      "symptom": "make_ai.py: error: Unknown command: python3 -m unittest discover -s tests",
+      "how_detected": "registering OmniEngineering's own test suite with the new CLI",
+      "root_cause": "The option --command stored its value in args.command, which is the same argparse destination the top-level subcommand uses, so the value replaced the subcommand name.",
+      "requirement": "REQ-022",
+      "affected": [
+        "make_ai.py"
+      ],
+      "fix_summary": "The option now stores to run_command.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_graph_robustness.py::test_detect_write_add_check_remove"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [],
+      "prevention_notes": "The CLI test passes --command through the real parser; option destinations must not reuse the subparser's dest names.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-008",
+      "date": "2026-09-20",
+      "title": "A short requirement id matched inside a longer one",
+      "status": "fixed",
+      "severity": "low",
+      "symptom": "PROJ-1 was recorded by a changelog line that only mentioned PROJ-12, PROJ-123 and PROJ-1-beta",
+      "how_detected": "the robustness test for foreign id formats",
+      "root_cause": "The id pattern was bounded against letters and digits but not against a hyphen followed by more text, so a prefix of another id matched.",
+      "requirement": "REQ-022",
+      "affected": [
+        "omni_graph.py"
+      ],
+      "fix_summary": "The pattern now refuses a following hyphen-and-alphanumeric as well.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_graph_robustness.py::test_any_requirement_id_format_and_a_bare_list_registry"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [],
+      "prevention_notes": "Ids come from the registry and are matched exactly; the test mixes PROJ-1, PROJ-12, PROJ-123 and PROJ-1-beta.",
+      "recurrence_of": ""
+    }
+  ]
+}

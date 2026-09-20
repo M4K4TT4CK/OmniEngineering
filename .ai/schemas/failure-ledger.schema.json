@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omni-context.local/schemas/failure-ledger.schema.json",
+  "title": "OmniContext Failure Ledger",
+  "description": "What went wrong, why, the test that now catches it, and the rule or playbook change that stops it recurring. Ingested by `omni graph build` as the assurance layer, so failures are linked to the code, requirement, tests and rules involved.",
+  "type": "object",
+  "required": ["version", "failure_id_prefix", "failures"],
+  "properties": {
+    "version": { "type": "string" },
+    "failure_id_prefix": { "type": "string", "pattern": "^[A-Z]+$" },
+    "failures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "status", "symptom"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Z]+-[0-9]{3,}$" },
+          "date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+          "title": { "type": "string" },
+          "status": { "enum": ["open", "fixed", "mitigated", "wontfix"] },
+          "severity": { "enum": ["critical", "high", "medium", "low"] },
+          "symptom": { "type": "string", "description": "What was observed: the error text or the wrong behaviour." },
+          "how_detected": { "type": "string" },
+          "root_cause": { "type": "string", "description": "Why it happened. Required once a failure is fixed or mitigated." },
+          "requirement": { "type": "string", "description": "Requirement being worked when it surfaced." },
+          "affected": { "type": "array", "items": { "type": "string" }, "description": "Files, directories or symbols." },
+          "fix_summary": { "type": "string" },
+          "fix_commits": { "type": "array", "items": { "type": "string" } },
+          "regression_tests": { "type": "array", "items": { "type": "string" }, "description": "Test path, path::name, or qualified name." },
+          "no_test_reason": { "type": "string", "description": "Required when a fixed failure has no regression test." },
+          "prevention_rules": { "type": "array", "items": { "type": "string" }, "description": "Rule ids from .ai/rules, or playbook/checklist paths." },
+          "prevention_notes": { "type": "string" },
+          "recurrence_of": { "type": "string", "description": "Earlier failure id this repeats." }
+        }
+      }
+    }
+  }
+}

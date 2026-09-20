@@ -110,6 +110,16 @@
         "maintenance",
         "rulepacks"
       ]
+    },
+    {
+      "id": "controlled.consult_failure_history",
+      "severity": "required",
+      "statement": "Before editing a file or symbol, check what has gone wrong there before: run `omni graph why <path or symbol>` (requirements, changelog, tests, failures, rules) or `omni failure search <text>` when the graph is unavailable. Do not reintroduce a recorded failure; if the change touches code that a failure affected, run that failure's regression tests and say so in the final report.",
+      "scope": [
+        "failures",
+        "implementation",
+        "planning"
+      ]
     }
   ]
 }
