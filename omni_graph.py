@@ -89,6 +89,7 @@ class GraphNode:
     end_line: int | None
     language: str | None
     summary: str = ""
+    attrs: dict[str, Any] = field(default_factory=dict)
 
     def to_json(self) -> dict[str, Any]:
         return {
@@ -101,6 +102,7 @@ class GraphNode:
             "end_line": self.end_line,
             "language": self.language,
             "summary": self.summary,
+            **({"attrs": self.attrs} if self.attrs else {}),
         }
 
 
@@ -129,6 +131,8 @@ class Graph:
         self.nodes: dict[str, GraphNode] = {}
         self.edges: list[GraphEdge] = []
         self._edge_keys: set[tuple[str, str, str, str]] = set()
+        self.stats: dict[str, dict[str, Any]] = {}
+        self.notes: list[str] = []
 
     def add_node(self, node: GraphNode) -> GraphNode:
         return self.nodes.setdefault(node.id, node)
@@ -158,6 +162,8 @@ class Graph:
             "root": root,
             "languages": languages,
             "semantic_pass": semantic_pass,
+            "language_stats": self.stats,
+            "notes": self.notes,
             "provenance_legend": PROVENANCE_LEGEND,
             "nodes": [node.to_json() for node in self.nodes.values()],
             "edges": [edge.to_json() for edge in self.edges],
@@ -173,6 +179,10 @@ class FileFacts:
     raw_module_imports: list[str] = field(default_factory=list)
     pending_calls: list[tuple[str, str, str | None, str | None]] = field(default_factory=list)
     pending_inherits: list[tuple[str, str, str | None]] = field(default_factory=list)
+    package: str | None = None
+    scope_types: dict[str, dict[str, str]] = field(default_factory=dict)
+    class_field_types: dict[str, dict[str, str]] = field(default_factory=dict)
+    pending_relations: list[tuple[str, str, str, str]] = field(default_factory=list)
 
 
 # --------------------------------------------------------------------------
@@ -240,7 +250,7 @@ def _should_skip(path: Path, is_dir: bool, ignore_patterns: list[str]) -> bool:
 def discover_source_files(root: Path, languages: list[str]) -> list[tuple[Path, str]]:
     extensions: dict[str, str] = {}
     for language in languages:
-        for ext in LANGUAGE_EXTENSIONS[language]:
+        for ext in language_extensions()[language]:
             extensions[ext] = language
 
     ignore_patterns = _read_ignore_patterns(root)
@@ -826,22 +836,1118 @@ def run_semantic_pass(graph: Graph, max_nodes: int = SEMANTIC_MAX_NODES_DEFAULT)
 # --------------------------------------------------------------------------
 
 
+# --------------------------------------------------------------------------
+# Language registry
+#
+# python / javascript / typescript keep their dedicated extractors above. Every
+# other language is handled by one generic, grammar-driven extractor configured
+# by the hints below (tree-sitter node-type names). A language with no hints
+# still works through name-based heuristics; a language whose grammar package is
+# not installed still shows up as file-level nodes. SQL is handled by a
+# dependency-free schema parser (no grammar needed).
+# --------------------------------------------------------------------------
+
+_LANGUAGE_SPECS: dict[str, dict[str, Any]] = {
+    "java": {
+        "extensions": (".java",), "package": "tree-sitter-java", "module": "tree_sitter_java",
+        "classes": {"class_declaration", "enum_declaration", "record_declaration"},
+        "interfaces": {"interface_declaration", "annotation_type_declaration"},
+        "functions": {"method_declaration", "constructor_declaration"},
+        "calls": {"method_invocation", "object_creation_expression"},
+        "imports": {"import_declaration"},
+    },
+    "go": {
+        "extensions": (".go",), "package": "tree-sitter-go", "module": "tree_sitter_go",
+        "classes": {"type_spec"}, "functions": {"function_declaration", "method_declaration"},
+        "calls": {"call_expression"}, "imports": {"import_spec"},
+    },
+    "rust": {
+        "extensions": (".rs",), "package": "tree-sitter-rust", "module": "tree_sitter_rust",
+        "classes": {"struct_item", "enum_item", "union_item"}, "interfaces": {"trait_item"},
+        "impls": {"impl_item"}, "functions": {"function_item", "function_signature_item"},
+        "calls": {"call_expression", "macro_invocation"}, "imports": {"use_declaration"},
+    },
+    "csharp": {
+        "extensions": (".cs",), "package": "tree-sitter-c-sharp", "module": "tree_sitter_c_sharp",
+        "classes": {"class_declaration", "struct_declaration", "record_declaration", "enum_declaration"},
+        "interfaces": {"interface_declaration"},
+        "functions": {"method_declaration", "constructor_declaration", "local_function_statement"},
+        "calls": {"invocation_expression", "object_creation_expression"}, "imports": {"using_directive"},
+    },
+    "c": {
+        "extensions": (".c", ".h"), "package": "tree-sitter-c", "module": "tree_sitter_c",
+        "classes": {"struct_specifier", "union_specifier"}, "functions": {"function_definition"},
+        "calls": {"call_expression"}, "imports": {"preproc_include"},
+    },
+    "cpp": {
+        "extensions": (".cpp", ".cc", ".cxx", ".hpp", ".hh", ".hxx"), "package": "tree-sitter-cpp", "module": "tree_sitter_cpp",
+        "classes": {"class_specifier", "struct_specifier", "union_specifier"}, "functions": {"function_definition"},
+        "calls": {"call_expression"}, "imports": {"preproc_include"},
+    },
+    "ruby": {
+        "extensions": (".rb",), "package": "tree-sitter-ruby", "module": "tree_sitter_ruby",
+        "classes": {"class", "module"}, "functions": {"method", "singleton_method"},
+        "calls": {"call"}, "imports": set(), "import_calls": {"require", "require_relative", "load"},
+    },
+    "php": {
+        "extensions": (".php",), "package": "tree-sitter-php", "module": "tree_sitter_php", "factory": "language_php",
+        "classes": {"class_declaration", "trait_declaration", "enum_declaration"}, "interfaces": {"interface_declaration"},
+        "functions": {"function_definition", "method_declaration"},
+        "calls": {"function_call_expression", "member_call_expression", "scoped_call_expression", "object_creation_expression"},
+        "imports": {"namespace_use_declaration"},
+    },
+    "kotlin": {
+        "extensions": (".kt", ".kts"), "package": "tree-sitter-kotlin", "module": "tree_sitter_kotlin",
+        "classes": {"class_declaration", "object_declaration"}, "functions": {"function_declaration"},
+        "calls": {"call_expression"}, "imports": {"import", "import_header"},
+    },
+    "swift": {
+        "extensions": (".swift",), "package": "tree-sitter-swift", "module": "tree_sitter_swift",
+        "classes": {"class_declaration"}, "interfaces": {"protocol_declaration"},
+        "functions": {"function_declaration", "init_declaration"}, "calls": {"call_expression"},
+        "imports": {"import_declaration"},
+    },
+    "scala": {
+        "extensions": (".scala", ".sc"), "package": "tree-sitter-scala", "module": "tree_sitter_scala",
+        "classes": {"class_definition", "object_definition", "enum_definition"}, "interfaces": {"trait_definition"},
+        "functions": {"function_definition", "function_declaration"}, "calls": {"call_expression"},
+        "imports": {"import_declaration"},
+    },
+    "bash": {
+        "extensions": (".sh", ".bash"), "package": "tree-sitter-bash", "module": "tree_sitter_bash",
+        "functions": {"function_definition"}, "calls": {"command"}, "imports": set(), "import_calls": {"source", "."},
+    },
+    "lua": {
+        "extensions": (".lua",), "package": "tree-sitter-lua", "module": "tree_sitter_lua",
+        "functions": {"function_declaration"}, "calls": {"function_call"}, "imports": set(), "import_calls": {"require", "dofile"},
+    },
+    "dart": {
+        "extensions": (".dart",), "package": "tree-sitter-dart", "module": "tree_sitter_dart",
+        "classes": {"class_definition", "mixin_declaration", "enum_declaration"}, "functions": {"function_signature"},
+        "imports": {"import_or_export"},
+    },
+    "elixir": {
+        "extensions": (".ex", ".exs"), "package": "tree-sitter-elixir", "module": "tree_sitter_elixir",
+        "classes": set(), "functions": set(), "calls": {"call"}, "imports": set(),  # defmodule/def are calls: see parse_generic_file
+    },
+    "haskell": {
+        "extensions": (".hs",), "package": "tree-sitter-haskell", "module": "tree_sitter_haskell",
+        "classes": {"data_type", "newtype", "type_synomym", "class"}, "functions": {"function"},
+        "calls": {"apply"}, "imports": {"import"},
+    },
+    "ocaml": {
+        "extensions": (".ml", ".mli"), "package": "tree-sitter-ocaml", "module": "tree_sitter_ocaml", "factory": "language_ocaml",
+        "classes": {"module_binding"}, "functions": {"let_binding"}, "calls": {"application_expression"},
+        "imports": {"open_statement"},
+    },
+    "perl": {
+        "extensions": (".pl", ".pm"), "package": "tree-sitter-perl", "module": "tree_sitter_perl",
+        "classes": {"package_statement"}, "functions": {"subroutine_declaration_statement"},
+        "calls": {"function_call_expression", "method_call_expression", "ambiguous_function_call_expression"},
+        "imports": {"use_statement", "require_statement"},
+    },
+    "zig": {"extensions": (".zig",), "package": "tree-sitter-zig", "module": "tree_sitter_zig"},
+}
+
+# Node-type heuristics for languages with no (or partial) hints.
+_HEUR_CLASS = re.compile(r"^(class|struct|interface|trait|enum|record|object|protocol|union|actor)_(declaration|definition|item|specifier)$")
+_HEUR_INTERFACE = re.compile(r"(interface|trait|protocol)")
+_HEUR_FUNC = re.compile(r"^(function|method|constructor|destructor|subroutine|singleton_method|func|fn)_(declaration|definition|item|signature|statement)$")
+_HEUR_CALL = re.compile(r"^(call|call_expression|method_call|function_call|invocation_expression|method_invocation|call_expr|function_call_expression|member_call_expression|scoped_call_expression)$")
+_HEUR_IMPORT = re.compile(r"^(import|use|using|include|require)(_(declaration|statement|directive|header|clause))?$|^preproc_include$")
+_NAME_NODE_TYPES = {
+    "identifier", "type_identifier", "simple_identifier", "constant", "field_identifier", "name", "property_identifier",
+    "variable_name", "word", "value_name", "module_name", "bareword", "package", "variable", "alias",
+}
+_ELIXIR_MODULE_CALLS = {"defmodule", "defprotocol", "defimpl"}
+_ELIXIR_FUNCTION_CALLS = {"def", "defp", "defmacro", "defmacrop"}
+_ELIXIR_IMPORT_CALLS = {"import", "alias", "use", "require"}
+_ELIXIR_IGNORED_CALLS = _ELIXIR_MODULE_CALLS | _ELIXIR_FUNCTION_CALLS | _ELIXIR_IMPORT_CALLS | {
+    "if", "unless", "case", "cond", "with", "for", "fn", "quote", "unquote", "try", "receive", "raise", "@",
+}
+_DECLARATOR_WRAPPERS = {"function_declarator", "pointer_declarator", "reference_declarator", "parenthesized_declarator", "array_declarator"}
+_STEREOTYPES = {
+    "RestController": "controller", "Controller": "controller", "RestControllerAdvice": "controller", "ControllerAdvice": "controller",
+    "Service": "service", "Repository": "repository", "Component": "component", "Configuration": "configuration",
+    "Entity": "entity", "MappedSuperclass": "entity", "Embeddable": "entity", "SpringBootApplication": "configuration",
+}
+_HTTP_MAPPINGS = {"GetMapping": "GET", "PostMapping": "POST", "PutMapping": "PUT", "DeleteMapping": "DELETE", "PatchMapping": "PATCH", "RequestMapping": "ANY"}
+_SOURCE_LANGUAGES = ("python", "javascript", "typescript")
+
+
+def language_extensions() -> dict[str, tuple[str, ...]]:
+    table = dict(LANGUAGE_EXTENSIONS)
+    for name, spec in _LANGUAGE_SPECS.items():
+        table[name] = tuple(spec["extensions"])
+    table["sql"] = (".sql",)
+    return table
+
+
+def _generic_language(language: str):
+    spec = _LANGUAGE_SPECS[language]
+    try:
+        import tree_sitter as ts
+    except ImportError as exc:
+        raise GraphDependencyError(
+            'tree-sitter is not installed. Install it with: pip install "omniengineering-workspace[graph]"'
+        ) from exc
+    try:
+        import importlib
+
+        grammar = importlib.import_module(spec["module"])
+        return ts.Language(getattr(grammar, spec.get("factory", "language"))())
+    except (ImportError, AttributeError) as exc:
+        raise GraphDependencyError(
+            f"tree-sitter grammar for '{language}' is not installed. Install it with: pip install {spec['package']}"
+        ) from exc
+
+
+def _spec_set(spec: dict[str, Any], key: str) -> set[str]:
+    return set(spec.get(key) or ())
+
+
+def _simple_type(node) -> str:
+    """Bare type name from a type node: strips generics, arrays, annotations and qualifiers."""
+    text = _text(node).strip()
+    text = re.sub(r"<.*", "", text)
+    text = re.sub(r"[\[\]?*&]", "", text).strip()
+    text = re.split(r"\s+", text)[-1] if text else text
+    return re.split(r"\.|::", text)[-1]
+
+
+def _type_arguments(node) -> list[str]:
+    names = []
+    stack = [node]
+    while stack:
+        current = stack.pop()
+        if current.type in ("type_arguments", "type_argument_list", "type_parameters"):
+            for child in current.named_children:
+                if child.type not in ("wildcard",):
+                    names.append(_simple_type(child))
+        else:
+            stack.extend(current.children)
+    return [name for name in names if name]
+
+
+def _node_name(node) -> str | None:
+    name_node = node.child_by_field_name("name") or node.child_by_field_name("pattern")
+    if name_node is None:
+        declarator = node.child_by_field_name("declarator")
+        while declarator is not None and declarator.type in _DECLARATOR_WRAPPERS:
+            declarator = declarator.child_by_field_name("declarator")
+        name_node = declarator
+    if name_node is None:
+        for child in node.named_children:
+            if child.type in _NAME_NODE_TYPES:
+                name_node = child
+                break
+    if name_node is None:
+        return None
+    text = _text(name_node).strip()
+    return text or None
+
+
+def _annotations_of(node) -> list[tuple[str, str]]:
+    """(name, raw arguments) for Java-style annotations on a declaration's modifiers."""
+    found: list[tuple[str, str]] = []
+    for child in node.children:
+        if child.type != "modifiers":
+            continue
+        for modifier in child.children:
+            if modifier.type in ("marker_annotation", "annotation"):
+                name_node = modifier.child_by_field_name("name")
+                args = modifier.child_by_field_name("arguments")
+                if name_node is not None:
+                    found.append((_text(name_node).split(".")[-1], _text(args) if args is not None else ""))
+    return found
+
+
+def _annotation_string(arguments: str, key: str | None = None) -> str | None:
+    if not arguments:
+        return None
+    if key:
+        match = re.search(rf'\b{key}\s*=\s*"([^"]*)"', arguments)
+        if match:
+            return match.group(1)
+    match = re.search(r'(?:^\(\s*|value\s*=\s*|path\s*=\s*)"([^"]*)"', arguments)
+    return match.group(1) if match else None
+
+
+def _java_class_attrs(annotations: list[tuple[str, str]]) -> dict[str, Any]:
+    attrs: dict[str, Any] = {}
+    if annotations:
+        attrs["annotations"] = [name for name, _ in annotations]
+    for name, arguments in annotations:
+        if name in _STEREOTYPES and "stereotype" not in attrs:
+            attrs["stereotype"] = _STEREOTYPES[name]
+        if name == "Table":
+            table = _annotation_string(arguments, "name")
+            if table:
+                attrs["table_name"] = table
+        if name == "RequestMapping":
+            base = _annotation_string(arguments)
+            if base:
+                attrs["base_path"] = base
+    return attrs
+
+
+def _java_endpoint(annotations: list[tuple[str, str]], base_path: str) -> str | None:
+    for name, arguments in annotations:
+        if name in _HTTP_MAPPINGS:
+            path = _annotation_string(arguments) or ""
+            return f"{_HTTP_MAPPINGS[name]} {(base_path.rstrip('/') + '/' + path.lstrip('/')).rstrip('/') or '/'}"
+    return None
+
+
+def _import_raw(spec: dict[str, Any], node) -> list[str]:
+    """Raw import targets (a module path, a dotted name) found under an import node."""
+    if node.type == "preproc_include":
+        path = node.child_by_field_name("path")
+        return [_text(path).strip('<>"')] if path is not None else []
+    text = _text(node).strip()
+    quoted = re.findall(r'["\']([^"\']+)["\']', text)
+    if quoted:
+        return quoted
+    text = re.sub(r"^\s*(import|use|using|from|require|include|extern\s+crate|open)\s+(static\s+)?", "", text)
+    text = re.sub(r"\s+as\s+\w+.*$", "", text).rstrip(";").strip()
+    if "{" in text:
+        base, _, rest = text.partition("{")
+        base = base.rstrip(":. ")
+        names = [part.strip() for part in rest.rstrip("}").split(",") if part.strip()]
+        return [f"{base}::{name.split(' as ')[0]}" for name in names] or [base]
+    return [text] if text else []
+
+
+def _call_parts(node) -> tuple[str | None, str | None]:
+    """(qualifier, name) for a call/creation node; both bare identifiers or None."""
+    if node.type == "object_creation_expression":
+        type_node = node.child_by_field_name("type")
+        return None, _simple_type(type_node) if type_node is not None else None
+    receiver = None
+    for field_name in ("object", "receiver", "operand", "scope"):
+        receiver = node.child_by_field_name(field_name)
+        if receiver is not None:
+            break
+    callee = None
+    for field_name in ("function", "method", "name", "callee", "constructor", "target"):
+        callee = node.child_by_field_name(field_name)
+        if callee is not None:
+            break
+    if callee is None and node.named_children:
+        callee = node.named_children[0]
+    if callee is None:
+        return None, None
+    callee_text = re.sub(r"\(.*", "", _text(callee), flags=re.S).strip()
+    parts = [part for part in re.split(r"\?\.|\.|::|->|:", re.sub(r"<[^<>]*>", "", callee_text)) if part.strip()]
+    if not parts:
+        return None, None
+    name = re.sub(r"\W+$", "", parts[-1].strip())
+    qualifier = None
+    if receiver is not None:
+        receiver_parts = [p for p in re.split(r"\?\.|\.|::|->", re.sub(r"\(.*", "", _text(receiver), flags=re.S)) if p.strip()]
+        qualifier = receiver_parts[-1].strip() if receiver_parts else None
+    elif len(parts) > 1:
+        qualifier = parts[-2].strip()
+    if not re.fullmatch(r"[A-Za-z_$][\w$]*", name or ""):
+        return None, None
+    if qualifier is not None and not re.fullmatch(r"[A-Za-z_$][\w$]*", qualifier):
+        qualifier = None
+    return qualifier, name
+
+
+def _collect_var_types(node, out: dict[str, str]) -> None:
+    stack = [node]
+    while stack:
+        current = stack.pop()
+        type_node = current.child_by_field_name("type")
+        if type_node is not None:
+            names = []
+            name_node = current.child_by_field_name("name")
+            if name_node is not None:
+                names.append(name_node)
+            declarators = list(current.children_by_field_name("declarator"))
+            if not declarators and name_node is None:
+                declarators = [child for child in current.children if child.type.endswith("declarator")]
+            for declarator in declarators:
+                inner = declarator.child_by_field_name("name")
+                if inner is None:
+                    inner = next((c for c in declarator.children if c.type in _NAME_NODE_TYPES), declarator)
+                names.append(inner)
+            for name_node in names:
+                if name_node.type in _NAME_NODE_TYPES:
+                    simple = _simple_type(type_node)
+                    if simple:
+                        out[_text(name_node)] = simple
+        stack.extend(current.children)
+
+
+def parse_generic_file(path: Path, root: Path, source: bytes, graph: Graph, language: str) -> FileFacts:
+    spec = _LANGUAGE_SPECS[language]
+    ts_language = _generic_language(language)
+    import tree_sitter as ts
+
+    tree = ts.Parser(ts_language).parse(source)
+    relpath = path.relative_to(root).as_posix()
+    module_id = relpath
+    graph.add_node(GraphNode(module_id, "module", path.stem, module_id, relpath, 1, source.count(b"\n") + 1, language))
+    facts = FileFacts(module_id=module_id, module_relpath=relpath, language=language)
+
+    hinted = any(spec.get(key) for key in ("classes", "interfaces", "functions", "calls", "imports"))
+    class_types = _spec_set(spec, "classes")
+    interface_types = _spec_set(spec, "interfaces")
+    impl_types = _spec_set(spec, "impls")
+    function_types = _spec_set(spec, "functions")
+    call_types = _spec_set(spec, "calls")
+    import_types = _spec_set(spec, "imports")
+    import_calls = _spec_set(spec, "import_calls")
+
+    def is_class(node_type: str) -> bool:
+        return node_type in class_types or node_type in interface_types or (not hinted and bool(_HEUR_CLASS.match(node_type)))
+
+    def is_interface(node_type: str) -> bool:
+        return node_type in interface_types or (not hinted and bool(_HEUR_INTERFACE.search(node_type)))
+
+    def is_function(node_type: str) -> bool:
+        return node_type in function_types or (not hinted and bool(_HEUR_FUNC.match(node_type)))
+
+    def is_call(node_type: str) -> bool:
+        return node_type in call_types or (not hinted and bool(_HEUR_CALL.match(node_type)))
+
+    def is_import(node_type: str) -> bool:
+        return node_type in import_types or (not hinted and bool(_HEUR_IMPORT.match(node_type)))
+
+    def relations_of(class_node, class_id: str, class_name: str, is_iface: bool) -> None:
+        for index, child in enumerate(class_node.children):
+            field_name = class_node.field_name_for_child(index) or ""
+            marker = f"{field_name} {child.type}".lower()
+            if not re.search(r"super|extends|implements|inherit|base|trait|conform|delegation|interfaces|parent", marker):
+                continue
+            edge_type = "implements" if re.search(r"implement|interfaces|trait|conform", marker) and not is_iface else "inherits"
+            stack = [child]
+            seen: set[str] = set()
+            while stack:
+                current = stack.pop()
+                if current.type in ("type_identifier", "identifier", "scoped_type_identifier", "constant", "scope_resolution", "qualified_name", "name"):
+                    name = _simple_type(current)
+                    if name and name not in seen and name != class_name:
+                        seen.add(name)
+                        graph.ensure_external(name)
+                        graph.add_edge(class_id, f"external:{name}", edge_type, EXTRACTED, "syntax", f"{class_name} {edge_type} {name}")
+                        facts.pending_relations.append((class_id, name, edge_type, f"{class_name} {edge_type} {name}"))
+                    continue
+                if current.type in ("generic_type", "parameterized_type"):
+                    base = current.child_by_field_name("type") or (current.named_children[0] if current.named_children else None)
+                    if base is not None:
+                        name = _simple_type(base)
+                        graph.ensure_external(name)
+                        graph.add_edge(class_id, f"external:{name}", edge_type, EXTRACTED, "syntax", f"{class_name} {edge_type} {name}")
+                        facts.pending_relations.append((class_id, name, edge_type, f"{class_name} {edge_type} {name}"))
+                        for argument in _type_arguments(current):
+                            facts.pending_relations.append((class_id, argument, "uses", f"{name}<{argument}> type argument of {class_name}"))
+                    continue
+                stack.extend(reversed(current.children))
+
+    def record_calls(body, caller_id: str, class_id: str | None) -> None:
+        stack = [body]
+        while stack:
+            current = stack.pop()
+            if is_call(current.type):
+                qualifier, name = _call_parts(current)
+                if name and language == "elixir" and name in _ELIXIR_IGNORED_CALLS:
+                    pass
+                elif name and name not in import_calls:
+                    graph.ensure_external(name)
+                    graph.add_edge(caller_id, f"external:{name}", "calls", EXTRACTED, "syntax", " ".join(_text(current).split())[:120])
+                    facts.pending_calls.append((caller_id, name, qualifier, class_id))
+                elif name in import_calls:
+                    target = current.child_by_field_name("arguments")
+                    for raw in re.findall(r'["\']([^"\']+)["\']', _text(target) if target is not None else _text(current)):
+                        graph.ensure_external(raw)
+                        graph.add_edge(module_id, f"external:{raw}", "imports", EXTRACTED, "syntax", f"{name} {raw}")
+                        facts.raw_module_imports.append(raw)
+            stack.extend(current.children)
+
+    def add_class(node, container_id: str, kind: str, name: str) -> str:
+        class_id = f"{container_id}::{name}"
+        attrs: dict[str, Any] = {}
+        annotations: list[tuple[str, str]] = []
+        if language == "java":
+            annotations = _annotations_of(node)
+            attrs = _java_class_attrs(annotations)
+        graph.add_node(GraphNode(class_id, kind, name, class_id, relpath, node.start_point[0] + 1, node.end_point[0] + 1, language, attrs=attrs))
+        graph.add_edge(container_id, class_id, "defines", EXTRACTED, "syntax")
+        return class_id
+
+    def elixir_name(call_node) -> str | None:
+        arguments = next((c for c in call_node.children if c.type == "arguments"), None)
+        first = arguments.named_children[0] if arguments is not None and arguments.named_children else None
+        if first is None:
+            return None
+        if first.type == "call":
+            target = first.child_by_field_name("target")
+            return _text(target) if target is not None else None
+        return _text(first).split("(")[0].strip() or None
+
+    def walk(node, container_id: str, class_id: str | None) -> None:
+        for child in node.children:
+            child_type = child.type
+            if language == "elixir" and child_type == "call":
+                target = child.child_by_field_name("target")
+                target_name = _text(target) if target is not None else ""
+                if target_name in _ELIXIR_MODULE_CALLS:
+                    name = elixir_name(child)
+                    if name:
+                        new_id = add_class(child, container_id, "class", name)
+                        walk(child, new_id, new_id)
+                        continue
+                elif target_name in _ELIXIR_FUNCTION_CALLS:
+                    name = elixir_name(child)
+                    if name:
+                        func_id = f"{class_id or container_id}::{name}"
+                        graph.add_node(GraphNode(func_id, "method" if class_id else "function", name, func_id, relpath, child.start_point[0] + 1, child.end_point[0] + 1, language))
+                        graph.add_edge(class_id or container_id, func_id, "defines", EXTRACTED, "syntax")
+                        record_calls(child, func_id, class_id)
+                        continue
+                elif target_name in _ELIXIR_IMPORT_CALLS:
+                    raw = elixir_name(child)
+                    if raw:
+                        graph.ensure_external(raw)
+                        graph.add_edge(module_id, f"external:{raw}", "imports", EXTRACTED, "syntax", f"{target_name} {raw}")
+                        facts.raw_module_imports.append(raw)
+                        facts.imported_names[raw.split(".")[-1]] = (raw, None)
+                    continue
+            if is_class(child_type):
+                name = _node_name(child)
+                if not name:
+                    walk(child, container_id, class_id)
+                    continue
+                if language == "go" and child_type == "type_spec":
+                    type_node = child.child_by_field_name("type")
+                    kind = "interface" if type_node is not None and type_node.type == "interface_type" else "class"
+                else:
+                    kind = "interface" if is_interface(child_type) else "class"
+                new_id = add_class(child, container_id, kind, name)
+                relations_of(child, new_id, name, kind == "interface")
+                field_types: dict[str, str] = {}
+                for member in child.children:
+                    if not is_function(member.type):
+                        _collect_var_types(member, field_types)
+                if field_types:
+                    facts.class_field_types[new_id] = field_types
+                    for field_name, type_name in field_types.items():
+                        facts.pending_relations.append((new_id, type_name, "uses", f"field {field_name}: {type_name}"))
+                walk(child, new_id, new_id)
+            elif child_type in impl_types:
+                type_node = child.child_by_field_name("type")
+                trait_node = child.child_by_field_name("trait")
+                type_name = _simple_type(type_node) if type_node is not None else None
+                if type_name:
+                    impl_id = f"{container_id}::{type_name}"
+                    graph.add_node(GraphNode(impl_id, "class", type_name, impl_id, relpath, child.start_point[0] + 1, child.end_point[0] + 1, language))
+                    graph.add_edge(container_id, impl_id, "defines", EXTRACTED, "syntax")
+                    if trait_node is not None:
+                        trait_name = _simple_type(trait_node)
+                        graph.ensure_external(trait_name)
+                        graph.add_edge(impl_id, f"external:{trait_name}", "implements", EXTRACTED, "syntax", f"impl {trait_name} for {type_name}")
+                        facts.pending_relations.append((impl_id, trait_name, "implements", f"impl {trait_name} for {type_name}"))
+                    walk(child, impl_id, impl_id)
+                else:
+                    walk(child, container_id, class_id)
+            elif is_function(child_type):
+                if language == "haskell" and child.parent is not None and child.parent.type == "signature":
+                    continue  # a function *type*, not a definition
+                name = _node_name(child)
+                owner = class_id
+                receiver = child.child_by_field_name("receiver")
+                if name and "::" in name:
+                    owner_name, _, name = name.rpartition("::")
+                    owner = f"{container_id}::{owner_name.split('::')[-1]}"
+                elif receiver is not None and language == "go":
+                    receiver_name = _simple_type(receiver).strip("()") or None
+                    for descendant in receiver.children:
+                        for grandchild in descendant.children:
+                            if grandchild.type in ("type_identifier", "pointer_type", "generic_type"):
+                                receiver_name = _simple_type(grandchild)
+                    if receiver_name:
+                        owner = f"{module_id}::{receiver_name}"
+                if not name:
+                    continue
+                func_id = f"{owner or container_id}::{name}"
+                kind = "method" if owner else "function"
+                attrs = {}
+                if language == "java":
+                    annotations = _annotations_of(child)
+                    base = graph.nodes[owner].attrs.get("base_path", "") if owner in graph.nodes else ""
+                    endpoint = _java_endpoint(annotations, base)
+                    if endpoint:
+                        attrs["endpoint"] = endpoint
+                    if annotations:
+                        attrs["annotations"] = [n for n, _ in annotations]
+                graph.add_node(GraphNode(func_id, kind, name, func_id, relpath, child.start_point[0] + 1, child.end_point[0] + 1, language, attrs=attrs))
+                graph.add_edge(owner or container_id, func_id, "defines", EXTRACTED, "syntax")
+                scope_types: dict[str, str] = {}
+                _collect_var_types(child, scope_types)
+                if scope_types:
+                    facts.scope_types[func_id] = scope_types
+                record_calls(child, func_id, owner)
+            elif is_import(child_type):
+                for raw in _import_raw(spec, child):
+                    graph.ensure_external(raw)
+                    graph.add_edge(module_id, f"external:{raw}", "imports", EXTRACTED, "syntax", f"import {raw}")
+                    facts.raw_module_imports.append(raw)
+                    simple = re.split(r"\.|::|/|\\\\", raw.rstrip("*.:/"))[-1]
+                    if simple:
+                        facts.imported_names[simple] = (raw, None)
+            else:
+                if language == "java" and child_type == "package_declaration":
+                    facts.package = _text(child).replace("package", "").strip().rstrip(";").strip()
+                elif language == "csharp" and child_type in ("namespace_declaration", "file_scoped_namespace_declaration"):
+                    name_node = child.child_by_field_name("name")
+                    if name_node is not None:
+                        facts.package = _text(name_node)
+                elif not function_types and not hinted and is_call(child_type):
+                    pass
+                walk(child, container_id, class_id)
+
+    walk(tree.root_node, module_id, None)
+    if import_calls and not hinted:
+        pass
+    # Top-level statements can also be calls/imports (scripts): scan the module for require-style imports.
+    if import_calls:
+        record_calls(tree.root_node, module_id, None)
+    return facts
+
+
+# --------------------------------------------------------------------------
+# SQL schema (dependency-free): replays migrations in order to the final state
+# --------------------------------------------------------------------------
+
+_SQL_TABLE_NAME = r'(?:"?[\w$]+"?\.)?"?([\w$]+)"?'
+
+
+def _sql_statements(text: str) -> list[tuple[str, int]]:
+    """Split SQL into (statement, start_line), skipping comments and dollar-quoted bodies."""
+    statements: list[tuple[str, int]] = []
+    buffer: list[str] = []
+    line = 1
+    start_line = 1
+    index = 0
+    length = len(text)
+    while index < length:
+        char = text[index]
+        two = text[index:index + 2]
+        if char == "\n":
+            line += 1
+        if two == "--":
+            end = text.find("\n", index)
+            index = length if end == -1 else end
+            continue
+        if two == "/*":
+            end = text.find("*/", index + 2)
+            end = length if end == -1 else end + 2
+            line += text.count("\n", index, end)
+            index = end
+            continue
+        if char == "'":
+            end = index + 1
+            while end < length:
+                if text[end] == "'" and text[end:end + 2] == "''":
+                    end += 2
+                    continue
+                if text[end] == "'":
+                    break
+                end += 1
+            segment = text[index:end + 1]
+            line += segment.count("\n")
+            buffer.append(segment)
+            index = end + 1
+            continue
+        if char == "$":
+            match = re.match(r"\$[A-Za-z_]*\$", text[index:])
+            if match:
+                tag = match.group(0)
+                end = text.find(tag, index + len(tag))
+                end = length if end == -1 else end + len(tag)
+                line += text.count("\n", index, end)
+                buffer.append("''")  # dollar-quoted bodies (functions, DO blocks) are opaque
+                index = end
+                continue
+        if char == ";":
+            statement = " ".join("".join(buffer).split())
+            if statement:
+                statements.append((statement, start_line))
+            buffer = []
+            start_line = line
+            index += 1
+            continue
+        if not buffer and char.isspace():
+            index += 1
+            start_line = line if char != "\n" else line
+            continue
+        if not buffer:
+            start_line = line
+        buffer.append(char)
+        index += 1
+    tail = " ".join("".join(buffer).split())
+    if tail:
+        statements.append((tail, start_line))
+    return statements
+
+
+def _split_top_level(text: str) -> list[str]:
+    parts: list[str] = []
+    depth = 0
+    current: list[str] = []
+    in_quote = False
+    for char in text:
+        if char == "'":
+            in_quote = not in_quote
+        if not in_quote:
+            if char == "(":
+                depth += 1
+            elif char == ")":
+                depth -= 1
+            elif char == "," and depth == 0:
+                parts.append("".join(current).strip())
+                current = []
+                continue
+        current.append(char)
+    if "".join(current).strip():
+        parts.append("".join(current).strip())
+    return parts
+
+
+def _sql_ident(raw: str) -> str:
+    return raw.strip().strip('"').strip("`").lower()
+
+
+def _sql_cols(raw: str) -> list[str]:
+    return [_sql_ident(part) for part in raw.split(",") if part.strip()]
+
+
+_SQL_COLUMN_TYPE_STOP = re.compile(
+    r"\s+(?:NOT\s+NULL|NULL|DEFAULT|PRIMARY\s+KEY|REFERENCES|UNIQUE|CHECK|CONSTRAINT|GENERATED|COLLATE)\b", re.I
+)
+
+
+def _sql_parse_column(definition: str) -> dict[str, Any] | None:
+    match = re.match(r'\s*"?([\w$]+)"?\s+(.*)$', definition, re.S)
+    if not match:
+        return None
+    name, rest = match.group(1).lower(), match.group(2)
+    stop = _SQL_COLUMN_TYPE_STOP.search(" " + rest)
+    type_text = rest[: stop.start() - 1] if stop and stop.start() > 0 else rest
+    column: dict[str, Any] = {"name": name, "type": " ".join(type_text.split()).lower() or "?"}
+    upper = " " + rest.upper() + " "
+    column["nullable"] = " NOT NULL " not in upper and " PRIMARY KEY " not in upper
+    if " PRIMARY KEY " in upper:
+        column["pk"] = True
+    if " UNIQUE " in upper:
+        column["unique"] = True
+    reference = re.search(r"\bREFERENCES\s+" + _SQL_TABLE_NAME + r"\s*(?:\(([^)]*)\))?", rest, re.I)
+    if reference:
+        column["fk"] = {"table": reference.group(1).lower(), "columns": _sql_cols(reference.group(2) or "")}
+    return column
+
+
+def _apply_table_constraint(table: dict[str, Any], item: str) -> bool:
+    text = re.sub(r"^CONSTRAINT\s+\S+\s+", "", item, flags=re.I)
+    upper = text.upper()
+    if upper.startswith("PRIMARY KEY"):
+        match = re.search(r"\(([^)]*)\)", text)
+        if match:
+            table["pk"] = _sql_cols(match.group(1))
+        return True
+    if upper.startswith("FOREIGN KEY"):
+        match = re.search(r"FOREIGN\s+KEY\s*\(([^)]*)\)\s*REFERENCES\s+" + _SQL_TABLE_NAME + r"\s*(?:\(([^)]*)\))?", text, re.I)
+        if match:
+            table["fks"].append({"columns": _sql_cols(match.group(1)), "table": match.group(2).lower(), "ref_columns": _sql_cols(match.group(3) or "")})
+        return True
+    if upper.startswith(("UNIQUE", "CHECK", "EXCLUDE")):
+        return True
+    return False
+
+
+def parse_sql_migrations(files: list[tuple[Path, str]], graph: Graph) -> dict[str, int]:
+    def flyway_key(item: tuple[Path, str]):
+        match = re.match(r"[VvRr](\d+(?:[._]\d+)*)__", item[0].name)
+        version = tuple(int(part) for part in re.split(r"[._]", match.group(1))) if match else (10**9,)
+        return (version, item[1])
+
+    tables: dict[str, dict[str, Any]] = {}
+    origin: dict[str, tuple[str, int]] = {}
+    file_created: dict[str, list[str]] = {}
+    understood = ignored = 0
+
+    for path, relpath in sorted(files, key=flyway_key):
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        graph.add_node(GraphNode(relpath, "module", path.stem, relpath, relpath, 1, text.count("\n") + 1, "sql"))
+        for statement, line in _sql_statements(text):
+            upper = statement.upper()
+            create = re.match(r"CREATE\s+(?:UNLOGGED\s+|TEMP(?:ORARY)?\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?" + _SQL_TABLE_NAME + r"\s*(.*)$", statement, re.I | re.S)
+            if create:
+                name = create.group(1).lower()
+                rest = create.group(2)
+                table = {"name": name, "columns": {}, "pk": [], "fks": [], "indexes": [], "migrations": [relpath]}
+                if rest.startswith("("):
+                    depth = 0
+                    for position, char in enumerate(rest):
+                        depth += char == "("
+                        depth -= char == ")"
+                        if depth == 0:
+                            body = rest[1:position]
+                            break
+                    else:
+                        body = rest[1:]
+                    for item in _split_top_level(body):
+                        if re.match(r"(CONSTRAINT|PRIMARY\s+KEY|FOREIGN\s+KEY|UNIQUE|CHECK|EXCLUDE|LIKE)\b", item, re.I):
+                            _apply_table_constraint(table, item)
+                            continue
+                        column = _sql_parse_column(item)
+                        if column:
+                            table["columns"][column["name"]] = column
+                            if column.get("pk"):
+                                table["pk"] = [column["name"]]
+                            if column.get("fk"):
+                                table["fks"].append({"columns": [column["name"]], "table": column["fk"]["table"], "ref_columns": column["fk"]["columns"]})
+                tables[name] = table
+                origin[name] = (relpath, line)
+                file_created.setdefault(relpath, []).append(name)
+                understood += 1
+                continue
+            alter = re.match(r"ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?(?:ONLY\s+)?" + _SQL_TABLE_NAME + r"\s+(.*)$", statement, re.I | re.S)
+            if alter:
+                name = alter.group(1).lower()
+                table = tables.get(name)
+                if table is None:
+                    ignored += 1
+                    continue
+                if relpath not in table["migrations"]:
+                    table["migrations"].append(relpath)
+                for action in _split_top_level(alter.group(2)):
+                    add = re.match(r"ADD\s+(?:COLUMN\s+)?(?:IF\s+NOT\s+EXISTS\s+)?(.*)$", action, re.I | re.S)
+                    if re.match(r"ADD\s+(CONSTRAINT|PRIMARY\s+KEY|FOREIGN\s+KEY|UNIQUE|CHECK)\b", action, re.I):
+                        _apply_table_constraint(table, re.sub(r"^ADD\s+", "", action, flags=re.I))
+                    elif add:
+                        column = _sql_parse_column(add.group(1))
+                        if column:
+                            table["columns"][column["name"]] = column
+                            if column.get("fk"):
+                                table["fks"].append({"columns": [column["name"]], "table": column["fk"]["table"], "ref_columns": column["fk"]["columns"]})
+                    drop = re.match(r"DROP\s+COLUMN\s+(?:IF\s+EXISTS\s+)?\"?([\w$]+)\"?", action, re.I)
+                    if drop:
+                        table["columns"].pop(drop.group(1).lower(), None)
+                        table["fks"] = [fk for fk in table["fks"] if drop.group(1).lower() not in fk["columns"]]
+                    rename_col = re.match(r"RENAME\s+COLUMN\s+\"?([\w$]+)\"?\s+TO\s+\"?([\w$]+)\"?", action, re.I)
+                    if rename_col and rename_col.group(1).lower() in table["columns"]:
+                        old, new = rename_col.group(1).lower(), rename_col.group(2).lower()
+                        column = table["columns"].pop(old)
+                        column["name"] = new
+                        table["columns"][new] = column
+                    alter_col = re.match(r"ALTER\s+COLUMN\s+\"?([\w$]+)\"?\s+(?:SET\s+DATA\s+)?TYPE\s+(.+?)(?:\s+USING\b.*)?$", action, re.I)
+                    if alter_col and alter_col.group(1).lower() in table["columns"]:
+                        table["columns"][alter_col.group(1).lower()]["type"] = " ".join(alter_col.group(2).split()).lower()
+                    not_null = re.match(r"ALTER\s+COLUMN\s+\"?([\w$]+)\"?\s+(SET|DROP)\s+NOT\s+NULL", action, re.I)
+                    if not_null and not_null.group(1).lower() in table["columns"]:
+                        table["columns"][not_null.group(1).lower()]["nullable"] = not_null.group(2).upper() == "DROP"
+                    rename_table = re.match(r"RENAME\s+TO\s+\"?([\w$]+)\"?", action, re.I)
+                    if rename_table:
+                        new = rename_table.group(1).lower()
+                        tables[new] = tables.pop(name)
+                        tables[new]["name"] = new
+                        origin[new] = origin.pop(name)
+                        for other in tables.values():
+                            for fk in other["fks"]:
+                                if fk["table"] == name:
+                                    fk["table"] = new
+                understood += 1
+                continue
+            drop_table = re.match(r"DROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?(.*?)(?:\s+CASCADE|\s+RESTRICT)?$", statement, re.I)
+            if drop_table:
+                for raw in drop_table.group(1).split(","):
+                    dropped = _sql_ident(raw.split(".")[-1])
+                    tables.pop(dropped, None)
+                    origin.pop(dropped, None)
+                    for other in tables.values():
+                        other["fks"] = [fk for fk in other["fks"] if fk["table"] != dropped]
+                understood += 1
+                continue
+            index = re.match(r"CREATE\s+(UNIQUE\s+)?INDEX\s+(?:CONCURRENTLY\s+)?(?:IF\s+NOT\s+EXISTS\s+)?\"?([\w$]+)\"?\s+ON\s+(?:ONLY\s+)?" + _SQL_TABLE_NAME + r"\s*(?:USING\s+\w+\s*)?\(([^)]*)\)", statement, re.I)
+            if index:
+                table = tables.get(index.group(3).lower())
+                if table is not None:
+                    table["indexes"].append({"name": index.group(2).lower(), "unique": bool(index.group(1)), "columns": _sql_cols(index.group(4))})
+                understood += 1
+                continue
+            drop_index = re.match(r"DROP\s+INDEX\s+(?:CONCURRENTLY\s+)?(?:IF\s+EXISTS\s+)?(?:\"?[\w$]+\"?\.)?\"?([\w$]+)\"?", statement, re.I)
+            if drop_index:
+                for table in tables.values():
+                    table["indexes"] = [ix for ix in table["indexes"] if ix["name"] != drop_index.group(1).lower()]
+                understood += 1
+                continue
+            ignored += 1  # INSERT/UPDATE/functions/views etc. carry no schema structure
+
+    surviving = {relpath: [name for name in names if name in tables and origin.get(name, ("",))[0] == relpath] for relpath, names in file_created.items()}
+    for name, table in tables.items():
+        relpath, line = origin[name]
+        columns = list(table["columns"].values())
+        for column in columns:
+            if column["name"] in table["pk"]:
+                column["pk"] = True
+        foreign_keys = [
+            {"columns": fk["columns"], "table": fk["table"], "ref_columns": fk["ref_columns"]} for fk in table["fks"]
+        ]
+        summary = f"{len(columns)} columns; PK ({', '.join(table['pk']) or 'none'})"
+        if foreign_keys:
+            summary += "; FK -> " + ", ".join(sorted({fk["table"] for fk in foreign_keys}))
+        node = GraphNode(
+            f"table:{name}", "table", name, name, relpath, line, line, "sql", summary,
+            attrs={"columns": columns[:200], "primary_key": table["pk"], "foreign_keys": foreign_keys, "indexes": table["indexes"][:40], "migrations": table["migrations"]},
+        )
+        graph.add_node(node)
+    for relpath, names in surviving.items():
+        for name in names:
+            graph.add_edge(relpath, f"table:{name}", "defines", EXTRACTED, "syntax", "CREATE TABLE")
+    for name, table in tables.items():
+        for fk in table["fks"]:
+            target = f"table:{fk['table']}"
+            detail = f"{name}({', '.join(fk['columns'])}) -> {fk['table']}({', '.join(fk['ref_columns']) or '?'})"
+            if target not in graph.nodes:
+                graph.ensure_external(fk["table"])
+                target = f"external:{fk['table']}"
+            graph.add_edge(f"table:{name}", target, "references", EXTRACTED, "syntax", detail)
+    return {"tables": len(tables), "statements_understood": understood, "statements_ignored": ignored}
+
+
+def _snake_case(name: str) -> str:
+    return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
+
+
+def _link_entities_to_tables(graph: Graph) -> int:
+    tables = {node.name for node in graph.nodes.values() if node.kind == "table"}
+    linked = 0
+    for node in list(graph.nodes.values()):
+        if node.kind != "class" or "Entity" not in node.attrs.get("annotations", []):
+            continue
+        explicit = node.attrs.get("table_name")
+        table_name = (explicit or _snake_case(node.name)).lower()
+        candidates = [table_name, table_name + "s", table_name + "es"] if not explicit else [table_name]
+        for candidate in candidates:
+            if candidate in tables:
+                graph.add_edge(
+                    node.id, f"table:{candidate}", "maps_to", EXTRACTED if explicit else INFERRED,
+                    "syntax" if explicit else "graph-traversal",
+                    f"@Table(name = \"{explicit}\")" if explicit else f"entity {node.name} -> table {candidate} by naming convention",
+                )
+                linked += 1
+                break
+    return linked
+
+
+# --------------------------------------------------------------------------
+# Generic cross-file resolution (types, imports, typed calls)
+# --------------------------------------------------------------------------
+
+
+def _stem(relpath: str) -> str:
+    return re.sub(r"\.[A-Za-z0-9]+$", "", relpath)
+
+
+def _resolve_generic(graph: Graph, generic_facts: list[FileFacts]) -> None:
+    modules = {node.id: node for node in graph.nodes.values() if node.kind == "module"}
+    suffix_index: dict[str, list[str]] = {}
+    for module_id in modules:
+        parts = _stem(module_id).split("/")
+        for start in range(len(parts)):
+            suffix_index.setdefault("/".join(parts[start:]), []).append(module_id)
+    class_index: dict[str, list[str]] = {}
+    class_methods: dict[str, dict[str, str]] = {}
+    for node in graph.nodes.values():
+        if node.kind in ("class", "interface"):
+            class_index.setdefault(node.name, []).append(node.id)
+        if node.kind == "method":
+            class_methods.setdefault(node.id.rsplit("::", 1)[0], {})[node.name] = node.id
+    function_index: dict[str, list[str]] = {}
+    for node in graph.nodes.values():
+        if node.kind == "function":
+            function_index.setdefault(node.name, []).append(node.id)
+
+    def import_target(raw: str, facts: FileFacts) -> str | None:
+        cleaned = raw.strip().rstrip("*").rstrip(".:/")
+        if not cleaned:
+            return None
+        path_like = "/" in cleaned or cleaned.startswith(".")
+        if path_like:
+            base = Path(facts.module_relpath).parent
+            joined = os.path.normpath((base / cleaned).as_posix()).replace(os.sep, "/") if cleaned.startswith(".") else cleaned
+            stub = _stem(joined)
+            candidates = [stub] if cleaned.startswith(".") else [stub, stub.split("/", 1)[-1]]
+        else:
+            parts = [p for p in re.split(r"\.|::|\\\\", cleaned) if p and p != "*"]
+            candidates = ["/".join(parts[: len(parts) - drop]) for drop in (0, 1, 2) if len(parts) - drop >= 1]
+        for stub in candidates:
+            hits = suffix_index.get(stub, [])
+            hits = [hit for hit in hits if hit != facts.module_id]
+            if len(hits) == 1:
+                return hits[0]
+            if len(hits) > 1:
+                same_language = [hit for hit in hits if modules[hit].language == facts.language]
+                if len(same_language) == 1:
+                    return same_language[0]
+        return None
+
+    def resolve_type(name: str, facts: FileFacts) -> tuple[str, str] | None:
+        if name in facts.imported_names:
+            target_module = import_target(facts.imported_names[name][0], facts)
+            if target_module and f"{target_module}::{name}" in graph.nodes:
+                return f"{target_module}::{name}", "resolved via import"
+        local = f"{facts.module_id}::{name}"
+        if local in graph.nodes:
+            return local, "same-file type"
+        candidates = class_index.get(name, [])
+        if len(candidates) == 1:
+            return candidates[0], "unique type name"
+        if len(candidates) > 1:
+            here = str(Path(facts.module_relpath).parent)
+            nearby = [c for c in candidates if str(Path(c.split("::")[0]).parent) == here]
+            if len(nearby) == 1:
+                return nearby[0], "same package / directory"
+            same_language = [c for c in candidates if graph.nodes[c].language == facts.language]
+            if len(same_language) == 1:
+                return same_language[0], "unique type name in this language"
+        return None
+
+    bases: dict[str, list[str]] = {}
+    file_of = {facts.module_id: facts for facts in generic_facts}
+
+    for facts in generic_facts:
+        for raw in facts.raw_module_imports:
+            target = import_target(raw, facts)
+            if target:
+                graph.add_edge(facts.module_id, target, "imports", INFERRED, "graph-traversal", f"resolved '{raw}' to {target}")
+        for source_id, type_name, edge_type, detail in facts.pending_relations:
+            resolved = resolve_type(type_name, facts)
+            if resolved and resolved[0] != source_id:
+                graph.add_edge(source_id, resolved[0], edge_type, INFERRED, "graph-traversal", f"{detail} ({resolved[1]})")
+                if edge_type in ("inherits", "implements"):
+                    bases.setdefault(source_id, []).append(resolved[0])
+
+    def find_method(class_id: str, name: str, seen: set[str] | None = None) -> str | None:
+        seen = seen or set()
+        if class_id in seen:
+            return None
+        seen.add(class_id)
+        direct = class_methods.get(class_id, {}).get(name)
+        if direct:
+            return direct
+        for base in bases.get(class_id, []):
+            found = find_method(base, name, seen)
+            if found:
+                return found
+        return None
+
+    for facts in generic_facts:
+        for caller_id, name, qualifier, class_id in facts.pending_calls:
+            target = reason = None
+            if qualifier in (None, "this", "self", "super", "base") and class_id:
+                found = find_method(class_id, name)
+                if found and found != caller_id:
+                    target, reason = found, "method on the enclosing class or its supertypes"
+            if target is None and qualifier and qualifier not in ("this", "self", "super", "base"):
+                type_name = facts.scope_types.get(caller_id, {}).get(qualifier) or (facts.class_field_types.get(class_id, {}).get(qualifier) if class_id else None)
+                if type_name:
+                    resolved = resolve_type(type_name, facts)
+                    if resolved:
+                        found = find_method(resolved[0], name)
+                        if found:
+                            target, reason = found, f"'{qualifier}' is a {type_name} ({resolved[1]})"
+                else:
+                    resolved = resolve_type(qualifier, facts)  # static-style call on a type name
+                    if resolved:
+                        found = find_method(resolved[0], name)
+                        if found:
+                            target, reason = found, f"static call on {qualifier} ({resolved[1]})"
+            if target is None and qualifier is None:
+                same_module = f"{facts.module_id}::{name}"
+                if same_module in graph.nodes and graph.nodes[same_module].kind == "function":
+                    target, reason = same_module, "same-module function"
+                elif name in facts.imported_names:
+                    module = import_target(facts.imported_names[name][0], facts)
+                    if module and f"{module}::{name}" in graph.nodes:
+                        target, reason = f"{module}::{name}", "resolved via import"
+            if target is None and qualifier is None and name not in _BUILTIN_NAMES:
+                candidates = function_index.get(name, [])
+                if len(candidates) == 1:
+                    target, reason = candidates[0], "unique function name across the graph"
+            if target is None and name in class_index and qualifier is None:
+                resolved = resolve_type(name, facts)
+                if resolved:
+                    target, reason = resolved[0], f"constructor / type reference ({resolved[1]})"
+            if target:
+                graph.add_edge(caller_id, target, "calls", INFERRED, "graph-traversal", reason or "")
+
+
 def build_graph(root: Path, languages: list[str], semantic: bool = False) -> tuple[Graph, dict[str, Any]]:
     graph = Graph()
     file_facts: list[FileFacts] = []
+    generic_facts: list[FileFacts] = []
+    sql_files: list[tuple[Path, str]] = []
+    table = language_extensions()
+    auto = not languages or "auto" in languages or "all" in languages
+    requested = sorted(table) if auto else list(languages)
+    missing_packages: dict[str, str] = {}
 
-    for path, language in discover_source_files(root, languages):
+    for path, language in discover_source_files(root, requested):
+        stats = graph.stats.setdefault(language, {"files": 0, "mode": "ast"})
+        stats["files"] += 1
+        relpath = path.relative_to(root).as_posix()
+        if language == "sql":
+            sql_files.append((path, relpath))
+            stats["mode"] = "schema"
+            continue
         try:
             source = path.read_bytes()
         except OSError:
             continue
         if language == "python":
-            facts = parse_python_file(path, root, source, graph)
+            file_facts.append(parse_python_file(path, root, source, graph))
+        elif language in ("javascript", "typescript"):
+            file_facts.append(parse_js_like_file(path, root, source, graph, language))
         else:
-            facts = parse_js_like_file(path, root, source, graph, language)
-        file_facts.append(facts)
+            try:
+                generic_facts.append(parse_generic_file(path, root, source, graph, language))
+            except GraphDependencyError as exc:
+                if not auto or str(exc).startswith("tree-sitter is not installed"):
+                    raise
+                stats["mode"] = "files-only"
+                missing_packages[language] = _LANGUAGE_SPECS[language]["package"]
+                graph.add_node(GraphNode(relpath, "module", path.stem, relpath, relpath, 1, source.count(b"\n") + 1, language))
+
+    if sql_files:
+        sql_stats = parse_sql_migrations(sql_files, graph)
+        graph.stats["sql"].update(sql_stats)
 
     _resolve_graph(graph, file_facts)
+    _resolve_generic(graph, generic_facts)
+    linked = _link_entities_to_tables(graph)
+    if linked:
+        graph.stats.setdefault("sql", {})["entities_linked"] = linked
+
+    for language, stats in graph.stats.items():
+        stats["symbols"] = sum(1 for node in graph.nodes.values() if node.language == language and node.kind not in ("module", "external"))
+    for language, package in sorted(missing_packages.items()):
+        graph.notes.append(
+            f"{language}: {graph.stats[language]['files']} file(s) added as file nodes only (no grammar installed); "
+            f"run `pip install {package}` (in the graph venv) and rebuild for symbols"
+        )
+    if "sql" in graph.stats:
+        graph.notes.append(
+            "sql: the schema was rebuilt by replaying migrations in Flyway version order with a lightweight parser; "
+            "table/column facts are EXTRACTED from DDL, but unusual DDL (functions, vendor extensions) is skipped"
+        )
 
     semantic_info: dict[str, Any] = {"enabled": False, "reason": "not requested", "api_url": None}
     if semantic:
@@ -943,6 +2049,63 @@ def show(graph_path: Path, query: str) -> dict[str, Any]:
     outgoing = [edge for edge in graph_data["edges"] if edge["source"] == node_id]
     incoming = [edge for edge in graph_data["edges"] if edge["target"] == node_id]
     return {"ok": True, "node": node, "outgoing": outgoing, "incoming": incoming}
+
+
+def schema_report(graph_path: Path, table: str | None = None) -> dict[str, Any]:
+    graph_data = load_graph(graph_path)
+    nodes = {node["id"]: node for node in graph_data["nodes"]}
+    tables = {node["id"]: node for node in graph_data["nodes"] if node["kind"] == "table"}
+    if not tables:
+        return {"ok": False, "error": "no_tables"}
+    entities: dict[str, list[str]] = {}
+    referenced_by: dict[str, list[dict[str, Any]]] = {}
+    for edge in graph_data["edges"]:
+        if edge["type"] == "maps_to" and edge["target"] in tables:
+            entities.setdefault(edge["target"], []).append(nodes[edge["source"]]["name"])
+        if edge["type"] == "references" and edge["source"] in tables and edge["target"] in tables:
+            referenced_by.setdefault(edge["target"], []).append({"table": nodes[edge["source"]]["name"], "detail": edge.get("detail", "")})
+    selected = list(tables.values())
+    if table:
+        wanted = table.lower()
+        selected = [node for node in selected if node["name"] == wanted]
+        if not selected:
+            return {"ok": False, "error": "table_not_found", "tables": sorted(node["name"] for node in tables.values())}
+    report = []
+    for node in sorted(selected, key=lambda item: item["name"]):
+        attrs = node.get("attrs", {})
+        report.append(
+            {
+                "name": node["name"],
+                "columns": attrs.get("columns", []),
+                "primary_key": attrs.get("primary_key", []),
+                "foreign_keys": attrs.get("foreign_keys", []),
+                "indexes": attrs.get("indexes", []),
+                "migrations": attrs.get("migrations", []),
+                "entities": sorted(entities.get(node["id"], [])),
+                "referenced_by": referenced_by.get(node["id"], []),
+            }
+        )
+    return {"ok": True, "tables": report, "table_count": len(tables)}
+
+
+def schema_mermaid(report: dict[str, Any]) -> str:
+    def ident(text: str) -> str:
+        return re.sub(r"\W+", "_", text).strip("_") or "x"
+
+    lines = ["erDiagram"]
+    shown = {table["name"] for table in report["tables"]}
+    for table in report["tables"]:
+        lines.append(f"  {ident(table['name'])} {{")
+        foreign = {column for fk in table["foreign_keys"] for column in fk["columns"]}
+        for column in table["columns"]:
+            key = " PK" if column.get("pk") else (" FK" if column["name"] in foreign else "")
+            lines.append(f"    {ident(column['type'])} {ident(column['name'])}{key}")
+        lines.append("  }")
+    for table in report["tables"]:
+        for fk in table["foreign_keys"]:
+            if fk["table"] in shown:
+                lines.append(f"  {ident(table['name'])} }}o--|| {ident(fk['table'])} : \"{', '.join(fk['columns'])}\"")
+    return "\n".join(lines)
 
 
 # --------------------------------------------------------------------------
@@ -1132,6 +2295,7 @@ def build_view_html(
             "end": node.get("end_line"),
             "lang": node.get("language"),
             "summary": _trim(node.get("summary"), _VIEW_SUMMARY_LIMIT),
+            "attrs": node.get("attrs"),
         }
         compact_nodes.append({key: value for key, value in entry.items() if value not in (None, "")})
     compact_edges = [
@@ -1162,7 +2326,7 @@ def build_view_html(
     )
 
     values = {
-        "__OMNI_TITLE__": html.escape(f"{root_label} code graph (3D)"),
+        "__OMNI_TITLE__": html.escape(f"{root_label} \u00b7 OmniEngineering CodeGraph"),
         "__OMNI_NOTICES__": html.escape(notices),
         "/*__OMNI_DATA__*/": data_json,
         "/*__OMNI_LIB__*/": library,
@@ -1197,7 +2361,7 @@ _LANGUAGE_COLORS = {
     "typescript": "#c9a869",
 }
 _DEFAULT_NODE_COLOR = "#9a9a9a"
-_KIND_RADIUS = {"module": 14, "class": 10, "function": 6, "method": 6, "external": 3}
+_KIND_RADIUS = {"module": 14, "class": 10, "interface": 10, "table": 12, "function": 6, "method": 6, "external": 3}
 _SVG_BG = "#0f0f12"
 _SVG_TEXT = "#e8e8e8"
 _SVG_DIM = "#707070"
@@ -1210,7 +2374,11 @@ def _escape_svg_text(text: str) -> str:
 
 
 def _node_color(node: dict[str, Any]) -> str:
-    return _LANGUAGE_COLORS.get(node.get("language"), _DEFAULT_NODE_COLOR)
+    language = node.get("language")
+    if language in _LANGUAGE_COLORS or not language:
+        return _LANGUAGE_COLORS.get(language, _DEFAULT_NODE_COLOR)
+    hue = sum(ord(char) * (index + 1) for index, char in enumerate(language)) % 360
+    return f"hsl({hue},55%,62%)"
 
 
 def _ego_network(edges: list[dict[str, Any]], focus_ids: list[str], depth: int) -> set[str]:

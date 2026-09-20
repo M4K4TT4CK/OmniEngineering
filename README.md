@@ -789,11 +789,17 @@ plus your graph) that works offline: nothing is fetched at view time. It
 starts with the 500 best-connected symbols (`--max-initial`, or `--all`,
 or `--focus <symbol> --depth 2` for one neighbourhood) and grows as you
 expand. The page has search (`/`), language and edge-type filters, colouring
-by language, kind or top-level directory, an INFERRED-edge toggle, and a
-detail panel that lists each symbol's callers and callees -- click any of
-them to jump there. It needs a WebGL-capable browser; the SVG from `omni
+by language, kind or top-level directory, an INFERRED-edge toggle, an
+edge-strength slider, and a detail panel that lists each symbol's callers and callees -- click any of
+them to jump there. Nodes and edges are scaled by distance so outliers far from the core cluster
+and far-away edges stay readable; the styling follows the OmniEngineering brand
+(`#e0475c` on `#0f0f12`). It needs a WebGL-capable browser; the SVG from `omni
 graph render` and `show --all` remain for everything else. The output is
 git-ignored like the JSON and SVG.
+
+Under WSL, `omni graph view` prints the `file:///C:/...` URL (and the plain Windows
+path) that a Windows browser can open, not the Linux `/mnt/c/...` path it cannot,
+and `--open` launches your default Windows browser through `cmd.exe`.
 
 The 3D engine is the unmodified [3d-force-graph](https://github.com/vasturiano/3d-force-graph)
 bundle (MIT, (c) Vasco Asturiano), which renders with [three.js](https://threejs.org)

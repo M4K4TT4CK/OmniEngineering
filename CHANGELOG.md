@@ -1,5 +1,58 @@
 # Changelog
 
+## 2026-09-18 (6)
+
+### Completed
+
+- `REQ-021` | Code understanding | Follow-up: the code graph is no longer limited
+  to Python and JS/TS. A generic, grammar-driven tree-sitter extractor covers
+  Java, Kotlin, Go, Rust, C#, C/C++, Ruby, PHP, Swift, Scala and others
+  (classes, interfaces, methods, imports, inheritance/implements, typed calls,
+  cross-file resolution; Java also records Spring annotations and endpoints).
+  `omni graph build` now defaults to `--languages auto` and prints a
+  per-language summary; a language with no installed grammar still appears as
+  file-level nodes. Flyway SQL migrations are replayed in version order into a
+  table/column/foreign-key schema (`table` nodes, `references` edges, JPA
+  entities linked with `maps_to`), with new `omni graph schema [--table T]
+  [--format text|mermaid|json]` and a Schema button in the viewer. Also fixed a
+  literal `\u2264` in the viewer's name-labels checkbox. Verified against the
+  STEP_App repository (5,881 nodes / 19,421 edges; Java, TypeScript, SQL, C/C++,
+  Kotlin, bash) with a real build, `show --all --language sql`,
+  `graph schema --table app_user` and the viewer in headless Chromium (no
+  console errors). Not verified in a real Windows Chrome. Unusual DDL (functions,
+  vendor extensions) is skipped by the SQL parser.
+
+## 2026-09-18 (5)
+
+### Completed
+
+- `REQ-021` | Code understanding | The 3D graph viewer is now branded and readable
+  at distance. It is titled "OmniEngineering CodeGraph" with the brand mark, and
+  the UI chrome uses the brand palette (`#e0475c` on `#0f0f12`, `#e8e8e8` text,
+  Share Tech Mono stack from `assets/brand`) instead of the gold accents it had
+  drifted into. Perspective used to shrink far-away nodes to specks and edges to
+  hairlines, so nodes farther from the core cluster now grow (by distance from the
+  median centre) and both nodes and edge cylinders are compensated by camera
+  distance; edges use brighter colours (white calls, teal imports, red inherits,
+  grey defines) and a new "Edge strength" slider; while a node is selected,
+  unrelated nodes shrink and its own edges turn bold white. Verified against the
+  real 2,392-node graph in headless Chromium at 1600x1000 with no console errors;
+  not verified in a real Windows Chrome or with hardware WebGL.
+
+## 2026-09-18 (4)
+
+### Completed
+
+- `REQ-021` | Code understanding | Follow-up: `omni graph view` opens correctly
+  from WSL. It printed the Linux `file:///mnt/c/...` URL as the main link, which
+  a Windows browser cannot resolve, and `--open` used a Linux-side launcher. It
+  now detects WSL (`wslpath -w`), prints the `file:///C:/...` URL (UNC and
+  space-containing paths are handled) plus the plain Windows path, and `--open`
+  launches the default Windows browser via `cmd.exe /c start`. The page itself was
+  checked for JavaScript errors and layout at 1600x1000, 1280x720 and 700x900 in
+  headless Chromium (none). Not verified in a real Windows Chrome or with
+  hardware WebGL.
+
 ## 2026-09-18 (3)
 
 ### Completed

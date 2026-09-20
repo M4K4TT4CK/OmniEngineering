@@ -9,26 +9,31 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>__OMNI_TITLE__</title>
 <style>
-  :root{--bg:#0f0f12;--panel:#17171c;--panel2:#1f1f26;--line:#2a2a33;--text:#e8e8ec;--dim:#8b8b98;--accent:#e0475c;--gold:#c9a869;--ok:#7fd1a0}
+  /* OmniEngineering brand: #e0475c on #0f0f12, #e8e8e8 text, Share Tech Mono stack (assets/brand) */
+  :root{--bg:#0f0f12;--panel:#141418;--panel2:#1b1b20;--line:#252525;--text:#e8e8e8;--dim:#8a8a90;--accent:#e0475c}
   *{box-sizing:border-box}
-  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:13px/1.45 ui-monospace,"JetBrains Mono","Share Tech Mono",Menlo,Consolas,monospace}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:13px/1.45 "Share Tech Mono","JetBrains Mono",ui-monospace,Menlo,Consolas,"Courier New",monospace}
   #app{display:grid;grid-template-columns:290px minmax(0,1fr) 350px;grid-template-rows:auto minmax(0,1fr);height:100%}
   header{grid-column:1/4;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline;padding:8px 14px;border-bottom:1px solid var(--line);background:var(--panel)}
-  header h1{margin:0;font-size:14px;letter-spacing:.06em;text-transform:uppercase}
+  header h1{margin:0;font-size:15px;letter-spacing:.04em}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700}
+  .brand svg{flex:none}.brand .w{color:var(--text)}.brand .cg{color:var(--accent)}
   header .dim,.dim{color:var(--dim)}
   header .help{margin-left:auto;font-size:12px}
   aside{overflow:auto;background:var(--panel);padding:12px 14px}
   #left{border-right:1px solid var(--line)} #right{border-left:1px solid var(--line)}
   #stage{position:relative;min-width:0;min-height:0;overflow:hidden}
   #view{position:absolute;inset:0}
-  #nogl{display:none;position:absolute;inset:0;padding:24px;color:var(--gold);z-index:2}
-  h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin:16px 0 6px}
+  #nogl{display:none;position:absolute;inset:0;padding:24px;color:var(--accent);z-index:2}
+  h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:16px 0 6px}
   h2:first-child{margin-top:0}
   input[type=search],select{width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:3px;padding:6px 8px;font:inherit}
-  input:focus-visible,select:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+  input:focus-visible,select:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
   button{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:3px;padding:5px 9px;font:inherit;cursor:pointer}
-  button:hover{border-color:var(--gold)}
-  button.primary{border-color:var(--accent)}
+  button:hover{border-color:var(--accent)}
+  button.primary{border-color:var(--accent);color:var(--text)}
+  button:active{background:var(--accent);color:#0f0f12}
+  input[type=range]{width:100%;accent-color:var(--accent)}
   .row{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
   .chk{display:flex;align-items:center;gap:7px;margin:3px 0;cursor:pointer}
   .sw{display:inline-block;width:11px;height:11px;border-radius:50%;flex:none}
@@ -39,17 +44,20 @@
   .badge{display:inline-block;padding:1px 7px;border:1px solid var(--line);border-radius:3px;color:var(--dim);font-size:11px;text-transform:uppercase;vertical-align:middle}
   #detail h3{margin:0 0 4px;font-size:15px;word-break:break-word}
   #detail .where{color:var(--dim);word-break:break-all;margin-bottom:8px}
-  #detail .summary{white-space:pre-wrap;word-break:break-word;background:var(--panel2);border-left:3px solid var(--gold);padding:7px 9px;margin:8px 0;max-height:150px;overflow:auto}
+  #detail .summary{white-space:pre-wrap;word-break:break-word;background:var(--panel2);border-left:3px solid var(--accent);padding:7px 9px;margin:8px 0;max-height:150px;overflow:auto}
   .edge{display:flex;gap:6px;align-items:baseline;width:100%;text-align:left;margin:2px 0;padding:3px 6px;border:0;background:transparent}
   .edge:hover{background:var(--panel2)}
   .edge .t{color:var(--dim);flex:none;font-size:11px;min-width:56px}
-  .edge .inf{color:var(--gold);flex:none;font-size:10px}
+  .edge .inf{color:var(--accent);flex:none;font-size:10px}
   .edge .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .edge.hidden .n{opacity:.55}
+  #labels{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:1}
+  .lbl{position:absolute;left:0;top:0;font-size:11px;color:var(--text);text-shadow:0 0 3px #000,0 0 7px #000,0 0 7px #000;white-space:nowrap}
+  .lbl.sel{color:#fff;font-weight:700;font-size:12px}
   #status{position:absolute;left:12px;bottom:10px;background:rgba(23,23,28,.88);border:1px solid var(--line);border-radius:3px;padding:4px 9px;color:var(--dim);pointer-events:none;max-width:70%}
-  details{margin-top:14px} summary{cursor:pointer;color:var(--gold)}
+  details{margin-top:14px} summary{cursor:pointer;color:var(--accent)}
   pre#notices{white-space:pre-wrap;word-break:break-word;font-size:10.5px;color:var(--dim);max-height:260px;overflow:auto}
-  .attrib{margin-top:14px;font-size:11.5px;color:var(--dim)} .attrib a{color:var(--gold)}
+  .attrib{margin-top:14px;font-size:11.5px;color:var(--dim)} .attrib a{color:var(--accent)}
   @media (max-width:980px){
     #app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 60vh auto auto;height:auto}
     header,#stage,#left,#right{grid-column:1} #stage{grid-row:2} #left{grid-row:3;border-right:0} #right{grid-row:4;border-left:0}
@@ -60,7 +68,7 @@
 <body>
 <div id="app">
   <header>
-    <h1>Code graph &middot; 3D</h1>
+    <h1 class="brand"><svg width="30" height="30" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="OmniEngineering mark"><rect x="3" y="3" width="32" height="38" rx="3" stroke="#e0475c" stroke-width="1.5"/><circle cx="3" cy="3" r="1.5" fill="#e0475c"/><circle cx="35" cy="3" r="1.5" fill="#e0475c"/><circle cx="3" cy="41" r="1.5" fill="#e0475c"/><circle cx="35" cy="41" r="1.5" fill="#e0475c"/><line x1="19" y1="20" x2="10" y2="10" stroke="#e0475c" opacity=".55"/><line x1="19" y1="20" x2="28" y2="9" stroke="#e0475c" opacity=".45"/><line x1="19" y1="20" x2="9" y2="27" stroke="#e0475c" opacity=".35"/><line x1="19" y1="20" x2="29" y2="28" stroke="#e0475c" opacity=".5"/><line x1="19" y1="20" x2="19" y2="34" stroke="#e0475c" opacity=".3"/><circle cx="10" cy="10" r="1.4" fill="#e0475c" opacity=".8"/><circle cx="28" cy="9" r="1.4" fill="#e0475c" opacity=".7"/><circle cx="9" cy="27" r="1.4" fill="#e0475c" opacity=".6"/><circle cx="29" cy="28" r="1.4" fill="#e0475c" opacity=".75"/><circle cx="19" cy="34" r="1.4" fill="#e0475c" opacity=".55"/><circle cx="19" cy="20" r="7" stroke="#e0475c" stroke-width=".75" opacity=".3"/><circle cx="19" cy="20" r="3.5" fill="#e0475c" opacity=".9"/><circle cx="41" cy="41" r="7" fill="#e0475c"/><circle cx="41" cy="41" r="3" fill="#0f0f12"/></svg><span><span class="w">OmniEngineering</span> <span class="cg">CodeGraph</span></span></h1>
     <span class="dim" id="meta"></span>
     <span class="dim help">drag: rotate &middot; right-drag: pan &middot; scroll: zoom &middot; click: select &middot; double-click: expand neighbours &middot; <b>/</b> search &middot; <b>e</b> expand &middot; <b>f</b> fit &middot; <b>Esc</b> clear</span>
   </header>
@@ -75,12 +83,15 @@
       <button id="fit" title="Zoom to fit everything shown">Fit</button>
       <button id="reset" title="Back to the starting selection">Reset</button>
       <button id="showall" title="Add every node (may be slow on large graphs)">Show all</button>
+      <button id="schema" title="Database tables, their foreign keys, and the entity classes mapped to them">Schema</button>
     </div>
     <label class="chk"><input type="checkbox" id="inferred" checked> show INFERRED edges</label>
     <label class="chk"><input type="checkbox" id="external"> show external placeholders</label>
     <label class="chk"><input type="checkbox" id="arrows" checked> arrowheads</label>
+    <label class="chk"><input type="checkbox" id="labelson" checked> name labels (when &le; 200 nodes in view)</label>
+    <div style="margin-top:8px"><label for="edgeboost" class="dim">Edge strength</label><input type="range" id="edgeboost" min="1" max="6" step="0.5" value="3"></div>
     <div style="margin-top:8px"><label for="colormode" class="dim">Colour nodes by</label>
-      <select id="colormode"><option value="language">language</option><option value="kind">kind</option><option value="directory">top-level directory</option></select></div>
+      <select id="colormode"><option value="language">language</option><option value="kind">kind</option><option value="directory">top-level directory</option><option value="layer">layer (Spring stereotype / table)</option></select></div>
 
     <h2>Languages</h2><div id="langs"></div>
     <h2>Edge types</h2><div id="types"></div>
@@ -97,6 +108,7 @@
 
   <main id="stage" aria-label="3D graph">
     <div id="view"></div>
+    <div id="labels" aria-hidden="true"></div>
     <div id="nogl">WebGL is not available in this browser, so the 3D view cannot render. Use <code>omni graph render</code> for the SVG version or <code>omni graph show --all</code> for text.</div>
     <div id="status" role="status" aria-live="polite"></div>
   </main>
@@ -115,11 +127,17 @@
   var nodes = DATA.nodes, edges = DATA.edges, meta = DATA.meta || {};
   var $ = function (id) { return document.getElementById(id); };
 
-  var LANG_COLORS = { python: '#e0475c', javascript: '#4fb3bf', typescript: '#c9a869' };
-  var KIND_COLORS = { module: '#c9a869', 'class': '#e0475c', 'function': '#4fb3bf', method: '#7aa2f7', external: '#6b6b78' };
-  var TYPE_COLORS = { calls: '#7aa2f7', imports: '#9ece6a', inherits: '#e0af68', defines: '#4a4a58' };
-  var KIND_SCALE = { module: 3.2, 'class': 2.4, 'function': 1.3, method: 1.0, external: 0.6 };
+  var LANG_COLORS = { python: '#e0475c', javascript: '#4fb3bf', typescript: '#c9a869', java: '#f0a23c', sql: '#b48ead', go: '#5fd0e0', rust: '#e58b5a', csharp: '#8fbf6a' };
+  var KIND_COLORS = { module: '#e8e8e8', 'class': '#e0475c', 'interface': '#7fd0dc', 'function': '#4fb3bf', method: '#c9a869', table: '#ffb454', external: '#6b6b78' };
+  var LAYER_COLORS = { controller: '#e0475c', service: '#4fb3bf', repository: '#c9a869', entity: '#ffb454', component: '#9ece6a', configuration: '#b48ead', table: '#ffb454' };
+  // Edges are light on the near-black ground so they read at a glance; defines stays quieter.
+  var TYPE_COLORS = { calls: '#f0f0f0', imports: '#7fd0dc', inherits: '#ff6b81', implements: '#ffc36b', defines: '#8d8d99', references: '#c792ea', maps_to: '#f78c6c', uses: '#8a8a99' };
+  var TYPE_WIDTH = { calls: 0.9, imports: 0.9, inherits: 1.6, implements: 1.3, defines: 0.55, references: 1.5, maps_to: 1.4, uses: 0.5 };
+  var RADIAL_GAIN = 0.9;   // extra size per median-radius beyond the core cluster (outliers grow)
+  var DEPTH_EXP = 0.85;    // how strongly size/thickness follow camera distance (1 = constant on-screen size)
+  var KIND_SCALE = { module: 3.2, 'class': 2.4, 'interface': 2.4, table: 2.8, 'function': 1.3, method: 1.0, external: 0.6 };
   var DEFAULT_COLOR = '#9a9a9a', DIM_COLOR = '#3d3d4d', SELECT_COLOR = '#ffffff';
+  var edgeBoost = 3;
   var EXPAND_CAP = 60;
 
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -133,6 +151,8 @@
     (out[e.s] || (out[e.s] = [])).push(i); (inn[e.t] || (inn[e.t] = [])).push(i);
     if (byId[e.s]) byId[e.s].deg++; if (byId[e.t]) byId[e.t].deg++;
   });
+  function layerOf(n) { return (n.attrs && n.attrs.stereotype) || (n.kind === 'table' ? 'table' : null); }
+  function langColor(l) { return LANG_COLORS[l] || (l ? hashColor(l) : DEFAULT_COLOR); }
   function topDir(n) { var f = n.file || ''; var i = f.indexOf('/'); return i > 0 ? f.slice(0, i) : (f || '(root)'); }
   function hashColor(s) { var h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return 'hsl(' + (h % 360) + ',62%,62%)'; }
 
@@ -161,7 +181,8 @@
   function baseColor(n) {
     if (colorMode === 'kind') return KIND_COLORS[n.kind] || DEFAULT_COLOR;
     if (colorMode === 'directory') return hashColor(topDir(n));
-    return LANG_COLORS[n.lang] || DEFAULT_COLOR;
+    if (colorMode === 'layer') return LAYER_COLORS[layerOf(n)] || '#5a5a66';
+    return langColor(n.lang);
   }
   function nodeColor(n) {
     if (selected) {
@@ -173,14 +194,19 @@
   function nodeVal(n) { return Math.max(1, Math.sqrt(n.deg || 1)) * (KIND_SCALE[n.kind] || 1); }
   function linkTouchesSelection(l) { return selected && (lid(l.source) === selected.id || lid(l.target) === selected.id); }
   function linkColor(l) {
-    if (selected) return linkTouchesSelection(l) ? (TYPE_COLORS[l.type] || '#9a9aa8') : '#22222a';
-    return l.prov === 'INFERRED' ? '#8f7f5a' : (TYPE_COLORS[l.type] || '#6b6b78');
+    if (selected) return linkTouchesSelection(l) ? '#ffffff' : '#2a2a32';
+    return TYPE_COLORS[l.type] || '#b0b0bc';
   }
-  function linkWidth(l) { return linkTouchesSelection(l) ? 1.2 : (l.prov === 'INFERRED' ? 0.35 : 0.7); }
+  // World-space width; the per-frame pass below scales the cylinder so it keeps a readable on-screen thickness.
+  function linkWidth(l) {
+    var w = (TYPE_WIDTH[l.type] || 0.8) * (l.prov === 'INFERRED' ? 0.7 : 1);
+    return linkTouchesSelection(l) ? w * 1.3 : w;
+  }
+  function linkOpacity() { return Math.min(1, 0.35 + edgeBoost * 0.11); }
   function tip(n) {
-    return '<div style="font:12px monospace;background:#17171c;border:1px solid #2a2a33;padding:6px 8px;border-radius:3px;max-width:380px">' +
-      '<b>' + esc(n.name) + '</b> <span style="color:#8b8b98">' + esc(n.kind) + (n.lang ? ' &middot; ' + esc(n.lang) : '') + '</span><br>' +
-      '<span style="color:#8b8b98">' + esc(n.file || '') + (n.start ? ':' + esc(n.start) : '') + '</span></div>';
+    return '<div style="font:12px monospace;background:#141418;border:1px solid #252525;padding:6px 8px;border-radius:3px;max-width:380px">' +
+      '<b>' + esc(n.name) + '</b> <span style="color:#8a8a90">' + esc(n.kind) + (n.lang ? ' &middot; ' + esc(n.lang) : '') + '</span><br>' +
+      '<span style="color:#8a8a90">' + esc(n.file || '') + (n.start ? ':' + esc(n.start) : '') + '</span></div>';
   }
 
   var host = $('view'), Graph = null;
@@ -190,22 +216,85 @@
     Graph = ForceGraph3D()(host)
       .backgroundColor('#0f0f12').nodeId('id').nodeLabel(tip).nodeOpacity(0.92).nodeResolution(10)
       .nodeColor(nodeColor).nodeVal(nodeVal)
-      .linkColor(linkColor).linkOpacity(0.55).linkWidth(linkWidth)
+      .linkColor(linkColor).linkOpacity(linkOpacity()).linkWidth(linkWidth)
       .linkDirectionalArrowLength(function (l) { return (arrows && l.type !== 'defines') ? 3.2 : 0; }).linkDirectionalArrowRelPos(1)
       .onNodeClick(onNodeClick).onBackgroundClick(function () { select(null); })
       .warmupTicks(30).cooldownTicks(220)
-      .onEngineStop(function () { if (wantFit) { wantFit = false; fit(); } else if (flyPending) { flyPending = false; if (selected) flyTo(selected); } })
+      .onEngineTick(scheduleSizes)
+      .onEngineStop(function () { computeStats(); scheduleSizes(); if (wantFit) { wantFit = false; fit(); } else if (flyPending) { flyPending = false; if (selected) flyTo(selected); } })
       .graphData(currentData());
+    try { Graph.controls().addEventListener('change', scheduleSizes); } catch (e) { /* controls unavailable */ }
     if (window.ResizeObserver) new ResizeObserver(sizeGraph).observe(host);
     window.addEventListener('resize', sizeGraph); sizeGraph();
   }
   function sizeGraph() { if (Graph) Graph.width(host.clientWidth).height(host.clientHeight); }
-  function restyle() { if (Graph) Graph.nodeColor(nodeColor).linkColor(linkColor).linkWidth(linkWidth); }
+  function restyle() { if (Graph) Graph.nodeColor(nodeColor).linkColor(linkColor).linkWidth(linkWidth).linkOpacity(linkOpacity()); scheduleSizes(); }
+
+  // ---- distance compensation -------------------------------------------------------------
+  // Perspective shrinks far-away geometry to specks and hairlines. Nodes farther from the core
+  // cluster grow (radial), and both nodes and edge cylinders are scaled by their distance from
+  // the camera relative to the cluster centre, so outliers and distant edges stay readable.
+  var sizeStats = { cx: 0, cy: 0, cz: 0, rmed: 1 }, sizeQueued = false;
+  function median(a) { if (!a.length) return 0; var s = a.slice().sort(function (x, y) { return x - y; }); return s[s.length >> 1]; }
+  function computeStats() {
+    if (!Graph) return;
+    var ns = Graph.graphData().nodes.filter(function (n) { return n.x != null; });
+    if (!ns.length) return;
+    var cx = median(ns.map(function (n) { return n.x; })), cy = median(ns.map(function (n) { return n.y; })), cz = median(ns.map(function (n) { return n.z; }));
+    var rmed = median(ns.map(function (n) { return Math.hypot(n.x - cx, n.y - cy, n.z - cz); }));
+    sizeStats = { cx: cx, cy: cy, cz: cz, rmed: rmed || 1 };
+  }
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+  function applySizes() {
+    if (!Graph) return;
+    var cam = Graph.camera().position, s = sizeStats;
+    var dref = Math.hypot(cam.x - s.cx, cam.y - s.cy, cam.z - s.cz) || 1;
+    var d = Graph.graphData();
+    d.nodes.forEach(function (n) {
+      var o = n.__threeObj; if (!o || n.x == null) return;
+      var r = Math.hypot(n.x - s.cx, n.y - s.cy, n.z - s.cz);
+      var radial = 1 + RADIAL_GAIN * clamp(r / s.rmed - 1, 0, 3);
+      var dc = Math.hypot(n.x - cam.x, n.y - cam.y, n.z - cam.z) || 1;
+      var focus = selected ? (n.id === selected.id ? 1.4 : (neighborSet.has(n.id) ? 1 : 0.5)) : 1;  // unrelated nodes recede while one is selected
+      var k = radial * Math.pow(clamp(dc / dref, 0.35, 5), DEPTH_EXP) * focus;
+      o.scale.set(k, k, k);
+    });
+    d.links.forEach(function (l) {
+      var o = l.__lineObj, a = l.source, b = l.target; if (!o || !a || !b || a.x == null || b.x == null) return;
+      var dc = Math.hypot((a.x + b.x) / 2 - cam.x, (a.y + b.y) / 2 - cam.y, (a.z + b.z) / 2 - cam.z) || 1;
+      var k = edgeBoost * Math.pow(clamp(dc / dref, 0.35, 5), DEPTH_EXP);
+      o.scale.x = k; o.scale.y = k;
+    });
+  }
+  function scheduleSizes() {
+    if (sizeQueued) return; sizeQueued = true;
+    requestAnimationFrame(function () { sizeQueued = false; applySizes(); applyLabels(); });
+  }
+  var labelEls = Object.create(null), labelsOn = true, MAX_LABELS = 200;
+  function applyLabels() {
+    if (!Graph) return;
+    var box = $('labels'), ns = Graph.graphData().nodes;
+    if (!labelsOn || ns.length > MAX_LABELS) { if (box.firstChild) box.textContent = ''; labelEls = Object.create(null); return; }
+    var e = Graph.camera().matrixWorldInverse.elements, present = Object.create(null);
+    ns.forEach(function (n) {
+      present[n.id] = 1;
+      if (n.x == null) return;
+      var el = labelEls[n.id];
+      var viewZ = e[2] * n.x + e[6] * n.y + e[10] * n.z + e[14];
+      if (viewZ >= 0) { if (el) el.style.display = 'none'; return; }
+      if (!el) { el = document.createElement('div'); el.textContent = n.name; box.appendChild(el); labelEls[n.id] = el; }
+      var p = Graph.graph2ScreenCoords(n.x, n.y, n.z);
+      el.className = 'lbl' + (selected && selected.id === n.id ? ' sel' : '');
+      el.style.display = '';
+      el.style.transform = 'translate(' + Math.round(p.x) + 'px,' + Math.round(p.y) + 'px) translate(-50%,-150%)';
+    });
+    Object.keys(labelEls).forEach(function (id) { if (!present[id]) { box.removeChild(labelEls[id]); delete labelEls[id]; } });
+  }
 
   function status(msg) { $('status').textContent = msg; }
   function shownCounts() { var d = Graph ? Graph.graphData() : { nodes: [], links: [] }; return d.nodes.length + ' of ' + nodes.length + ' nodes · ' + d.links.length + ' links'; }
   function refresh(note) {
-    if (Graph) Graph.graphData(currentData());
+    if (Graph) { Graph.graphData(currentData()); setTimeout(function () { computeStats(); scheduleSizes(); }, 400); }
     $('meta').textContent = (meta.root ? meta.root + ' · ' : '') + shownCounts() + (meta.generated_at ? ' · built ' + meta.generated_at : '');
     status((note ? note + ' — ' : '') + shownCounts());
     renderLegend();
@@ -299,6 +388,28 @@
     }
     paint(false); box.appendChild(list); return box;
   }
+  function renderAttrs(d, n) {
+    var a = n.attrs; if (!a) return;
+    var meta = [];
+    if (a.stereotype) meta.push(a.stereotype);
+    if (a.endpoint) meta.push(a.endpoint);
+    if (a.annotations && a.annotations.length) meta.push('@' + a.annotations.join(' @'));
+    if (a.table_name) meta.push('table ' + a.table_name);
+    if (meta.length) d.appendChild(styled(el('div', 'summary', meta.join('\n')), 'max-height:none'));
+    if (a.columns && a.columns.length) {
+      var fk = {}; (a.foreign_keys || []).forEach(function (f) { f.columns.forEach(function (c) { fk[c] = f.table + '(' + (f.ref_columns.join(',') || '?') + ')'; }); });
+      d.appendChild(el('h2', null, 'Columns (' + a.columns.length + ')'));
+      a.columns.forEach(function (c) {
+        var flags = [];
+        if (c.pk) flags.push('PK'); if (c.nullable === false && !c.pk) flags.push('NOT NULL'); if (c.unique) flags.push('UNIQUE'); if (fk[c.name]) flags.push('FK \u2192 ' + fk[c.name]);
+        var row = el('div', 'edge'); row.style.cursor = 'default';
+        row.appendChild(el('span', 'n', c.name)); row.appendChild(el('span', 't', c.type + (flags.length ? '  ' + flags.join(' ') : '')));
+        d.appendChild(row);
+      });
+      if (a.indexes && a.indexes.length) d.appendChild(el('div', 'dim', 'indexes: ' + a.indexes.map(function (x) { return x.name + (x.unique ? ' (unique)' : ''); }).join(', ')));
+      if (a.migrations && a.migrations.length) d.appendChild(el('div', 'dim', 'migrations: ' + a.migrations.map(function (m) { return m.split('/').pop(); }).join(', ')));
+    }
+  }
   function renderDetail() {
     var d = $('detail'); d.textContent = '';
     if (!selected) { d.appendChild(el('p', 'dim', 'Click a node to read it. Its callers and callees are listed here; click any of them to jump there, or double-click a node (or press e) to pull its neighbours into the view.')); return; }
@@ -307,6 +418,7 @@
     d.appendChild(el('div', 'where', (n.file || '(external)') + (n.start ? ':' + n.start + (n.end && n.end !== n.start ? '–' + n.end : '') : '') + (n.lang ? '  · ' + n.lang : '')));
     if (n.qn && n.qn !== n.name) d.appendChild(el('div', 'dim', n.qn));
     if (n.summary) d.appendChild(el('div', 'summary', n.summary));
+    renderAttrs(d, n);
     var o = out[n.id] || [], i = inn[n.id] || [];
     d.appendChild(el('div', 'dim', o.length + ' outgoing · ' + i.length + ' incoming'));
     var hidden = expandCandidates(n.id).length, hiddenExt = hiddenExternals(n.id);
@@ -331,11 +443,11 @@
       langOn[l] = true;
       var lab = el('label', 'chk'), cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = true; cb.setAttribute('data-lang', l);
       cb.addEventListener('change', function () { langOn[l] = cb.checked; refresh(); });
-      var sw = el('span', 'sw'); sw.style.background = LANG_COLORS[l] || DEFAULT_COLOR;
+      var sw = el('span', 'sw'); sw.style.background = langColor(l);
       lab.appendChild(cb); lab.appendChild(sw); lab.appendChild(el('span', null, l)); lab.appendChild(el('span', 'count', String(lc[l]))); L.appendChild(lab);
     });
     Object.keys(tc).sort().forEach(function (t) {
-      typeOn[t] = true;
+      typeOn[t] = t !== 'uses';
       var lab = el('label', 'chk'), cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = typeOn[t];
       cb.addEventListener('change', function () { typeOn[t] = cb.checked; refresh(); });
       var sw = el('span', 'sw line'); sw.style.background = TYPE_COLORS[t] || '#6b6b78';
@@ -345,10 +457,10 @@
   function renderLegend() {
     var lg = $('legend'); lg.textContent = '';
     var counts = {}, shown = Graph ? Graph.graphData().nodes : [];
-    shown.forEach(function (n) { var key = colorMode === 'kind' ? n.kind : colorMode === 'directory' ? topDir(n) : (n.lang || 'other'); counts[key] = (counts[key] || 0) + 1; });
+    shown.forEach(function (n) { var key = colorMode === 'kind' ? n.kind : colorMode === 'directory' ? topDir(n) : colorMode === 'layer' ? (layerOf(n) || '(other)') : (n.lang || 'other'); counts[key] = (counts[key] || 0) + 1; });
     Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; }).slice(0, 14).forEach(function (k) {
       var lab = el('div', 'chk'), sw = el('span', 'sw');
-      sw.style.background = colorMode === 'kind' ? (KIND_COLORS[k] || DEFAULT_COLOR) : colorMode === 'directory' ? hashColor(k) : (LANG_COLORS[k] || DEFAULT_COLOR);
+      sw.style.background = colorMode === 'kind' ? (KIND_COLORS[k] || DEFAULT_COLOR) : colorMode === 'directory' ? hashColor(k) : colorMode === 'layer' ? (LAYER_COLORS[k] || '#5a5a66') : langColor(k);
       lab.appendChild(sw); lab.appendChild(el('span', null, k)); lab.appendChild(el('span', 'count', String(counts[k]))); lg.appendChild(lab);
     });
     $('legend-title').textContent = 'Legend · by ' + colorMode + ' (in view)';
@@ -382,6 +494,16 @@
     if (total > 6000 && !window.confirm('Add ' + total + ' nodes? The 3D layout may be slow.')) return;
     nodes.forEach(function (n) { if (n.kind !== 'external' || showExternal) visible.add(n.id); });
     refresh('showing everything'); updateSelection(); wantFit = true;
+  });
+  $('labelson').addEventListener('change', function (e) { labelsOn = e.target.checked; scheduleSizes(); });
+  $('edgeboost').addEventListener('input', function (e) { edgeBoost = Number(e.target.value); restyle(); });
+  $('schema').addEventListener('click', function () {
+    var ids = new Set();
+    nodes.forEach(function (n) { if (n.kind === 'table') ids.add(n.id); });
+    if (!ids.size) { status('no tables in this graph (add SQL migrations and rebuild)'); return; }
+    edges.forEach(function (e) { if (e.type === 'maps_to' && ids.has(e.t)) ids.add(e.s); });
+    typeOn.references = true; typeOn.maps_to = true;
+    visible = ids; selected = null; refresh('schema: tables, foreign keys and mapped entities'); updateSelection(); renderDetail(); wantFit = true;
   });
   $('inferred').addEventListener('change', function (e) { showInferred = e.target.checked; refresh(); });
   $('external').addEventListener('change', function (e) { showExternal = e.target.checked; refresh(); });

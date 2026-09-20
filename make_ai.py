@@ -1620,6 +1620,9 @@ Install tree-sitter into a virtualenv (system-wide pip is refused on PEP 668 "ex
     "tree-sitter-javascript>=0.23,<1.0" "tree-sitter-typescript>=0.23,<1.0"
 
 omni then finds ~/.venvs/omni-graph on its own (or set OMNI_GRAPH_PYTHON to another interpreter).
+Add a grammar for each further language you use (Java, Go, Rust, C#, C/C++, Ruby, PHP, Kotlin, Swift, Scala, ...):
+  ~/.venvs/omni-graph/bin/pip install tree-sitter-java tree-sitter-go tree-sitter-rust   # etc.
+Languages without a grammar still appear as file nodes; SQL migrations need no grammar.
 Elsewhere, `pip install "omniengineering-workspace[graph]"` also works."""
 
 
@@ -1633,11 +1636,12 @@ def run_graph_build(args: argparse.Namespace) -> int:
         return 1
 
     languages = split_csv(args.languages)
-    unknown = [language for language in languages if language not in omni_graph.LANGUAGE_EXTENSIONS]
+    known_languages = omni_graph.language_extensions()
+    unknown = [language for language in languages if language not in known_languages and language not in ("auto", "all")]
     if unknown:
         print(
             f"Unsupported language(s): {', '.join(unknown)}. "
-            f"Supported: {', '.join(sorted(omni_graph.LANGUAGE_EXTENSIONS))}",
+            f"Supported: auto, {', '.join(sorted(known_languages))}",
             file=sys.stderr,
         )
         return 1
@@ -1661,6 +1665,8 @@ def run_graph_build(args: argparse.Namespace) -> int:
         "edges": len(graph.edges),
         "extracted_edges": extracted,
         "inferred_edges": inferred,
+        "languages": graph.stats,
+        "notes": graph.notes,
         "semantic_pass": semantic_info,
     }
     if args.json:
@@ -1669,6 +1675,11 @@ def run_graph_build(args: argparse.Namespace) -> int:
 
     print(f"Wrote {summary['nodes']} nodes and {summary['edges']} edges to {output}")
     print(f"  EXTRACTED edges: {extracted}   INFERRED edges: {inferred}")
+    for language, stats in sorted(graph.stats.items()):
+        detail = f"{stats.get('tables', 0)} tables" if stats.get("mode") == "schema" else f"{stats.get('symbols', 0)} symbols"
+        print(f"  {language:<11} {stats['files']:>5} files  {detail:>12}  [{stats['mode']}]")
+    for note in graph.notes:
+        print(f"  note: {note}")
     if semantic_info.get("enabled"):
         print(
             f"  Semantic pass: {semantic_info.get('nodes_tagged', 0)} nodes tagged, "
@@ -1806,6 +1817,38 @@ def run_graph_show_all(args: argparse.Namespace, graph_path: Path) -> int:
     return 0
 
 
+def windows_view_target(output: Path) -> tuple[str, str] | None:
+    """On WSL, the Windows path and file:// URI a Windows browser can actually open."""
+    try:
+        windows_path = subprocess.run(
+            ["wslpath", "-w", str(output.resolve())], capture_output=True, text=True, timeout=5
+        ).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if not windows_path:
+        return None
+    from urllib.parse import quote
+
+    slashed = windows_path.replace("\\", "/")
+    uri = ("file:" + quote(slashed, safe="/:")) if windows_path.startswith("\\\\") else ("file:///" + quote(slashed, safe="/:"))
+    return windows_path, uri
+
+
+def open_in_browser(uri: str, windows_path: str | None) -> bool:
+    if windows_path:
+        for command in (["cmd.exe", "/c", "start", "", windows_path], ["explorer.exe", windows_path]):
+            if shutil.which(command[0]):
+                try:
+                    subprocess.run(command, cwd="/mnt/c", capture_output=True, timeout=15)
+                    return True
+                except (OSError, subprocess.SubprocessError):
+                    continue
+        return False
+    import webbrowser
+
+    return bool(webbrowser.open(uri))
+
+
 def run_graph_view(args: argparse.Namespace) -> int:
     if not require_omni_graph():
         return 1
@@ -1845,21 +1888,61 @@ def run_graph_view(args: argparse.Namespace) -> int:
     )
     if result["note"]:
         print(f"  {result['note']}")
-    uri = output.resolve().as_uri()
-    print(f"Open in a browser (works offline): {uri}")
-    try:
-        windows_path = subprocess.run(
-            ["wslpath", "-w", str(output.resolve())], capture_output=True, text=True, timeout=5
-        ).stdout.strip()
-        if windows_path:
-            print(f"  Windows path: {windows_path}")
-    except (OSError, subprocess.SubprocessError):
-        pass
-    if args.open:
-        import webbrowser
+    posix_uri = output.resolve().as_uri()
+    windows_target = windows_view_target(output)
+    if windows_target:
+        windows_path, uri = windows_target
+        print(f"Open in your Windows browser (works offline): {uri}")
+        print(f"  or paste this path into the address bar: {windows_path}")
+    else:
+        uri = posix_uri
+        print(f"Open in a browser (works offline): {uri}")
+    if args.open and not open_in_browser(uri, windows_target[0] if windows_target else None):
+        print("  (no browser could be launched automatically; open the file by hand)")
+    return 0
 
-        if not webbrowser.open(uri):
-            print("  (no browser could be launched automatically; open the file by hand)")
+
+def run_graph_schema(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+    graph_path = Path(args.graph)
+    if not graph_path.is_file():
+        print(f"Graph file not found: {graph_path}; run ./omni graph build first", file=sys.stderr)
+        return 1
+    report = omni_graph.schema_report(graph_path, args.table)
+    if not report.get("ok"):
+        if report.get("error") == "no_tables":
+            print("No tables in this graph. Rebuild after adding SQL migrations (*.sql): `./omni graph build`.", file=sys.stderr)
+        else:
+            print(f"Unknown table {args.table!r}. Tables: {', '.join(report['tables'])}", file=sys.stderr)
+        return 1
+    if args.format == "json":
+        print(json.dumps(report, indent=2))
+        return 0
+    if args.format == "mermaid":
+        print(omni_graph.schema_mermaid(report))
+        return 0
+    print(f"{len(report['tables'])} of {report['table_count']} tables (rebuilt from SQL migrations; DDL facts are EXTRACTED)")
+    for table in report["tables"]:
+        entity = f"   <- entity: {', '.join(table['entities'])}" if table["entities"] else ""
+        print(f"\nTABLE {table['name']}  ({len(table['columns'])} columns){entity}")
+        foreign = {column: fk for fk in table["foreign_keys"] for column in fk["columns"]}
+        for column in table["columns"]:
+            flags = []
+            if column.get("pk"):
+                flags.append("PK")
+            if not column.get("nullable", True):
+                flags.append("NOT NULL")
+            if column.get("unique"):
+                flags.append("UNIQUE")
+            if column["name"] in foreign:
+                fk = foreign[column["name"]]
+                flags.append(f"FK -> {fk['table']}({', '.join(fk['ref_columns']) or '?'})")
+            print(f"  {column['name']:<32} {column['type']:<28} {' '.join(flags)}")
+        for index in table["indexes"]:
+            print(f"  index {index['name']}{' UNIQUE' if index['unique'] else ''} ({', '.join(index['columns'])})")
+        if table["referenced_by"]:
+            print("  referenced by: " + ", ".join(sorted({ref["table"] for ref in table["referenced_by"]})))
     return 0
 
 
@@ -2934,8 +3017,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     graph_build.add_argument(
         "--languages",
-        default="python,javascript,typescript",
-        help="Comma-separated languages to parse. Requires the [graph] extra.",
+        default="auto",
+        help=(
+            "Comma-separated languages to parse, or auto (default) to use every language found. "
+            "Languages without an installed grammar still appear as file-level nodes; SQL migrations "
+            "become a table/foreign-key schema."
+        ),
     )
     graph_build.add_argument(
         "--semantic",
@@ -2977,8 +3064,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     graph_show.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
     graph_show.add_argument("--all", action="store_true", help="List every node instead of inspecting one (externals hidden unless --include-external).")
-    graph_show.add_argument("--kind", choices=["module", "class", "function", "method", "external"], help="With --all: only this node kind.")
-    graph_show.add_argument("--language", choices=["python", "javascript", "typescript"], help="With --all: only this language.")
+    graph_show.add_argument("--kind", choices=["module", "class", "interface", "function", "method", "table", "external"], help="With --all: only this node kind.")
+    graph_show.add_argument("--language", help="With --all: only this language (python, java, sql, go, ...).")
     graph_show.add_argument("--file", help="With --all: only files matching this glob, or containing this text.")
     graph_show.add_argument("--include-external", action="store_true", help="With --all: include external placeholder nodes.")
     graph_show.add_argument("--edges", action="store_true", help="With --all: also print the edges among the listed nodes.")
@@ -2997,6 +3084,14 @@ def build_parser() -> argparse.ArgumentParser:
     graph_view.add_argument("--all", action="store_true", help="Start with every node in view (may be slow on large graphs).")
     graph_view.add_argument("--include-external", action="store_true", help="Start with external placeholder nodes visible.")
     graph_view.add_argument("--open", action="store_true", help="Open the result in the default browser.")
+
+    graph_schema = graph_subparsers.add_parser(
+        "schema",
+        help="Print the database schema reconstructed from SQL migrations (tables, columns, keys, entities).",
+    )
+    graph_schema.add_argument("--graph", default=GRAPH_DEFAULT_OUTPUT, help=f"Graph file to read. Defaults to {GRAPH_DEFAULT_OUTPUT}.")
+    graph_schema.add_argument("--table", help="Show only this table.")
+    graph_schema.add_argument("--format", choices=["text", "mermaid", "json"], default="text", help="Output format (default text).")
 
     graph_render = graph_subparsers.add_parser(
         "render",
@@ -3274,7 +3369,9 @@ def main(argv: list[str] | None = None) -> int:
             return run_graph_render(args)
         if args.graph_command == "view":
             return run_graph_view(args)
-        parser.error("graph requires a subcommand (build, trace, show, render, view)")
+        if args.graph_command == "schema":
+            return run_graph_schema(args)
+        parser.error("graph requires a subcommand (build, trace, show, render, view, schema)")
     if command == "context":
         return run_context(args)
     if command == "adopt":

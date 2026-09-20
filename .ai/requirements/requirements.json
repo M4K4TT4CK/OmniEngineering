@@ -728,7 +728,10 @@
         "viewer needs WebGL and was verified in Chromium with software rendering only",
         "initial view is capped at 500 nodes by default and Show all on very large graphs may be slow",
         "the viewer was not exercised on touch devices",
-        "Follow-up: omni graph build re-runs itself under ~/.venvs/omni-graph (or OMNI_GRAPH_PYTHON) when tree-sitter is missing, and prints venv setup instructions instead of a pip install that PEP 668 systems refuse. Verified by plain ./omni graph build from a system Python without tree-sitter and by the failure path with HOME pointed at an empty directory."
+        "Follow-up: omni graph build re-runs itself under ~/.venvs/omni-graph (or OMNI_GRAPH_PYTHON) when tree-sitter is missing, and prints venv setup instructions instead of a pip install that PEP 668 systems refuse. Verified by plain ./omni graph build from a system Python without tree-sitter and by the failure path with HOME pointed at an empty directory.",
+        "Follow-up: omni graph view prints the Windows file:/// URL and path under WSL and --open launches the Windows browser via cmd.exe; the Linux /mnt/c URL it printed before cannot be opened by a Windows browser. Not verified in a real Windows Chrome.",
+        "Follow-up: viewer rebranded (title OmniEngineering CodeGraph, brand mark and palette) and made readable at distance: outlier nodes grow with distance from the core cluster, node and edge sizes compensate for camera distance, brighter edge colours, Edge strength slider, unrelated nodes recede on selection. Verified in headless Chromium only.",
+        "Follow-up: multi-language graph (Java, Kotlin, C/C++, Go, Rust, etc. via a generic tree-sitter extractor; Flyway SQL migrations replayed into a table schema; omni graph schema). Verified on STEP_App: 5881 nodes / 19421 edges. Supersedes the earlier note that only Python and JS/TS are covered. The SQL parser skips unusual DDL."
       ]
     }
   ]
