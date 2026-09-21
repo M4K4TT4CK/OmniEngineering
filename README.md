@@ -876,14 +876,37 @@ omni graph show --all --layer history --kind commit
 omni graph build --layers code,governance      # skip layers; --max-commits N bounds the git scan
 ```
 
-In `omni graph view`, the **Layers**, **Node kinds**, **Languages** and **Edge types**
-groups each have **All / None** buttons, and **stack layers in 3D** pulls the layers
-onto separate planes so the links between them are easy to follow. **Search** takes
-a name, a `REQ-###`, a date, a file or text, can be limited to one kind of node
-(requirement, commit, changelog, failure, suite, rule, ...), sorts by match, date,
-name or connections, and with an empty query lists every node of the chosen kind
-(scroll the list; **Add all to view** / **Only these** put the results in the 3D
-view). `omni graph render` draws the code layer only unless you pass `--all-layers`.
+### The viewer
+
+`omni graph view` writes one self-contained, offline HTML page (nothing is fetched when it opens).
+
+- **2D or 3D, one big switch.** The 2D view is a flat Canvas 2D drawing you pan (drag) and zoom
+  (scroll or pinch); it never tilts and needs no WebGL or video memory, so it suits low-power
+  machines. It is the default. The 3D view orbits in space and needs WebGL; it is created only when
+  chosen and destroyed when you switch back, so 2D never holds a GPU context. `--mode 2d|3d|auto`
+  sets the start (`auto` remembers your last choice).
+- **Views, not layer switches.** Tabs across the top (Everything, Code, Requirements, History, Tests &
+  failures, Rules & playbooks, Database) each set the layers, colours and layout for one purpose. A strip
+  under them names the current view in large type, explains it in a sentence, and shows a colour key
+  with counts for what is on screen. Each layer has one strong hue; kinds also have distinct shapes in 2D
+  (diamond requirement, triangle commit, hexagon failure or table, page change-log entry or playbook).
+- **2D layouts.** *Network* (connected things sit together), *Layers* (one labelled band per layer, parents
+  kept beside their children, so links between layers stay short), and *Tree* (files, classes and methods
+  as a tree, parent to child; everything without a parent is listed below, grouped by kind).
+- **Select a node and its whole chain lights up.** Everything above it (parents) and below it (children)
+  is drawn in gold with bold links, the rest recedes, and the view zooms to that chain. The detail panel
+  shows a breadcrumb (`file > class > method`) and buttons that bring in what it connects to, grouped by
+  layer. A node with no parent or child highlights what it connects to instead.
+- **Trace a path between any two things.** Set a From and a To (in the *Trace a path* menu, from search
+  results, or with *Trace from here / to here*) and the shortest chain of links is drawn in pink, every
+  node on it labelled, with the steps written out.
+- **Search.** Every word must match; `kind:commit`, `layer:assurance`, `lang:java` and `file:...`
+  narrow it; results show kind, date and summary, and go to / trace from / trace to buttons; arrow keys and
+  Enter work; a miss suggests the closest things. With nothing typed, a kind lists everything of that kind.
+- **Comfort.** Every menu section collapses (remembered), every option has a tooltip, filter groups have
+  All / None, and there is a soft-grey light theme (not pure white) as well as the dark one.
+
+`omni graph render` draws the code layer only unless you pass `--all-layers`.
 
 ### Using it in your own project
 

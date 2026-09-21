@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-09-21
+
+### Completed
+
+- `REQ-023` | Code understanding | The graph viewer is easier to use and no longer needs a GPU.
+  - **2D view** (new, and the default): a flat Canvas 2D drawing with pan and zoom that never
+    tilts and creates no WebGL context, so it works on machines with little video memory. A large
+    2D / 3D switch sits in the banner; the 3D renderer is created only when chosen and destroyed when
+    you go back. `omni graph view --mode 2d|3d|auto`.
+  - **Views instead of layer switches**: tabs for Everything, Code, Requirements, History, Tests &
+    failures, Rules & playbooks and Database, each with its own layers, colours and layout. A strip
+    below them names the current view in large type, describes it, and shows a colour key with counts.
+    Layers now have strong distinct hues; 2D nodes also have per-kind shapes.
+  - **2D layouts**: Network, Layers (one band per layer, parents beside children) and Tree
+    (parent to child, unattached nodes grouped by kind).
+  - **Chain highlight**: selecting a node draws everything above and below it in gold and zooms to that
+    chain; the detail panel shows a breadcrumb and "connected to" buttons grouped by layer.
+  - **Trace a path** between any two nodes, drawn in pink with the steps written out.
+  - **Search**: multi-word, `kind:` / `layer:` / `lang:` / `file:` filters, keyboard navigation,
+    per-result trace buttons, and closest-match suggestions.
+  - **Comfort**: collapsible menus (remembered), a tooltip on every option, All / None on filters,
+    and a soft-grey light theme.
+  - Verified in headless Chromium against a real 6,980-node graph: no console errors; 2D holds no WebGL
+    context and 3D releases it on switching back; chain, trace, search, tooltips, collapsing, both themes
+    and all three layouts exercised; showing about 4,100 nodes / 12,800 links settled in under 3 seconds.
+    80 automated tests (8 new for the template and the generated page). Not verified on a real Windows
+    browser or touch device (pinch zoom is implemented but untested), and the tree layout is
+    best on graphs with real containment (files, classes, methods).
+
 ## 2026-09-20
 
 ### Completed

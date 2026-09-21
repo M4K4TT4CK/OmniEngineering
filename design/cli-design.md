@@ -37,7 +37,7 @@ Both delegate to `make_ai.py`.
 | `omni requirement complete <ID>` | Mark a requirement completed. |
 | `omni requirement archive` | Move older completed requirements to `requirements-archive.json`. |
 | `omni graph show --all` | List every graph node (grouped by file, with in/out degree); filter by `--kind`, `--language`, `--file`; `--edges` adds the edges. |
-| `omni graph view` | Write an offline, interactive 3D HTML viewer (vendored 3d-force-graph, MIT) with search, filters, click-to-read, and expand-neighbours. |
+| `omni graph view [--mode 2d\|3d\|auto]` | Write an offline, interactive HTML viewer: a flat 2D view (Canvas 2D, no GPU needed, the default) and a 3D view (vendored 3d-force-graph, MIT), with views, layouts, chain highlight, path tracing, search, filters, tooltips and a light theme. |
 | `omni graph show --all --layer <code\|governance\|history\|assurance\|workspace>` | Restrict the listing to one graph layer. |
 | `omni graph timeline <node>` | Chronology of the commits, changelog entries and failures tied to a file, symbol, requirement or failure. |
 | `omni graph sources [--write]` | Report what each layer would read from this project and what is missing; `--write` drafts `.ai/graph-config.json`. |

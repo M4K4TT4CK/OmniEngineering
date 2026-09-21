@@ -782,6 +782,47 @@
         "Test detection is by naming convention so unconventionally named tests only join the graph when a ledger entry names them;verifies edges are aggregated per test file and inferred from calls/imports;governance edges from declared scope are broad for directory-wide scopes and are ranked below git-proven links;stack-layers force verified numerically in headless Chromium only",
         "History layer: all commits (not only those naming a requirement), tied to changelog entries by the heading each commit added; INFERRED requirement ties for squash commits use the changelog entry heading ids"
       ]
+    },
+    {
+      "id": "REQ-023",
+      "category": "Code understanding",
+      "title": "Graph viewer: real 2D view (no GPU), views instead of layers, chain highlight, path tracing, better search, collapsible menus, tooltips, light theme",
+      "description": "Adds a flat Canvas 2D renderer (pan and zoom, no tilt, no WebGL context) as the default beside the existing 3D view with a large 2D/3D switch; replaces layer checkboxes with views (Everything, Code, Requirements, History, Tests and failures, Rules and playbooks, Database) and a strip that names the current view and its colour key; strong per-layer colours and per-kind shapes; Network, Layers and Tree layouts; selecting a node highlights its whole parent-to-child chain and zooms to it; shortest-path tracing between two nodes; multi-word search with kind/layer/lang/file filters and closest-match suggestions; collapsible menu sections; tooltips on every option; a soft-grey light theme. omni graph view gains --mode.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        ".ai/graph-viewer",
+        "omni_graph.py",
+        "make_ai.py",
+        "tests",
+        "README.md",
+        "design",
+        "CHANGELOG.md",
+        ".ai/requirements"
+      ],
+      "acceptance_criteria": [
+        "2D view creates no WebGL context and 3D releases it when switching back",
+        "views replace layer toggles and the strip names the current view",
+        "selecting a node highlights its chain and zooms to it",
+        "a path can be traced between any two nodes",
+        "menus collapse and every option has a tooltip",
+        "light theme is not pure white",
+        "tests pass"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests",
+        "headless Chromium against the 6980-node host graph",
+        "omni doctor",
+        "omni gate"
+      ],
+      "documentation_required": [
+        "changelog",
+        "README",
+        "design docs"
+      ],
+      "risk_notes": [
+        "Not verified on a real Windows browser or touch device;pinch zoom implemented but untested;tree layout is most useful where files contain classes and methods;force layout of very large graphs is capped by the number of visible nodes"
+      ]
     }
   ]
 }

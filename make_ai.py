@@ -1969,6 +1969,7 @@ def run_graph_view(args: argparse.Namespace) -> int:
         start_all=args.all,
         focus=args.focus,
         depth=args.depth,
+        mode=args.mode,
     )
     if not result.get("ok"):
         if result.get("error") == "missing_assets":
@@ -3780,6 +3781,7 @@ def build_parser() -> argparse.ArgumentParser:
     graph_view.add_argument("--max-initial", type=int, default=VIEW_DEFAULT_MAX_INITIAL, help=f"Nodes in the starting view, highest-degree first. Defaults to {VIEW_DEFAULT_MAX_INITIAL}.")
     graph_view.add_argument("--all", action="store_true", help="Start with every node in view (may be slow on large graphs).")
     graph_view.add_argument("--include-external", action="store_true", help="Start with external placeholder nodes visible.")
+    graph_view.add_argument("--mode", choices=["auto", "2d", "3d"], default="auto", help="Start in the flat 2D view (no GPU memory needed) or the 3D view. auto remembers your last choice in the browser and otherwise starts in 2D.")
     graph_view.add_argument("--open", action="store_true", help="Open the result in the default browser.")
 
     graph_schema = graph_subparsers.add_parser(

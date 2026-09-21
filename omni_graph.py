@@ -3982,6 +3982,7 @@ def build_view_html(
     start_all: bool = False,
     focus: str | None = None,
     depth: int = 2,
+    mode: str = "auto",
 ) -> dict[str, Any]:
     missing = [name for name in VIEWER_ASSETS if _viewer_asset_path(name) is None]
     if missing:
@@ -4058,7 +4059,7 @@ def build_view_html(
         "nodes": compact_nodes,
         "edges": compact_edges,
         "initial": sorted(initial_ids),
-        "meta": {"root": root_label, "generated_at": generated, "note": note},
+        "meta": {"root": root_label, "generated_at": generated, "note": note, "mode": mode if mode in ("2d", "3d") else "auto"},
     }
     data_json = (
         json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
