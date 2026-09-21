@@ -14,3 +14,7 @@ build/
 .ai/project-graph.json
 .ai/project-graph.svg
 .ai/project-graph.html
+
+# Editor and assistant tool settings are local
+.idea/
+.serena/
