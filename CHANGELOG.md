@@ -1,8 +1,91 @@
 # Changelog
 
+## 2026-09-22
+
+### Completed
+
+- `REQ-029` | Feature | `omni graph benchmark`: measure the token-savings claim instead of just asserting it.
+  - For one real requirement, commit, failure and file the current project's own graph and registries
+    already have (never invented, never hardcoded to a specific project's IDs), it runs a targeted graph
+    query against the naive alternative -- a plain-text grep for the name, then every matching file read
+    in full; a commit compares against `git show`, the diff a person would actually read -- and reports
+    both sizes. Tokens are `chars / 4`, explicitly labelled a rough estimate, not a real tokenizer.
+  - Found and fixed while building it: the file case first picked a 290 MB gitignored `.expo` build log
+    (a generic `file` graph node existed for it despite being gitignored), then a 5.5 MB `.pptx` once
+    that was excluded. Fixed by restricting the pick to git-tracked, already-parsed source modules only
+    -- never a generic file node, which can be a binary asset or an ignored artifact.
+  - Live runs after the fix: 88x-630x on this workspace's host project, 40x-91x on OmniEngineering's own
+    repository.
+
+- `REQ-028` | Process | A dead rule validation fixed, and one new honest one added.
+  - `gate_rules()` only ever selected `validation.type == "co_changed"`, so `controlled.requirement_id`'s
+    declared `requirement_registry_entry` validation was silently never executed -- a rule that looked
+    machine-checked but was not. Implemented it for real: every `REQ-###`-shaped ID cited in a commit
+    message since the base, or newly added to `CHANGELOG.md`, must exist in the registry.
+  - Added `content_forbidden`, applied to `data.privacy`: changed files are scanned for a private-key
+    header, an AWS-shaped access key, and an obviously hardcoded credential, with a line number. A
+    bounded, honest safety net, not a claim of exhaustive secret scanning.
+  - Deliberately left the other ~55 unvalidated rules alone: cognitive load, composition vs.
+    inheritance, naming, and the like are real judgment calls with no honest mechanical proxy, and a
+    fake check would be worse than the current honest "not machine-checked."
+  - `EXECUTABLE_VALIDATION_TYPES` now names the matched pair (selection in `gate_rules()`, dispatch in
+    `gate_evaluate()`) so a new type added to only one of them fails loudly instead of silently doing
+    nothing -- the exact shape of the bug this fixes.
+
+- `REQ-027` | Feature | An MCP server: the graph and registries as tools for any assistant, not only Claude.
+  - `omni mcp serve` exposes `graph_lineage`, `graph_why`, `graph_trace`, `graph_timeline`, `graph_show`,
+    `graph_sources`, `requirement_show`, `requirement_list`, `requirement_search`, `failure_show` and
+    `gate_status` as MCP (Model Context Protocol) tools over stdio (JSON-RPC 2.0, newline-delimited).
+    `omni mcp tools [--json]` lists them without starting the server.
+  - Hand-rolled against the wire protocol in stdlib only, no SDK dependency, in keeping with everything
+    else here: an assistant reaches this project's requirements, changelog, commits, tests and failures
+    directly, without a shell tool to run the CLI and parse its output -- and without being Claude.
+  - Every tool is read-only, so a client calls them with no confirmation step; `gate_status` runs the
+    same check as `omni gate` but never writes a waiver or blocks anything. Writing stays with
+    `omni requirement draft`/`add` and `omni gate --hook`.
+  - Added to the root allowlist, the `omni adopt`/`omni update` copy list and `pyproject.toml`'s
+    `py-modules`, all three caught missing it on the first build (`omni doctor` flagged the first).
+
+- `REQ-026` | Process | Two fewer manual steps: drafting a requirement, and keeping the graph fresh.
+  - `omni requirement draft [--commit REF]` writes a `proposed` requirement (never `completed`) and a
+    matching `CHANGELOG.md` stub from the files a commit or the current change set touched: category
+    guessed from the paths, title from the commit subject, scope from the diff. It refuses to draft a
+    duplicate when the commit message already cites a requirement ID (`--force` overrides). The manual
+    step becomes editing a draft, not writing one from nothing.
+  - `omni hook install-git --with-graph-rebuild` adds a `post-commit` hook that rebuilds the graph in
+    the background after every commit, so `omni graph why`/`lineage`/`timeline` are never more than one
+    commit stale. It never blocks `git commit` (a full rebuild can take well over a minute on a large
+    repo) and a lock directory skips a rebuild that overlaps one already running instead of piling up.
+
+- `REQ-025` | Process | Enforcement no longer depends on Claude Code, and CI checks more than `omni doctor`.
+  - `omni hook install-git` writes a portable `.githooks/pre-commit` script and sets
+    `core.hooksPath=.githooks`, so `git commit` itself runs `omni gate` — for any assistant, or none,
+    on Linux, macOS or Windows (Git for Windows always runs hooks through its own bundled `sh`, so the
+    same script works there unmodified). A foreign pre-commit hook is left alone unless `--force` is
+    given. The Claude Code Stop hook (`omni hook install`) still exists alongside it.
+  - CI (`.github/workflows/ci.yml`) now runs the full test suite, `omni doctor` and `omni gate` on
+    `ubuntu-latest`, `macos-latest` and `windows-latest` across Python 3.10 and 3.12, invoked as plain
+    `python <script>` so it depends on neither the executable bit nor which of `python`/`python3` is on
+    `PATH`. A separate job installs the optional `[graph]` extra and runs `omni graph build` and
+    `omni graph view`, so that path is checked too, not just the extras-free core.
+
 ## 2026-09-21
 
 ### Completed
+
+- `REQ-024` | Code understanding | Pick any node and trace it up and down: no start and end point needed.
+  - `omni graph lineage <node>` (and the viewer's selection) shows everything **upstream** (what led to
+    a node) and everything **downstream** (what came from it) from one pick: a requirement, commit,
+    change-log entry, failure, file or symbol. Selecting a requirement no longer falls back to its
+    immediate neighbours.
+  - Every edge type has a flow direction (intent, then delivery, then code, then assurance), so a
+    requirement reaches its commits, change-log entries, files and failures, and a failure reaches
+    its requirement, cause, regression tests, prevention rules and fix commits.
+  - Bounded and readable: `--depth`, a node cap that keeps the nearest first, a module's contents are
+    listed only when you start inside that code (a requirement shows its modules, not 240 functions),
+    and sequence links such as the previous commit stop after one step. `--code` adds calls and imports.
+  - Viewer: upstream lights up cyan and downstream gold, with Up / Both / Down, a depth choice and
+    clickable lists in the detail panel. A test keeps the viewer's flow table identical to the CLI's.
 
 - `REQ-023` | Code understanding | The graph viewer is easier to use and no longer needs a GPU.
   - **2D view** (new, and the default): a flat Canvas 2D drawing with pan and zoom that never

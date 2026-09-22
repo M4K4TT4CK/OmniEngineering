@@ -871,10 +871,29 @@ omni graph why REQ-021              # files touched, changelog entries, commits,
 omni graph why FAIL-003             # affected code, regression tests, prevention, fix commits
 omni graph why a1b2c3d              # a commit: requirements, changelog entry, files, previous/next commit
 omni graph why backend-junit        # a suite: its test files, what it covers
+omni graph lineage REQ-021          # everything upstream and downstream of it, no second endpoint needed
+omni graph lineage a1b2c3d --up     # a commit: the requirement and previous commit that led to it
+omni graph lineage FAIL-003 --depth 3 --json   # a failure: cause above it, tests, rules and fixes below it
 omni graph timeline REQ-021         # everything dated that is tied to it, oldest first
 omni graph show --all --layer history --kind commit
 omni graph build --layers code,governance      # skip layers; --max-commits N bounds the git scan
 ```
+
+Measure the token-savings claim instead of just asserting it, on your own project's own graph, right now:
+
+```bash
+omni graph benchmark          # a targeted query vs. grep-and-read-whole (git show for a commit), for real
+omni graph benchmark --json
+```
+
+For one real requirement, commit, failure and file this project's own graph already has (never invented,
+never hardcoded to a specific project), it runs the graph query and the naive alternative -- a plain-text
+grep for the name, then every matching file read in full; a commit compares against `git show`, the diff a
+person would actually read -- and reports both sizes. "Tokens" are `chars / 4`, a labelled rough estimate,
+not a real tokenizer. Two safeguards keep the file case honest: it only ever picks an already-parsed
+source module (never a generic file node, so a `.pptx` or an image can't win) and only a git-tracked one
+(so a gitignored multi-hundred-megabyte build log that merely happens to have a graph node can't either --
+both were real results the first time this ran).
 
 ### The viewer
 
@@ -943,6 +962,33 @@ omni test add --name "Backend JUnit" --paths backend/src/test --framework junit 
 omni test list | check | remove <id>
 ```
 
+### MCP server: the graph as tools for any assistant
+
+`omni graph why/lineage/trace/...` and `omni requirement/failure show/list/search`
+already print plain JSON (`--json`). `omni mcp serve` exposes the same data as MCP
+(Model Context Protocol) tools over stdio, so an assistant queries this project's
+requirements, changelog, commits, tests and failures directly, without a shell tool
+to run the CLI and parse its output -- and without that assistant being Claude. This
+is the multi-LLM half of "context management": the graph is one project fact base,
+reachable by whatever is asking.
+
+```bash
+omni mcp tools          # list the tools without starting the server
+omni mcp tools --json   # ...with full input schemas, e.g. to feed a client's config
+omni mcp serve          # serve them over stdio (JSON-RPC 2.0, one JSON object per line) until stdin closes
+```
+
+Point an MCP client's command at `omni mcp serve` (working directory: your project
+root). Every tool is read-only -- `graph_lineage`, `graph_why`, `graph_trace`,
+`graph_timeline`, `graph_show`, `graph_sources`, `requirement_show`,
+`requirement_list`, `requirement_search`, `failure_show`, `gate_status` -- so a
+client can call them with no confirmation step; nothing here writes a requirement,
+a changelog entry or a waiver. `omni requirement draft`, `omni requirement add` and
+`omni gate --hook` remain how anything gets written. Hand-rolled against the wire
+protocol (JSON-RPC 2.0, stdlib only) rather than an SDK dependency, in keeping with
+everything else here: this has to work with only the standard library, on whatever
+Python an assistant's environment already has.
+
 ## Failure Ledger
 
 Errors are only useful if they are not made twice. The failure ledger
@@ -992,6 +1038,20 @@ omni requirement add \
 
 If `--id` is omitted, the CLI assigns the next `REQ-###` ID.
 
+Writing that by hand for every commit is exactly the manual overhead this workspace exists to cut down
+on. Draft it instead, then edit the draft rather than starting from nothing:
+
+```bash
+omni requirement draft                 # from the current (uncommitted) change set
+omni requirement draft --commit HEAD   # from one already-made commit: its subject becomes the title
+```
+
+The category is guessed from the changed paths (tests, `.github/workflows`, all-Markdown, "fix" in a
+path, or a plain default), the scope is the changed files, and the requirement is always written with
+status `proposed` -- never `completed` -- so nothing is trusted until a person reviews it. A matching
+`### Proposed` stub is appended to `CHANGELOG.md` under today's date. If the commit's message already
+cites a requirement ID, nothing is drafted (a duplicate would just be noise); `--force` overrides that.
+
 Query and update the registry without opening the file (it grows large):
 
 ```bash
@@ -1008,8 +1068,23 @@ Enforce the completion rulepack instead of trusting the assistant to remember it
 ```bash
 omni gate            # fail if changed files lack changelog/registry updates
 omni waive completion.changelog_gate --reason "docs-only typo fix"
-omni hook install    # Claude Code Stop hook: blocks finishing while the gate fails
+omni hook install         # Claude Code Stop hook: blocks the assistant from finishing while the gate fails
+omni hook install-git     # portable git pre-commit hook: blocks `git commit` too, any assistant, no assistant, any OS
+omni hook install-git --with-graph-rebuild   # ...and rebuild the graph in the background after every commit
 ```
+
+Most of the 60-odd rules across the rulepacks are judgment calls -- "reduce
+cognitive load," "prefer composition," "use clear names" -- and stay that way
+on purpose: mechanizing them would mean checking a shallow proxy and letting
+the real judgment slide, which is worse than an honest "not machine-checked."
+A rule earns a `validation` block only when there is a real, non-fake check
+for it. Three types exist today:
+
+| `validation.type` | What it actually checks |
+| --- | --- |
+| `co_changed` | When any changed path matches `when_changed` (and not `ignore`), at least one changed path must also match `must_also_change` -- e.g. touching anything requires touching `CHANGELOG.md`. |
+| `requirement_registry_entry` | Every `REQ-###`-shaped ID cited in a commit message since the base, or newly added to `CHANGELOG.md`, must actually exist in the requirements registry -- catches a typo'd or invented ID that `omni doctor`'s registry-schema check cannot see, since that only validates the registry's own shape, never what other files claim about it. |
+| `content_forbidden` | Changed files are scanned for a short list of regex patterns (a private-key header, an AWS-shaped access key, an obviously hardcoded credential). A bounded, honest safety net for the most common accidental leaks, not a claim of exhaustive secret scanning. |
 
 Add a rule to a rulepack:
 

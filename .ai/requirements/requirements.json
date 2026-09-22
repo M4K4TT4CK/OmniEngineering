@@ -823,6 +823,209 @@
       "risk_notes": [
         "Not verified on a real Windows browser or touch device;pinch zoom implemented but untested;tree layout is most useful where files contain classes and methods;force layout of very large graphs is capped by the number of visible nodes"
       ]
+    },
+    {
+      "id": "REQ-024",
+      "category": "Feature",
+      "title": "Lineage: pick any node and trace up and down with no second endpoint (CLI and viewer)",
+      "description": "omni graph lineage <node> and the viewer's selection now trace everything upstream (what led to a node) and downstream (what came from it) from a single pick: a requirement, commit, change-log entry, failure, file or symbol. Each edge type has a flow direction (intent -> delivery -> code -> assurance). Up/Both/Down, depth, and an opt-in for code calls/imports; upstream draws cyan and downstream gold. The viewer's flow table is checked against the CLI's by a test.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "omni_graph.py",
+        "make_ai.py",
+        ".ai/graph-viewer/viewer.html",
+        "tests/test_lineage.py",
+        "tests/test_viewer.py",
+        "README.md",
+        "design/cli-design.md",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "A requirement",
+        "commit and failure each trace up and down with one argument",
+        "Direction",
+        "depth and node cap bound the result",
+        "Viewer and CLI agree on flow directions",
+        "Contents of a module are not expanded from a requirement"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests",
+        "omni graph lineage on a real graph",
+        "headless-Chromium check of a requirement and a commit"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "REQ-025",
+      "category": "Process",
+      "title": "Portable enforcement: a real CI matrix and a git pre-commit hook, not just the Claude Stop hook",
+      "description": "The completion gate previously enforced only inside Claude Code (a Stop hook) and CI only ran omni doctor on ubuntu-latest. Added: (1) omni hook install-git, a portable .githooks/pre-commit + core.hooksPath install that runs omni gate on every commit, any assistant or none, on Linux/macOS/Windows (Git for Windows runs hooks through its own bundled sh); (2) a CI matrix across ubuntu-latest/macos-latest/windows-latest x Python 3.10/3.12 that runs the full test suite, omni doctor and omni gate with plain 'python' so it doesn't depend on the executable bit or which of python/python3 is on PATH; (3) a separate CI job that installs the optional [graph] extra and builds/renders the graph, so that path is also checked in CI.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        ".github/workflows/ci.yml",
+        "tests/test_gate_hook.py",
+        "README.md",
+        "design/cli-design.md",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "omni hook install-git writes a working LF-only pre-commit hook and sets core.hooksPath",
+        "A foreign pre-commit hook is not overwritten without --force",
+        "CI runs tests/doctor/gate on all three OSes",
+        "graph build and graph view are exercised in CI via the [graph] extra"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests (97 tests)",
+        "omni gate PASS in the real repo",
+        "omni hook install-git verified end to end in a scratch repo (blocks an unscaffolded commit",
+        "passes once adopted)",
+        "graph-extra job simulated locally in a clean venv"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "REQ-026",
+      "category": "Process",
+      "title": "Cut manual process: draft requirements/changelog from a commit, and rebuild the graph on commit",
+      "description": "Two of the workspace's remaining manual steps: (1) omni requirement draft [--commit REF] infers a category from the changed paths, takes the title from the commit subject (or a placeholder), and writes a proposed (never completed) requirement plus a matching CHANGELOG.md Proposed stub, so review replaces hand-authoring; it refuses to draft a duplicate when the commit message already cites a requirement ID. (2) omni hook install-git --with-graph-rebuild adds a post-commit hook that rebuilds the graph in the background after every commit (a lock directory skips an overlapping run; output goes to .ai/.graph-build.log; a full rebuild never blocks git commit, which matters since a real rebuild can take well over a minute on a large repo).",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        "tests/test_draft.py",
+        "tests/test_gate_hook.py",
+        "README.md",
+        "design/cli-design.md",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "omni requirement draft produces a proposed entry and a changelog stub from both the working tree and a named commit",
+        "A commit that already cites a requirement is not re-drafted",
+        "The post-commit hook rebuilds the graph in the background without blocking git commit",
+        "A build already in flight is not duplicated"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests (118 tests)",
+        "omni gate PASS in the real repo",
+        "end-to-end scratch-repo verification of both features (including a real timed git commit and a directly-run post-commit hook)"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "REQ-027",
+      "category": "Feature",
+      "title": "MCP server: the graph and registries as tools for any assistant, not only Claude",
+      "description": "omni mcp serve exposes graph_why, graph_lineage, graph_trace, graph_timeline, graph_show, graph_sources, requirement_show, requirement_list, requirement_search, failure_show and gate_status as MCP (Model Context Protocol) tools over stdio (JSON-RPC 2.0, newline-delimited), hand-rolled against the wire protocol in stdlib only (no SDK dependency), so any MCP-speaking assistant can query this project's requirements, changelog, commits, tests and failures directly instead of shelling out to the CLI. Every tool is read-only (gate_status runs the same check as omni gate but never writes a waiver or blocks); nothing here writes a requirement, changelog entry or waiver. omni mcp tools [--json] lists the tools without starting the server. Added to the root allowlist, the adopt/update copy list (ADOPTION_CLI_FILES) and pyproject.toml's py-modules, since omni doctor caught it missing from all three on first build.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "omni_mcp.py",
+        "make_ai.py",
+        "pyproject.toml",
+        "tests/test_mcp.py",
+        "README.md",
+        "design/cli-design.md",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "initialize/tools list/tools call all work over a real stdio pipe and over the real CLI subprocess",
+        "Every tool is read-only",
+        "A not-found result (ok:false) and a raised ToolError both surface as isError:true",
+        "A tool that raises unexpectedly does not crash the server",
+        "omni adopt --include-cli copies omni_mcp.py",
+        "omni doctor has 0 errors"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests (149 tests)",
+        "omni gate PASS in the real repo",
+        "end-to-end JSON-RPC session against the real STEP_App-scale graph (initialize",
+        "tools/list",
+        "tools/call for lineage/requirement/gate_status/error cases)"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "REQ-028",
+      "category": "Process",
+      "title": "Make declared rule validations real: a dead check fixed, one new honest safety net added",
+      "description": "gate_rules() only ever selected validation.type == co_changed, so controlled.requirement_id's declared requirement_registry_entry validation was silently never executed -- a rule that looked machine-checked but was not. Fixed by implementing it for real: every REQ-###-shaped ID cited in a commit message since the base, or newly added to CHANGELOG.md, must exist in the registry (catches a typo'd/invented id that the registry's own schema validation cannot see, since that only checks the registry's own shape). Added one new, honestly-scoped validation type, content_forbidden: changed files are scanned for a short list of regexes (private-key header, AWS-shaped access key, obviously hardcoded credential), applied to data.privacy. Deliberately did not try to mechanize the other ~55 unvalidated rules (cognitive load, composition vs inheritance, naming, ...): those are real judgment calls with no honest mechanical proxy, and faking one would be worse than leaving it a judgment call. EXECUTABLE_VALIDATION_TYPES now documents the matched pair (gate_rules selection + gate_evaluate dispatch) so a new type added to one and not the other fails loudly instead of silently doing nothing, which is exactly the bug this fixes.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        "omni_mcp.py",
+        ".ai/rules/data-governance.json",
+        "tests/test_gate_rules.py",
+        "README.md",
+        "design/cli-design.md",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "requirement_registry_entry actually runs and catches a cited-but-nonexistent requirement id",
+        "content_forbidden catches a private-key header and an AWS-shaped key with a line number",
+        "A rulepack's own files never self-match their own pattern source text",
+        "Every existing gate behavior (co_changed) is unchanged",
+        "omni gate PASS on the real repo"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests (165 tests)",
+        "omni gate PASS in the real repo",
+        "omni doctor 0 errors"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "REQ-029",
+      "category": "Feature",
+      "title": "omni graph benchmark: measure the token-savings claim instead of just asserting it",
+      "description": "omni graph benchmark [--json] runs a targeted graph query (why/lineage) against the naive alternative (grep -l -F for the name, then read every matching file whole; a commit compares against git show, the actual diff) for one real requirement, commit, failure and file the current project's own graph and registries already have -- never invented, never hardcoded to a specific project's IDs, so any adopter gets their own honest numbers. Tokens are reported as chars/4, explicitly labelled a rough estimate, not a real tokenizer. Two data-quality bugs were found and fixed while building this: the file case first picked a 290MB gitignored .expo build log (a generic 'file' graph node existed for it despite it being gitignored), then a 5.5MB .pptx after tracked-only filtering (a binary asset). Fixed by restricting the file pick to git-tracked, already-parsed source modules only -- never a generic file node, which can be a binary or an ignored artifact.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "omni_graph.py",
+        "make_ai.py",
+        "tests/test_benchmark.py",
+        "README.md",
+        "design/cli-design.md",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "Picks a real requirement/commit/failure/file from whatever graph is passed in",
+        "A gitignored file is never picked",
+        "A binary or unparsed file is never picked (module nodes only)",
+        "A commit's naive cost is git show",
+        "not a grep",
+        "Reported ratio equals naive_chars/graph_chars",
+        "Live run against both STEP_App and OmniEngineering's own graphs produces sane",
+        "non-degenerate numbers"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests (178 tests)",
+        "omni gate PASS",
+        "live omni graph benchmark run against STEP_App (88x-630x) and OmniEngineering (40x-91x) after the fix"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
     }
   ]
 }

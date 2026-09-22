@@ -22,4 +22,4 @@ graph = [
 ]
 
 [tool.setuptools]
-py-modules = ["make_ai", "omni_graph"]
+py-modules = ["make_ai", "omni_graph", "omni_mcp"]

@@ -101,6 +101,14 @@
   .crumbs .cur{background:#ffc300;color:#111;border-color:#ffc300;font-weight:700}
   .crumbs .sep{color:var(--dim)}
   .conn{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+  .lin .lh{display:flex;align-items:center;gap:8px;font-weight:700;margin:10px 0 3px}
+  .lin .lh i{display:inline-block;width:14px;height:14px;border-radius:50%;flex:none}
+  .lin .kg{margin:3px 0 5px 6px}.lin .kg>.dim{font-size:12px}
+  .lin .it{display:flex;gap:8px;width:100%;text-align:left;padding:3px 8px;margin:2px 0;font-size:12px;border-radius:6px}
+  .lin .it b{flex:none;color:var(--dim);font-weight:400;min-width:2.4em}.lin .it span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lin .ctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}
+  .lin .ctl button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .lin label{display:inline-flex;gap:5px;align-items:center;font-size:12px;color:var(--dim)}
   .conn button{border-left:5px solid var(--cc,var(--accent));padding:5px 10px}
   .edge{display:flex;gap:6px;align-items:baseline;width:100%;text-align:left;margin:2px 0;padding:3px 6px;border:0;background:transparent}
   .edge:hover{background:var(--panel2)}
@@ -239,7 +247,7 @@
   <ol>
     <li><b>Pick a view</b> with the big tabs at the top: everything, just code, requirements, history, tests &amp; failures, or rules &amp; playbooks. The strip under the tabs says what you are looking at and what each colour means.</li>
     <li><b>Find something</b> with the search box (left). Type any words; <code>kind:commit</code> or <code>layer:assurance</code> narrows it. Click a result to jump to it.</li>
-    <li><b>Click a node</b> to select it. Its whole chain (parents above it, children below it) lights up in gold and the picture zooms to that chain. The right panel says what it is and what it connects to.</li>
+    <li><b>Click any node</b> (a requirement, a commit, a change-log entry, a failure, a file, a function) and it traces itself both ways with no second endpoint: everything <b>upstream</b> (what led to it) lights up in cyan and everything <b>downstream</b> (what came from it) in gold, and the picture zooms to that chain. The right panel lists both sides and lets you choose Up, Both or Down and how many links deep.</li>
     <li><b>Trace a path</b> between any two things: set a From and a To in the &ldquo;Trace a path&rdquo; menu (or use the buttons in the right panel). The route is drawn in pink, step by step.</li>
     <li><b>2D or 3D:</b> 2D is flat and light (no GPU memory needed). Drag to pan, scroll to zoom. 3D orbits in space.</li>
     <li><b>Double-click</b> a node (or press <b>E</b>) to bring in its neighbours. <b>Esc</b> clears the selection, <b>F</b> fits the screen, <b>/</b> jumps to search.</li>
@@ -298,8 +306,8 @@
     affects: 'A failure affected this code.', arose_in: 'A failure surfaced while working on this requirement.', guards: 'A regression test (or suite) guards against a failure returning.', prevented_by: 'A failure produced this rule or playbook.',
     fixed_by: 'A commit fixed this failure.', recurs: 'A failure repeats an earlier one.' };
   var THEMES = {
-    dark: { stage: '#0f0f12', text: '#e8e8e8', dim: '#3a3a48', select: '#ffffff', chain: '#ffc300', path: '#ff4fd8', halo: '#0f0f12', edge: '#6b7280' },
-    light: { stage: '#dde1e6', text: '#23272e', dim: '#b3b9c3', select: '#101318', chain: '#b07d00', path: '#c2189c', halo: '#dde1e6', edge: '#7b8492' } };
+    dark: { stage: '#0f0f12', text: '#e8e8e8', dim: '#3a3a48', select: '#ffffff', chain: '#ffc300', up: '#35d0e6', path: '#ff4fd8', halo: '#0f0f12', edge: '#6b7280' },
+    light: { stage: '#dde1e6', text: '#23272e', dim: '#b3b9c3', select: '#101318', chain: '#b07d00', up: '#0b7d92', path: '#c2189c', halo: '#dde1e6', edge: '#7b8492' } };
   var theme = 'dark';
   function TH() { return THEMES[theme]; }
   function typeColor(t) { return TYPE_COLORS[theme][t] || TH().edge; }
@@ -331,7 +339,7 @@
   var visible = new Set(DATA.initial), initial = DATA.initial.slice();
   var langOn = {}, typeOn = {}, layerOn = {}, kindOn = {}, suspended = 0;
   var showInferred = true, showExternal = false, colorMode = 'layer', arrows = true, labelsOn = true, edgeBoost = 3, layout = 'network', mode = '2d', currentView = 'overview';
-  var selected = null, neighborSet = new Set(), chainSet = null, chainEdges = null, chainKind = '', pathSet = null, pathEdges = null, pathInfo = null;
+  var selected = null, neighborSet = new Set(), chainSet = null, chainEdges = null, chainKind = '', chainDir = null, chainEdgeDir = null, lineageInfo = null, pathSet = null, pathEdges = null, pathInfo = null;
   var EXPAND_CAP = 60;
 
   function passesFilters(n) {
@@ -359,6 +367,8 @@
     return LAYER_COLORS[layerName(n)] || '#8a93a0';   // layer
   }
   // state drives emphasis: a traced path beats the selection, which beats its chain, which beats its neighbours; the rest recede.
+  function chainColor(id) { return chainDir && chainDir[id] === 'up' ? TH().up : TH().chain; }
+  function chainEdgeColor(i) { return chainEdgeDir && chainEdgeDir[i] === 'up' ? TH().up : TH().chain; }
   function stateOf(n) {
     if (pathSet) return pathSet.has(n.id) ? 'path' : 'dim';
     if (selected) { if (n.id === selected.id) return 'sel'; if (chainSet && chainSet.has(n.id)) return 'chain'; if (neighborSet.has(n.id)) return 'nbr'; return 'dim'; }
@@ -370,17 +380,53 @@
     return 'norm';
   }
 
-  // ---- the chain: everything above and below a node in the parent-to-child hierarchy ---------------------------------
+  // ---- the chain: a node's lineage. Everything upstream (what led to it) and downstream (what came from it), no second endpoint ----
+  // Each edge type flows one way: intent -> delivery -> code -> assurance. Up follows only upstream links, down only downstream ones.
+  // Keep in step with LINEAGE_FLOW in omni_graph.py, which `omni graph lineage` uses.
+  var LFLOW = { defines: 'down', contains: 'down', touches: 'down', modifies: 'down', mentions: 'down', delivers: 'up', records: 'up', logged_in: 'down',
+    arose_in: 'up', affects: 'up', guards: 'up', prevented_by: 'down', fixed_by: 'down', covers: 'up', verifies: 'up' };
+  var LCODE = { calls: 'up', imports: 'up', inherits: 'up', implements: 'up', uses: 'up', references: 'up', maps_to: 'up' };
+  var LHOP = { follows: 'up', recurs: 'up' };            // sequence links: shown one step from the node asked about, never walked on
+  var lineageOpts = { dir: 'both', depth: 4, code: false }, LINEAGE_CAP = 400;
+  function flowOf(type) { return LFLOW[type] || (lineageOpts.code ? LCODE[type] : null); }
+  function lineageWalk(origin, downward) {
+    var seen = new Set([origin]), list = [], dropped = 0, queue = [[origin, 0, true]], head = 0;
+    while (head < queue.length) {
+      var cur = queue[head++], id = cur[0], level = cur[1], inside = cur[2];
+      if (level >= lineageOpts.depth) continue;
+      var steps = [];
+      (out[id] || []).forEach(function (i) { var e = edges[i], w = flowOf(e.type), hop = LHOP[e.type] && id === origin;
+        if (hop) w = 'up'; if (w && (w === 'down') === downward) steps.push([e.t, e.type, !!hop]); });
+      (inn[id] || []).forEach(function (i) { var e = edges[i], w = flowOf(e.type), hop = LHOP[e.type] && id === origin;
+        if (hop) w = 'up'; if (w && (w === 'down') !== downward) steps.push([e.s, e.type, !!hop]); });
+      steps.sort(function (a, b) { var x = byId[a[0]] ? byId[a[0]].name : '', y = byId[b[0]] ? byId[b[0]].name : ''; return x < y ? -1 : x > y ? 1 : 0; });
+      for (var k = 0; k < steps.length; k++) {
+        var oid = steps[k][0], other = byId[oid], structural = steps[k][1] === 'defines' || steps[k][1] === 'contains';
+        if (!other || seen.has(oid) || other.kind === 'external') continue;
+        if (downward && structural && !inside) continue;            // from a requirement or commit, a module's contents would bury what matters
+        seen.add(oid);
+        if (list.length >= LINEAGE_CAP) { dropped++; continue; }
+        list.push({ id: oid, depth: level + 1, via: steps[k][1], from: id });
+        if (!steps[k][2]) queue.push([oid, level + 1, inside && structural]);
+      }
+    }
+    return { list: list, dropped: dropped };
+  }
   function chainOf(id) {
-    var set = new Set([id]), es = new Set(), stack, guard;
-    stack = [id]; guard = 0;                                    // ancestors (parents, grandparents, ...)
-    while (stack.length && guard++ < 200) { var c = stack.pop(); (parentsOf[c] || []).forEach(function (p) { if (!set.has(p)) { set.add(p); stack.push(p); } }); }
-    stack = [id]; guard = 0;                                    // descendants (children, grandchildren, ...)
-    while (stack.length && guard++ < 800) { var d = stack.pop(); (childrenOf[d] || []).forEach(function (ch) { if (!set.has(ch)) { set.add(ch); stack.push(ch); } }); }
-    edges.forEach(function (e, i) { if ((e.type === 'defines' || e.type === 'contains') && set.has(e.s) && set.has(e.t)) es.add(i); });
-    var hierarchical = set.size > 1;
-    if (!hierarchical) { neighborsOf(id).forEach(function (m) { set.add(m.id); }); }   // no parent or child: fall back to what it connects to
-    return { nodes: set, edges: es, hierarchical: hierarchical };
+    var up = lineageOpts.dir === 'down' ? { list: [], dropped: 0 } : lineageWalk(id, false), dn = lineageOpts.dir === 'up' ? { list: [], dropped: 0 } : lineageWalk(id, true);
+    var set = new Set([id]), dir = {}, es = new Set(), edir = {};
+    dn.list.forEach(function (m) { set.add(m.id); dir[m.id] = 'down'; });
+    up.list.forEach(function (m) { set.add(m.id); dir[m.id] = 'up'; });           // a node in both keeps the upstream mark
+    function side(x) { return x === id ? 'origin' : dir[x]; }
+    edges.forEach(function (e, i) {
+      if (!set.has(e.s) || !set.has(e.t)) return;
+      if (!(flowOf(e.type) || (LHOP[e.type] && (e.s === id || e.t === id)))) return;
+      es.add(i); var a = side(e.s), b = side(e.t);
+      edir[i] = (a === 'up' || a === 'origin') && (b === 'up' || b === 'origin') && !(a === 'origin' && b === 'origin') ? 'up' : 'down';
+    });
+    var found = set.size > 1;
+    if (!found) { neighborsOf(id).forEach(function (m) { set.add(m.id); }); }   // no lineage: fall back to what it connects to
+    return { nodes: set, edges: es, hierarchical: found, dir: dir, edir: edir, up: up, down: dn };
   }
   function pathBetween(a, b) {
     if (a === b) return { nodes: [a], edges: [] };
@@ -628,7 +674,7 @@
           if (st === 'dim') { ctx.globalAlpha = 0.07; ctx.strokeStyle = typeColor(e.type); ctx.lineWidth = 1 / k; }
           else if (st === 'norm') { ctx.globalAlpha = Math.min(0.9, base) * (e.prov === 'INFERRED' ? 0.75 : 1) * (layout === 'lanes' ? 0.3 : 1); ctx.strokeStyle = typeColor(e.type); ctx.lineWidth = w / k; }
           else if (st === 'nbr') { ctx.globalAlpha = 0.9; ctx.strokeStyle = typeColor(e.type); ctx.lineWidth = Math.max(2, w * 1.6) / k; }
-          else if (st === 'chain') { ctx.globalAlpha = 1; ctx.strokeStyle = TH().chain; ctx.lineWidth = 4 / k; }
+          else if (st === 'chain') { ctx.globalAlpha = 1; ctx.strokeStyle = chainEdgeColor(e.i); ctx.lineWidth = 4 / k; }
           else { ctx.globalAlpha = 1; ctx.strokeStyle = TH().path; ctx.lineWidth = 5 / k; }
           ctx.stroke();
           if (arrows && st !== 'dim' && e.type !== 'defines' && (k > 0.9 || st !== 'norm')) arrowList.push([a, b, ctx.strokeStyle, ctx.globalAlpha, st]);
@@ -647,10 +693,10 @@
           var px = n.x2 * k + cam.x, py = n.y2 * k + cam.y; if (px < -30 || px > W + 30 || py < -30 || py > H + 30) continue;
           var r = radius(n), col = baseColor(n);
           ctx.globalAlpha = st === 'dim' ? 0.2 : 1;
-          if (st === 'sel' || st === 'path' || st === 'chain') { shape(n.kind, n.x2, n.y2, r * 1.5 + 5 / k); ctx.fillStyle = st === 'path' ? TH().path : (st === 'sel' ? TH().select : TH().chain); ctx.globalAlpha = 0.32; ctx.fill(); ctx.globalAlpha = 1; }
+          if (st === 'sel' || st === 'path' || st === 'chain') { shape(n.kind, n.x2, n.y2, r * 1.5 + 5 / k); ctx.fillStyle = st === 'path' ? TH().path : (st === 'sel' ? TH().select : chainColor(n.id)); ctx.globalAlpha = 0.32; ctx.fill(); ctx.globalAlpha = 1; }
           shape(n.kind, n.x2, n.y2, r); ctx.fillStyle = col; ctx.fill();
           ctx.lineWidth = (st === 'norm' || st === 'dim' ? 1.4 : 3.2) / k;
-          ctx.strokeStyle = st === 'sel' ? TH().select : st === 'path' ? TH().path : st === 'chain' ? TH().chain : (theme === 'dark' ? '#0b0b0e' : '#f3f4f6'); ctx.stroke();
+          ctx.strokeStyle = st === 'sel' ? TH().select : st === 'path' ? TH().path : st === 'chain' ? chainColor(n.id) : (theme === 'dark' ? '#0b0b0e' : '#f3f4f6'); ctx.stroke();
         }
       });
       // labels (screen space)
@@ -746,8 +792,8 @@
     function webglOk() {
       try { var c = document.createElement('canvas'), g = c.getContext('webgl2') || c.getContext('webgl'); if (!g) return false; var x = g.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); return true; } catch (e) { return false; }
     }
-    function color3(n) { var st = stateOf(n); return st === 'dim' ? TH().dim : st === 'sel' ? TH().select : st === 'path' ? TH().path : st === 'chain' ? TH().chain : baseColor(n); }
-    function linkColor(l) { var st = edgeState(l); return st === 'dim' ? TH().dim : st === 'path' ? TH().path : st === 'chain' ? TH().chain : typeColor(l.type); }
+    function color3(n) { var st = stateOf(n); return st === 'dim' ? TH().dim : st === 'sel' ? TH().select : st === 'path' ? TH().path : st === 'chain' ? chainColor(n.id) : baseColor(n); }
+    function linkColor(l) { var st = edgeState(l); return st === 'dim' ? TH().dim : st === 'path' ? TH().path : st === 'chain' ? chainEdgeColor(l.i) : typeColor(l.type); }
     function linkWidth(l) { var st = edgeState(l), w = (TYPE_WIDTH[l.type] || 1) * 0.7 * (l.prov === 'INFERRED' ? 0.8 : 1); return st === 'path' ? 3.4 : st === 'chain' ? 2.6 : st === 'nbr' ? w * 1.6 : w; }
     function opacity() { return Math.min(1, 0.35 + edgeBoost * 0.11); }
     function nodeVal(n) { return Math.max(1, Math.sqrt(n.deg || 1)) * (KIND_SCALE[n.kind] || 1) * 2; }
@@ -1008,7 +1054,7 @@
     Object.keys(kindOn).forEach(function (k) { kindOn[k] = true; }); Object.keys(langOn).forEach(function (k) { langOn[k] = true; });
     showExternal = false; $('external').checked = false; if (id === 'schema') { typeOn.references = true; typeOn.maps_to = true; }
     visible = v.seed(); colorMode = v.colorMode; $('colormode').value = colorMode; layout = v.layout; syncLayoutButtons(); syncChecks();
-    clearTrace(true); selected = null; chainSet = chainEdges = null; neighborSet = new Set();
+    clearTrace(true); selected = null; chainSet = chainEdges = null; chainDir = chainEdgeDir = lineageInfo = null; neighborSet = new Set();
     renderViews(); refresh('view: ' + v.name, { fit: true, reheat: true }); renderDetail();
   }
   function syncLayoutButtons() { Array.prototype.forEach.call(document.querySelectorAll('#layoutseg button'), function (b) { b.classList.toggle('on', b.getAttribute('data-layout') === layout); }); }
@@ -1030,10 +1076,10 @@
   function focusOn(set) { if (mode === '2d') R2.fit(set, { pad: 90 }); else R3.fit(set); }
   function select(id, opts) {
     opts = opts || {};
-    if (!id) { selected = null; chainSet = chainEdges = null; chainKind = ''; neighborSet = new Set(); restyle(); renderDetail(); return; }
+    if (!id) { selected = null; chainSet = chainEdges = null; chainKind = ''; chainDir = chainEdgeDir = lineageInfo = null; neighborSet = new Set(); restyle(); renderDetail(); return; }
     var n = byId[id]; if (!n) return;
     var changed = ensureVisible(id), ch = chainOf(id);
-    chainSet = ch.nodes; chainEdges = ch.edges; chainKind = ch.hierarchical ? 'hierarchy' : 'connections';
+    chainSet = ch.nodes; chainEdges = ch.edges; chainKind = ch.hierarchical ? 'lineage' : 'connections'; chainDir = ch.dir; chainEdgeDir = ch.edir; lineageInfo = ch;
     chainSet.forEach(function (cid) {
       var m = byId[cid]; if (!m || m.kind === 'external' || visible.has(cid)) return;
       if (ch.hierarchical) ensureVisible(cid); else if (passesFilters(m)) visible.add(cid); changed = true;
@@ -1201,11 +1247,45 @@
       if (a.indexes && a.indexes.length) d.appendChild(el('div', 'dim', 'indexes: ' + a.indexes.map(function (x) { return x.name + (x.unique ? ' (unique)' : ''); }).join(', ')));
     }
   }
+  // ---- the lineage panel: up (what led to it), down (what came from it), depth, and the two lists --------------------------------
+  function renderLineage(d) {
+    if (!lineageInfo || chainKind !== 'lineage') return;
+    d.appendChild(el('h2', null, 'Trace up and down'));
+    var box = el('div', 'lin'), ctl = el('div', 'ctl');
+    [['up', 'Up', 'Only what led to this node.'], ['both', 'Both', 'What led to it and what came from it.'], ['down', 'Down', 'Only what came from this node.']].forEach(function (o) {
+      var b = actionButton(o[1], o[2], function () { lineageOpts.dir = o[0]; select(selected.id); }, lineageOpts.dir === o[0] ? 'on' : ''); ctl.appendChild(b);
+    });
+    var sel = el('select'); sel.setAttribute('data-tip', 'How many links to follow away from this node.');
+    [1, 2, 3, 4, 6, 8, 12].forEach(function (n) { var op = el('option', null, n + (n === 1 ? ' link' : ' links')); op.value = n; if (n === lineageOpts.depth) op.selected = true; sel.appendChild(op); });
+    sel.addEventListener('change', function () { lineageOpts.depth = +sel.value; select(selected.id); }); ctl.appendChild(sel);
+    var lb = el('label'), cb = el('input'); cb.type = 'checkbox'; cb.checked = lineageOpts.code;
+    lb.setAttribute('data-tip', 'Also follow calls, imports, inheritance and table mappings between code symbols. Off by default: they bury a requirement in call graphs.');
+    cb.addEventListener('change', function () { lineageOpts.code = cb.checked; select(selected.id); }); lb.appendChild(cb); lb.appendChild(document.createTextNode('code calls & imports')); ctl.appendChild(lb);
+    box.appendChild(ctl);
+    [['up', 'Upstream: what led to it', TH().up, lineageInfo.up], ['down', 'Downstream: what came from it', TH().chain, lineageInfo.down]].forEach(function (sec) {
+      if (lineageOpts.dir !== 'both' && lineageOpts.dir !== sec[0]) return;
+      var list = sec[3].list, head = el('div', 'lh'), dot = el('i'); dot.style.background = sec[2]; head.appendChild(dot);
+      head.appendChild(document.createTextNode(sec[1] + '  (' + list.length + (sec[3].dropped ? '+' + sec[3].dropped : '') + ')')); box.appendChild(head);
+      if (!list.length) { box.appendChild(el('div', 'hint', 'Nothing ' + (sec[0] === 'up' ? 'upstream' : 'downstream') + ' of this node' + (lineageOpts.depth < 12 ? ' within ' + lineageOpts.depth + ' link(s)' : '') + '.')); return; }
+      var groups = {}; list.forEach(function (m) { var k = byId[m.id].kind; (groups[k] || (groups[k] = [])).push(m); });
+      Object.keys(groups).sort(function (a, b) { return groups[a][0].depth - groups[b][0].depth || (a < b ? -1 : 1); }).forEach(function (k) {
+        var g = el('div', 'kg'); g.appendChild(el('div', 'dim', k + ' \u00b7 ' + groups[k].length));
+        groups[k].slice(0, 10).forEach(function (m) {
+          var nn = byId[m.id], b = el('button', 'it'); b.type = 'button'; b.setAttribute('data-tip', nn.kind + (nn.file ? ' \u00b7 ' + nn.file : '') + ' \u00b7 reached by \u201c' + m.via + '\u201d'); b.style.borderLeft = '4px solid ' + sec[2];
+          b.appendChild(el('b', null, (sec[0] === 'up' ? '\u2191' : '\u2193') + m.depth)); b.appendChild(el('span', null, nn.name)); b.addEventListener('click', function () { select(m.id); }); g.appendChild(b);
+        });
+        if (groups[k].length > 10) g.appendChild(el('div', 'hint', '+ ' + (groups[k].length - 10) + ' more, all highlighted in the picture'));
+        box.appendChild(g);
+      });
+    });
+    if (lineageInfo.up.dropped || lineageInfo.down.dropped) box.appendChild(el('div', 'hint', 'Capped at ' + LINEAGE_CAP + ' nodes per side, nearest first. Lower the depth to narrow it.'));
+    d.appendChild(box);
+  }
   function actionButton(label, tip, fn, cls) { var b = el('button', cls || '', label); b.type = 'button'; b.setAttribute('data-tip', tip); b.addEventListener('click', fn); return b; }
   function renderDetail() {
     var d = $('detail'); d.textContent = '';
     if (!selected) {
-      d.appendChild(el('h3', null, 'Nothing selected')); d.appendChild(el('p', 'dim', 'Click a node to read it. Its whole chain (everything above and below it) lights up in gold and the view zooms to it.'));
+      d.appendChild(el('h3', null, 'Nothing selected')); d.appendChild(el('p', 'dim', 'Click a node to read it. It traces itself both ways: what led to it lights up in cyan, what came from it in gold, and the view zooms to that chain.'));
       d.appendChild(el('p', 'dim', 'Not sure where to start? Use the view tabs at the top, search on the left, or press ? for a quick guide.'));
       if (pathInfo) d.appendChild(el('p', null, 'A trace is showing: ' + pathInfo.label)); return;
     }
@@ -1218,8 +1298,8 @@
       path.forEach(function (id, i) { if (i) cr.appendChild(el('span', 'sep', '›')); var b = el('button', id === n.id ? 'cur' : '', byId[id].name + '  \u00b7 ' + byId[id].kind); b.type = 'button'; b.setAttribute('data-tip', byId[id].kind + (byId[id].file ? ' · ' + byId[id].file : '')); b.addEventListener('click', function () { select(id); }); cr.appendChild(b); });
       var kids = (childrenOf[n.id] || []).length; if (kids) { cr.appendChild(el('span', 'sep', '›')); cr.appendChild(el('span', 'dim', kids + ' below')); }
       d.appendChild(cr);
-      if (chainSet && chainKind === 'hierarchy') d.appendChild(el('div', 'hint', 'Its chain (' + chainSet.size + ' nodes, parents down to children) is highlighted in gold.'));
     }
+    renderLineage(d);
     if (n.qn && n.qn !== n.name) d.appendChild(el('div', 'dim', n.qn)); if (n.summary) d.appendChild(el('div', 'summary', n.summary)); renderAttrs(d, n);
     // what it connects to, grouped by layer: one click brings a whole group into the picture
     var groups = {}; neighborsOf(n.id).forEach(function (m) { if (m.kind !== 'external') { var y = layerName(m); (groups[y] || (groups[y] = [])).push(m); } });
@@ -1237,7 +1317,7 @@
     var row = el('div', 'row');
     row.appendChild(actionButton('Trace from here', 'Use this node as the start of a trace.', function () { setEnd('from', n.id); }, 'primary'));
     row.appendChild(actionButton('Trace to here', 'Use this node as the destination of a trace.', function () { setEnd('to', n.id); }, 'primary'));
-    row.appendChild(actionButton('Focus chain', 'Zoom to this node\'s chain.', function () { focusOn(chainKind === 'hierarchy' ? chainSet : neighborSet); }));
+    row.appendChild(actionButton('Focus chain', 'Zoom to this node\'s chain.', function () { focusOn(chainKind === 'lineage' ? chainSet : neighborSet); }));
     row.appendChild(actionButton('Isolate 1 hop', 'Show only this node and what it directly connects to.', function () { var s = new Set([n.id]); neighborsOf(n.id).forEach(function (m) { if (m.kind !== 'external' || showExternal) { s.add(m.id); } }); visible = s; refresh('isolated ' + n.name, { fit: true, reheat: true }); select(n.id, { focus: false }); }));
     row.appendChild(actionButton('Expand all', 'Bring every neighbour into the picture (up to ' + EXPAND_CAP + ').', function () { expand(n.id); }));
     row.appendChild(actionButton('Hide', 'Remove this node from the picture.', function () { visible['delete'](n.id); select(null); refresh('hid ' + n.name); }));

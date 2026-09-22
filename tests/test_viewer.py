@@ -67,6 +67,14 @@ class TestTemplate(unittest.TestCase):
         for name in ("chainOf", "pathBetween", "runTrace", "clearTrace", "focusOn"):
             self.assertIn(f"function {name}", TEMPLATE)
 
+    def test_lineage_walks_up_and_down_with_one_node(self) -> None:
+        for name in ("chainOf", "lineageWalk", "renderLineage", "flowOf"):
+            self.assertIn(f"function {name}", TEMPLATE)
+        # the flow table must stay in step with the CLI's, or the viewer and `omni graph lineage` will disagree
+        import omni_graph as og
+        for edge_type, way in {**og.LINEAGE_FLOW, **og.LINEAGE_CODE_FLOW, **og.LINEAGE_SINGLE_HOP}.items():
+            self.assertRegex(TEMPLATE, rf"\b{edge_type}: '{way}'", f"viewer flow for {edge_type} differs from omni_graph.py")
+
     def test_markup_has_no_literal_escapes(self) -> None:
         self.assertIsNone(re.search(r"\\u[0-9a-fA-F]{4}", TEMPLATE.split("<script", 1)[0]))
 

@@ -3481,6 +3481,107 @@ def _node_brief(node: dict[str, Any], via: str = "") -> dict[str, Any]:
     return entry
 
 
+# Lineage: which way does each edge type flow? Intent runs down to delivery, delivery to code, code to assurance.
+# "down" means the edge's target is downstream of its source; "up" means the target is upstream of its source.
+# A walk from any node then needs no second endpoint: up follows only upstream links, down only downstream ones.
+LINEAGE_FLOW: dict[str, str] = {
+    "defines": "down", "contains": "down",                     # a parent holds its children
+    "touches": "down", "modifies": "down", "mentions": "down",  # a requirement, commit or change-log entry reaches files
+    "delivers": "up", "records": "up",                         # a commit or change-log entry answers a requirement
+    "logged_in": "down",                                       # a commit is written up in the change log
+    "arose_in": "up", "affects": "up",                         # a failure comes from a requirement and from code
+    "guards": "up", "prevented_by": "down", "fixed_by": "down",  # ...and produces tests, rules and fixes
+    "covers": "up", "verifies": "up",                          # tests answer the code they exercise
+}
+# Structural dependencies between code symbols. Off by default: they would drown a requirement's lineage in call graphs.
+LINEAGE_CODE_FLOW: dict[str, str] = {
+    "calls": "up", "imports": "up", "inherits": "up", "implements": "up", "uses": "up", "references": "up", "maps_to": "up",
+}
+# Sequence links only make sense one step from the node you asked about; walked transitively they would replay the whole history.
+LINEAGE_SINGLE_HOP: dict[str, str] = {"follows": "up", "recurs": "up"}
+
+
+def lineage(graph_path: Path, query: str, direction: str = "both", depth: int = 6, include_code: bool = False, limit: int = 400) -> dict[str, Any]:
+    """Everything upstream (what led to this node) and downstream (what came from it), with no second endpoint."""
+    graph_data = load_graph(graph_path)
+    node, matches = _resolve_one(graph_data, query)
+    if node is None:
+        return {"ok": False, "error": "ambiguous_or_not_found", "matches": [n["id"] for n in matches[:20]]}
+    by_id = {n["id"]: n for n in graph_data["nodes"]}
+    flow = dict(LINEAGE_FLOW)
+    if include_code:
+        flow.update(LINEAGE_CODE_FLOW)
+    down_adj: dict[str, list[tuple[str, dict[str, Any]]]] = {}
+    up_adj: dict[str, list[tuple[str, dict[str, Any]]]] = {}
+    hop_down: dict[str, list[tuple[str, dict[str, Any]]]] = {}
+    hop_up: dict[str, list[tuple[str, dict[str, Any]]]] = {}
+    for edge in graph_data["edges"]:
+        kind = edge["type"]
+        source, target = edge["source"], edge["target"]
+        if kind in LINEAGE_SINGLE_HOP:
+            if (by_id.get(source) or {}).get("kind") == "external" or (by_id.get(target) or {}).get("kind") == "external":
+                continue
+            hop_up.setdefault(source, []).append((target, edge))
+            hop_down.setdefault(target, []).append((source, edge))
+            continue
+        way = flow.get(kind)
+        if way is None:
+            continue
+        if way == "up":
+            source, target = target, source
+        # after the swap, `target` is downstream of `source` for every retained edge
+        down_adj.setdefault(source, []).append((target, edge))
+        up_adj.setdefault(target, []).append((source, edge))
+
+    origin = node["id"]
+
+    def walk(adj: dict[str, list[tuple[str, dict[str, Any]]]], hop: dict[str, list[tuple[str, dict[str, Any]]]], downward: bool) -> tuple[list[dict[str, Any]], int]:
+        # Going down, a node's contents (classes, functions) are only listed while the walk began inside that code. From a
+        # requirement or commit they would bury the commits, entries and files the reader wants; ask about the module instead.
+        seen = {origin}
+        order: list[dict[str, Any]] = []
+        dropped = 0
+        queue: deque[tuple[str, int, bool]] = deque([(origin, 0, True)])
+        while queue:
+            current, level, inside = queue.popleft()
+            if level >= depth:
+                continue
+            steps = list(adj.get(current, []))
+            if current == origin:
+                steps += hop.get(current, [])
+            for other_id, edge in sorted(steps, key=lambda pair: (by_id.get(pair[0]) or {}).get("name", "")):
+                other = by_id.get(other_id)
+                if other is None or other_id in seen or other["kind"] == "external":
+                    continue
+                structural = edge["type"] in ("defines", "contains")
+                if downward and structural and not inside:
+                    continue
+                seen.add(other_id)
+                if len(order) >= limit:
+                    dropped += 1
+                    continue
+                entry = _node_brief(other, edge["type"])
+                entry["depth"] = level + 1
+                entry["from"] = current
+                order.append(entry)
+                if edge["type"] not in LINEAGE_SINGLE_HOP:   # the neighbouring commit is shown, not walked on into its own requirements
+                    queue.append((other_id, level + 1, inside and structural))
+        return order, dropped
+
+    upstream, up_dropped = ([], 0) if direction == "down" else walk(up_adj, hop_up, False)
+    downstream, down_dropped = ([], 0) if direction == "up" else walk(down_adj, hop_down, True)
+    members = {origin} | {n["id"] for n in upstream} | {n["id"] for n in downstream}
+    edges_out = [
+        {"source": e["source"], "target": e["target"], "type": e["type"], "provenance": e["provenance"]}
+        for e in graph_data["edges"]
+        if e["source"] in members and e["target"] in members and (e["type"] in flow or (e["type"] in LINEAGE_SINGLE_HOP and origin in (e["source"], e["target"])))
+    ]
+    return {
+        "ok": True, "node": _node_brief(node), "direction": direction, "depth": depth, "include_code": include_code,
+        "upstream": upstream, "downstream": downstream, "truncated": {"upstream": up_dropped, "downstream": down_dropped}, "edges": edges_out,
+    }
+
+
 def why(graph_path: Path, query: str) -> dict[str, Any]:
     """Cross-layer traversal: what requirements, changelog entries, commits, tests, failures and rules touch a node."""
     graph_data = load_graph(graph_path)
@@ -3759,6 +3860,119 @@ def describe_sources(root: Path) -> dict[str, Any]:
         hints.append(f"{len(suites['auto'])} detected test suite(s) are not registered: `omni test detect --write`.")
     report["hints"] = hints
     return report
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Benchmark: how much text a targeted graph query costs against the naive alternative (grep, then read the
+# matching files whole), for real nodes this project's own graph and registries already have. No canned
+# numbers: every run measures the graph and repository actually in front of it, on whichever project adopted
+# this workspace. "Tokens" are a labelled approximation (chars / 4), not a real tokenizer -- good enough to
+# see the shape of the difference, not precise enough to defend to a decimal point.
+# ---------------------------------------------------------------------------------------------------------------------
+
+CHARS_PER_TOKEN_ESTIMATE = 4
+BENCHMARK_NAIVE_FILE_CAP = 20  # a naive grep-and-read pass over a common term could match hundreds of files; cap and say so
+
+
+def _approx_tokens(char_count: int) -> int:
+    return max(1, char_count // CHARS_PER_TOKEN_ESTIMATE)
+
+
+def _tracked_files(root: Path) -> set[str] | None:
+    listing = _git_lines(root, "ls-files")
+    return None if listing is None else {line.strip() for line in listing.splitlines() if line.strip()}
+
+
+def _benchmark_pick_nodes(graph_data: dict[str, Any], root: Path) -> list[dict[str, str]]:
+    """One real, currently-existing node per kind this project has -- never invented, never hardcoded to a
+    specific project's IDs, so the same code produces an honest comparison in any adopter's repository."""
+    by_kind: dict[str, list[dict[str, Any]]] = {}
+    for node in graph_data["nodes"]:
+        by_kind.setdefault(node["kind"], []).append(node)
+    picks: list[dict[str, str]] = []
+
+    requirements = sorted(by_kind.get("requirement", []), key=lambda n: str(n.get("id", "")))
+    if requirements:
+        picks.append({"kind": "requirement", "query": requirements[-1]["name"], "search_term": requirements[-1]["name"]})
+
+    commits = by_kind.get("commit", [])
+    if commits:
+        commits = sorted(commits, key=lambda n: str((n.get("attrs") or {}).get("date", "")))
+        picks.append({"kind": "commit", "query": commits[-1]["name"], "search_term": commits[-1]["name"]})
+
+    failures = sorted(by_kind.get("failure", []), key=lambda n: str(n.get("id", "")))
+    if failures:
+        picks.append({"kind": "failure", "query": failures[-1]["name"], "search_term": failures[-1]["name"]})
+
+    # Modules only, never generic "file" nodes: a module is something a parser (ast/tree-sitter/schema)
+    # already read successfully as text, so it can never be a binary asset (a .pptx, an image) or a
+    # multi-hundred-megabyte build log that merely happens to have a node because something referenced it.
+    # Git-tracked only, on top of that, so a gitignored scratch file never wins either.
+    tracked = _tracked_files(root)
+    files = [
+        n for n in by_kind.get("module", [])
+        if n.get("file") and (root / n["file"]).is_file() and (tracked is None or n["file"] in tracked)
+    ]
+    if files:
+        largest = max(files, key=lambda n: (root / n["file"]).stat().st_size)
+        picks.append({"kind": "file", "query": largest["file"], "search_term": Path(largest["file"]).name})
+
+    return picks
+
+
+def _benchmark_naive_cost(root: Path, pick: dict[str, str]) -> dict[str, Any]:
+    """What it costs without the graph. A commit's honest naive baseline is `git show` (the diff a person
+    would actually read); for everything else it is a plain-text grep for the name -- the thing an
+    assistant reaches for first -- with every matching file added up as if read in full."""
+    if pick["kind"] == "commit":
+        diff = _git_lines(root, "show", pick["query"])
+        return {"method": "git show <commit> (the full diff)", "files": 1 if diff else 0, "chars": len(diff or ""), "capped": False}
+    search_term = pick["search_term"]
+    listing = _git_lines(root, "grep", "-l", "-F", "--", search_term) if search_term else None
+    matched = [line for line in (listing or "").splitlines() if line.strip()]
+    if pick["kind"] == "file" and pick["query"] not in matched:
+        matched = [pick["query"], *matched]  # a file is always "read in full" even if grep for its own basename misses it
+    capped = len(matched) > BENCHMARK_NAIVE_FILE_CAP
+    matched = matched[:BENCHMARK_NAIVE_FILE_CAP]
+    total_chars = 0
+    read = 0
+    for relpath in matched:
+        path = root / relpath
+        try:
+            total_chars += len(path.read_text(encoding="utf-8", errors="replace"))
+            read += 1
+        except OSError:
+            continue
+    return {"method": "grep -l -F for the name, then read each match whole", "files": read, "chars": total_chars, "capped": capped}
+
+
+def benchmark(graph_path: Path, root: Path | None = None) -> dict[str, Any]:
+    """Compare a targeted graph query against the naive alternative, for one real node per kind this
+    project's graph actually has. Nothing here is fabricated: every size is measured from a real command
+    run against the real graph and the real repository."""
+    graph_data = load_graph(graph_path)
+    root = root if root is not None else Path(".")
+    picks = _benchmark_pick_nodes(graph_data, root)
+    cases: list[dict[str, Any]] = []
+    for pick in picks:
+        result = why(graph_path, pick["query"])
+        if not result.get("ok") or not result.get("sections"):
+            result = lineage(graph_path, pick["query"], depth=3)
+        graph_text = json.dumps(result, default=str)
+        naive = _benchmark_naive_cost(root, pick)
+        graph_chars = len(graph_text)
+        cases.append({
+            "kind": pick["kind"], "node": pick["query"],
+            "graph_chars": graph_chars, "graph_tokens_est": _approx_tokens(graph_chars),
+            "naive_method": naive["method"], "naive_files_read": naive["files"], "naive_files_capped": naive["capped"],
+            "naive_chars": naive["chars"], "naive_tokens_est": _approx_tokens(naive["chars"]),
+            "ratio": round(naive["chars"] / graph_chars, 1) if graph_chars and naive["chars"] else None,
+        })
+    return {
+        "ok": True, "cases": cases,
+        "note": "tokens are chars / 4, a rough estimate, not a real tokenizer; the naive method caps at "
+                f"{BENCHMARK_NAIVE_FILE_CAP} matching files and says so when it hit that cap.",
+    }
 
 
 def draft_graph_config(root: Path) -> dict[str, Any]:

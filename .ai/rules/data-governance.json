@@ -84,7 +84,31 @@
       "scope": [
         "privacy",
         "security"
-      ]
+      ],
+      "validation": {
+        "type": "content_forbidden",
+        "when_changed": [
+          "**"
+        ],
+        "ignore": [
+          ".ai/failures/failure-ledger.json"
+        ],
+        "patterns": [
+          {
+            "pattern": "-----BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----",
+            "message": "looks like a private key"
+          },
+          {
+            "pattern": "AKIA[0-9A-Z]{16}",
+            "message": "looks like an AWS access key id"
+          },
+          {
+            "pattern": "(?i)\\b(secret|api[_-]?key|password|passwd|token)\\b\\s*[:=]\\s*[\"'][A-Za-z0-9+/=_\\-]{12,}[\"']",
+            "message": "looks like a hardcoded credential"
+          }
+        ],
+        "note": "A partial, honest safety net for the most common accidental leaks -- not exhaustive secret scanning, and it says nothing about personal data, customer data or internal identifiers, which stay a judgment call this rule still covers."
+      }
     },
     {
       "id": "data.migration_safety",

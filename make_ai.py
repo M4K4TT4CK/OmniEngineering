@@ -47,6 +47,52 @@ REQUIREMENT_LIST_FIELDS = (
 )
 GATE_DEFAULT_BASE_REFS = ("origin/main", "origin/master", "main", "master")
 CLAUDE_STOP_HOOK_COMMAND = '"$CLAUDE_PROJECT_DIR"/omni gate --hook'
+PRE_COMMIT_HOOK_RELPATH = Path(".githooks/pre-commit")
+PRE_COMMIT_HOOK_MARKER = "Installed by `omni hook install-git` (OmniEngineering)"
+PRE_COMMIT_HOOK_SCRIPT = (
+    "#!/bin/sh\n"
+    f"# {PRE_COMMIT_HOOK_MARKER}. Do not hand-edit; rerun that command to update it.\n"
+    "# Runs `omni gate` against what is about to be committed. Assistant-agnostic and OS-agnostic: Linux and macOS\n"
+    "# invoke it directly, and Windows's Git for Windows always runs hooks through its own bundled sh, so this\n"
+    "# runs there unchanged too. If neither python3 nor python is on PATH, it warns and lets the commit through\n"
+    "# rather than blocking on a missing interpreter.\n"
+    "set -e\n"
+    'root=$(git rev-parse --show-toplevel) || exit 0\n'
+    'cd "$root"\n'
+    "if command -v python3 >/dev/null 2>&1; then py=python3\n"
+    "elif command -v python >/dev/null 2>&1; then py=python\n"
+    "else\n"
+    '  echo "omni pre-commit: no python3/python on PATH; skipping the gate." >&2\n'
+    "  exit 0\n"
+    "fi\n"
+    '"$py" "$root/omni" gate\n'
+)
+POST_COMMIT_HOOK_RELPATH = Path(".githooks/post-commit")
+POST_COMMIT_HOOK_MARKER = "Installed by `omni hook install-git --with-graph-rebuild` (OmniEngineering)"
+POST_COMMIT_HOOK_SCRIPT = (
+    "#!/bin/sh\n"
+    f"# {POST_COMMIT_HOOK_MARKER}. Do not hand-edit; rerun that command to update it.\n"
+    "# Rebuilds the five-layer graph in the background after each commit, so `omni graph why/lineage/timeline`\n"
+    "# is never more than one commit stale. Backgrounded: a full rebuild can take well over a minute on a large\n"
+    "# repo or a slow filesystem, and this must never slow down `git commit` itself. A lock directory (mkdir is\n"
+    "# atomic even on Windows/NTFS) skips a rebuild that is already running instead of piling them up; output\n"
+    "# goes to .ai/.graph-build.log, never to the terminal.\n"
+    'root=$(git rev-parse --show-toplevel) || exit 0\n'
+    'cd "$root"\n'
+    "if command -v python3 >/dev/null 2>&1; then py=python3\n"
+    "elif command -v python >/dev/null 2>&1; then py=python\n"
+    "else exit 0\n"
+    "fi\n"
+    'lock="$root/.ai/.graph-build.lock"\n'
+    "(\n"
+    '  mkdir -p "$root/.ai"\n'
+    '  if mkdir "$lock" 2>/dev/null; then\n'
+    "    trap 'rmdir \"$lock\" 2>/dev/null' EXIT\n"
+    '    "$py" "$root/omni" graph build >"$root/.ai/.graph-build.log" 2>&1\n'
+    "  fi\n"
+    ") &\n"
+    "exit 0\n"
+)
 TOOL_STATE_ROOT_DIRS = {".claude", ".claude-code-gui", ".idea", ".serena", ".vscode"}
 
 
@@ -424,6 +470,7 @@ ALLOWED_ROOT_FILES = {
     "make_ai.py",
     "omni",
     "omni_graph.py",
+    "omni_mcp.py",
     "pyproject.toml",
 }
 
@@ -483,6 +530,7 @@ ADOPTION_CLI_FILES = [
     "omni",
     "make_ai.py",
     "omni_graph.py",
+    "omni_mcp.py",
     ".ai/graph-viewer/viewer.html",
     ".ai/graph-viewer/3d-force-graph.min.js",
     ".ai/graph-viewer/THIRD_PARTY_NOTICES.md",
@@ -2051,6 +2099,36 @@ def run_graph_schema(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_graph_benchmark(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+    graph_path = Path(args.graph)
+    if not graph_path.is_file():
+        print(f"Graph file not found: {graph_path}; run ./omni graph build first", file=sys.stderr)
+        return 1
+    result = omni_graph.benchmark(graph_path, Path(args.root))
+    if args.json:
+        print(json.dumps(result, indent=2))
+        return 0
+    if not result["cases"]:
+        print("Nothing to benchmark: this graph has no requirement, commit, failure or file node to pick from.", file=sys.stderr)
+        return 1
+    print("A targeted graph query vs. the naive alternative (grep for the name, read every match whole; a")
+    print("commit compares against `git show` instead). Both are run for real against this project right now.")
+    print("Tokens are chars / 4: a rough estimate, not a real tokenizer.\n")
+    for case in result["cases"]:
+        print(f"{case['kind']}: {case['node']}")
+        print(f"  graph query   {case['graph_chars']:>8,} chars  (~{case['graph_tokens_est']:,} tokens)")
+        capped = "  [capped]" if case["naive_files_capped"] else ""
+        print(f"  naive ({case['naive_method']}, {case['naive_files_read']} file(s){capped})")
+        print(f"                {case['naive_chars']:>8,} chars  (~{case['naive_tokens_est']:,} tokens)")
+        if case["ratio"]:
+            print(f"  -> naive costs {case['ratio']}x the targeted query")
+        print()
+    print(result["note"])
+    return 0
+
+
 def run_graph_sources(args: argparse.Namespace) -> int:
     if not require_omni_graph():
         return 1
@@ -2177,6 +2255,55 @@ def run_graph_why(args: argparse.Namespace) -> int:
             print(line)
         if len(items) > args.limit:
             print(f"  ... and {len(items) - args.limit} more (--limit or --json)")
+    return 0
+
+
+def run_graph_lineage(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+
+    graph_path = Path(args.graph)
+    if not graph_path.is_file():
+        print(f"Graph file not found: {graph_path}; run ./omni graph build first", file=sys.stderr)
+        return 1
+
+    direction = "up" if args.up and not args.down else "down" if args.down and not args.up else "both"
+    result = omni_graph.lineage(graph_path, args.node, direction=direction, depth=max(1, args.depth), include_code=args.code, limit=max(1, args.max_nodes))
+    if args.json:
+        print(json.dumps(result, indent=2))
+        return 0 if result.get("ok") else 1
+    if not result.get("ok"):
+        print(f"Could not uniquely resolve node. Matches: {result.get('matches')}", file=sys.stderr)
+        return 1
+
+    node = result["node"]
+    print(f"{node['name']} ({node['kind']})" + (f"  {node['file']}" if node.get("file") else ""))
+    if node.get("summary"):
+        print(f"  {node['summary'][:140]}")
+    for label, key, arrow in (("Upstream: what led to it", "upstream", "^"), ("Downstream: what came from it", "downstream", "v")):
+        if (key == "upstream" and direction == "down") or (key == "downstream" and direction == "up"):
+            continue
+        items = result[key]
+        dropped = result["truncated"][key]
+        print(f"\n{label} ({len(items)}{'+' + str(dropped) if dropped else ''})")
+        if not items:
+            print("  (nothing)")
+            continue
+        by_kind: dict[str, list[dict[str, Any]]] = {}
+        for item in items:
+            by_kind.setdefault(item["kind"], []).append(item)
+        for kind_name, group in sorted(by_kind.items(), key=lambda pair: (min(i["depth"] for i in pair[1]), pair[0])):
+            print(f"  {kind_name} ({len(group)})")
+            for item in group[: args.limit]:
+                extras = [item.get(k) for k in ("status", "date", "severity") if item.get(k)]
+                line = f"    {arrow}{item['depth']} {item['name']}" + (f"  [{', '.join(str(e) for e in extras)}]" if extras else "")
+                if item.get("summary"):
+                    line += f"  {item['summary'][:90]}"
+                print(line + f"  <{item['via']}>")
+            if len(group) > args.limit:
+                print(f"    ... and {len(group) - args.limit} more (--limit or --json)")
+    if any(result["truncated"].values()):
+        print(f"\nStopped at {args.max_nodes} nodes per direction, nearest first. Narrow with --depth, or raise --max-nodes.")
     return 0
 
 
@@ -3013,6 +3140,120 @@ def run_requirement_add(args: argparse.Namespace) -> int:
     return 0
 
 
+def infer_draft_category(paths: list[str]) -> str:
+    """A deterministic, no-model guess at a requirement category from the files a change touched.
+
+    It only has to be a reasonable starting point: `omni requirement draft` always leaves the entry in
+    `proposed` status, so a human corrects the category (and everything else) before it is trusted."""
+    lowered = [p.lower() for p in paths]
+    if not lowered:
+        return "Process"
+    if all(p.endswith(".md") or p.endswith(".txt") for p in lowered):
+        return "Documentation"
+    if any(p.startswith(("tests/", "test/")) or "/tests/" in p or "/test/" in p or Path(p).name.startswith(("test_", "test-")) for p in lowered):
+        return "Testing"
+    if any(p.startswith((".github/workflows/", ".githooks/")) or Path(p).name in ("dockerfile", "docker-compose.yml", "docker-compose.yaml") for p in lowered):
+        return "Process"
+    if any("fix" in p or "bug" in p or "hotfix" in p for p in lowered):
+        return "Defect"
+    return "Feature"
+
+
+def draft_changed_paths(commit: str | None) -> list[str] | None:
+    """The files a draft should be scoped to: one named commit, or everything `omni gate` would currently check."""
+    if commit:
+        top = git_run("rev-parse", "--show-toplevel")
+        if top is None:
+            return None
+        # --root: without it, diff-tree shows nothing for a repository's first commit (it has no parent to diff against).
+        listing = git_run("diff-tree", "--no-commit-id", "--name-only", "-r", "--root", commit)
+        return sorted({line.strip() for line in (listing or "").splitlines() if line.strip()})
+    base = gate_base_commit()
+    return sorted(gate_changed_paths(base))
+
+
+def draft_existing_requirement_ids(text: str) -> list[str]:
+    prefix = str(load_json(REQUIREMENTS_PATH).get("requirement_id_prefix", "REQ")) if REQUIREMENTS_PATH.is_file() else "REQ"
+    return sorted(set(re.findall(rf"\b{re.escape(prefix)}-\d+\b", text)))
+
+
+def insert_changelog_draft(req_id: str, category: str, title: str) -> None:
+    path = Path("CHANGELOG.md")
+    today = datetime.now().strftime("%Y-%m-%d")
+    bullet = (
+        f"- `{req_id}` | {category} | DRAFT: {title}\n"
+        f"  - Generated by `omni requirement draft`. Replace this line and the requirement's description, "
+        f"acceptance criteria and validation, then move the requirement out of `proposed` status.\n"
+    )
+    if not path.is_file():
+        path.write_text(f"# Changelog\n\n## {today}\n\n### Proposed\n\n{bullet}\n", encoding="utf-8")
+        return
+    text = path.read_text(encoding="utf-8")
+    heading_match = re.search(r"^## (\S+)", text, re.MULTILINE)
+    if heading_match and heading_match.group(1) == today:
+        section_match = re.search(r"^### Proposed\s*\n\n", text[heading_match.end():], re.MULTILINE)
+        if section_match:
+            insert_at = heading_match.end() + section_match.end()
+            text = text[:insert_at] + bullet + text[insert_at:]
+        else:
+            insert_at = heading_match.end()
+            # right after today's date heading, before whatever subsection (usually "### Completed") comes next
+            text = text[:insert_at] + f"\n\n### Proposed\n\n{bullet}" + text[insert_at:].lstrip("\n")
+    else:
+        insert_at = heading_match.start() if heading_match else len(text.split("\n", 1)[0]) + 1
+        text = text[:insert_at] + f"## {today}\n\n### Proposed\n\n{bullet}\n" + text[insert_at:]
+    path.write_text(text, encoding="utf-8")
+
+
+def run_requirement_draft(args: argparse.Namespace) -> int:
+    paths = draft_changed_paths(args.commit)
+    if paths is None:
+        print("omni requirement draft: not inside a git repository.", file=sys.stderr)
+        return 1
+    if not paths:
+        print("Nothing to draft: no changed paths " + (f"in {args.commit}" if args.commit else "against the gate's base commit") + ".", file=sys.stderr)
+        return 1
+
+    scan_text = ""
+    if args.commit:
+        scan_text = git_run("show", "-s", "--format=%B", args.commit) or ""
+    existing = draft_existing_requirement_ids(scan_text) if scan_text else []
+    if existing and not args.force:
+        print(f"Already recorded under {', '.join(existing)}; not drafting a duplicate (use --force to draft anyway).", file=sys.stderr)
+        return 0
+
+    title = args.title
+    if not title and args.commit:
+        title = (git_run("show", "-s", "--format=%s", args.commit) or "").strip()
+    if not title:
+        title = f"{len(paths)} file(s) changed -- replace this title"
+    category = args.category or infer_draft_category(paths)
+    requirements = load_json(REQUIREMENTS_PATH) if REQUIREMENTS_PATH.is_file() else {"requirement_id_prefix": "REQ", "requirements": []}
+    requirement_id = args.id or next_requirement_id(requirements)
+
+    source = f"commit {args.commit}" if args.commit else "the current change set"
+    add_args = argparse.Namespace(
+        id=requirement_id, category=category, title=title,
+        description=(
+            f"DRAFT -- generated by `omni requirement draft` from {source} on {datetime.now().strftime('%Y-%m-%d')}. "
+            "Replace this description, the acceptance criteria and the validation steps, then set --status once reviewed."
+        ),
+        priority="low", status="proposed", scope=",".join(paths[:60]) + (f",... and {len(paths) - 60} more" if len(paths) > 60 else ""),
+        # no commas in these: split_csv() below would fragment a plain sentence into several list items
+        acceptance="Reviewed and rewritten by a person rather than left as the auto-generated draft",
+        validation="", docs="",
+        risks="Auto-drafted: category and scope are a starting point rather than a verified claim",
+    )
+    result = run_requirement_add(add_args)
+    if result != 0:
+        return result
+    if not args.no_changelog:
+        insert_changelog_draft(requirement_id, category, title)
+        print(f"Drafted a Proposed entry in CHANGELOG.md for {requirement_id}.")
+    print(f"Review and edit {requirement_id} (`omni requirement show {requirement_id}`), then `omni requirement update {requirement_id} --status ...`.")
+    return 0
+
+
 # --------------------------------------------------------------------------
 # Project configuration helpers
 # --------------------------------------------------------------------------
@@ -3355,6 +3596,12 @@ def gate_changed_paths(base: str | None) -> set[str]:
     return paths
 
 
+# Kept in step with every validation type a check function below actually implements. A rule can declare a
+# validation the gate does not (yet) execute; gate_rules() silently skips those rather than crashing on them,
+# but "declared and silently never checked" is exactly the trap this set exists to avoid falling into by accident.
+EXECUTABLE_VALIDATION_TYPES = {"co_changed", "requirement_registry_entry", "content_forbidden"}
+
+
 def gate_rules() -> list[dict[str, Any]]:
     rules: list[dict[str, Any]] = []
     for file_path in RULEPACK_FILES:
@@ -3366,11 +3613,94 @@ def gate_rules() -> list[dict[str, Any]]:
             validation = rule.get("validation") if isinstance(rule, dict) else None
             if (
                 isinstance(validation, dict)
-                and validation.get("type") == "co_changed"
+                and validation.get("type") in EXECUTABLE_VALIDATION_TYPES
                 and rule.get("severity") == "required"
             ):
                 rules.append(rule)
     return rules
+
+
+def _gate_check_co_changed(rule: dict[str, Any], validation: dict[str, Any], changed: set[str]) -> str | None:
+    when = [str(p) for p in validation.get("when_changed", ["**"])]
+    ignore = [str(p) for p in validation.get("ignore", [])]
+    must = [str(p) for p in validation.get("must_also_change", [])]
+    triggers = sorted(p for p in changed if matches_any(p, when) and not matches_any(p, ignore))
+    if not triggers or not must or any(matches_any(p, must) for p in changed):
+        return None
+    rule_id = str(rule["id"])
+    example = ", ".join(triggers[:2]) + (f" (+{len(triggers) - 2} more)" if len(triggers) > 2 else "")
+    return (
+        f"{rule_id}: {len(triggers)} changed file(s) [{example}] need a matching change to "
+        f"{' or '.join(must)}. If genuinely not applicable: "
+        f'./omni waive {rule_id} --reason "<why>"'
+    )
+
+
+def _gate_check_requirement_registry_entry(rule: dict[str, Any], validation: dict[str, Any], changed: set[str], base: str | None) -> str | None:
+    """Every requirement id cited by this change (in a commit message since the base, or newly added to
+    CHANGELOG.md) must actually exist in the requirements registry. The registry's own schema validation
+    (which `omni doctor`, and so every `omni gate` call, already runs) only checks the registry's own
+    shape; it cannot see a typo'd or invented REQ-### that some other file merely claims about it."""
+    target = Path(str(validation.get("target", REQUIREMENTS_PATH)))
+    try:
+        prefix = str(load_json(target).get("requirement_id_prefix", "REQ")) if target.is_file() else "REQ"
+    except (OSError, json.JSONDecodeError):
+        return None  # a malformed registry is already reported by doctor; do not double up here
+    pattern = re.compile(rf"\b{re.escape(prefix)}-\d+\b")
+    cited: set[str] = set()
+    if base:
+        cited.update(pattern.findall(git_run("log", f"{base}..HEAD", "--format=%B") or ""))
+    if "CHANGELOG.md" in changed and Path("CHANGELOG.md").is_file():
+        cited.update(pattern.findall(Path("CHANGELOG.md").read_text(encoding="utf-8", errors="replace")))
+    if not cited:
+        return None
+    unknown = sorted(cited - all_requirement_ids())
+    if not unknown:
+        return None
+    rule_id = str(rule["id"])
+    return (
+        f"{rule_id}: {', '.join(unknown)} cited (in a commit message or CHANGELOG.md) but not found in "
+        f"{target}. Fix the typo, or add it: ./omni requirement add --id {unknown[0]} ..."
+    )
+
+
+def _gate_check_content_forbidden(rule: dict[str, Any], validation: dict[str, Any], changed: set[str]) -> str | None:
+    """A lightweight, honest safety net -- a handful of regexes for the most common accidental leaks (a
+    private-key header, an AWS-shaped access key, an obviously hardcoded credential) -- not a claim of
+    exhaustive secret scanning. Skips this rulepack's own files, whose JSON literally contains the pattern
+    source text and would otherwise flag itself."""
+    when = [str(p) for p in validation.get("when_changed", ["**"])]
+    ignore = [str(p) for p in validation.get("ignore", [])] + list(RULEPACK_FILES)
+    compiled: list[tuple[re.Pattern[str], str]] = []
+    for entry in validation.get("patterns", []):
+        try:
+            compiled.append((re.compile(str(entry["pattern"])), str(entry.get("message", "matches a forbidden pattern"))))
+        except (KeyError, re.error):
+            continue
+    if not compiled:
+        return None
+    hits: list[str] = []
+    for path_str in sorted(changed):
+        if not matches_any(path_str, when) or matches_any(path_str, ignore):
+            continue
+        path = Path(path_str)
+        if not path.is_file():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        for regex, message in compiled:
+            found = regex.search(text)
+            if found:
+                line = text.count("\n", 0, found.start()) + 1
+                hits.append(f"{path_str}:{line} {message}")
+                break  # one hit is enough to flag the file; this is a net, not a full audit
+    if not hits:
+        return None
+    rule_id = str(rule["id"])
+    example = "; ".join(hits[:3]) + (f" (+{len(hits) - 3} more)" if len(hits) > 3 else "")
+    return f"{rule_id}: {example}"
 
 
 def gate_waivers(base: str | None) -> dict[str, str]:
@@ -3396,27 +3726,27 @@ def gate_waivers(base: str | None) -> dict[str, str]:
     return waivers
 
 
-def gate_evaluate(changed: set[str], waivers: dict[str, str]) -> tuple[list[str], list[str]]:
+def gate_evaluate(changed: set[str], waivers: dict[str, str], base: str | None = None) -> tuple[list[str], list[str]]:
     failures: list[str] = []
     waived: list[str] = []
     for rule in gate_rules():
         validation = rule["validation"]
-        when = [str(p) for p in validation.get("when_changed", ["**"])]
-        ignore = [str(p) for p in validation.get("ignore", [])]
-        must = [str(p) for p in validation.get("must_also_change", [])]
-        triggers = sorted(p for p in changed if matches_any(p, when) and not matches_any(p, ignore))
-        if not triggers or not must or any(matches_any(p, must) for p in changed):
+        vtype = validation.get("type")
+        if vtype == "co_changed":
+            failure = _gate_check_co_changed(rule, validation, changed)
+        elif vtype == "requirement_registry_entry":
+            failure = _gate_check_requirement_registry_entry(rule, validation, changed, base)
+        elif vtype == "content_forbidden":
+            failure = _gate_check_content_forbidden(rule, validation, changed)
+        else:
+            continue
+        if failure is None:
             continue
         rule_id = str(rule["id"])
         if rule_id in waivers:
             waived.append(f"{rule_id}: waived ({waivers[rule_id]})")
             continue
-        example = ", ".join(triggers[:2]) + (f" (+{len(triggers) - 2} more)" if len(triggers) > 2 else "")
-        failures.append(
-            f"{rule_id}: {len(triggers)} changed file(s) [{example}] need a matching change to "
-            f"{' or '.join(must)}. If genuinely not applicable: "
-            f'./omni waive {rule_id} --reason "<why>"'
-        )
+        failures.append(failure)
     return failures, waived
 
 
@@ -3459,7 +3789,7 @@ def run_gate(args: argparse.Namespace) -> int:
     if changed:
         doctor = build_doctor_report()
         failures.extend(f"doctor: {message}" for message in doctor.errors)
-        rule_failures, waived = gate_evaluate(changed, gate_waivers(base))
+        rule_failures, waived = gate_evaluate(changed, gate_waivers(base), base)
         failures.extend(rule_failures)
 
     if not failures:
@@ -3544,6 +3874,89 @@ def run_hook_install(args: argparse.Namespace) -> int:
         print("This is a local settings file, so it applies to you only; enforce the gate for everyone by running `omni gate` in CI.")
     else:
         print("Commit this file to share the hook with your team.")
+    return 0
+
+
+def _write_git_hook(root: Path, relpath: Path, marker: str, script: str, force: bool) -> int | None:
+    """Write one hook file, refusing to clobber a foreign hook without --force. None means "wrote it"; an int is
+    the exit code for a refusal."""
+    hook_path = root / relpath
+    if hook_path.is_file() and marker not in hook_path.read_text(encoding="utf-8", errors="replace") and not force:
+        print(f"{hook_path} already exists and was not installed by omni; rerun with --force to overwrite.", file=sys.stderr)
+        return 1
+    hook_path.parent.mkdir(parents=True, exist_ok=True)
+    hook_path.write_text(script, encoding="utf-8", newline="\n")
+    try:
+        hook_path.chmod(hook_path.stat().st_mode | 0o111)
+    except OSError:
+        pass  # Windows ignores the executable bit; Git for Windows runs the hook through its bundled sh regardless.
+    print(f"Wrote {hook_path}.")
+    return None
+
+
+def run_hook_install_git(args: argparse.Namespace) -> int:
+    top = git_run("rev-parse", "--show-toplevel")
+    if top is None:
+        print("omni hook install-git: not inside a git repository.", file=sys.stderr)
+        return 1
+    root = Path(top.strip())
+
+    refusal = _write_git_hook(root, PRE_COMMIT_HOOK_RELPATH, PRE_COMMIT_HOOK_MARKER, PRE_COMMIT_HOOK_SCRIPT, args.force)
+    if refusal is not None:
+        return refusal
+    if args.with_graph_rebuild:
+        refusal = _write_git_hook(root, POST_COMMIT_HOOK_RELPATH, POST_COMMIT_HOOK_MARKER, POST_COMMIT_HOOK_SCRIPT, args.force)
+        if refusal is not None:
+            return refusal
+
+    old_cwd = Path.cwd()
+    try:
+        os.chdir(root)
+        git_run("config", "--local", "core.hooksPath", ".githooks")
+    finally:
+        os.chdir(old_cwd)
+    print("Set core.hooksPath=.githooks for this clone.")
+    print("Commit .githooks/ so every clone can `git config core.hooksPath .githooks` (or rerun this command) to "
+          "opt in with the same scripts; CI enforces the gate for everyone regardless of whether they do.")
+    if args.with_graph_rebuild:
+        print("Each commit will also rebuild the graph in the background; watch .ai/.graph-build.log if `omni "
+              "graph` output ever looks stale.")
+    return 0
+
+
+def run_mcp_serve(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+    try:
+        import omni_mcp
+    except ImportError:
+        print(
+            "omni_mcp.py is missing next to make_ai.py, so `omni mcp` is unavailable. "
+            "Re-run `omni adopt --include-cli` or `omni update` from a current OmniEngineering source to restore it.",
+            file=sys.stderr,
+        )
+        return 1
+    print(f"omni mcp: serving {len(omni_mcp.TOOLS)} tool(s) over stdio (JSON-RPC 2.0, one message per line).", file=sys.stderr)
+    try:
+        omni_mcp.serve_stdio()
+    except (KeyboardInterrupt, BrokenPipeError):
+        pass
+    return 0
+
+
+def run_mcp_tools(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+    try:
+        import omni_mcp
+    except ImportError:
+        print("omni_mcp.py is missing next to make_ai.py.", file=sys.stderr)
+        return 1
+    if args.json:
+        print(json.dumps([tool.spec() for tool in omni_mcp.TOOLS], indent=2))
+        return 0
+    for tool in omni_mcp.TOOLS:
+        print(f"{tool.name}\n  {tool.description}")
     return 0
 
 
@@ -3751,6 +4164,23 @@ def build_parser() -> argparse.ArgumentParser:
     graph_why.add_argument("--limit", type=int, default=12, help="Items shown per section (default 12).")
     graph_why.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
 
+    graph_lineage = graph_subparsers.add_parser(
+        "lineage",
+        help=(
+            "Trace everything upstream (what led to it) and downstream (what came from it) of any node, with no second "
+            "endpoint: pick a requirement, commit, change-log entry, failure, file or symbol."
+        ),
+    )
+    graph_lineage.add_argument("node", help="Requirement id (REQ-021), commit hash, failure id, file path or symbol.")
+    graph_lineage.add_argument("--graph", default=GRAPH_DEFAULT_OUTPUT, help=f"Graph file to read. Defaults to {GRAPH_DEFAULT_OUTPUT}.")
+    graph_lineage.add_argument("--up", action="store_true", help="Only trace upstream.")
+    graph_lineage.add_argument("--down", action="store_true", help="Only trace downstream.")
+    graph_lineage.add_argument("--depth", type=int, default=6, help="How many links to follow (default 6).")
+    graph_lineage.add_argument("--code", action="store_true", help="Also follow calls, imports, inheritance and table mappings between code symbols.")
+    graph_lineage.add_argument("--max-nodes", type=int, default=400, help="Most nodes returned per direction, nearest first (default 400).")
+    graph_lineage.add_argument("--limit", type=int, default=12, help="Items shown per kind in text output (default 12).")
+    graph_lineage.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+
     graph_sources = graph_subparsers.add_parser(
         "sources",
         help="Show what each layer would read from this project (requirements, changelog, git, tests, ledger) and what is missing.",
@@ -3759,6 +4189,18 @@ def build_parser() -> argparse.ArgumentParser:
     graph_sources.add_argument("--write", action="store_true", help="Draft .ai/graph-config.json from what was found (only settings that differ from the defaults).")
     graph_sources.add_argument("--force", action="store_true", help="With --write: overwrite an existing config.")
     graph_sources.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+
+    graph_benchmark = graph_subparsers.add_parser(
+        "benchmark",
+        help=(
+            "Measure a targeted graph query against the naive alternative (grep for the name and read every match "
+            "whole; a commit compares against `git show`), for one real node per kind this project's graph already "
+            "has. Every size is measured live, against the current graph and repository -- nothing is canned."
+        ),
+    )
+    graph_benchmark.add_argument("--graph", default=GRAPH_DEFAULT_OUTPUT, help=f"Graph file to read. Defaults to {GRAPH_DEFAULT_OUTPUT}.")
+    graph_benchmark.add_argument("--root", default=".", help="Project root, for the naive grep/read comparison. Defaults to the current repository.")
+    graph_benchmark.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
 
     graph_timeline = graph_subparsers.add_parser(
         "timeline",
@@ -3976,6 +4418,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     requirement_add.add_argument("--risks", default="", help="Comma-separated risk notes.")
 
+    requirement_draft = requirement_subparsers.add_parser(
+        "draft",
+        help=(
+            "Draft a requirement (status proposed) and a CHANGELOG.md stub from the files a commit or the current "
+            "change set touched, so the manual step is editing a draft rather than writing one from nothing."
+        ),
+    )
+    requirement_draft.add_argument("--commit", help="Draft from this commit's changed files and subject line, instead of the current (uncommitted) change set.")
+    requirement_draft.add_argument("--id", help="Requirement ID. Defaults to next REQ-###.")
+    requirement_draft.add_argument("--title", help="Override the guessed title (the commit subject, or a placeholder).")
+    requirement_draft.add_argument("--category", help="Override the guessed category.")
+    requirement_draft.add_argument("--no-changelog", action="store_true", help="Only draft the requirement; skip the CHANGELOG.md stub.")
+    requirement_draft.add_argument("--force", action="store_true", help="Draft even if --commit already names a requirement ID.")
+
     requirement_show = requirement_subparsers.add_parser("show", help="Print one requirement by ID (active or archived).")
     requirement_show.add_argument("id", help="Requirement ID, e.g. REQ-042 or 42.")
     requirement_show.add_argument("--json", action="store_true", help="Print the raw JSON entry.")
@@ -4087,10 +4543,32 @@ def build_parser() -> argparse.ArgumentParser:
     waive_parser.add_argument("--reason", required=True, help="Why the gate does not apply to this change.")
     waive_parser.add_argument("--requirement", help="Requirement ID the waiver belongs to.")
 
+    mcp_parser = subparsers.add_parser(
+        "mcp",
+        help="MCP (Model Context Protocol) server: the graph and registries as tools, for any MCP-speaking assistant.",
+    )
+    mcp_subparsers = mcp_parser.add_subparsers(dest="mcp_command")
+    mcp_subparsers.add_parser(
+        "serve",
+        help="Serve the tools over stdio (JSON-RPC 2.0, newline-delimited) until stdin closes. Point an MCP client's command at `omni mcp serve`.",
+    )
+    mcp_tools = mcp_subparsers.add_parser("tools", help="List the available tools without starting the server (for a quick check, or piping into a client's config).")
+    mcp_tools.add_argument("--json", action="store_true", help="Print the full tool specs (name, description, input schema) as JSON.")
+
     hook_parser = subparsers.add_parser("hook", help="Install assistant hooks that enforce the gate.")
     hook_subparsers = hook_parser.add_subparsers(dest="hook_command")
     hook_install = hook_subparsers.add_parser("install", help="Install the Claude Code Stop hook that runs `omni gate`.")
     hook_install.add_argument("--settings", default=".claude/settings.json", help="Claude Code project settings file.")
+    hook_install_git = hook_subparsers.add_parser(
+        "install-git",
+        help="Install a portable git pre-commit hook (Linux, macOS, Windows) that runs `omni gate`, no assistant required.",
+    )
+    hook_install_git.add_argument("--force", action="store_true", help="Overwrite an existing pre-commit hook that omni did not install.")
+    hook_install_git.add_argument(
+        "--with-graph-rebuild",
+        action="store_true",
+        help="Also install a post-commit hook that rebuilds the graph in the background after every commit (never blocks the commit).",
+    )
 
     rule_parser = subparsers.add_parser("rule", help="Manage structured rulepacks.")
     rule_subparsers = rule_parser.add_subparsers(dest="rule_command")
@@ -4145,11 +4623,15 @@ def main(argv: list[str] | None = None) -> int:
             return run_graph_schema(args)
         if args.graph_command == "why":
             return run_graph_why(args)
+        if args.graph_command == "lineage":
+            return run_graph_lineage(args)
         if args.graph_command == "timeline":
             return run_graph_timeline(args)
         if args.graph_command == "sources":
             return run_graph_sources(args)
-        parser.error("graph requires a subcommand (build, trace, show, why, timeline, sources, render, view, schema)")
+        if args.graph_command == "benchmark":
+            return run_graph_benchmark(args)
+        parser.error("graph requires a subcommand (build, trace, show, why, lineage, timeline, sources, benchmark, render, view, schema)")
     if command == "test":
         handlers = {
             "detect": run_test_detect, "add": run_test_add, "remove": run_test_remove,
@@ -4175,6 +4657,7 @@ def main(argv: list[str] | None = None) -> int:
     if command == "requirement":
         handlers = {
             "add": run_requirement_add,
+            "draft": run_requirement_draft,
             "show": run_requirement_show,
             "list": run_requirement_list,
             "search": run_requirement_search,
@@ -4192,7 +4675,15 @@ def main(argv: list[str] | None = None) -> int:
     if command == "hook":
         if args.hook_command == "install":
             return run_hook_install(args)
-        parser.error("hook requires a subcommand (install)")
+        if args.hook_command == "install-git":
+            return run_hook_install_git(args)
+        parser.error("hook requires a subcommand (install, install-git)")
+    if command == "mcp":
+        if args.mcp_command == "serve":
+            return run_mcp_serve(args)
+        if args.mcp_command == "tools":
+            return run_mcp_tools(args)
+        parser.error("mcp requires a subcommand (serve, tools)")
     if command == "rule":
         if args.rule_command == "add":
             return run_rule_add(args)
