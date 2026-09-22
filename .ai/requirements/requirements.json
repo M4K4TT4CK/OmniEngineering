@@ -686,6 +686,44 @@
         "The recorded agent package source in .ai/agent-team.json is a local Windows path (C:\\Users\\pauke\\dev\\senior-engineering-agent), so omni agents doctor (which needs the package present to check dist/ freshness) cannot run in CI; CI instead relies on the repo-local validate_agent_team check folded into plain omni doctor, which needs no package access. Publishing the package to a git host CI can reach would close this gap if full doctor parity in CI is wanted later.",
         "managed-agents/environment.yaml is left at cloud/unrestricted networking, matching what was already live and unchanged by the apply; the coordinator's web tools are disabled by role capability regardless, but unrestricted sandbox egress is worth revisiting before any session mounts a private or regulated repository."
       ]
+    },
+    {
+      "id": "REQ-021",
+      "category": "Agent tooling",
+      "title": "Close two gaps found while reviewing the senior-engineering-agent team's live behavior",
+      "description": "Follow-up to REQ-020. After the team went live (all eight agents at version 2 on the platform), reviewed each role's actual frontmatter, skills, and system prompt against what it is supposed to do, and found two real gaps: infrastructure-reviewer had no skill of its own -- architecture, security, performance, and release validation each carry a skill with a repeatable checklist, but infrastructure review leaned on codebase-discovery alone, which is generic repository-mapping guidance with no infrastructure-specific method behind it; and the coordinator's only defense against two write-capable specialists (implementation engineer, test adversary, performance engineer) clobbering each other in the shared sandbox was one advisory clause with no concrete procedure, even though the platform provides no file locking between roster members. Added a new infrastructure-audit skill (skills/infrastructure-audit/ in senior-engineering-agent, with a provider-neutral checklist plus a references/provider-checks.md covering AWS, GCP, Azure, Kubernetes, and CI/CD) and wired it into infrastructure-reviewer's frontmatter. Rewrote the coordinator's shared-workspace guidance into concrete steps: name exact file/directory ownership per write-capable delegation, serialize rather than parallelize tasks that could plausibly touch the same file, and diff the working tree against what was authorized before integrating. Rebuilt and verified in senior-engineering-agent (commit c42ea84), reinstalled into this repo, and dry-run verified against the live platform before commit: the plan uploads the one new skill and updates exactly two agents plus the coordinator's roster pin for infrastructure-reviewer's version bump, nothing else.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        ".ai/agent-team.json",
+        ".ai/requirements/requirements.json",
+        ".claude/agents/coordinator.md",
+        ".claude/agents/infrastructure-reviewer.md",
+        ".claude/skills/infrastructure-audit/",
+        "managed-agents/agents/coordinator.md",
+        "managed-agents/agents/infrastructure-reviewer.md"
+      ],
+      "acceptance_criteria": [
+        "senior-engineering-agent's build.py doctor and tests/validate_editions.py pass after adding the infrastructure-audit skill and the coordinator guardrail rewrite.",
+        "infrastructure-reviewer's rendered frontmatter (both editions) lists infrastructure-audit alongside codebase-discovery.",
+        "The coordinator's rendered system prompt (both editions) replaces the single advisory clause with named ownership, serialization, and post-hoc diffing steps.",
+        "omni doctor passes in this repo after reinstalling the updated package output.",
+        "ant apply --dry-run against the live platform shows only the expected plan (one skill created, two agents updated, one roster-pin version bump) with no unexpected drift, verified before commit.",
+        "The real ant apply that changes live platform state was left for the user to run, per the confirm-before-outward-facing-action rule -- same as REQ-020."
+      ],
+      "validation_required": [
+        "package_build_doctor_tests",
+        "doctor",
+        "ant_apply_dry_run",
+        "manual_verification"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": [
+        "The coordinator guardrail is still prompt-based, not platform-enforced -- the underlying service has no file-locking primitive between roster members, so this closes the gap between instruction and something the coordinator can actually check for itself, but it is not a hard guarantee against concurrent writers colliding.",
+        "Three further items were identified in the same review but deliberately left as recommendations or instructions rather than executed: environment network hardening and a memory store for cross-run continuity (need a scope decision first), and wiring a GitHub MCP vault plus a scheduled session for live repository work and benchmarking the release-validator's model tier (need a credential and, respectively, approval to spend API budget, neither of which the assistant can supply on its own)."
+      ]
     }
   ]
 }

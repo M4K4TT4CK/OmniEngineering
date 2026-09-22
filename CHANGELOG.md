@@ -1,6 +1,33 @@
 # Changelog
 
+## 2026-09-22
+
+### Completed
+
+- Agent tooling (REQ-021) | Reviewed each live agent's actual frontmatter,
+  skills, and system prompt against what it's supposed to do, and found two
+  real gaps. Infrastructure review had no skill of its own -- every other
+  reviewer role carries a skill with a repeatable checklist, but
+  infrastructure leaned on generic repository-mapping guidance alone. Added
+  an `infrastructure-audit` skill (provider-neutral checklist plus a
+  reference covering AWS, GCP, Azure, Kubernetes, and CI/CD) and wired it in.
+  The coordinator's only defense against two write-capable specialists
+  clobbering each other in the shared sandbox was one advisory clause with
+  no procedure behind it, even though the platform has no file locking
+  between roster members. Rewrote it into concrete steps: name exact
+  file/directory ownership per delegation, serialize rather than
+  parallelize tasks that could touch the same file, and diff the working
+  tree against what was authorized before integrating. Verified with a dry
+  run against the live platform before commit -- the plan touches only the
+  new skill and the two intended agents.
+
 ## 2026-09-21
+
+### Completed
+
+- Agent tooling | Ran `ant apply --yes` against the REQ-020 agent
+  definitions; all eight agents on the platform moved from version 2 to
+  version 3, and `claude-lock.json` was committed to reflect it.
 
 ### Completed
 

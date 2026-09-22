@@ -22,6 +22,7 @@ tools:
           type: auto
 skills:
   - ../../.claude/skills/codebase-discovery
+  - ../../.claude/skills/infrastructure-audit
 metadata:
   package: senior-engineering-agent
   edition: anthropic-managed-agents
