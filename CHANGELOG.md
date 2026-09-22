@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-09-22 (8)
+
+### Completed
+
+- Agent tooling | Closed a real gap in REQ-023's compliance-auditor: nothing
+  told it to fetch Arbiter's external analyzers (checkov, semgrep, bandit,
+  ruff, gitleaks), so those five were silently never present in a session
+  regardless of network policy -- Arbiter's own graceful degradation just
+  reported them `not_assessed`, which read as an honest coverage fact
+  rather than the missing-instruction bug it actually was. Fixed upstream
+  in senior-engineering-agent's role source (`ec5ca17`) so the role checks
+  PATH before its first scan and runs Arbiter's own `tools/install_tools.sh
+  -y` if Arbiter's repository is mounted in-session, falling back to
+  whatever coverage is available rather than stalling if it isn't. Pulled
+  in here via `omni agents install --managed`.
+- Agent tooling | Moved `managed-agents/environment.yaml` off
+  `networking: unrestricted` to an explicit `limited` allowlist (pypi.org,
+  files.pythonhosted.org, github.com, objects.githubusercontent.com,
+  api.github.com), per direct user decision to keep full external-analyzer
+  coverage while no longer leaving every role's Bash access open to
+  anywhere -- none of the nine roles carry web_search/web_fetch, but Bash
+  reaches the network directly regardless of that tool-level lockout, and
+  that exposure gets real the moment a session mounts a private or
+  regulated repository. Not yet verified against the live platform: the
+  `limited`/`allowed_hosts` shape is only documented as one example line in
+  senior-engineering-agent's own docs, with no local schema to validate
+  against -- `ant apply --dry-run` would confirm it, but that is still
+  blocked on the same missing GitHub fine-grained access this session
+  cannot resolve on its own.
+
 ## 2026-09-22 (7)
 
 ### Completed

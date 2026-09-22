@@ -3,4 +3,21 @@ description: Cloud sandbox for the senior engineering team agents.
 config:
   type: cloud
   networking:
-    type: unrestricted
+    # Every role carries Bash, which reaches the network directly regardless
+    # of tool-level web access, so "unrestricted" was real exposure once a
+    # session ever mounts a private or regulated repository -- not just a
+    # formality, since none of the nine roles carry web_search/web_fetch
+    # anyway. Named explicitly instead:
+    #   - pypi.org, files.pythonhosted.org: pip installs (compliance-auditor's
+    #     tools/install_tools.sh fetching checkov/semgrep/bandit/ruff; any
+    #     other role's real dependency installs against a target project)
+    #   - github.com, objects.githubusercontent.com: git operations, the
+    #     gitleaks release binary, and the semgrep-rules clone
+    #   - api.github.com: GitHub MCP / REST API calls
+    type: limited
+    allowed_hosts:
+      - pypi.org
+      - files.pythonhosted.org
+      - github.com
+      - objects.githubusercontent.com
+      - api.github.com
