@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-09-21
+
+### Completed
+
+- Agent tooling (REQ-020) | Ran `omni agents install --source
+  ../senior-engineering-agent --managed` for the first time in this repo,
+  installing `.claude/agents`, `.claude/skills`, and `managed-agents/agents`.
+  That surfaced two real defects, both fixed as part of this change: the
+  package's managed-agents renderer dropped the `skills:` frontmatter block
+  entirely, so `ant apply` would have silently stripped skill access from
+  every agent (fixed upstream in `senior-engineering-agent`); and `omni
+  doctor`'s workspace-placement check never learned the `.claude/`,
+  `managed-agents/`, and `claude-lock.json` paths that `omni agents install
+  --managed` itself creates, so running the shipped command as documented
+  tripped four warnings against its own output (fixed here by adding those
+  paths to `ALLOWED_ROOT_DIRS`/`ALLOWED_ROOT_FILES`). Brought
+  `claude-lock.json` and `managed-agents/environment.yaml` into the repo, and
+  added `.github/workflows/sync-managed-agents.yml`, which runs `ant apply`
+  against the checked-in agent definitions whenever `managed-agents/` changes
+  on `main` and commits the resulting lockfile back, so the platform's agent
+  objects never drift from what is committed here.
+
 ## 2026-09-18
 
 ### Completed

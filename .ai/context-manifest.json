@@ -169,5 +169,14 @@
       "Use .ai/.ignore to exclude sensitive or irrelevant paths.",
       "Use design/ for architecture and workflow context when changing project behavior."
     ]
-  }
+  },
+  "generated_artifacts": {
+    "claude_code_agents": ".claude/agents/",
+    "claude_code_skills": ".claude/skills/",
+    "managed_agents": "managed-agents/agents/",
+    "managed_agents_environment": "managed-agents/environment.yaml",
+    "agent_capabilities": null,
+    "agent_lockfile": "claude-lock.json"
+  },
+  "agent_team_source": ".ai/agent-team.json"
 }

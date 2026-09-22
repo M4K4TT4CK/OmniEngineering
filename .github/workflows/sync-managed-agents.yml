@@ -1,0 +1,83 @@
+name: Sync Managed Agents
+
+# Keeps the Anthropic Managed Agents team live at platform.claude.com aligned
+# with what is committed under managed-agents/. Nothing on the platform side
+# watches this repo on its own -- an agent is a stored, versioned object, and
+# it only changes when something calls `ant apply`. This workflow is that
+# something, so the checked-in definitions stay the source of truth instead
+# of drifting from whatever was last applied by hand.
+#
+# Requires a repo secret ANTHROPIC_API_KEY with access to the target
+# workspace. See docs/command-schema.md in the senior-engineering-agent
+# package for the underlying `ant apply` contract this wraps.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "managed-agents/**"
+      - ".ai/agent-team.json"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-managed-agents
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    name: ant apply managed-agents/
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      ANT_VERSION: "1.34.0"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Repo-local doctor check (no package access needed)
+        run: python3 omni doctor
+
+      - name: Install ant CLI
+        run: |
+          set -euo pipefail
+          curl -fsSL \
+            "https://github.com/anthropics/anthropic-cli/releases/download/v${ANT_VERSION}/ant_${ANT_VERSION}_linux_amd64.tar.gz" \
+            | tar -xz -C /usr/local/bin ant
+          ant --version
+
+      - name: Fail early if ANTHROPIC_API_KEY is not configured
+        run: |
+          if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
+            echo "::error::Repo secret ANTHROPIC_API_KEY is not set. Add it under" \
+                 "Settings > Secrets and variables > Actions before this workflow" \
+                 "can reconcile managed agents."
+            exit 1
+          fi
+
+      - name: Show plan
+        run: ant apply --dry-run managed-agents/environment.yaml managed-agents/agents .claude/skills
+
+      - name: Apply
+        run: ant apply --yes managed-agents/environment.yaml managed-agents/agents .claude/skills
+
+      - name: Commit updated lockfile
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- claude-lock.json; then
+            echo "claude-lock.json unchanged; nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add claude-lock.json
+          git commit -m "chore: sync claude-lock.json after managed-agents apply [skip ci]"
+          git push

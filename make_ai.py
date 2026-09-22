@@ -365,6 +365,7 @@ ALLOWED_ROOT_FILES = {
     "AGENTS.md",
     "CHANGELOG.md",
     "CLAUDE.md",
+    "claude-lock.json",
     "CONTRIBUTING.md",
     "LICENSE",
     "LLM_CONTEXT.md",
@@ -379,6 +380,7 @@ ALLOWED_ROOT_FILES = {
 
 ALLOWED_ROOT_DIRS = {
     ".ai",
+    ".claude",
     ".codex-local",
     ".git",
     ".github",
@@ -386,6 +388,7 @@ ALLOWED_ROOT_DIRS = {
     "LICENSES",
     "assets",
     "design",
+    "managed-agents",
 }
 
 ROOT_CLUTTER_DIRS = {

@@ -645,6 +645,47 @@
         "The layout is O(n^2) per iteration (a deliberate simplicity/dependency tradeoff over numpy-vectorized force-directed algorithms), which is why --max-nodes defaults to 300 and truncates by degree rather than rendering arbitrarily large graphs unbounded.",
         "Dense, highly-connected clusters (e.g. this repo's own doctor-validator cluster) still show some label overlap at default settings -- an inherent characteristic of force-directed layouts at this node density, not something --max-nodes or --focus fully eliminates; --focus on a smaller neighborhood is the escape hatch for a specific area."
       ]
+    },
+    {
+      "id": "REQ-020",
+      "category": "Agent tooling",
+      "title": "Wire the senior-engineering-agent managed edition to this repo permanently",
+      "description": "User ask: incorporate managed agents into this repo and keep them permanently aligned with the GitHub repo, rather than building the alignment inside the separate arbiter project. Ran omni agents install --source ../senior-engineering-agent --managed (first use of the REQ-019-adjacent command added in commit 2846dbd) to install .claude/agents, .claude/skills, and managed-agents/agents into this repo. Doing this surfaced two real defects fixed as part of the same change: (1) the package's managed-agents renderer dropped the skills: frontmatter block entirely, so every ant apply would have silently stripped skill access from all eight agents -- fixed upstream in senior-engineering-agent commit 2c1fce4; (2) omni doctor's workspace-placement check never learned the .claude/, managed-agents/, and claude-lock.json paths that omni agents install --managed itself creates, so running the shipped command as documented tripped four warnings against its own output -- fixed here by adding those paths to ALLOWED_ROOT_DIRS/ALLOWED_ROOT_FILES. Brought in claude-lock.json (previously created by a manual Console export) and managed-agents/environment.yaml, repointed the lockfile's recorded API host from a local dev proxy to api.anthropic.com, and added a CI workflow (.github/workflows/sync-managed-agents.yml) that runs ant apply against the checked-in agent definitions whenever managed-agents/ changes on main, committing the updated lockfile back so the platform's agent objects never drift from what is committed. Repository mounting for live session work needs no template or extra tooling -- Managed Agents sessions clone the GitHub repo directly via a github_repository resource; only the definitions themselves needed a sync mechanism, since nothing on Anthropic's side watches the repo on its own.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        ".ai/agent-team.json",
+        ".ai/context-manifest.json",
+        ".ai/requirements/requirements.json",
+        ".claude/agents/",
+        ".claude/skills/",
+        "managed-agents/",
+        "claude-lock.json",
+        ".github/workflows/sync-managed-agents.yml"
+      ],
+      "acceptance_criteria": [
+        "omni agents install --source ../senior-engineering-agent --managed populates .claude/agents, .claude/skills, and managed-agents/agents in this repo.",
+        "omni doctor passes with no warnings caused by the agent team's own generated paths (.claude/, managed-agents/, claude-lock.json).",
+        "ant apply --dry-run against the checked-in managed-agents/ definitions and the committed claude-lock.json produces a plan with no unexpected drift, verified interactively before any real apply.",
+        "senior-engineering-agent's managed-agents renderer includes each role's skills: block (verified by python build.py doctor and tests/validate_editions.py passing after the fix, and by the rendered files carrying the skills key).",
+        "A CI workflow applies managed-agents/ changes on push to main and commits the resulting claude-lock.json back, so the platform's agent objects track what is committed without a person running ant apply by hand.",
+        "The actual ant apply --yes that changes live platform state was run by the user, not by the assistant, per the destructive/outward-facing-action confirmation rule."
+      ],
+      "validation_required": [
+        "doctor",
+        "ant_apply_dry_run",
+        "package_build_doctor_tests",
+        "manual_verification"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": [
+        "claude-lock.json records organization_id, workspace_id, and agent/skill/environment resource IDs -- no secrets -- and is meant to be committed per the package's own docs; verified before committing that it carries no tokens.",
+        "The recorded agent package source in .ai/agent-team.json is a local Windows path (C:\\Users\\pauke\\dev\\senior-engineering-agent), so omni agents doctor (which needs the package present to check dist/ freshness) cannot run in CI; CI instead relies on the repo-local validate_agent_team check folded into plain omni doctor, which needs no package access. Publishing the package to a git host CI can reach would close this gap if full doctor parity in CI is wanted later.",
+        "managed-agents/environment.yaml is left at cloud/unrestricted networking, matching what was already live and unchanged by the apply; the coordinator's web tools are disabled by role capability regardless, but unrestricted sandbox egress is worth revisiting before any session mounts a private or regulated repository."
+      ]
     }
   ]
 }

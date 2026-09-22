@@ -1,0 +1,6 @@
+name: senior-engineering-env
+description: Cloud sandbox for the senior engineering team agents.
+config:
+  type: cloud
+  networking:
+    type: unrestricted
