@@ -33,58 +33,58 @@
     "./managed-agents/agents/architecture-reviewer.md": {
       "kind": "agent",
       "id": "agent_01MUf8PvY8NSposReg1pLvRc",
-      "version": "2",
-      "hash": "7a4ca1e4f557fb5aab992e7ba3e25403",
-      "remote_hash": "426354133414a392b7b617b45fa42ffc"
+      "version": "3",
+      "hash": "1f4fa82f7e1001eb20b664c5f80eb259",
+      "remote_hash": "e6b3b42c223dd2ca548d2ffe3c3cf0e9"
     },
     "./managed-agents/agents/coordinator.md": {
       "kind": "agent",
       "id": "agent_01VF2AcEUpNvcq5BaQ6jnjNm",
-      "version": "2",
-      "hash": "da2e728698cab08051a0d07e27df5a12",
-      "remote_hash": "4883f35312d5eb947e95b5301a33aefe"
+      "version": "3",
+      "hash": "2b78f0e246bd597d72ef84ed6c65b47a",
+      "remote_hash": "7b747df08a861e572fe5fc922bda488c"
     },
     "./managed-agents/agents/implementation-engineer.md": {
       "kind": "agent",
       "id": "agent_01NHc5TTyZUpRqVAjbA43iWi",
-      "version": "2",
-      "hash": "b33d68466fec614e78175e7ff3dd4f22",
-      "remote_hash": "7f533e0e5d7ff560a308f9b555c28fb5"
+      "version": "3",
+      "hash": "cb5330134a84ee4d4c37af4787e9e036",
+      "remote_hash": "dfc205776df793c3eed937193818fda4"
     },
     "./managed-agents/agents/infrastructure-reviewer.md": {
       "kind": "agent",
       "id": "agent_01GxCC1oph9GaQ5HHahPZBJH",
-      "version": "2",
-      "hash": "15635e5874c1d030b047fcb8c7135064",
-      "remote_hash": "d72ecb5e6f5bb8bdeaf8f049a3cf7969"
+      "version": "3",
+      "hash": "040b72a8d88cb66b4621b1752ee6f6aa",
+      "remote_hash": "4854f25e9447f2241fcfa53301f5b5ee"
     },
     "./managed-agents/agents/performance-engineer.md": {
       "kind": "agent",
       "id": "agent_01GwYdEs3artCfZ5hciJHiEC",
-      "version": "2",
-      "hash": "f1119899128f95bff800552868a225e9",
-      "remote_hash": "241d9a4b587fc38db40c678308dde549"
+      "version": "3",
+      "hash": "72c54d122132b09e3f9fcd5810778be9",
+      "remote_hash": "0a07d6469a4da92f48561574553f44db"
     },
     "./managed-agents/agents/release-validator.md": {
       "kind": "agent",
       "id": "agent_01Hq4J38BaYVvBe3GHr5DDVK",
-      "version": "2",
-      "hash": "b1d21410f0c03dd9821895ea405b9aa5",
-      "remote_hash": "760bda0fc21e6b08f916e03c3c1abeb8"
+      "version": "3",
+      "hash": "befa18d6c3fcf2ef9306c7e7edf8842a",
+      "remote_hash": "e2539e5f7ac9931036550f473341bb07"
     },
     "./managed-agents/agents/security-reviewer.md": {
       "kind": "agent",
       "id": "agent_01W37FLvDHTdpMTDDTuKcecj",
-      "version": "2",
-      "hash": "e747bbbb2cba94e4ff15a66cbd1bc6f8",
-      "remote_hash": "96855771cc2b67ff60f8509d91f9c628"
+      "version": "3",
+      "hash": "e693c92fc7e643fa356abbd9a42f3858",
+      "remote_hash": "9582707d6d3ef8c4ff770f55a88084dc"
     },
     "./managed-agents/agents/test-adversary.md": {
       "kind": "agent",
       "id": "agent_01QDZMxLPtjQSYNDYDfhh1pu",
-      "version": "2",
-      "hash": "d859a5348c08d1dc1b967f0f33745034",
-      "remote_hash": "bb9f2b7c7b0f21bc2bcbda2944385db1"
+      "version": "3",
+      "hash": "6cd77d2372ad25d555835b642da9649d",
+      "remote_hash": "5ceb9248bc718227c303ed872a2495c6"
     },
     "./managed-agents/environment.yaml": {
       "kind": "environment",
