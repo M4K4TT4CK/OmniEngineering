@@ -130,11 +130,27 @@ class TestBenchmark(Fixture):
         json.dumps(og.benchmark(path, self.root))
 
 
-class TestBenchmarkCLI(unittest.TestCase):
+class TestBenchmarkCLI(Fixture):
+    """These exercise the CLI wiring and output shape, not graph-building: they write a hand-built graph
+    (the same way TestBenchmark does) rather than calling `omni graph build`, which needs the optional
+    [graph] extra (tree-sitter) for every language including python -- see the note on FAIL-009. Passing
+    --graph and --root at a small fixture keeps this suite honest about running with no extras installed."""
+
+    def build_graph(self) -> Path:
+        self.git("init", "-q")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "Add checkout (REQ-001)")
+        og.add_governance_layer(self.graph, self.root)
+        og.add_history_layer(self.graph, self.root)
+        path = self.root / "graph.json"
+        path.write_text(json.dumps(self.graph.to_json(str(self.root), ["python"], {})), encoding="utf-8")
+        return path
+
     def test_json_output_matches_the_direct_call(self) -> None:
+        graph_path = self.build_graph()
         result = subprocess.run(
-            [sys.executable, str(ROOT / "omni"), "graph", "benchmark", "--json"],
-            cwd=ROOT, capture_output=True, text=True, timeout=60,
+            [sys.executable, str(ROOT / "omni"), "graph", "benchmark", "--graph", str(graph_path), "--root", str(self.root), "--json"],
+            cwd=ROOT, capture_output=True, text=True, timeout=30,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         payload = json.loads(result.stdout)
@@ -142,9 +158,10 @@ class TestBenchmarkCLI(unittest.TestCase):
         self.assertIsInstance(payload["cases"], list)
 
     def test_text_output_names_each_case(self) -> None:
+        graph_path = self.build_graph()
         result = subprocess.run(
-            [sys.executable, str(ROOT / "omni"), "graph", "benchmark"],
-            cwd=ROOT, capture_output=True, text=True, timeout=60,
+            [sys.executable, str(ROOT / "omni"), "graph", "benchmark", "--graph", str(graph_path), "--root", str(self.root)],
+            cwd=ROOT, capture_output=True, text=True, timeout=30,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("naive costs", result.stdout)

@@ -193,6 +193,33 @@
       "prevention_rules": [],
       "prevention_notes": "Ids come from the registry and are matched exactly; the test mixes PROJ-1, PROJ-12, PROJ-123 and PROJ-1-beta.",
       "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-009",
+      "date": "2026-09-22",
+      "title": "Graph build needs tree-sitter for every language including python; local runs silently masked this by auto-finding a venv",
+      "status": "fixed",
+      "severity": "high",
+      "symptom": "CI's main test matrix (no [graph] extra, 6 OS/Python jobs) failed uniformly: FAIL: test_json_output_matches_the_direct_call and test_text_output_names_each_case (test_benchmark.TestBenchmarkCLI), FAIL: test_the_post_commit_hook_rebuilds_the_graph_in_the_background_without_blocking (test_gate_hook), all with 'Graph file not found' or 'the background build never produced a graph'",
+      "how_detected": "GitHub Actions CI (the workflow this same session added)",
+      "root_cause": "parse_python_file() calls load_language('python') unconditionally, so Python parsing has always gone through tree-sitter -- there is no stdlib-ast fallback anywhere in this codebase, despite build_graph()'s own stats defaulting the mode label to the literal string 'ast'. That mislabel, plus this development machine's ~/.venvs/omni-graph venv always being silently auto-detected and re-exec'd into by reexec_with_graph_python(), meant the true no-extras environment was never actually exercised locally -- only CI (a genuinely clean machine) exposed it.",
+      "requirement": "REQ-030",
+      "affected": [
+        "omni_graph.py",
+        "tests/test_benchmark.py",
+        "tests/test_gate_hook.py",
+        ".github/workflows/ci.yml"
+      ],
+      "fix_summary": "Fixed the misleading 'ast' stats label to 'tree-sitter'. Rewrote TestBenchmarkCLI's two failing tests to pass --graph at a hand-built fixture graph (same pattern as TestBenchmark) instead of invoking a real omni graph build, so they need no extra. Skipped the one test that must run a real build when tree-sitter is unavailable, and added a test-suite run to the graph-extra CI job (which does install the extra) so that skipped test is exercised there instead.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_benchmark.py::TestBenchmarkCLI",
+        "tests/test_gate_hook.py::TestPreCommitHookInstall::test_the_post_commit_hook_rebuilds_the_graph_in_the_background_without_blocking"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [],
+      "prevention_notes": "Reproduced locally by overriding HOME for the subprocess so ~/.venvs/omni-graph is not found, matching CI's real environment -- the only reliable way this machine can exercise the true no-extras path, since the auto-detection is silent by design.",
+      "recurrence_of": ""
     }
   ]
 }

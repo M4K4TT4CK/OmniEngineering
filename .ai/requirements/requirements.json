@@ -1026,6 +1026,37 @@
         "changelog"
       ],
       "risk_notes": []
+    },
+    {
+      "id": "REQ-030",
+      "category": "Defect",
+      "title": "Fix CI: graph build needs tree-sitter for every language, python included -- no ast fallback exists",
+      "description": "The CI matrix's main test job (no [graph] extra installed, by design) failed 6/6 jobs: 3 real test failures (test_benchmark.py::TestBenchmarkCLI x2, test_gate_hook.py's background-rebuild test). Root cause: parse_python_file() calls load_language('python') unconditionally -- Python parsing has always gone through tree-sitter, there is no stdlib-ast fallback anywhere in this codebase, contrary to build_graph()'s own stats label which defaulted to the string 'mode: ast' (misleading; fixed to 'tree-sitter'). This mislabel is what let local verification pass silently: this machine's ~/.venvs/omni-graph venv was always auto-detected and re-exec'd into, so the true no-extras path was never actually exercised locally, only in CI. Fixed the 2 TestBenchmarkCLI tests to use a hand-built fixture graph (same pattern as TestBenchmark) instead of invoking omni graph build for real, so they need no extra. Skipped the one test that must invoke a real build when tree-sitter is unavailable, and made the graph-extra CI job (which does install [graph]) also run the full test suite, so that skipped test is exercised there instead.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "omni_graph.py",
+        "tests/test_benchmark.py",
+        "tests/test_gate_hook.py",
+        ".github/workflows/ci.yml",
+        ".ai/failures/failure-ledger.json"
+      ],
+      "acceptance_criteria": [
+        "CI's main test matrix (6 jobs) passes with no [graph] extra installed",
+        "The graph-extra job installs the extra and runs the full suite too",
+        "exercising the previously-skipped test",
+        "build_graph's stats no longer claims ast when tree-sitter is what actually runs",
+        "Reproduced locally with HOME overridden so ~/.venvs/omni-graph is not found",
+        "matching CI's real environment"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests under a forced no-tree-sitter HOME (reproduces CI exactly)",
+        "gh run watch after pushing"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
     }
   ]
 }

@@ -4,6 +4,26 @@
 
 ### Completed
 
+- `REQ-030` | Defect | `FAIL-009`. Fixed CI: graph build needs tree-sitter for every language, python
+  included -- there is no stdlib-ast fallback anywhere in this codebase.
+  - The CI matrix's main test job (deliberately no `[graph]` extra) failed 6/6: `parse_python_file()`
+    calls `load_language("python")` unconditionally, so plain Python parsing has always required
+    tree-sitter, contrary to `build_graph()`'s own stats, which defaulted the mode label to the literal
+    string `"ast"` (a lie; fixed to `"tree-sitter"`). That mislabel is exactly what let this development
+    machine's local test runs go green: `~/.venvs/omni-graph` was always silently auto-detected and
+    re-exec'd into, so the true no-extras path was never actually exercised here, only in CI.
+  - Fixed `tests/test_benchmark.py::TestBenchmarkCLI`'s two failing tests to pass `--graph` at a
+    hand-built fixture graph (the same pattern `TestBenchmark` already uses) instead of invoking a real
+    `omni graph build`, so they need no extra. Skipped the one test that must run a real build when
+    tree-sitter is unavailable, and the `graph-extra` CI job (which does install the extra) now also
+    runs the full test suite, so that skipped test is exercised there instead.
+  - Also fixed a genuine test race the extras-installed run then surfaced: the lock directory's removal
+    (an `EXIT` trap on the backgrounded subshell) can land a moment after the graph file itself appears,
+    so the test now polls briefly for the lock's release too, rather than checking exactly once.
+  - Reproduced locally by overriding `HOME` for the test subprocess so `~/.venvs/omni-graph` is not
+    found, matching CI's real environment -- the only reliable way this machine can exercise the true
+    no-extras path, since the auto-detection is silent by design.
+
 - `REQ-029` | Feature | `omni graph benchmark`: measure the token-savings claim instead of just asserting it.
   - For one real requirement, commit, failure and file the current project's own graph and registries
     already have (never invented, never hardcoded to a specific project's IDs), it runs a targeted graph

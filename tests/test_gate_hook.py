@@ -11,6 +11,7 @@ runs hooks through its own bundled sh). Stdlib only. Run with:
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import os
 import subprocess
 import sys
@@ -22,6 +23,12 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 import make_ai as ma  # noqa: E402
+
+# `omni graph build` parses every language, python included, with tree-sitter (see load_language() in
+# omni_graph.py) -- there is no stdlib-ast fallback for any of them (FAIL-009). A test that actually runs
+# the hook's real `omni graph build` needs the optional [graph] extra installed; without it, skip rather
+# than fail, and rely on the CI job that does install the extra to cover this path instead.
+_HAS_GRAPH_EXTRA = importlib.util.find_spec("tree_sitter") is not None
 
 
 class TestPreCommitHookInstall(unittest.TestCase):
@@ -83,6 +90,7 @@ class TestPreCommitHookInstall(unittest.TestCase):
         self.assertFalse((self.root / ".githooks" / "post-commit").is_file())
 
     @unittest.skipUnless(os.name == "posix", "runs a shell script directly")
+    @unittest.skipUnless(_HAS_GRAPH_EXTRA, "needs the [graph] extra (tree-sitter); covered by the graph-extra CI job instead")
     def test_the_post_commit_hook_rebuilds_the_graph_in_the_background_without_blocking(self) -> None:
         import time
 
@@ -107,7 +115,14 @@ class TestPreCommitHookInstall(unittest.TestCase):
         while not (self.root / ".ai" / "project-graph.json").is_file() and time.monotonic() < deadline:
             time.sleep(0.5)
         self.assertTrue((self.root / ".ai" / "project-graph.json").is_file(), "the background build never produced a graph")
-        self.assertFalse((self.root / ".ai" / ".graph-build.lock").is_dir(), "the lock must be released once the build finishes")
+        # The lock's rmdir is the EXIT trap of the backgrounded subshell, which fires once that subshell
+        # itself exits -- a moment after the graph file is the last thing the build process wrote, not
+        # necessarily before this next line runs. Poll briefly rather than checking exactly once.
+        lock = self.root / ".ai" / ".graph-build.lock"
+        lock_deadline = time.monotonic() + 5
+        while lock.is_dir() and time.monotonic() < lock_deadline:
+            time.sleep(0.1)
+        self.assertFalse(lock.is_dir(), "the lock must be released once the build finishes")
 
     @unittest.skipUnless(os.name == "posix", "runs a shell script directly")
     def test_a_build_already_in_flight_is_not_duplicated(self) -> None:

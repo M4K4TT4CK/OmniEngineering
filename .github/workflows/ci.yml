@@ -28,7 +28,10 @@ jobs:
 
       # `python <script>` (not `./omni` or `python3`) so this step is identical on Linux, macOS and Windows:
       # it doesn't depend on the executable bit or on which of python/python3 is on PATH.
-      - name: Run the test suite (stdlib unittest, no extras required)
+      # `omni graph build` needs tree-sitter for every language it parses, python included (there is no
+      # stdlib-ast fallback -- FAIL-009); the handful of tests that call it for real are skipped here and
+      # covered by the graph-extra job below instead, which installs the extra.
+      - name: Run the test suite (stdlib unittest; extras-dependent tests skip themselves here)
         run: python -m unittest discover -s tests -v
 
       - name: Run omni doctor
@@ -53,6 +56,9 @@ jobs:
 
       - name: Install with the [graph] extra
         run: python -m pip install '.[graph]'
+
+      - name: Run the test suite (with the [graph] extra: the tests skipped above run for real here)
+        run: python -m unittest discover -s tests -v
 
       - name: Build the five-layer graph against this repo
         run: python omni graph build

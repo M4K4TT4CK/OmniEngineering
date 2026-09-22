@@ -2052,7 +2052,13 @@ def build_graph(
     missing_packages: dict[str, str] = {}
 
     for path, language in discover_source_files(root, requested):
-        stats = graph.stats.setdefault(language, {"files": 0, "mode": "ast"})
+        # Every language here, including python, is parsed with tree-sitter (see load_language()); there is
+        # no stdlib-ast fallback, so "tree-sitter" is the accurate default -- "ast" previously claimed
+        # otherwise and was never true. That mislabel is what let this repo's own CI matrix job (which
+        # deliberately installs no extras, to test the extras-free path) go green locally while genuinely
+        # needing tree-sitter for graph_build-dependent tests, since a local run silently found this
+        # machine's ~/.venvs/omni-graph venv and never actually exercised the no-tree-sitter path (FAIL-009).
+        stats = graph.stats.setdefault(language, {"files": 0, "mode": "tree-sitter"})
         stats["files"] += 1
         relpath = path.relative_to(root).as_posix()
         if language == "sql":
