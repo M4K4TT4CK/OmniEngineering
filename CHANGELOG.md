@@ -1,16 +1,31 @@
 # Changelog
 
+## 2026-09-22 (5)
+
+### Completed
+
+- Agent tooling | The prior fix below was cosmetic: it added clarifying
+  prose but left Arbiter's own compliance doc filename inside backticks,
+  and Arbiter's doc-drift check is a plain regex over backtick-quoted,
+  path-shaped strings -- it doesn't parse surrounding prose, so the same
+  finding fired again on re-scan. Read the probe's source directly to
+  confirm that before changing anything. Fixed it in the one form
+  Arbiter's own check explicitly exempts: a real external link, not a
+  backtick-quoted path. Verified by re-running the scan afterward rather
+  than assuming it worked. No new requirement ID, same as below.
+
 ## 2026-09-22 (4)
 
 ### Completed
 
-- Agent tooling | Corrected an ambiguous path in the `compliance-evidence`
-  skill's `frameworks.md`: it cited `docs/compliance.md` as if that were a
-  path in the consuming repository, when it lives in Arbiter's own source
-  tree. Caught by validating `compliance-auditor` against a real target --
-  running Arbiter's own scan against this repository flagged the line as
-  doc drift. No new requirement ID: this corrects a REQ-023 artifact
-  without changing its scope or acceptance criteria.
+- Agent tooling | Corrected an ambiguous path in the compliance-evidence
+  skill's frameworks.md reference file: it cited Arbiter's own compliance
+  documentation as if it were a path in the consuming repository, when it
+  lives in Arbiter's own source tree. Caught by validating compliance-auditor
+  against a real target -- running Arbiter's own scan against this
+  repository flagged the line as doc drift. No new requirement ID: this
+  corrects a REQ-023 artifact without changing its scope or acceptance
+  criteria.
 
 ## 2026-09-22 (3)
 
