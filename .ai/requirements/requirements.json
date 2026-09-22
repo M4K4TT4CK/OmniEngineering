@@ -724,6 +724,39 @@
         "The coordinator guardrail is still prompt-based, not platform-enforced -- the underlying service has no file-locking primitive between roster members, so this closes the gap between instruction and something the coordinator can actually check for itself, but it is not a hard guarantee against concurrent writers colliding.",
         "Three further items were identified in the same review but deliberately left as recommendations or instructions rather than executed: environment network hardening and a memory store for cross-run continuity (need a scope decision first), and wiring a GitHub MCP vault plus a scheduled session for live repository work and benchmarking the release-validator's model tier (need a credential and, respectively, approval to spend API budget, neither of which the assistant can supply on its own)."
       ]
+    },
+    {
+      "id": "REQ-022",
+      "category": "Agent tooling",
+      "title": "Move release-validator to the standard (Sonnet) tier",
+      "description": "User decision, stated directly: move release-validator off the lead tier to Sonnet at high effort. Release validation is largely evidence-mapping against a rubric -- diff, tests, and claims against acceptance criteria -- closer in shape to the standard-tier reviewers than to the coordinator's synthesis work, so this was accepted without a prior A/B benchmark. Changed roles/release-validator.md tier: lead -> standard in senior-engineering-agent (commit 7b2198a); effort stays high. Side effect disclosed to the user before the change: the standard tier's max_turns is 60 versus lead's 80, since one field controls both model and turn budget -- worth watching if a release audit against an unusually large diff runs out of turns. Rebuilt, verified with build.py doctor and tests/validate_editions.py, reinstalled into this repo, and dry-run verified against the live platform, where it now appears alongside the still-unapplied REQ-021 changes in one combined plan.",
+      "priority": "low",
+      "status": "completed",
+      "minimum_access_scope": [
+        ".ai/agent-team.json",
+        ".ai/requirements/requirements.json",
+        ".claude/agents/release-validator.md",
+        "managed-agents/agents/release-validator.md"
+      ],
+      "acceptance_criteria": [
+        "roles/release-validator.md in senior-engineering-agent has tier: standard and effort: high.",
+        "Both rendered editions show claude-sonnet-5 / sonnet for release-validator, verified by inspecting dist/ output directly.",
+        "build.py doctor and tests/validate_editions.py pass after the change.",
+        "omni doctor passes in this repo after reinstalling the updated package output.",
+        "ant apply --dry-run shows the model.id change on release-validator with no unexpected drift elsewhere, verified before commit."
+      ],
+      "validation_required": [
+        "package_build_doctor_tests",
+        "doctor",
+        "ant_apply_dry_run"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": [
+        "Accepted on the user's stated judgment rather than a measured A/B comparison between tiers; if release-validator's verdicts noticeably change quality after this ships, re-running it at the lead tier for comparison is the fallback, not a further prompt change.",
+        "max_turns dropping from 80 to 60 was flagged to the user before the change; not yet observed against a real large-diff release audit."
+      ]
     }
   ]
 }

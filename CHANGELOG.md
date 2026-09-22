@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-09-22 (2)
+
+### Completed
+
+- Agent tooling (REQ-022) | Moved `release-validator` off the lead tier to
+  Sonnet at high effort, per direct user decision -- its work is largely
+  evidence-mapping against a rubric, closer to the standard-tier reviewers
+  than to the coordinator's synthesis work. Effort stays high; `max_turns`
+  drops from 80 to 60 as a side effect of the tier change, flagged to the
+  user beforehand. Verified with a dry run against the live platform, where
+  it now sits alongside the still-unapplied REQ-021 changes in one combined
+  plan awaiting `ant apply`.
+
 ## 2026-09-22
 
 ### Completed

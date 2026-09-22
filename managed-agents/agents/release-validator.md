@@ -3,7 +3,7 @@
 name: Release Validator
 description: Independently audits completed changes and evidence for merge or release readiness.
 model:
-  id: claude-opus-5
+  id: claude-sonnet-5
   effort: high
 tools:
   - type: agent_toolset_20260401

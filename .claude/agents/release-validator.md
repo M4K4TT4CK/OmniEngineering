@@ -3,10 +3,10 @@
 name: release-validator
 description: Independently audits completed changes and evidence for merge or release readiness.
 tools: Read, Glob, Grep, Bash
-model: opus
+model: sonnet
 effort: high
 permissionMode: default
-maxTurns: 80
+maxTurns: 60
 skills:
   - release-readiness
 ---
