@@ -23,6 +23,9 @@
   - Reproduced locally by overriding `HOME` for the test subprocess so `~/.venvs/omni-graph` is not
     found, matching CI's real environment -- the only reliable way this machine can exercise the true
     no-extras path, since the auto-detection is silent by design.
+  - `FAIL-010`. The first push of this fix then broke the workflow file itself: a step name containing
+    an unquoted colon (`"...extra: the tests..."`) parses as a nested YAML mapping, not plain text.
+    Quoted it, and validated with a local YAML parse before pushing again.
 
 - `REQ-029` | Feature | `omni graph benchmark`: measure the token-savings claim instead of just asserting it.
   - For one real requirement, commit, failure and file the current project's own graph and registries

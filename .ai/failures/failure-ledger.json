@@ -220,6 +220,27 @@
       "prevention_rules": [],
       "prevention_notes": "Reproduced locally by overriding HOME for the subprocess so ~/.venvs/omni-graph is not found, matching CI's real environment -- the only reliable way this machine can exercise the true no-extras path, since the auto-detection is silent by design.",
       "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-010",
+      "date": "2026-09-22",
+      "title": "CI workflow YAML broke on an unquoted colon in a step name",
+      "status": "fixed",
+      "severity": "low",
+      "symptom": "Push 9376171 failed instantly (0s) with 'This run likely failed because of a workflow file issue'",
+      "how_detected": "gh run view after the push; confirmed with python3 -c 'import yaml; yaml.safe_load(...)' locally",
+      "root_cause": "A step name, 'Run the test suite (with the [graph] extra: the tests skipped above run for real here)', contains an unquoted colon-space, which YAML parses as the start of a nested mapping rather than plain scalar text.",
+      "requirement": "REQ-030",
+      "affected": [
+        ".github/workflows/ci.yml"
+      ],
+      "fix_summary": "Quoted the step name. Now validated with a local YAML parse before pushing a workflow change.",
+      "fix_commits": [],
+      "regression_tests": [],
+      "no_test_reason": "A dedicated regression test would need a YAML-parsing dependency (PyYAML), which this project's own test suite deliberately avoids to stay stdlib-only; PyYAML isn't guaranteed present on a fresh clone. Prevention is process instead: validate any workflow edit with a local YAML parse before pushing (now done for this fix and noted for next time).",
+      "prevention_rules": [],
+      "prevention_notes": "Any GitHub Actions step name or other string value containing a colon needs quoting; run yaml.safe_load locally before pushing a workflow edit.",
+      "recurrence_of": ""
     }
   ]
 }

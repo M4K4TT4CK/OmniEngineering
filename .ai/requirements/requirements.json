@@ -1056,7 +1056,9 @@
       "documentation_required": [
         "changelog"
       ],
-      "risk_notes": []
+      "risk_notes": [
+        "Follow-up: the first push of this fix broke .github/workflows/ci.yml itself (an unquoted colon in a step name parsed as YAML; FAIL-010). Quoted it and validated locally before pushing again."
+      ]
     }
   ]
 }
