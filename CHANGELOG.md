@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-09-22 (4)
+
+### Completed
+
+- Agent tooling | Corrected an ambiguous path in the `compliance-evidence`
+  skill's `frameworks.md`: it cited `docs/compliance.md` as if that were a
+  path in the consuming repository, when it lives in Arbiter's own source
+  tree. Caught by validating `compliance-auditor` against a real target --
+  running Arbiter's own scan against this repository flagged the line as
+  doc drift. No new requirement ID: this corrects a REQ-023 artifact
+  without changing its scope or acceptance criteria.
+
 ## 2026-09-22 (3)
 
 ### Completed

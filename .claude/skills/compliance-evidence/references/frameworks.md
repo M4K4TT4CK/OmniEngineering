@@ -1,6 +1,6 @@
 # Framework coverage
 
-What Arbiter can and cannot check today. Verify against the installed Arbiter's own `docs/compliance.md` before relying on this list -- packs are data files and can be added independently of this skill.
+What Arbiter can and cannot check today. Verify against `docs/compliance.md` in the Arbiter repository itself (github.com/paukennick/arbiter) before relying on this list -- that file lives in Arbiter's own source, not this package, and packs are data files that can be added independently of this skill.
 
 ## Shipped, usable now
 
