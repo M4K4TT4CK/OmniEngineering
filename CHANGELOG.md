@@ -1,5 +1,49 @@
 # Changelog
 
+## 2026-09-22 (7)
+
+### Completed
+
+- CLI / template maintainability | Closed REQ-013's other deferred follow-up:
+  `omni update --source` now accepts a remote git URL (`https://`, `git://`,
+  `ssh://`, or SCP-style `user@host:path`) in addition to a local checkout,
+  cloning it into a temporary directory for the update and cleaning up
+  afterward. The clone is full, not shallow -- a `--depth 1` clone would only
+  carry the tip commit, and `git_show_file` needs history back to the
+  target's own recorded base_ref (an arbitrary earlier commit) to
+  reconstruct the 3-way-merge base. A source string is only ever treated as
+  remote when it has a URL scheme or an SCP-style `user@host:` prefix, not
+  just any colon, since a bare Windows local path (`C:\...`) contains one
+  too. Verified against a real clone of this repository's own GitHub remote
+  (github.com/m4k4tt4ck/omniengineering) -- confirmed the update reconstructs
+  its merge base from cloned history rather than just diffing tips, confirmed
+  the temp clone directory is removed once the command exits, and confirmed
+  a nonexistent remote fails with a clear message and exit code 1 rather than
+  a traceback. No new requirement ID: this closes the second risk note
+  already recorded against REQ-013 without changing its scope.
+
+## 2026-09-22 (6)
+
+### Completed
+
+- CLI / template maintainability | Closed the structural gap REQ-017 left
+  deferred: `omni update` was reading TEMPLATE_MANAGED_FILES from whichever
+  make_ai.py was doing the asking -- the target's own, currently-running
+  copy -- so a target could never discover a template file that `--source`
+  added after the target's own copy was written, no matter how new
+  `--source` actually was. Added a hidden `_manifest` command that prints a
+  checkout's template-managed file lists as JSON, and had `run_update` shell
+  out to `--source`'s own make_ai.py for it instead of trusting its own
+  constants. Falls back to the pre-fix behavior with a clear warning when
+  `--source` predates the command, so older sources still update, just
+  without the fix's benefit until they too are updated past this point. No
+  new requirement ID: this closes a risk note already recorded against
+  REQ-017 without changing its scope or acceptance criteria. Verified with
+  `python_compile`, `omni doctor`, and two scratch scenarios: a target whose
+  own file list was missing a real template file discovered it anyway via
+  the live source's manifest, and a target pointed at a source predating
+  `_manifest` fell back cleanly with the warning instead of crashing.
+
 ## 2026-09-22 (5)
 
 ### Completed

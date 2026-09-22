@@ -1,4 +1,5 @@
 import argparse
+import contextlib
 import fnmatch
 import json
 import re
@@ -1965,10 +1966,108 @@ def run_adopt(args: argparse.Namespace) -> int:
     return 1 if skipped and not args.dry_run else 0
 
 
-def run_update(args: argparse.Namespace) -> int:
-    source_root = Path(args.source).resolve()
-    target_root = Path(".").resolve()
+def run_manifest() -> int:
+    """Print this checkout's template-managed file lists as JSON.
 
+    `omni update --source ...` shells out to this on the source side so it
+    merges against the source's current file list rather than trusting
+    whichever TEMPLATE_MANAGED_FILES constant happens to be baked into the
+    target's own, possibly older, running copy. See fetch_source_manifest().
+    """
+    print(json.dumps({
+        "template_managed_files": TEMPLATE_MANAGED_FILES,
+        "adoption_legal_files": ADOPTION_LEGAL_FILES,
+        "adoption_presentation_files": ADOPTION_PRESENTATION_FILES,
+    }))
+    return 0
+
+
+def fetch_source_manifest(source_root: Path) -> dict[str, list[str]] | None:
+    """Ask --source's own make_ai.py which files it manages.
+
+    Without this, omni update reads TEMPLATE_MANAGED_FILES from whichever
+    make_ai.py is doing the asking -- the target's own, currently-running
+    copy -- so a target could never discover a template file that --source
+    added after the target's copy was written, no matter how new --source
+    actually was. Returns None (falling back to the pre-fix behavior of
+    trusting the running copy's own constants) if --source predates this
+    command; that source still updates, just without this fix's benefit
+    until it too is updated past this point.
+    """
+    manifest_script = source_root / "make_ai.py"
+    if not manifest_script.is_file():
+        return None
+    try:
+        result = subprocess.run(
+            [sys.executable, str(manifest_script), "_manifest"],
+            cwd=source_root,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    try:
+        manifest = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(manifest, dict):
+        return None
+    return manifest
+
+
+_REMOTE_GIT_URL_RE = re.compile(r"^(https?|git|ssh)://|^[\w.-]+@[\w.-]+:")
+
+
+def _is_remote_git_url(source: str) -> bool:
+    """True for a URL/SCP-like source git can clone, false for a local path.
+
+    A bare Windows local path can also contain a colon (`C:\\...`), so this
+    requires a scheme or an SCP-style `user@host:` prefix rather than just
+    the presence of a colon.
+    """
+    return bool(_REMOTE_GIT_URL_RE.match(source))
+
+
+@contextlib.contextmanager
+def resolve_update_source(source: str):
+    """Yield a local directory for --source, cloning it first if it's a remote URL.
+
+    Clones in full, not shallow: git_show_file() needs history back to the
+    target's own base_ref, an arbitrary earlier commit a --depth 1 clone's
+    single commit would not contain. Yields None (after printing why) if the
+    clone fails, so callers can just check for that and return 1.
+    """
+    if not _is_remote_git_url(source):
+        yield Path(source).resolve()
+        return
+    with tempfile.TemporaryDirectory(prefix="omni-update-source-") as tmp:
+        print(f"Cloning update source {source} ...")
+        result = subprocess.run(
+            ["git", "clone", "--quiet", source, tmp],
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+        if result.returncode != 0:
+            print(f"Failed to clone update source {source}:", file=sys.stderr)
+            print(result.stderr.strip(), file=sys.stderr)
+            yield None
+            return
+        yield Path(tmp)
+
+
+def run_update(args: argparse.Namespace) -> int:
+    target_root = Path(".").resolve()
+    with resolve_update_source(args.source) as source_root:
+        if source_root is None:
+            return 1
+        return _run_update(args, source_root, target_root)
+
+
+def _run_update(args: argparse.Namespace, source_root: Path, target_root: Path) -> int:
     if not source_root.is_dir():
         print(f"Update source is not a directory: {source_root}", file=sys.stderr)
         return 1
@@ -2016,11 +2115,27 @@ def run_update(args: argparse.Namespace) -> int:
         print(f"Update source is not a git checkout: {source_root}", file=sys.stderr)
         return 1
 
-    files = list(TEMPLATE_MANAGED_FILES)
+    manifest = fetch_source_manifest(source_root)
+    if manifest is not None:
+        files = list(manifest.get("template_managed_files", TEMPLATE_MANAGED_FILES))
+        legal_files = manifest.get("adoption_legal_files", ADOPTION_LEGAL_FILES)
+        presentation_files = manifest.get("adoption_presentation_files", ADOPTION_PRESENTATION_FILES)
+    else:
+        print(
+            "Note: --source predates the `_manifest` command, so this update still "
+            "trusts this copy's own file list and cannot discover a file --source "
+            "added that this copy doesn't already know about. Update --source past "
+            "this point, then run `omni update` again to pick up the fix."
+        )
+        print("")
+        files = list(TEMPLATE_MANAGED_FILES)
+        legal_files = ADOPTION_LEGAL_FILES
+        presentation_files = ADOPTION_PRESENTATION_FILES
+
     if args.include_legal:
-        files.extend(ADOPTION_LEGAL_FILES)
+        files.extend(legal_files)
     if args.include_presentation:
-        files.extend(ADOPTION_PRESENTATION_FILES)
+        files.extend(presentation_files)
 
     print(f"OmniEngineering update source: {source_root} @ {current_ref[:12]}")
     print(f"Base ref (last sync): {base_ref[:12]}")
@@ -2289,6 +2404,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers.add_parser("doctor", help="Check OmniEngineering workspace health.")
 
+    subparsers.add_parser(
+        "_manifest",
+        help=argparse.SUPPRESS,
+        description="Internal: print this checkout's template-managed file lists as JSON. "
+        "Used by `omni update --source ...` on the source side; not for direct use.",
+    )
+
     agents_parser = subparsers.add_parser(
         "agents",
         help="Render and install the senior-engineering-agent team into this project.",
@@ -2543,7 +2665,10 @@ def build_parser() -> argparse.ArgumentParser:
     update_parser.add_argument(
         "--source",
         required=True,
-        help="Path to a git checkout of OmniEngineering to update from.",
+        help=(
+            "Path to a git checkout of OmniEngineering to update from, or a "
+            "remote git URL (cloned to a temporary directory for the update)."
+        ),
     )
     update_parser.add_argument(
         "--include-legal",
@@ -2645,6 +2770,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_sync(args)
     if command in {"doctor", "validate"}:
         return run_doctor()
+    if command == "_manifest":
+        return run_manifest()
     if command == "map":
         return run_map(args)
     if command == "graph":
