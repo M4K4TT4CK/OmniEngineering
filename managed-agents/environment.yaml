@@ -12,8 +12,12 @@ config:
     #     tools/install_tools.sh fetching checkov/semgrep/bandit/ruff; any
     #     other role's real dependency installs against a target project)
     #   - github.com, objects.githubusercontent.com: git operations, the
-    #     gitleaks release binary, and the semgrep-rules clone
+    #     gitleaks and osv-scanner release binaries, and the semgrep-rules
+    #     clone
     #   - api.github.com: GitHub MCP / REST API calls
+    #   - osv-vulnerabilities.storage.googleapis.com: osv-scanner's own
+    #     offline vulnerability database fetch (arbiter tools install),
+    #     which lives on Google Cloud Storage, not GitHub or PyPI
     type: limited
     allowed_hosts:
       - pypi.org
@@ -21,3 +25,4 @@ config:
       - github.com
       - objects.githubusercontent.com
       - api.github.com
+      - osv-vulnerabilities.storage.googleapis.com

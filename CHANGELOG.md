@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-09-22 (9)
+
+### Completed
+
+- Agent tooling | No new requirement ID: covers the still-undocumented
+  `9a10bb7` (compliance-auditor renamed to `arbiter tools install`, the real
+  CLI command, instead of the raw `tools/install_tools.sh` script it wraps)
+  plus this round's work. Arbiter gained a sixth external analyzer,
+  `osv-scanner` (dependency/CVE scanning -- the one class of finding none of
+  checkov/semgrep/bandit/ruff/gitleaks covered), so compliance-auditor's
+  role text and `environment.yaml`'s network allowlist both now name it and
+  the Google Cloud Storage host its offline database fetch needs
+  (`osv-vulnerabilities.storage.googleapis.com`), on top of the pypi.org and
+  github.com hosts already there. Also closed a real coordination gap: none
+  of the other seven specialists ever referenced Arbiter, and
+  security-reviewer's own "use scanners when useful" instruction meant it
+  could independently re-run the exact same six tools compliance-auditor
+  already runs at pinned, calibrated versions, with nothing reconciling the
+  two answers. security-reviewer now defers to compliance-auditor's Arbiter
+  results for those six tools when compliance-auditor has already run in
+  the session; the coordinator now sequences compliance auditing before
+  security review when both are in scope for the same round and passes the
+  findings summary into security-reviewer's delegation context, so that
+  deferral has something to actually check against. Pulled in from
+  senior-engineering-agent (`28030eb`) via `omni agents install --managed`.
+  `omni doctor` clean (18 passed, 0 errors, standard pre-existing warnings).
+
 ## 2026-09-22 (8)
 
 ### Completed
