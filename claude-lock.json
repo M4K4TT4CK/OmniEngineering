@@ -18,6 +18,12 @@
       "version": "skver_01SJPV1Kipvnse1qUhhB7VNn",
       "hash": "208f55fc5452e12789692aadbcc1d78e"
     },
+    "./.claude/skills/infrastructure-audit": {
+      "kind": "skill",
+      "id": "skill_01FAZJCkztnMxARcAyza1DMP",
+      "version": "skver_01AyAJyAtqKCs8AkarC76Q8i",
+      "hash": "07cb22068568fc7068bd453b057f508a"
+    },
     "./.claude/skills/performance-proof": {
       "kind": "skill",
       "id": "skill_01KNvwg1UWi7RBr6DaxFYXBw",
@@ -40,9 +46,9 @@
     "./managed-agents/agents/coordinator.md": {
       "kind": "agent",
       "id": "agent_01VF2AcEUpNvcq5BaQ6jnjNm",
-      "version": "3",
-      "hash": "2b78f0e246bd597d72ef84ed6c65b47a",
-      "remote_hash": "7b747df08a861e572fe5fc922bda488c"
+      "version": "4",
+      "hash": "3647b61ce9247ea718764c531c39dcaa",
+      "remote_hash": "bbb90aaa3d42802bc0fa7b3c7a4a19fc"
     },
     "./managed-agents/agents/implementation-engineer.md": {
       "kind": "agent",
@@ -54,9 +60,9 @@
     "./managed-agents/agents/infrastructure-reviewer.md": {
       "kind": "agent",
       "id": "agent_01GxCC1oph9GaQ5HHahPZBJH",
-      "version": "3",
-      "hash": "040b72a8d88cb66b4621b1752ee6f6aa",
-      "remote_hash": "4854f25e9447f2241fcfa53301f5b5ee"
+      "version": "4",
+      "hash": "8beb04e69ae0b1fa103b3ee5f4857724",
+      "remote_hash": "9b6700d6224a26103d1845d324c0bcdf"
     },
     "./managed-agents/agents/performance-engineer.md": {
       "kind": "agent",
@@ -68,9 +74,9 @@
     "./managed-agents/agents/release-validator.md": {
       "kind": "agent",
       "id": "agent_01Hq4J38BaYVvBe3GHr5DDVK",
-      "version": "3",
-      "hash": "befa18d6c3fcf2ef9306c7e7edf8842a",
-      "remote_hash": "e2539e5f7ac9931036550f473341bb07"
+      "version": "4",
+      "hash": "06f872b876a63e9494b88eb553cf74f0",
+      "remote_hash": "cfba27113b28d8ec2fb673ab6c175987"
     },
     "./managed-agents/agents/security-reviewer.md": {
       "kind": "agent",
