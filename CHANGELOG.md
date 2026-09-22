@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-09-22 (3)
+
+### Completed
+
+- Agent tooling (REQ-023) | Added `compliance-auditor`, a ninth role
+  wrapping Arbiter's control-coverage evidence, per direct user decision
+  that compliance-package production (FedRAMP Moderate, NIST 800-53, and
+  STIG) is a recurring need. Checked Arbiter's actual integration surface
+  before building anything: it ships an MCP server that deliberately
+  withholds any verdict-recording tool, so the new role is built to respect
+  that -- it assembles evidence and routes disputes to Arbiter's own review
+  queue, but never adjudicates a finding and never fixes what it finds.
+  Confirmed against Arbiter's own pack data, not assumed, that it has no
+  STIG pack -- its FedRAMP pack carries a residual note saying so directly
+  -- so the new `compliance-evidence` skill keeps any STIG output in a
+  separately labeled, unverified section using none of Arbiter's graded
+  vocabulary. Verified with a dry run against the live platform before
+  commit: the plan creates exactly one new skill and one new agent, and
+  updates only the coordinator's roster and prompt.
+
 ## 2026-09-22 (2)
 
 ### Completed

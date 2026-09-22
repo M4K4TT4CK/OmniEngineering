@@ -757,6 +757,48 @@
         "Accepted on the user's stated judgment rather than a measured A/B comparison between tiers; if release-validator's verdicts noticeably change quality after this ships, re-running it at the lead tier for comparison is the fallback, not a further prompt change.",
         "max_turns dropping from 80 to 60 was flagged to the user before the change; not yet observed against a real large-diff release audit."
       ]
+    },
+    {
+      "id": "REQ-023",
+      "category": "Agent tooling",
+      "title": "Add compliance-auditor: a ninth role wrapping Arbiter's control-coverage evidence",
+      "description": "User decision: compliance-package production (FedRAMP Moderate, NIST 800-53, and STIG) is a recurring, regular need, and Arbiter (a separate product, github.com/paukennick/arbiter) is not part of this repo's own capabilities. Reviewed Arbiter's actual integration surface before building anything: it ships an MCP server (arbiter_scan, arbiter_gate, arbiter_review_queue) that deliberately withholds any verdict-recording tool -- Arbiter's own docs state a person marks findings, never the calling agent -- and its hosted API is explicitly 'built, not deployed' pending unsettled data-custody terms, which rules out a network connection to it for now. The clean integration is running Arbiter's MCP server as a subprocess inside the same ephemeral Managed Agents sandbox, which needs Arbiter's own repository mounted as a second github_repository resource and its one dependency (PyYAML) preinstalled. Verified against Arbiter's own pack data, not assumed, that it has no STIG pack: its shipped FedRAMP Moderate pack carries a residual note stating directly that a control satisfied by Arbiter's generic checks is not a benchmark pass against a named DISA STIG or CIS benchmark. Built compliance-auditor (senior-engineering-agent commit e66ed78) with a compliance-evidence skill that carries Arbiter's five-state coverage honesty forward (satisfied/violated are automated evidence; not_assessed, no_coverage, and not_automatable are gaps, not passes), reads the repository's own non-code evidence for controls Arbiter cannot check by itself, and treats STIG as explicitly out of Arbiter's scope -- any STIG output this role produces must be separately labeled unverified and use none of Arbiter's graded vocabulary. The role never adjudicates an Arbiter finding and never fixes what it finds; confirmed gaps go to the coordinator as a packet for implementation-engineer, the same separation every other reviewer role keeps. Wired into the coordinator's roster (8 delegates, under the platform's 20-entry limit). Reinstalled into this repo and dry-run verified against the live platform: the plan creates exactly the one new skill and the one new agent, and updates only the coordinator's roster and prompt.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        ".ai/agent-team.json",
+        ".ai/project-map.md",
+        ".ai/requirements/requirements.json",
+        ".claude/agents/compliance-auditor.md",
+        ".claude/agents/coordinator.md",
+        ".claude/skills/compliance-evidence/",
+        "managed-agents/agents/compliance-auditor.md",
+        "managed-agents/agents/coordinator.md"
+      ],
+      "acceptance_criteria": [
+        "senior-engineering-agent's build.py doctor and tests/validate_editions.py pass with 9 roles after adding compliance-auditor.",
+        "compliance-auditor's rendered frontmatter (both editions) carries the compliance-evidence skill and read/search/execute capabilities only -- no write.",
+        "The coordinator's rendered roster (both editions) includes compliance-auditor as an eighth delegate, verified by inspecting dist/ output directly.",
+        "The compliance-evidence skill's references/frameworks.md correctly lists only the five frameworks Arbiter actually ships (NIST 800-53r5, NIST 800-171r2, NIST SSDF 800-218, FedRAMP Moderate r5, CMMC L2) and states STIG is unsupported, verified against Arbiter's own pack data rather than assumed.",
+        "omni doctor passes in this repo after reinstalling the updated package output.",
+        "ant apply --dry-run against the live platform shows only the expected plan (one skill created, one agent created, coordinator updated) with no unexpected drift, verified before commit.",
+        "The real ant apply that changes live platform state, the GitHub token needed to mount Arbiter's own repository, and the MCP server wiring for Arbiter itself are all left for the user, per the confirm-before-outward-facing-action rule and because they require a credential and a platform-side manual step this renderer does not automate."
+      ],
+      "validation_required": [
+        "package_build_doctor_tests",
+        "doctor",
+        "ant_apply_dry_run",
+        "manual_verification",
+        "source_data_verification"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": [
+        "compliance-auditor's rendered role assumes Arbiter's MCP server is reachable in-session, but the frontmatter schema this renderer uses has no mcp_servers concept -- wiring Arbiter's MCP server to this specific agent, and mounting Arbiter's own repository as a second github_repository resource, are both manual platform-side steps beyond what omni agents install or ant apply do automatically from the rendered files.",
+        "STIG coverage was confirmed absent by reading Arbiter's actual pack YAML data (a literal residual note on the FedRAMP Moderate pack), not inferred from documentation alone, after an initial GitHub code-search result turned out to be a false positive (the substring 'stig' inside the word 'investigation').",
+        "This is the ninth roster entry; the platform's own limit is 20, so there is headroom, but each further addition raises the cost of the coordinator's delegation decision and is worth weighing against that, not just against the roster ceiling."
+      ]
     }
   ]
 }
