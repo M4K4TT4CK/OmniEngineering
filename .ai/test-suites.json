@@ -15,6 +15,23 @@
         "make_ai.py"
       ],
       "notes": "Layers, failure ledger, why traversal, CLI gates, repo hygiene regressions."
+    },
+    {
+      "id": "agent-team-validation",
+      "name": "senior-engineering-agent package validation",
+      "kind": "validation",
+      "framework": "script",
+      "paths": [
+        "C:\\Users\\pauke\\dev\\senior-engineering-agent\\build.py",
+        "C:\\Users\\pauke\\dev\\senior-engineering-agent\\tests\\validate_editions.py"
+      ],
+      "command": "python build.py doctor && python -m pytest tests/validate_editions.py",
+      "covers": [
+        ".claude/agents/",
+        ".claude/skills/",
+        "managed-agents/"
+      ],
+      "notes": "Validation lives in the separate senior-engineering-agent package (see .ai/agent-team.json for path/ref), not in this repo."
     }
   ]
 }
