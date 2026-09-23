@@ -1,5 +1,40 @@
 # Changelog
 
+## 2026-09-23 (1)
+
+
+### Completed
+
+- Agent tooling | REQ-035: closed the gap between the two places this repo
+  talks to Arbiter. `.claude/agents/compliance-auditor.md` and
+  `security-reviewer.md` already routed deterministic checks to it; the
+  cross-tool checklist layer (`.ai/checklists`, driving Claude, Codex,
+  Copilot, Cursor and Kiro through `.ai/entrypoints`) had no Arbiter
+  awareness at all. `.ai/checklists/pre-completion.md` now tells any
+  entrypoint to run `arbiter gate --changed <base ref>` before claiming
+  completion when `arbiter` is on PATH, and to treat its `authored`-probe
+  findings (defects characteristic of machine-drafted code, such as
+  hallucinated imports) as blocking rather than advisory. The same gate is
+  now in both `senior-engineering-agent` roles that flank a change:
+  `implementation-engineer` runs it on its own diff before returning, and
+  `release-validator` reuses that result -- or re-runs it if the session
+  has none -- and withholds a clean verdict while a finding stands, the
+  same coordination pattern security-reviewer already uses for
+  compliance-auditor's scan. Rebuilt with `senior-engineering-agent`'s
+  `build.py build` (`doctor` and `tests/validate_editions.py` both clean, 9
+  roles / 19 files), then pulled in with `omni agents install --managed`;
+  only the two role files and their four generated outputs changed. The
+  exact `arbiter gate --changed` syntax and the `authored` probe's name
+  were confirmed against the installed `arbiter 0.1.0` CLI in this session,
+  not assumed -- a dry run (`arbiter gate --changed HEAD~1 --only
+  authored,secrets .`) exited 0 in this repo. A fourth recommendation from
+  the source material, treating `omni sync` as a scope boundary so
+  Arbiter-related notes survive regeneration, needed no new mechanism:
+  reading `make_ai.py` confirmed `omni sync` only ever regenerates
+  entrypoint stub files, never `.ai/checklists`, `.ai/playbooks` or
+  `.claude/agents` -- these additions already land in durable files by
+  construction.
+
 ## 2026-09-22 (9)
 
 

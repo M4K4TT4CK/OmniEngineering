@@ -12,6 +12,14 @@
 - Economics decision checklist considered for major tradeoff claims.
 - Computing, mathematical, or engineering foundations checklist considered for
   relevant technical assumptions.
+- For anything Arbiter checks deterministically (security posture, docs-vs-code
+  drift, house rules), prefer its output over re-deriving the same judgment by
+  LLM reasoning -- if `arbiter` is on PATH, run `arbiter gate --changed
+  <base ref>` before claiming completion. Its `authored` probe (defects
+  characteristic of machine-drafted code, such as hallucinated imports) and
+  any other blocking finding must be fixed or explicitly disputed through
+  Arbiter's own review queue before completion; if `arbiter` is not
+  available, say so rather than skipping the check silently.
 - Tests or validation run, or skipped with reason.
 - New test frameworks, test directories or check scripts are registered as test
   suites (`omni test detect`); `omni test check` passes.

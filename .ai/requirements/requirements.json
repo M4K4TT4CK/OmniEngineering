@@ -1213,6 +1213,54 @@
       "risk_notes": [
         "Not verified on a real Windows browser or touch device;pinch zoom implemented but untested;tree layout is most useful where files contain classes and methods;force layout of very large graphs is capped by the number of visible nodes"
       ]
+    },
+    {
+      "id": "REQ-035",
+      "category": "Agent tooling",
+      "title": "Wire Arbiter gating into the checklist and agent layers",
+      "description": "OmniEngineering's cross-tool checklist layer (.ai/checklists, driving Claude/Codex/Copilot/Cursor/Kiro via .ai/entrypoints) had zero awareness of Arbiter, unlike the .claude/agents subagent layer where compliance-auditor and security-reviewer already route deterministic checks to it. Added: (1) a pre-completion.md rule preferring Arbiter's deterministic output over LLM re-judgment for security posture, doc-vs-code drift and house rules, gated by arbiter gate --changed <base ref>; (2) implementation-engineer now runs that gate on its own diff before returning, with authored-probe findings (machine-drafted-code defects such as hallucinated imports) treated as blocking; (3) release-validator reuses that result or re-runs it, and will not clear Verified/Conditionally acceptable while a gate failure or authored finding stands. omni sync was confirmed (by reading make_ai.py) to never regenerate .ai/checklists, .ai/playbooks or .claude/agents, so no scope-boundary mechanism was needed for these additions -- they land directly in durable files.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        ".ai/checklists/pre-completion.md",
+        "C:\\Users\\pauke\\dev\\senior-engineering-agent\\roles\\implementation-engineer.md",
+        "C:\\Users\\pauke\\dev\\senior-engineering-agent\\roles\\release-validator.md",
+        ".claude/agents/implementation-engineer.md",
+        ".claude/agents/release-validator.md",
+        "managed-agents/agents/implementation-engineer.md",
+        "managed-agents/agents/release-validator.md",
+        ".ai/agent-team.json"
+      ],
+      "acceptance_criteria": [
+        "pre-completion.md tells any entrypoint to run arbiter gate --changed before claiming completion when arbiter is on PATH",
+        "and to treat authored-probe findings as blocking",
+        "implementation-engineer's rendered prose (both editions) runs arbiter gate --changed on its own diff before returning",
+        "release-validator's rendered prose (both editions) reuses or re-runs that gate and withholds a clean verdict while a finding stands",
+        "senior-engineering-agent's build.py doctor and tests/validate_editions.py pass with 9 roles after the edit",
+        "arbiter gate --changed against a real ref in this repo exits 0 and reports the authored probe as ready",
+        "confirming the exact command syntax used in the prose is correct"
+      ],
+      "validation_required": [
+        "package_build_doctor",
+        "validate_editions_test",
+        "omni_agents_doctor",
+        "arbiter_gate_dry_run",
+        "omni_doctor",
+        "omni_gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": [
+        "Arbiter's authored probe and gate --changed syntax were verified directly against the installed arbiter 0.1.0 CLI in this session",
+        "not assumed from the source doc that prompted this work (that doc never had read access to this repo and got the .claude/agents integration state wrong -- it called compliance-auditor/security-reviewer's existing Arbiter wiring unbuilt).",
+        "The gating prose is advisory text for an LLM-driven agent to follow",
+        "not an enforced hook -- nothing in this repo's tooling currently fails a task that skips it",
+        "unlike omni gate's changelog/registry check which is mechanically enforced.",
+        "Recommendation 4 from the source doc (treat omni sync as a scope boundary) needed no new mechanism: reading make_ai.py confirmed sync only ever regenerates entrypoint stub files",
+        "never checklists",
+        "playbooks or agent definitions."
+      ]
     }
   ]
 }
