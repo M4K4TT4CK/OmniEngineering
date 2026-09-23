@@ -139,7 +139,7 @@ Flag and improve requirements that contain:
 
 When working with requirements:
 
-1. Read `.ai/requirements/requirements.json`.
+1. Query the registry with `./omni requirement list --status pending` or `show <ID>`.
 2. Use `.ai/knowledge/swebok/software-requirements.md` for requirement work.
 3. Use `.ai/knowledge/swebok/requirements-quality-checklist.md` before
    marking a requirement ready.

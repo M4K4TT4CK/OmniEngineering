@@ -12,3 +12,10 @@ not grant trademark rights. See TRADEMARKS.md for usage rules.
 If you fork, modify, improve, adapt, or extend OmniEngineering, you are strongly
 encouraged to contribute generally useful improvements back to the main project
 through issues, pull requests, discussions, or design notes.
+
+Third-party software: the 3D graph viewer (`omni graph view`) embeds an
+unmodified build of 3d-force-graph (MIT License, Copyright (c) Vasco
+Asturiano) together with the packages it bundles, including three.js (MIT
+License). Their copyright notices and license texts are reproduced in
+.ai/graph-viewer/THIRD_PARTY_NOTICES.md and are embedded in every generated
+viewer page.

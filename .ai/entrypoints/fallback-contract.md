@@ -7,8 +7,9 @@ these fallback rules exactly:
 
 1. Read `.ai/core-context.md`, `.ai/rules/universal-engineering-ruleset.json`,
    `.ai/rules/controlled-implementation.json`, `.ai/rules/completion-workflow.json`,
-   `.ai/project-configuration.md`, and `.ai/requirements/requirements.json`
-   before editing when they are available.
+   and `.ai/project-configuration.md` before editing when they are available.
+   Query the requirements registry with `omni requirement show|list|search`;
+   do not read `.ai/requirements/requirements.json` in full.
 2. If any required file is unavailable, say which file is unavailable and use
    this fallback contract as the controlling instruction set.
 3. Assign or confirm a `REQ-###` requirement ID before work begins.
@@ -32,13 +33,22 @@ these fallback rules exactly:
 12. Update relevant docs when behavior, setup, commands, architecture, APIs,
     data models, or workflows change.
 13. Update `CHANGELOG.md` after each completed task.
-14. Update `.ai/requirements/requirements.json` when a requirement is added,
-    completed, blocked, or materially changed.
-15. Run relevant validation. For OmniContext workspace changes, run
+14. Update the requirements registry with `omni requirement add|update|complete`
+    (never by hand-editing the JSON) when a requirement is added, completed,
+    blocked, or materially changed.
+15. Learn from failures. Before editing a file, run `omni graph why <path>` (or
+    `omni failure search <text>`) to see the requirements, tests and earlier
+    failures that touch it. When you fix a defect, a failed validation or build,
+    or a regression, record it with `omni failure add|update`: the symptom, the
+    root cause (why, not just what), the regression test, and the rule or
+    playbook that stops it recurring. If the failure exposes a missing or unclear
+    instruction, change that rulepack or playbook in the same task.
+16. Run relevant validation. For OmniContext workspace changes, run
     `omni doctor` or `./omni doctor`; when assistant entrypoint files change,
-    run `omni sync` or `./omni sync`.
-16. Do not claim completion if validation was skipped. Explain why it was not
+    run `omni sync` or `./omni sync`. Before claiming completion, run
+    `omni gate` and fix or explicitly waive every failure it reports.
+17. Do not claim completion if validation was skipped. Explain why it was not
     run.
-17. Final output must include requirement ID and status, files changed,
+18. Final output must include requirement ID and status, files changed,
     validation performed, documentation and changelog status, risks or
     follow-ups, a commit entry sentence, and pull request information.

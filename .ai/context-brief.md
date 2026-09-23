@@ -10,7 +10,8 @@ For most tasks, load only:
 1. `.ai/context-brief.md`
 2. `.ai/project-configuration.md`
 3. `.ai/project-map.md`
-4. `.ai/requirements/requirements.json`
+4. Requirement lookups via `./omni requirement show <ID>` or
+   `./omni requirement list --status pending` (never the raw registry file)
 5. The one playbook or checklist that matches the task
 
 Then inspect only the project files named by the active requirement or prompt.
@@ -50,5 +51,7 @@ Before claiming completion, confirm:
 - Requirement ID is known or assigned.
 - Minimum access scope was followed.
 - Relevant validation was run or explicitly marked not applicable.
+- `./omni gate` passes, or each failure is explicitly waived with
+  `./omni waive <rule-id> --reason "..."`.
 - Docs or changelog impact was handled according to project policy.
 - Final response includes remaining risk or follow-up, if any.

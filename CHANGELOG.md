@@ -2,6 +2,7 @@
 
 ## 2026-09-22 (9)
 
+
 ### Completed
 
 - Agent tooling | No new requirement ID: covers the still-undocumented
@@ -28,6 +29,7 @@
   `omni doctor` clean (18 passed, 0 errors, standard pre-existing warnings).
 
 ## 2026-09-22 (8)
+
 
 ### Completed
 
@@ -59,6 +61,7 @@
 
 ## 2026-09-22 (7)
 
+
 ### Completed
 
 - CLI / template maintainability | Closed REQ-013's other deferred follow-up:
@@ -80,6 +83,7 @@
   already recorded against REQ-013 without changing its scope.
 
 ## 2026-09-22 (6)
+
 
 ### Completed
 
@@ -103,6 +107,7 @@
 
 ## 2026-09-22 (5)
 
+
 ### Completed
 
 - Agent tooling | The prior fix below was cosmetic: it added clarifying
@@ -117,6 +122,7 @@
 
 ## 2026-09-22 (4)
 
+
 ### Completed
 
 - Agent tooling | Corrected an ambiguous path in the compliance-evidence
@@ -129,6 +135,7 @@
   criteria.
 
 ## 2026-09-22 (3)
+
 
 ### Completed
 
@@ -150,6 +157,7 @@
 
 ## 2026-09-22 (2)
 
+
 ### Completed
 
 - Agent tooling (REQ-022) | Moved `release-validator` off the lead tier to
@@ -161,7 +169,101 @@
   it now sits alongside the still-unapplied REQ-021 changes in one combined
   plan awaiting `ant apply`.
 
+## 2026-09-22 (10)
+
+
+### Completed
+
+- `REQ-030` | Defect | `FAIL-009`. Fixed CI: graph build needs tree-sitter for every language, python
+  included -- there is no stdlib-ast fallback anywhere in this codebase.
+  - The CI matrix's main test job (deliberately no `[graph]` extra) failed 6/6: `parse_python_file()`
+    calls `load_language("python")` unconditionally, so plain Python parsing has always required
+    tree-sitter, contrary to `build_graph()`'s own stats, which defaulted the mode label to the literal
+    string `"ast"` (a lie; fixed to `"tree-sitter"`). That mislabel is exactly what let this development
+    machine's local test runs go green: `~/.venvs/omni-graph` was always silently auto-detected and
+    re-exec'd into, so the true no-extras path was never actually exercised here, only in CI.
+  - Fixed `tests/test_benchmark.py::TestBenchmarkCLI`'s two failing tests to pass `--graph` at a
+    hand-built fixture graph (the same pattern `TestBenchmark` already uses) instead of invoking a real
+    `omni graph build`, so they need no extra. Skipped the one test that must run a real build when
+    tree-sitter is unavailable, and the `graph-extra` CI job (which does install the extra) now also
+    runs the full test suite, so that skipped test is exercised there instead.
+  - Also fixed a genuine test race the extras-installed run then surfaced: the lock directory's removal
+    (an `EXIT` trap on the backgrounded subshell) can land a moment after the graph file itself appears,
+    so the test now polls briefly for the lock's release too, rather than checking exactly once.
+  - Reproduced locally by overriding `HOME` for the test subprocess so `~/.venvs/omni-graph` is not
+    found, matching CI's real environment -- the only reliable way this machine can exercise the true
+    no-extras path, since the auto-detection is silent by design.
+  - `FAIL-010`. The first push of this fix then broke the workflow file itself: a step name containing
+    an unquoted colon (`"...extra: the tests..."`) parses as a nested YAML mapping, not plain text.
+    Quoted it, and validated with a local YAML parse before pushing again.
+
+- `REQ-029` | Feature | `omni graph benchmark`: measure the token-savings claim instead of just asserting it.
+  - For one real requirement, commit, failure and file the current project's own graph and registries
+    already have (never invented, never hardcoded to a specific project's IDs), it runs a targeted graph
+    query against the naive alternative -- a plain-text grep for the name, then every matching file read
+    in full; a commit compares against `git show`, the diff a person would actually read -- and reports
+    both sizes. Tokens are `chars / 4`, explicitly labelled a rough estimate, not a real tokenizer.
+  - Found and fixed while building it: the file case first picked a 290 MB gitignored `.expo` build log
+    (a generic `file` graph node existed for it despite being gitignored), then a 5.5 MB `.pptx` once
+    that was excluded. Fixed by restricting the pick to git-tracked, already-parsed source modules only
+    -- never a generic file node, which can be a binary asset or an ignored artifact.
+  - Live runs after the fix: 88x-630x on this workspace's host project, 40x-91x on OmniEngineering's own
+    repository.
+
+- `REQ-028` | Process | A dead rule validation fixed, and one new honest one added.
+  - `gate_rules()` only ever selected `validation.type == "co_changed"`, so `controlled.requirement_id`'s
+    declared `requirement_registry_entry` validation was silently never executed -- a rule that looked
+    machine-checked but was not. Implemented it for real: every `REQ-###`-shaped ID cited in a commit
+    message since the base, or newly added to `CHANGELOG.md`, must exist in the registry.
+  - Added `content_forbidden`, applied to `data.privacy`: changed files are scanned for a private-key
+    header, an AWS-shaped access key, and an obviously hardcoded credential, with a line number. A
+    bounded, honest safety net, not a claim of exhaustive secret scanning.
+  - Deliberately left the other ~55 unvalidated rules alone: cognitive load, composition vs.
+    inheritance, naming, and the like are real judgment calls with no honest mechanical proxy, and a
+    fake check would be worse than the current honest "not machine-checked."
+  - `EXECUTABLE_VALIDATION_TYPES` now names the matched pair (selection in `gate_rules()`, dispatch in
+    `gate_evaluate()`) so a new type added to only one of them fails loudly instead of silently doing
+    nothing -- the exact shape of the bug this fixes.
+
+- `REQ-027` | Feature | An MCP server: the graph and registries as tools for any assistant, not only Claude.
+  - `omni mcp serve` exposes `graph_lineage`, `graph_why`, `graph_trace`, `graph_timeline`, `graph_show`,
+    `graph_sources`, `requirement_show`, `requirement_list`, `requirement_search`, `failure_show` and
+    `gate_status` as MCP (Model Context Protocol) tools over stdio (JSON-RPC 2.0, newline-delimited).
+    `omni mcp tools [--json]` lists them without starting the server.
+  - Hand-rolled against the wire protocol in stdlib only, no SDK dependency, in keeping with everything
+    else here: an assistant reaches this project's requirements, changelog, commits, tests and failures
+    directly, without a shell tool to run the CLI and parse its output -- and without being Claude.
+  - Every tool is read-only, so a client calls them with no confirmation step; `gate_status` runs the
+    same check as `omni gate` but never writes a waiver or blocks anything. Writing stays with
+    `omni requirement draft`/`add` and `omni gate --hook`.
+  - Added to the root allowlist, the `omni adopt`/`omni update` copy list and `pyproject.toml`'s
+    `py-modules`, all three caught missing it on the first build (`omni doctor` flagged the first).
+
+- `REQ-026` | Process | Two fewer manual steps: drafting a requirement, and keeping the graph fresh.
+  - `omni requirement draft [--commit REF]` writes a `proposed` requirement (never `completed`) and a
+    matching `CHANGELOG.md` stub from the files a commit or the current change set touched: category
+    guessed from the paths, title from the commit subject, scope from the diff. It refuses to draft a
+    duplicate when the commit message already cites a requirement ID (`--force` overrides). The manual
+    step becomes editing a draft, not writing one from nothing.
+  - `omni hook install-git --with-graph-rebuild` adds a `post-commit` hook that rebuilds the graph in
+    the background after every commit, so `omni graph why`/`lineage`/`timeline` are never more than one
+    commit stale. It never blocks `git commit` (a full rebuild can take well over a minute on a large
+    repo) and a lock directory skips a rebuild that overlaps one already running instead of piling up.
+
+- `REQ-025` | Process | Enforcement no longer depends on Claude Code, and CI checks more than `omni doctor`.
+  - `omni hook install-git` writes a portable `.githooks/pre-commit` script and sets
+    `core.hooksPath=.githooks`, so `git commit` itself runs `omni gate` — for any assistant, or none,
+    on Linux, macOS or Windows (Git for Windows always runs hooks through its own bundled `sh`, so the
+    same script works there unmodified). A foreign pre-commit hook is left alone unless `--force` is
+    given. The Claude Code Stop hook (`omni hook install`) still exists alongside it.
+  - CI (`.github/workflows/ci.yml`) now runs the full test suite, `omni doctor` and `omni gate` on
+    `ubuntu-latest`, `macos-latest` and `windows-latest` across Python 3.10 and 3.12, invoked as plain
+    `python <script>` so it depends on neither the executable bit nor which of `python`/`python3` is on
+    `PATH`. A separate job installs the optional `[graph]` extra and runs `omni graph build` and
+    `omni graph view`, so that path is checked too, not just the extras-free core.
+
 ## 2026-09-22
+
 
 ### Completed
 
@@ -183,6 +285,7 @@
   new skill and the two intended agents.
 
 ## 2026-09-21
+
 
 ### Completed
 
@@ -210,7 +313,255 @@
   on `main` and commits the resulting lockfile back, so the platform's agent
   objects never drift from what is committed here.
 
+## 2026-09-21 (2)
+
+
+### Completed
+
+- `REQ-024` | Code understanding | Pick any node and trace it up and down: no start and end point needed.
+  - `omni graph lineage <node>` (and the viewer's selection) shows everything **upstream** (what led to
+    a node) and everything **downstream** (what came from it) from one pick: a requirement, commit,
+    change-log entry, failure, file or symbol. Selecting a requirement no longer falls back to its
+    immediate neighbours.
+  - Every edge type has a flow direction (intent, then delivery, then code, then assurance), so a
+    requirement reaches its commits, change-log entries, files and failures, and a failure reaches
+    its requirement, cause, regression tests, prevention rules and fix commits.
+  - Bounded and readable: `--depth`, a node cap that keeps the nearest first, a module's contents are
+    listed only when you start inside that code (a requirement shows its modules, not 240 functions),
+    and sequence links such as the previous commit stop after one step. `--code` adds calls and imports.
+  - Viewer: upstream lights up cyan and downstream gold, with Up / Both / Down, a depth choice and
+    clickable lists in the detail panel. A test keeps the viewer's flow table identical to the CLI's.
+
+- `REQ-034` | Code understanding | The graph viewer is easier to use and no longer needs a GPU.
+  - **2D view** (new, and the default): a flat Canvas 2D drawing with pan and zoom that never
+    tilts and creates no WebGL context, so it works on machines with little video memory. A large
+    2D / 3D switch sits in the banner; the 3D renderer is created only when chosen and destroyed when
+    you go back. `omni graph view --mode 2d|3d|auto`.
+  - **Views instead of layer switches**: tabs for Everything, Code, Requirements, History, Tests &
+    failures, Rules & playbooks and Database, each with its own layers, colours and layout. A strip
+    below them names the current view in large type, describes it, and shows a colour key with counts.
+    Layers now have strong distinct hues; 2D nodes also have per-kind shapes.
+  - **2D layouts**: Network, Layers (one band per layer, parents beside children) and Tree
+    (parent to child, unattached nodes grouped by kind).
+  - **Chain highlight**: selecting a node draws everything above and below it in gold and zooms to that
+    chain; the detail panel shows a breadcrumb and "connected to" buttons grouped by layer.
+  - **Trace a path** between any two nodes, drawn in pink with the steps written out.
+  - **Search**: multi-word, `kind:` / `layer:` / `lang:` / `file:` filters, keyboard navigation,
+    per-result trace buttons, and closest-match suggestions.
+  - **Comfort**: collapsible menus (remembered), a tooltip on every option, All / None on filters,
+    and a soft-grey light theme.
+  - Verified in headless Chromium against a real 6,980-node graph: no console errors; 2D holds no WebGL
+    context and 3D releases it on switching back; chain, trace, search, tooltips, collapsing, both themes
+    and all three layouts exercised; showing about 4,100 nodes / 12,800 links settled in under 3 seconds.
+    80 automated tests (8 new for the template and the generated page). Not verified on a real Windows
+    browser or touch device (pinch zoom is implemented but untested), and the tree layout is
+    best on graphs with real containment (files, classes, methods).
+
+## 2026-09-20
+
+
+### Completed
+
+- `REQ-033` | Code understanding | The code graph now has five layers, and the
+  history of the project (requirements, changelog, commits, tests, failures, and
+  the rules that came out of them) is one traversable structure that works for any
+  project.
+  - **Layers.** `code`, `governance` (requirements, changelog entries),
+    `history` (every commit, chained in order, tied to the changelog entry whose
+    heading it added, the requirement named in its subject, and the files it
+    changed; a squash commit with no id is tied through its changelog entry),
+    `assurance` (the project's tests, test suites, the failure ledger) and
+    `workspace` (rulepacks, rules, playbooks, checklists, and OmniEngineering's own
+    code). Requirements `touch` the files they declare and the files their commits
+    changed, ranked git-proven first and directory-wide last.
+  - **Test suites, focused on the host project.** `.ai/test-suites.json`
+    registers suites (paths as files, directories or globs; framework; run
+    command; what they cover) with `omni test detect|add|remove|list|check`.
+    Detection reads test-framework signals in file contents (never comments, never
+    `src/main`) and the commands CI files run, so JUnit, Vitest, Jest, pytest,
+    Playwright, and validation scripts are found; a registered suite wins over a
+    detected one. Suites become `suite` nodes that `contain` their test files and
+    `cover` code. OmniEngineering's own files (`tooling_paths`) move to the
+    workspace layer and are never counted as the project's tests.
+  - **Failure ledger** (`.ai/failures/failure-ledger.json`,
+    `omni failure add|update|show|list|search|check`): symptom, root cause,
+    regression test or suite, prevention. `omni doctor` fails an incomplete fixed
+    entry; `omni requirement complete` refuses defect requirements with no entry.
+  - **Traversal.** `omni graph why <file|symbol|REQ|FAIL|commit|suite>` joins the
+    layers and flags code no test reaches; `omni graph timeline <node>` lists
+    everything dated that is tied to it, oldest first; `show --all --layer`.
+  - **Works on any project.** Optional `.ai/graph-config.json` (requirement and
+    changelog locations, test globs, ledger and registry paths, extra CI files,
+    history depth, tooling paths); requirement ids are matched exactly as they
+    appear in the project's own registry, so `PROJ-12`, `FEAT_7` and `REQ-001`
+    all work; dated, versioned (`## [1.2.0] - 2026-01-31`) and `# 2026-01-31`
+    changelogs parse; no `.ai/`, no git, no commits, a shallow clone, a subfolder
+    of a larger repository, unicode paths and symlink loops each degrade to a
+    clear note; malformed JSON is reported by file instead of ignored.
+    `omni graph sources` shows what each layer would read and what is missing;
+    `--write` drafts the config.
+  - **Viewer.** A larger banner; All/None on the Layers, Node kinds, Languages and
+    Edge types groups; a Node kinds filter; five layer planes when stacked; and a
+    new search: any name, `REQ-###`, date, file or text, limited to a kind, sorted
+    by match, date, name or connections, with a scrollable result list, a browse
+    mode that lists every node of a kind, and Add all to view / Only these.
+  - **Rules and playbooks.** `completion.failure_ledger`, `completion.regression_test`,
+    `completion.failure_becomes_rule`, `completion.register_test_suites`,
+    `completion.verify_target_environment`, `completion.rebuild_graph_layers` and
+    `controlled.consult_failure_history`, with matching steps in the debugging,
+    testing, implementation, review, planning, handoff and release playbooks, both
+    checklists and every assistant entrypoint. `omni adopt` ships an empty ledger,
+    an empty suite registry and no graph config.
+  - **Tests.** `tests/` holds the first automated suite (72 unittest cases: the
+    layers, ledger, `why`/`timeline`, suites and detection, the CLI gates, and a
+    robustness matrix of awkward projects). The ledger records eight real failures
+    from this work (`FAIL-001` to `FAIL-008`), six with regression tests.
+  - Verified on STEP_App (6,804 nodes, 27,378 edges: 166 requirements, 168
+    changelog entries, 298 commits over three months, 6 detected test suites, 57
+    rules) and on this repository, with `omni graph why`/`timeline` on real files,
+    mutation-checking that tests fail when behaviour breaks, and the viewer driven
+    in headless Chromium (search by kind, browse, sort, All/None, layer stacking).
+    Not verified in a real Windows Chrome or with hardware WebGL. Test detection is
+    signal- and convention-based, so an unusual test layout needs a registered
+    suite or a `test_globs` entry; `verifies` edges are inferred from calls and
+    imports at test-file granularity.
+
+## 2026-09-18 (7)
+
+
+### Completed
+
+- `REQ-032` | Code understanding | Follow-up: the code graph is no longer limited
+  to Python and JS/TS. A generic, grammar-driven tree-sitter extractor covers
+  Java, Kotlin, Go, Rust, C#, C/C++, Ruby, PHP, Swift, Scala and others
+  (classes, interfaces, methods, imports, inheritance/implements, typed calls,
+  cross-file resolution; Java also records Spring annotations and endpoints).
+  `omni graph build` now defaults to `--languages auto` and prints a
+  per-language summary; a language with no installed grammar still appears as
+  file-level nodes. Flyway SQL migrations are replayed in version order into a
+  table/column/foreign-key schema (`table` nodes, `references` edges, JPA
+  entities linked with `maps_to`), with new `omni graph schema [--table T]
+  [--format text|mermaid|json]` and a Schema button in the viewer. Also fixed a
+  literal `\u2264` in the viewer's name-labels checkbox. Verified against the
+  STEP_App repository (5,881 nodes / 19,421 edges; Java, TypeScript, SQL, C/C++,
+  Kotlin, bash) with a real build, `show --all --language sql`,
+  `graph schema --table app_user` and the viewer in headless Chromium (no
+  console errors). Not verified in a real Windows Chrome. Unusual DDL (functions,
+  vendor extensions) is skipped by the SQL parser.
+
+## 2026-09-18 (6)
+
+
+### Completed
+
+- `REQ-032` | Code understanding | The 3D graph viewer is now branded and readable
+  at distance. It is titled "OmniEngineering CodeGraph" with the brand mark, and
+  the UI chrome uses the brand palette (`#e0475c` on `#0f0f12`, `#e8e8e8` text,
+  Share Tech Mono stack from `assets/brand`) instead of the gold accents it had
+  drifted into. Perspective used to shrink far-away nodes to specks and edges to
+  hairlines, so nodes farther from the core cluster now grow (by distance from the
+  median centre) and both nodes and edge cylinders are compensated by camera
+  distance; edges use brighter colours (white calls, teal imports, red inherits,
+  grey defines) and a new "Edge strength" slider; while a node is selected,
+  unrelated nodes shrink and its own edges turn bold white. Verified against the
+  real 2,392-node graph in headless Chromium at 1600x1000 with no console errors;
+  not verified in a real Windows Chrome or with hardware WebGL.
+
+## 2026-09-18 (5)
+
+
+### Completed
+
+- `REQ-032` | Code understanding | Follow-up: `omni graph view` opens correctly
+  from WSL. It printed the Linux `file:///mnt/c/...` URL as the main link, which
+  a Windows browser cannot resolve, and `--open` used a Linux-side launcher. It
+  now detects WSL (`wslpath -w`), prints the `file:///C:/...` URL (UNC and
+  space-containing paths are handled) plus the plain Windows path, and `--open`
+  launches the default Windows browser via `cmd.exe /c start`. The page itself was
+  checked for JavaScript errors and layout at 1600x1000, 1280x720 and 700x900 in
+  headless Chromium (none). Not verified in a real Windows Chrome or with
+  hardware WebGL.
+
+## 2026-09-18 (4)
+
+
+### Completed
+
+- `REQ-032` | Code understanding | Follow-up: `omni graph build` no longer
+  dead-ends on PEP 668 systems. When tree-sitter is missing it looks for
+  `~/.venvs/omni-graph/bin/python` (or the interpreter in `OMNI_GRAPH_PYTHON`)
+  and, if that has the packages, re-runs itself under it (guarded by an
+  environment variable so it cannot loop); otherwise it prints the
+  virtualenv setup commands instead of a `pip install` the OS refuses. A
+  plain `./omni graph build` now just works once the venv exists. Verified
+  from a system Python without tree-sitter, with no venv available, and with
+  a deliberately failing `OMNI_GRAPH_PYTHON`; two new checks added to the
+  end-to-end script (60 total).
+
+## 2026-09-18 (3)
+
+
+### Completed
+
+- `REQ-032` | Code understanding | The code graph can now be listed in full and
+  explored in 3D. `omni graph show --all` prints every node grouped by file
+  with in/out edge counts (filter with `--kind`, `--language`, `--file`;
+  `--edges`, `--sort file|degree|name`, `--limit`, `--json`; external
+  placeholders hidden unless `--include-external`). `omni graph view` writes
+  `.ai/project-graph.html`, one self-contained offline page (nothing fetched
+  at view time) with orbit/pan/zoom, search, language and edge-type filters,
+  colouring by language/kind/top-level directory, a detail panel listing each
+  symbol's callers and callees (click to jump), and double-click to expand a
+  node's neighbours; it starts with the 500 best-connected symbols
+  (`--max-initial`, `--all`, or `--focus <symbol> --depth N`). The 3D engine is
+  the unmodified 3d-force-graph 1.80.0 bundle (MIT, Copyright (c) Vasco
+  Asturiano) which renders with three.js (MIT) and contains 33 other
+  permissively licensed packages; `.ai/graph-viewer/THIRD_PARTY_NOTICES.md`
+  is generated from each package's own license file, the same text is
+  embedded in every generated page, and `NOTICE` points at it. The vendored
+  assets are copied by `adopt --include-cli`/`update`, excluded from
+  assistant prompt context via `.ai/.ignore`, and never parsed by `graph
+  build`. README also documents the virtualenv route for PEP 668 systems,
+  where `pip install` of tree-sitter is refused. Verified by a 56-check
+  end-to-end script and a headless-Chromium (software WebGL) run of search,
+  select, expand and isolate; a real bug found that way (the library clears
+  its host element, wiping the status bar) is fixed. Not verified on touch
+  devices or with a hardware GPU.
+
+## 2026-09-18 (2)
+
+
+### Completed
+
+- `REQ-031` | Enforcement | Completion rules are now executed instead of
+  merely documented. Rulepack `validation` blocks were never run by any
+  code, and `omni doctor` only checked that requirement keys existed, never
+  their types -- so an adopter's assistant skipped changelog/registry updates
+  at will and hand-wrote 25 schema-violating registry fields that `doctor`
+  passed. New: `omni gate` executes `co_changed` rules (changed files must
+  be accompanied by a `CHANGELOG.md` and requirements-registry change) over
+  the working tree plus every commit since the merge-base with `origin/main`,
+  so committing cannot hide a missing update; `omni waive <rule> --reason`
+  records an auditable line in `.ai/gate-waivers.jsonl` (only waivers added
+  in the current change set count); `omni hook install` wires a Claude Code
+  Stop hook (`omni gate --hook`) that exits 2 to block finishing, at most
+  once per distinct failing state and never when `stop_hook_active` is set.
+  `omni requirement show|list|search|update|complete|archive` replace reading
+  and hand-editing the registry JSON (an adopter's had grown to 531 KB and
+  the `minimum` context profile told every session to load it); archived
+  entries stay queryable and ids are never reused. `doctor` now type- and
+  enum-checks the registry and its archive. `classification_banner` and
+  `allowed_root_paths` are new `configuration` keys: the banner is rendered
+  into every assistant shim and its absence is a `doctor` error (plain
+  `sync` used to silently strip a hand-added CUI marking), and doctor no
+  longer flags git-ignored root paths or IDE/assistant state directories.
+  The Claude entrypoint no longer embeds a duplicate copy of the fallback
+  contract. Verified by a 42-check end-to-end script in a throwaway git repo;
+  the Stop hook itself was exercised by piping hook JSON, not inside a live
+  Claude Code session.
+
 ## 2026-09-18
+
 
 ### Completed
 
@@ -231,6 +582,7 @@
 
 ## 2026-09-03 (2)
 
+
 ### Completed
 
 - `REQ-019` | Code understanding | Added `omni graph render`, making the
@@ -249,6 +601,7 @@
 
 ## 2026-09-03
 
+
 ### Completed
 
 - `REQ-018` | Presentation / documentation | Replaced
@@ -262,6 +615,7 @@
   `defines`. Same underlying data, correctly graph-shaped this time.
 
 ## 2026-09-02 (2)
+
 
 ### Completed
 
@@ -288,6 +642,7 @@
 
 ## 2026-09-02
 
+
 ### Completed
 
 - `REQ-016` | Presentation / brand identity | Restyled OmniEngineering's
@@ -306,6 +661,7 @@
   the real asset directory, which would have made the new files untrackable.
 
 ## 2026-09-01
+
 
 ### Completed
 
@@ -333,6 +689,7 @@
 
 ## 2026-08-27 (4)
 
+
 ### Completed
 
 - `REQ-014` | CLI / template maintainability | Fixed a bug in `omni update`
@@ -344,6 +701,7 @@
   tells the user to run `omni sync` themselves once it's fixed.
 
 ## 2026-08-27 (3)
+
 
 ### Completed
 
@@ -371,6 +729,7 @@
 
 ## 2026-08-27 (2)
 
+
 ### Completed
 
 - `REQ-012` | CI / repo hygiene | Added `.github/workflows/ci.yml` running
@@ -383,6 +742,7 @@
   file in the repo.
 
 ## 2026-08-27
+
 
 ### Completed
 
@@ -399,6 +759,7 @@
   catches the same drift automatically.
 
 ## 2026-06-12
+
 
 ### Completed
 
@@ -431,6 +792,7 @@
   the primary `.ai/` configuration.
 
 ## 2026-06-11
+
 
 ### Completed
 

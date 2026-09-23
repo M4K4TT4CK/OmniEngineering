@@ -36,6 +36,10 @@ change, or ambiguous task.
 - Before broad traversal, read `.ai/project-map.md` when it exists. If it is
   missing or stale after structural changes, run `./omni map` before selecting
   files to inspect.
+- Check history before scoping: `omni graph why <area>` shows the requirements,
+  tests and earlier failures already attached to the code you plan to change.
+  Put the relevant prior failures and their regression tests in the validation
+  plan.
 - Ask a question only when a safe assumption would be risky.
 - If the task is small and clear, plan briefly and proceed.
 - If the task is broad, split it into requirements before implementation.

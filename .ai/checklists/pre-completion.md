@@ -13,6 +13,13 @@
 - Computing, mathematical, or engineering foundations checklist considered for
   relevant technical assumptions.
 - Tests or validation run, or skipped with reason.
+- New test frameworks, test directories or check scripts are registered as test
+  suites (`omni test detect`); `omni test check` passes.
+- Every defect, failed check or regression fixed in this task is in the failure
+  ledger with its root cause, regression test (or reason), and prevention;
+  `omni failure check` passes.
+- Any rule, playbook or checklist that should have prevented a failure was
+  changed in this task.
 - Docs updated when behavior or workflow changed.
 - Changelog updated when public release notes are desired.
 - Local-only notes remain ignored.

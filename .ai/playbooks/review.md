@@ -28,6 +28,16 @@ plan.
 13. Data loss, migration, or compatibility risk.
 14. Maintainability problems that are likely to cause defects.
 
+## Failure History
+
+- Run `omni graph why <file>` for each changed file. Flag a change that touches
+  code an earlier failure affected without running or extending that failure's
+  regression tests.
+- Flag a bug fix with no ledger entry, no regression test, or no stated
+  prevention, and a repeat of a recorded failure.
+- Flag a new behaviour with no test, using the "no test references this" gap
+  that `omni graph why` reports.
+
 ## Review Format
 
 - Lead with findings ordered by severity.

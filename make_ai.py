@@ -1,7 +1,9 @@
 import argparse
 import contextlib
 import fnmatch
+import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -25,6 +27,74 @@ GRAPH_SEMANTIC_API_URL_ENV = "OMNI_GRAPH_SEMANTIC_API_URL"
 RENDER_DEFAULT_OUTPUT = ".ai/project-graph.svg"
 RENDER_DEFAULT_MAX_NODES = 300
 RENDER_DEFAULT_DEPTH = 2
+
+VIEW_DEFAULT_OUTPUT = ".ai/project-graph.html"
+VIEW_DEFAULT_MAX_INITIAL = 500
+REQUIREMENTS_PATH = Path(".ai/requirements/requirements.json")
+REQUIREMENTS_ARCHIVE_PATH = Path(".ai/requirements/requirements-archive.json")
+FAILURE_LEDGER_PATH = Path(".ai/failures/failure-ledger.json")
+TEST_SUITES_PATH = Path(".ai/test-suites.json")
+GATE_WAIVERS_PATH = Path(".ai/gate-waivers.jsonl")
+RULESET_PATH = Path(".ai/rules/universal-engineering-ruleset.json")
+REQUIREMENT_STATUSES = ["completed", "pending", "proposed", "blocked", "needs_review"]
+REQUIREMENT_PRIORITIES = ["critical", "high", "medium", "low"]
+REQUIREMENT_STRING_FIELDS = ("id", "category", "title", "description")
+REQUIREMENT_LIST_FIELDS = (
+    "minimum_access_scope",
+    "acceptance_criteria",
+    "validation_required",
+    "documentation_required",
+    "risk_notes",
+)
+GATE_DEFAULT_BASE_REFS = ("origin/main", "origin/master", "main", "master")
+CLAUDE_STOP_HOOK_COMMAND = '"$CLAUDE_PROJECT_DIR"/omni gate --hook'
+PRE_COMMIT_HOOK_RELPATH = Path(".githooks/pre-commit")
+PRE_COMMIT_HOOK_MARKER = "Installed by `omni hook install-git` (OmniEngineering)"
+PRE_COMMIT_HOOK_SCRIPT = (
+    "#!/bin/sh\n"
+    f"# {PRE_COMMIT_HOOK_MARKER}. Do not hand-edit; rerun that command to update it.\n"
+    "# Runs `omni gate` against what is about to be committed. Assistant-agnostic and OS-agnostic: Linux and macOS\n"
+    "# invoke it directly, and Windows's Git for Windows always runs hooks through its own bundled sh, so this\n"
+    "# runs there unchanged too. If neither python3 nor python is on PATH, it warns and lets the commit through\n"
+    "# rather than blocking on a missing interpreter.\n"
+    "set -e\n"
+    'root=$(git rev-parse --show-toplevel) || exit 0\n'
+    'cd "$root"\n'
+    "if command -v python3 >/dev/null 2>&1; then py=python3\n"
+    "elif command -v python >/dev/null 2>&1; then py=python\n"
+    "else\n"
+    '  echo "omni pre-commit: no python3/python on PATH; skipping the gate." >&2\n'
+    "  exit 0\n"
+    "fi\n"
+    '"$py" "$root/omni" gate\n'
+)
+POST_COMMIT_HOOK_RELPATH = Path(".githooks/post-commit")
+POST_COMMIT_HOOK_MARKER = "Installed by `omni hook install-git --with-graph-rebuild` (OmniEngineering)"
+POST_COMMIT_HOOK_SCRIPT = (
+    "#!/bin/sh\n"
+    f"# {POST_COMMIT_HOOK_MARKER}. Do not hand-edit; rerun that command to update it.\n"
+    "# Rebuilds the five-layer graph in the background after each commit, so `omni graph why/lineage/timeline`\n"
+    "# is never more than one commit stale. Backgrounded: a full rebuild can take well over a minute on a large\n"
+    "# repo or a slow filesystem, and this must never slow down `git commit` itself. A lock directory (mkdir is\n"
+    "# atomic even on Windows/NTFS) skips a rebuild that is already running instead of piling them up; output\n"
+    "# goes to .ai/.graph-build.log, never to the terminal.\n"
+    'root=$(git rev-parse --show-toplevel) || exit 0\n'
+    'cd "$root"\n'
+    "if command -v python3 >/dev/null 2>&1; then py=python3\n"
+    "elif command -v python >/dev/null 2>&1; then py=python\n"
+    "else exit 0\n"
+    "fi\n"
+    'lock="$root/.ai/.graph-build.lock"\n'
+    "(\n"
+    '  mkdir -p "$root/.ai"\n'
+    '  if mkdir "$lock" 2>/dev/null; then\n'
+    "    trap 'rmdir \"$lock\" 2>/dev/null' EXIT\n"
+    '    "$py" "$root/omni" graph build >"$root/.ai/.graph-build.log" 2>&1\n'
+    "  fi\n"
+    ") &\n"
+    "exit 0\n"
+)
+TOOL_STATE_ROOT_DIRS = {".claude", ".claude-code-gui", ".idea", ".serena", ".vscode"}
 
 
 REQUIRED_AI_FILES = [
@@ -110,8 +180,12 @@ REQUIRED_AI_FILES = [
     ".ai/rules/oop-design.json",
     ".ai/rules/hci-ui-rules.json",
     ".ai/requirements/requirements.json",
+    ".ai/failures/failure-ledger.json",
+    ".ai/test-suites.json",
     ".ai/schemas/rulepack.schema.json",
     ".ai/schemas/requirements.schema.json",
+    ".ai/schemas/failure-ledger.schema.json",
+    ".ai/schemas/test-suites.schema.json",
     ".ai/schemas/universal-engineering-ruleset.schema.json",
 ]
 
@@ -155,8 +229,9 @@ these fallback rules exactly:
 
 1. Read `.ai/core-context.md`, `.ai/rules/universal-engineering-ruleset.json`,
    `.ai/rules/controlled-implementation.json`, `.ai/rules/completion-workflow.json`,
-   `.ai/project-configuration.md`, and `.ai/requirements/requirements.json`
-   before editing when they are available.
+   and `.ai/project-configuration.md` before editing when they are available.
+   Query the requirements registry with `omni requirement show|list|search`;
+   do not read `.ai/requirements/requirements.json` in full.
 2. If any required file is unavailable, say which file is unavailable and use
    this fallback contract as the controlling instruction set.
 3. Assign or confirm a `REQ-###` requirement ID before work begins.
@@ -180,14 +255,23 @@ these fallback rules exactly:
 12. Update relevant docs when behavior, setup, commands, architecture, APIs,
     data models, or workflows change.
 13. Update `CHANGELOG.md` after each completed task.
-14. Update `.ai/requirements/requirements.json` when a requirement is added,
-    completed, blocked, or materially changed.
-15. Run relevant validation. For OmniContext workspace changes, run
+14. Update the requirements registry with `omni requirement add|update|complete`
+    (never by hand-editing the JSON) when a requirement is added, completed,
+    blocked, or materially changed.
+15. Learn from failures. Before editing a file, run `omni graph why <path>` (or
+    `omni failure search <text>`) to see the requirements, tests and earlier
+    failures that touch it. When you fix a defect, a failed validation or build,
+    or a regression, record it with `omni failure add|update`: the symptom, the
+    root cause (why, not just what), the regression test, and the rule or
+    playbook that stops it recurring. If the failure exposes a missing or unclear
+    instruction, change that rulepack or playbook in the same task.
+16. Run relevant validation. For OmniContext workspace changes, run
     `omni doctor` or `./omni doctor`; when assistant entrypoint files change,
-    run `omni sync` or `./omni sync`.
-16. Do not claim completion if validation was skipped. Explain why it was not
+    run `omni sync` or `./omni sync`. Before claiming completion, run
+    `omni gate` and fix or explicitly waive every failure it reports.
+17. Do not claim completion if validation was skipped. Explain why it was not
     run.
-17. Final output must include requirement ID and status, files changed,
+18. Final output must include requirement ID and status, files changed,
     validation performed, documentation and changelog status, risks or
     follow-ups, a commit entry sentence, and pull request information.
 """
@@ -236,7 +320,23 @@ as the controlling global ruleset. Apply the controlled implementation workflow,
 security guardrails, completion workflow, project configuration, and
 project-specific rules.
 
-{FALLBACK_CONTRACT}
+## Registry and Gate Discipline
+
+- Never read `.ai/requirements/requirements.json` in full and never hand-edit it.
+  Query with `./omni requirement show <ID>`, `list --status pending`, or
+  `search <text>`; change it with `./omni requirement add|update|complete`.
+- Failures are data, not noise. Before editing a file run `./omni graph why <path>`;
+  when you fix a defect or a failed check, record it with `./omni failure add`
+  (symptom, root cause, regression test, the rule or playbook that prevents a
+  repeat). `./omni requirement complete` refuses defect requirements without an
+  entry.
+- Before reporting a task complete, run `./omni gate`. If it fails, fix the gap
+  or record an explicit waiver with `./omni waive <rule-id> --reason "..."`.
+  Do not claim completion while it fails.
+
+If you cannot access, skip, or fail to follow the `.ai/` source files, read
+`.ai/entrypoints/fallback-contract.md` and apply it as the controlling
+instruction set.
 """,
     ".ai/entrypoints/cursor.md": f"""# Cursor Configuration
 
@@ -303,7 +403,7 @@ def render_assistant_pointer(file_path: str, source_path: str) -> str:
     }[file_path]
     return f"""# {title}
 
-<!-- Generated by OmniEngineering. Run `./omni sync` to refresh. -->
+{classification_block()}<!-- Generated by OmniEngineering. Run `./omni sync` to refresh. -->
 
 This file is intentionally small so repository-root assistant files do not
 clog the main workspace.
@@ -317,10 +417,11 @@ and apply it as the controlling instruction set.
 """
 
 
-ASSISTANT_POINTERS = {
-    file_path: render_assistant_pointer(file_path, source_path)
-    for file_path, source_path in ASSISTANT_POINTER_TARGETS.items()
-}
+def assistant_pointers() -> dict[str, str]:
+    return {
+        file_path: render_assistant_pointer(file_path, source_path)
+        for file_path, source_path in ASSISTANT_POINTER_TARGETS.items()
+    }
 
 SYNCED_IGNORE_FILES = {
     ".cursorignore": "# Generated by omni sync from .ai/.ignore\n\n",
@@ -331,8 +432,12 @@ JSON_FILES = [
     ".ai/rules/universal-engineering-ruleset.json",
     *RULEPACK_FILES,
     ".ai/requirements/requirements.json",
+    ".ai/failures/failure-ledger.json",
+    ".ai/test-suites.json",
     ".ai/schemas/rulepack.schema.json",
     ".ai/schemas/requirements.schema.json",
+    ".ai/schemas/failure-ledger.schema.json",
+    ".ai/schemas/test-suites.schema.json",
     ".ai/schemas/universal-engineering-ruleset.schema.json",
 ]
 
@@ -376,6 +481,7 @@ ALLOWED_ROOT_FILES = {
     "make_ai.py",
     "omni",
     "omni_graph.py",
+    "omni_mcp.py",
     "pyproject.toml",
 }
 
@@ -390,6 +496,7 @@ ALLOWED_ROOT_DIRS = {
     "assets",
     "design",
     "managed-agents",
+    "tests",
 }
 
 ROOT_CLUTTER_DIRS = {
@@ -432,7 +539,15 @@ ADOPTION_TOOL_FILES = {
     "kiro": [".kiro/steering/omnicontext.md"],
 }
 
-ADOPTION_CLI_FILES = ["omni", "make_ai.py", "omni_graph.py"]
+ADOPTION_CLI_FILES = [
+    "omni",
+    "make_ai.py",
+    "omni_graph.py",
+    "omni_mcp.py",
+    ".ai/graph-viewer/viewer.html",
+    ".ai/graph-viewer/3d-force-graph.min.js",
+    ".ai/graph-viewer/THIRD_PARTY_NOTICES.md",
+]
 ADOPTION_LEGAL_FILES = [
     "LICENSE",
     "NOTICE",
@@ -454,6 +569,8 @@ ADOPTER_OWNED_FILES = {
     ".ai/project-configuration.md",
     ".ai/project-map.md",
     ".ai/requirements/requirements.json",
+    ".ai/failures/failure-ledger.json",
+    ".ai/test-suites.json",
 }
 
 # Files omni update is allowed to 3-way-merge: every required .ai file that
@@ -604,7 +721,12 @@ def load_json(path: Path) -> Any:
 
 def write_json(path: Path, value: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+    # Match the file's existing style so a CLI write never re-escapes (or
+    # un-escapes) every non-ASCII character already in it.
+    escaped = path.is_file() and "\\u" in path.read_text(encoding="utf-8")
+    temp_path = path.with_name(path.name + ".tmp")
+    temp_path.write_text(json.dumps(value, indent=2, ensure_ascii=escaped) + "\n", encoding="utf-8")
+    temp_path.replace(path)
 
 
 def git_current_ref(repo_root: Path) -> str | None:
@@ -739,8 +861,12 @@ def slugify(value: str) -> str:
 def next_requirement_id(requirements: dict[str, Any]) -> str:
     prefix = str(requirements.get("requirement_id_prefix", "REQ"))
     highest = 0
-    for requirement in requirements.get("requirements", []):
-        requirement_id = str(requirement.get("id", ""))
+    ids = {
+        str(requirement.get("id", ""))
+        for requirement in requirements.get("requirements", [])
+        if isinstance(requirement, dict)
+    } | all_requirement_ids()
+    for requirement_id in ids:
         match = re.fullmatch(rf"{re.escape(prefix)}-(\d{{3}})", requirement_id)
         if match:
             highest = max(highest, int(match.group(1)))
@@ -810,6 +936,54 @@ def validate_ruleset(ruleset: Any, report: DoctorReport) -> None:
         )
 
 
+def requirement_shape_problems(requirement: dict[str, Any]) -> list[str]:
+    problems: list[str] = []
+    for key in REQUIREMENT_STRING_FIELDS:
+        if key in requirement and (not isinstance(requirement[key], str) or not requirement[key].strip()):
+            problems.append(f"{key} must be a non-empty string")
+    if "priority" in requirement and requirement["priority"] not in REQUIREMENT_PRIORITIES:
+        problems.append(f"priority must be one of {REQUIREMENT_PRIORITIES}")
+    if "status" in requirement and requirement["status"] not in REQUIREMENT_STATUSES:
+        problems.append(f"status must be one of {REQUIREMENT_STATUSES}")
+    for key in REQUIREMENT_LIST_FIELDS:
+        if key not in requirement:
+            continue
+        value = requirement[key]
+        if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+            problems.append(f"{key} must be an array of strings (found {type(value).__name__})")
+    return problems
+
+
+def check_requirement_entries(items: list[Any], label: str, report: DoctorReport, seen_ids: set[str]) -> None:
+    for index, requirement in enumerate(items, start=1):
+        if not isinstance(requirement, dict):
+            report.error(f"{label} entry {index} must be an object")
+            continue
+
+        missing = REQUIRED_REQUIREMENT_KEYS - set(requirement)
+        if missing:
+            report.error(
+                f"{label} entry {requirement.get('id', index)} missing keys: "
+                f"{sorted(missing)}"
+            )
+
+        problems = requirement_shape_problems(requirement)
+        if problems:
+            report.error(
+                f"{label} entry {requirement.get('id', index)} violates the registry "
+                f"schema: {'; '.join(problems)}"
+            )
+
+        requirement_id = requirement.get("id")
+        if not isinstance(requirement_id, str) or not re.fullmatch(r"[A-Z]+-\d{3}", requirement_id):
+            report.error(f"{label} entry {index} has invalid id: {requirement_id}")
+            continue
+
+        if requirement_id in seen_ids:
+            report.error(f"Duplicate requirement id: {requirement_id}")
+        seen_ids.add(requirement_id)
+
+
 def validate_requirements(requirements: Any, report: DoctorReport) -> None:
     if not isinstance(requirements, dict):
         report.error("Requirements registry must be a JSON object")
@@ -821,31 +995,67 @@ def validate_requirements(requirements: Any, report: DoctorReport) -> None:
         return
 
     seen_ids: set[str] = set()
-    for index, requirement in enumerate(items, start=1):
-        if not isinstance(requirement, dict):
-            report.error(f"Requirement entry {index} must be an object")
-            continue
+    check_requirement_entries(items, "Requirement", report, seen_ids)
 
-        missing = REQUIRED_REQUIREMENT_KEYS - set(requirement)
-        if missing:
-            report.error(
-                f"Requirement entry {requirement.get('id', index)} missing keys: "
-                f"{sorted(missing)}"
-            )
-
-        requirement_id = requirement.get("id")
-        if not isinstance(requirement_id, str) or not re.fullmatch(r"[A-Z]+-\d{3}", requirement_id):
-            report.error(f"Requirement entry {index} has invalid id: {requirement_id}")
-            continue
-
-        if requirement_id in seen_ids:
-            report.error(f"Duplicate requirement id: {requirement_id}")
-        seen_ids.add(requirement_id)
+    if REQUIREMENTS_ARCHIVE_PATH.is_file():
+        try:
+            archive = load_json(REQUIREMENTS_ARCHIVE_PATH)
+        except json.JSONDecodeError as exc:
+            report.error(f"Invalid JSON in {REQUIREMENTS_ARCHIVE_PATH}: line {exc.lineno}, column {exc.colno}")
+            archive = None
+        if isinstance(archive, dict) and isinstance(archive.get("requirements"), list):
+            check_requirement_entries(archive["requirements"], "Archived requirement", report, seen_ids)
+        elif archive is not None:
+            report.error(f"{REQUIREMENTS_ARCHIVE_PATH} must contain a requirements array")
 
     if not report.errors:
-        report.pass_check("Requirements registry is structurally valid")
+        report.pass_check("Requirements registry is structurally valid (types and enums checked)")
     elif seen_ids:
         report.warning("Requirements registry was partially readable")
+
+
+def validate_failure_ledger(ledger: Any, report: DoctorReport) -> None:
+    if ledger is None:
+        return  # missing or unreadable files are already reported by the required-file and JSON checks
+    if not isinstance(ledger, dict) or not isinstance(ledger.get("failures"), list):
+        report.error("Failure ledger must be a JSON object with a failures array")
+        return
+    if omni_graph is None:
+        return
+    result = omni_graph.check_failure_ledger(Path("."))
+    for problem in result["problems"]:
+        report.error(f"Failure ledger: {problem}")
+    if result["ok"]:
+        report.pass_check(f"Failure ledger is complete ({result['failures']} failure(s) recorded)")
+
+
+def validate_test_suites(config: Any, report: DoctorReport) -> None:
+    if config is None or omni_graph is None:
+        return
+    if not isinstance(config, dict) or not isinstance(config.get("suites"), list):
+        report.error("Test suite registry must be a JSON object with a suites array")
+        return
+    result = omni_graph.check_test_suites(Path("."), project_source_files())
+    for problem in result["problems"]:
+        report.error(f"Test suites: {problem}")
+    if result["unregistered_files"]:
+        report.warning(
+            f"{len(result['unregistered_files'])} detected test file(s) are not in a registered suite "
+            f"({', '.join(result['unregistered_suites'][:4])}); run `omni test detect --write` or `omni test add`"
+        )
+    if result["ok"]:
+        report.pass_check(f"Test suite registry is valid ({result['suites']} suite(s) registered)")
+
+
+def validate_graph_config(report: DoctorReport) -> None:
+    if omni_graph is None or not Path(omni_graph.GRAPH_CONFIG_PATH).is_file():
+        return
+    problems: list[str] = []
+    omni_graph.graph_config(Path("."), problems)
+    for problem in problems:
+        report.error(problem)
+    if not problems:
+        report.pass_check(f"{omni_graph.GRAPH_CONFIG_PATH} is valid")
 
 
 def validate_rulepacks(parsed: dict[str, Any], report: DoctorReport) -> None:
@@ -916,7 +1126,7 @@ def manifest_paths(value: Any) -> list[str]:
             value.startswith(".ai/")
             or value.startswith(".github/")
             or value.startswith(".kiro/")
-            or value in ASSISTANT_POINTERS
+            or value in ASSISTANT_POINTER_TARGETS
             or value in {
                 "omni",
                 "make_ai.py",
@@ -990,7 +1200,7 @@ def validate_context_manifest(manifest: Any, report: DoctorReport) -> None:
 def validate_assistant_pointers(report: DoctorReport) -> None:
     drifted: list[str] = []
     missing: list[str] = []
-    for file_path, expected in ASSISTANT_POINTERS.items():
+    for file_path, expected in assistant_pointers().items():
         path = Path(file_path)
         if not path.is_file():
             missing.append(file_path)
@@ -1000,8 +1210,15 @@ def validate_assistant_pointers(report: DoctorReport) -> None:
 
     for file_path in missing:
         report.error(f"Missing assistant pointer file: {file_path}")
+    banner = classification_banner()
     for file_path in drifted:
-        report.warning(f"Assistant pointer drift detected: {file_path}; run sync")
+        if banner and banner not in Path(file_path).read_text(encoding="utf-8"):
+            report.error(
+                f"{file_path} is missing the configured classification banner "
+                f"({banner!r}); run ./omni sync"
+            )
+        else:
+            report.warning(f"Assistant pointer drift detected: {file_path}; run sync")
 
     if not missing and not drifted:
         report.pass_check("Assistant pointer files match expected routing text")
@@ -1053,8 +1270,11 @@ def validate_workspace_placement(report: DoctorReport) -> None:
     root_clutter: list[str] = []
     oversized_shims: list[str] = []
 
+    configured_allowed = configured_allowed_root_paths()
     for item in Path(".").iterdir():
         name = item.name
+        if name in configured_allowed or name in TOOL_STATE_ROOT_DIRS:
+            continue
         if item.is_dir():
             if name in ROOT_CLUTTER_DIRS:
                 root_clutter.append(name)
@@ -1063,11 +1283,14 @@ def validate_workspace_placement(report: DoctorReport) -> None:
         elif item.is_file() and name not in ALLOWED_ROOT_FILES:
             misplaced.append(name)
 
+    root_clutter = [name for name in root_clutter if not is_git_ignored(name)]
+    misplaced = [name for name in misplaced if not is_git_ignored(name.rstrip("/"))]
+
     for file_path in LOCAL_ONLY_PUBLIC_PATHS:
         if Path(file_path).exists():
             misplaced.append(file_path)
 
-    for file_path in ASSISTANT_POINTERS:
+    for file_path in ASSISTANT_POINTER_TARGETS:
         path = Path(file_path)
         if not path.is_file():
             continue
@@ -1401,7 +1624,7 @@ def write_generated_file(path: Path, content: str, force: bool) -> bool:
 
 def write_assistant_pointers(force: bool) -> list[str]:
     skipped: list[str] = []
-    for file_path, content in ASSISTANT_POINTERS.items():
+    for file_path, content in assistant_pointers().items():
         path = Path(file_path)
         if not write_generated_file(path, content, force):
             skipped.append(file_path)
@@ -1579,6 +1802,47 @@ def require_omni_graph() -> bool:
     return False
 
 
+def graph_python_candidates() -> list[str]:
+    candidates = []
+    explicit = os.environ.get("OMNI_GRAPH_PYTHON")
+    if explicit:
+        candidates.append(explicit)
+    candidates.append(str(Path.home() / ".venvs" / "omni-graph" / "bin" / "python"))
+    return candidates
+
+
+def reexec_with_graph_python() -> None:
+    """Re-run this command under a venv interpreter that has tree-sitter, if one exists."""
+    if os.environ.get("OMNI_GRAPH_REEXEC"):
+        return
+    probe = "import tree_sitter, tree_sitter_python, tree_sitter_javascript, tree_sitter_typescript"
+    for candidate in graph_python_candidates():
+        if not Path(candidate).is_file() or os.path.abspath(candidate) == os.path.abspath(sys.executable):
+            continue
+        try:
+            ok = subprocess.run([candidate, "-c", probe], capture_output=True, timeout=30).returncode == 0
+        except (OSError, subprocess.SubprocessError):
+            continue
+        if ok:
+            print(f"tree-sitter is not installed for {sys.executable}; re-running with {candidate}", file=sys.stderr)
+            os.environ["OMNI_GRAPH_REEXEC"] = "1"
+            os.execv(candidate, [candidate, *sys.argv])
+
+
+GRAPH_INSTALL_HELP = """
+Install tree-sitter into a virtualenv (system-wide pip is refused on PEP 668 "externally managed" Pythons):
+
+  python3 -m venv ~/.venvs/omni-graph
+  ~/.venvs/omni-graph/bin/pip install "tree-sitter>=0.23,<1.0" "tree-sitter-python>=0.23,<1.0" \\
+    "tree-sitter-javascript>=0.23,<1.0" "tree-sitter-typescript>=0.23,<1.0"
+
+omni then finds ~/.venvs/omni-graph on its own (or set OMNI_GRAPH_PYTHON to another interpreter).
+Add a grammar for each further language you use (Java, Go, Rust, C#, C/C++, Ruby, PHP, Kotlin, Swift, Scala, ...):
+  ~/.venvs/omni-graph/bin/pip install tree-sitter-java tree-sitter-go tree-sitter-rust   # etc.
+Languages without a grammar still appear as file nodes; SQL migrations need no grammar.
+Elsewhere, `pip install "omniengineering-workspace[graph]"` also works."""
+
+
 def run_graph_build(args: argparse.Namespace) -> int:
     if not require_omni_graph():
         return 1
@@ -1589,19 +1853,29 @@ def run_graph_build(args: argparse.Namespace) -> int:
         return 1
 
     languages = split_csv(args.languages)
-    unknown = [language for language in languages if language not in omni_graph.LANGUAGE_EXTENSIONS]
+    known_languages = omni_graph.language_extensions()
+    unknown = [language for language in languages if language not in known_languages and language not in ("auto", "all")]
     if unknown:
         print(
             f"Unsupported language(s): {', '.join(unknown)}. "
-            f"Supported: {', '.join(sorted(omni_graph.LANGUAGE_EXTENSIONS))}",
+            f"Supported: auto, {', '.join(sorted(known_languages))}",
             file=sys.stderr,
         )
         return 1
 
+    layers = set(split_csv(args.layers)) if args.layers else set(omni_graph.LAYERS)
+    bad_layers = layers - set(omni_graph.LAYERS)
+    if bad_layers:
+        print(f"Unknown layer(s): {', '.join(sorted(bad_layers))}. Layers: {', '.join(omni_graph.LAYERS)}", file=sys.stderr)
+        return 1
+
     try:
-        graph, semantic_info = omni_graph.build_graph(root.resolve(), languages, semantic=args.semantic)
+        graph, semantic_info = omni_graph.build_graph(
+            root.resolve(), languages, semantic=args.semantic, layers=layers, max_commits=args.max_commits
+        )
     except omni_graph.GraphDependencyError as exc:
-        print(str(exc), file=sys.stderr)
+        reexec_with_graph_python()
+        print(str(exc) + GRAPH_INSTALL_HELP, file=sys.stderr)
         return 1
 
     output = Path(args.output)
@@ -1616,6 +1890,9 @@ def run_graph_build(args: argparse.Namespace) -> int:
         "edges": len(graph.edges),
         "extracted_edges": extracted,
         "inferred_edges": inferred,
+        "languages": graph.stats,
+        "layers": graph.layer_stats,
+        "notes": graph.notes,
         "semantic_pass": semantic_info,
     }
     if args.json:
@@ -1624,6 +1901,35 @@ def run_graph_build(args: argparse.Namespace) -> int:
 
     print(f"Wrote {summary['nodes']} nodes and {summary['edges']} edges to {output}")
     print(f"  EXTRACTED edges: {extracted}   INFERRED edges: {inferred}")
+    for language, stats in sorted(graph.stats.items()):
+        detail = f"{stats.get('tables', 0)} tables" if stats.get("mode") == "schema" else f"{stats.get('symbols', 0)} symbols"
+        print(f"  {language:<11} {stats['files']:>5} files  {detail:>12}  [{stats['mode']}]")
+    stats_by_layer = graph.layer_stats
+    if omni_graph.LAYER_GOVERNANCE in stats_by_layer:
+        g = stats_by_layer[omni_graph.LAYER_GOVERNANCE]
+        print(f"  governance  {g['requirements']} requirements, {g['changelog_entries']} changelog entries, {g['touches']} touches edges")
+    if omni_graph.LAYER_HISTORY in stats_by_layer:
+        h = stats_by_layer[omni_graph.LAYER_HISTORY]
+        span = f", {h['first_date']} to {h['last_date']}" if h.get("first_date") else ""
+        print(
+            f"  history     {h['commits']} commits{span}: {h['with_requirements']} tied to requirements, "
+            f"{h['logged_in']} changelog links, {h['modifies']} file links"
+        )
+    if omni_graph.LAYER_ASSURANCE in stats_by_layer:
+        a = stats_by_layer[omni_graph.LAYER_ASSURANCE]
+        print(
+            f"  assurance   {a['suites']} test suites ({a['suites_manual']} registered, {a['suites_auto']} auto-detected), "
+            f"{a['test_files']} test files, {a['verifies']} verifies edges, {a['failures']} ledger failures "
+            f"({a['guards']} regression-test links, {a['unresolved']} unresolved refs)"
+        )
+    if omni_graph.LAYER_WORKSPACE in stats_by_layer:
+        w = stats_by_layer[omni_graph.LAYER_WORKSPACE]
+        print(
+            f"  workspace   {w['rulepacks']} rulepacks, {w['rules']} rules, {w['playbooks']} playbooks, {w['checklists']} checklists"
+            + (f", {w['tooling_nodes']} nodes of OmniEngineering's own code" if w.get("tooling_nodes") else "")
+        )
+    for note in graph.notes:
+        print(f"  note: {note}")
     if semantic_info.get("enabled"):
         print(
             f"  Semantic pass: {semantic_info.get('nodes_tagged', 0)} nodes tagged, "
@@ -1682,6 +1988,12 @@ def run_graph_show(args: argparse.Namespace) -> int:
         print(f"Graph file not found: {graph_path}; run ./omni graph build first", file=sys.stderr)
         return 1
 
+    if args.all:
+        return run_graph_show_all(args, graph_path)
+    if not args.node:
+        print("Provide a node to inspect, or use --all to list every node.", file=sys.stderr)
+        return 1
+
     result = omni_graph.show(graph_path, args.node)
     if args.json:
         print(json.dumps(result, indent=2))
@@ -1704,6 +2016,781 @@ def run_graph_show(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_graph_show_all(args: argparse.Namespace, graph_path: Path) -> int:
+    result = omni_graph.list_nodes(
+        graph_path,
+        kind=args.kind,
+        language=args.language,
+        file_pattern=args.file,
+        include_external=args.include_external,
+        include_edges=args.edges,
+        sort=args.sort,
+        limit=args.limit,
+        layer=args.layer,
+    )
+    if args.json:
+        print(json.dumps(result, indent=2))
+        return 0
+
+    nodes = result["nodes"]
+    print(
+        f"Graph: {result['nodes_total']} nodes, {result['edges_total']} edges"
+        + (f" (root {result['root']}, built {str(result['generated_at'])[:10]})" if result.get("root") else "")
+    )
+    print("  layers: " + ", ".join(f"{name} {count}" for name, count in result["layers"].items()))
+    print("  node kinds: " + ", ".join(f"{kind} {count}" for kind, count in result["node_kinds"].items()))
+    print("  edge types: " + ", ".join(f"{kind} {count}" for kind, count in result["edge_types"].items()))
+    shown = f"{len(nodes)} of {result['nodes_matched']} matching nodes"
+    if result["externals_hidden"]:
+        shown += f"; {result['externals_hidden']} external placeholders hidden (use --include-external)"
+    print(f"  listing {shown}")
+    print("")
+
+    def describe(row: dict[str, Any]) -> str:
+        span = f"L{row['start_line']}-{row['end_line']}" if row.get("start_line") else ""
+        return f"in {row['in']:<3} out {row['out']:<3} {span}"
+
+    if args.sort == "file":
+        current_file = object()
+        for row in nodes:
+            if row["file"] != current_file:
+                current_file = row["file"]
+                print(f"{current_file or '(external)'}  [{row.get('language') or '-'}]")
+            print(f"  {row['kind']:<9} {row['name']:<44} {describe(row)}")
+    else:
+        for row in nodes:
+            print(f"{row['kind']:<9} {describe(row):<26} {row['id']}")
+
+    if args.edges:
+        print("")
+        print(f"Edges among the listed nodes ({len(result['edges'])}):")
+        for edge in result["edges"]:
+            print(f"  {edge['source']} --[{edge['type']}, {edge['provenance']}]--> {edge['target']}")
+    return 0
+
+
+def windows_view_target(output: Path) -> tuple[str, str] | None:
+    """On WSL, the Windows path and file:// URI a Windows browser can actually open."""
+    try:
+        windows_path = subprocess.run(
+            ["wslpath", "-w", str(output.resolve())], capture_output=True, text=True, timeout=5
+        ).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if not windows_path:
+        return None
+    from urllib.parse import quote
+
+    slashed = windows_path.replace("\\", "/")
+    uri = ("file:" + quote(slashed, safe="/:")) if windows_path.startswith("\\\\") else ("file:///" + quote(slashed, safe="/:"))
+    return windows_path, uri
+
+
+def open_in_browser(uri: str, windows_path: str | None) -> bool:
+    if windows_path:
+        for command in (["cmd.exe", "/c", "start", "", windows_path], ["explorer.exe", windows_path]):
+            if shutil.which(command[0]):
+                try:
+                    subprocess.run(command, cwd="/mnt/c", capture_output=True, timeout=15)
+                    return True
+                except (OSError, subprocess.SubprocessError):
+                    continue
+        return False
+    import webbrowser
+
+    return bool(webbrowser.open(uri))
+
+
+def run_graph_view(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+
+    graph_path = Path(args.graph)
+    if not graph_path.is_file():
+        print(f"Graph file not found: {graph_path}; run ./omni graph build first", file=sys.stderr)
+        return 1
+
+    result = omni_graph.build_view_html(
+        graph_path,
+        include_external=args.include_external,
+        max_initial=args.max_initial,
+        start_all=args.all,
+        focus=args.focus,
+        depth=args.depth,
+        mode=args.mode,
+    )
+    if not result.get("ok"):
+        if result.get("error") == "missing_assets":
+            print(
+                "The 3D viewer assets are missing: "
+                + ", ".join(f".ai/graph-viewer/{name}" for name in result["missing"])
+                + ". Run `./omni update --source <OmniEngineering checkout>` to restore them.",
+                file=sys.stderr,
+            )
+        else:
+            print(f"Could not resolve --focus symbol: {args.focus}", file=sys.stderr)
+        return 1
+
+    output = Path(args.output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(result["html"], encoding="utf-8")
+    size_mb = output.stat().st_size / (1024 * 1024)
+    print(
+        f"Wrote {output} ({size_mb:.1f} MB): {result['nodes_initial']} of {result['nodes_total']} nodes "
+        f"in the initial view, {result['edges_total']} edges available."
+    )
+    if result["note"]:
+        print(f"  {result['note']}")
+    posix_uri = output.resolve().as_uri()
+    windows_target = windows_view_target(output)
+    if windows_target:
+        windows_path, uri = windows_target
+        print(f"Open in your Windows browser (works offline): {uri}")
+        print(f"  or paste this path into the address bar: {windows_path}")
+    else:
+        uri = posix_uri
+        print(f"Open in a browser (works offline): {uri}")
+    if args.open and not open_in_browser(uri, windows_target[0] if windows_target else None):
+        print("  (no browser could be launched automatically; open the file by hand)")
+    return 0
+
+
+def run_graph_schema(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+    graph_path = Path(args.graph)
+    if not graph_path.is_file():
+        print(f"Graph file not found: {graph_path}; run ./omni graph build first", file=sys.stderr)
+        return 1
+    report = omni_graph.schema_report(graph_path, args.table)
+    if not report.get("ok"):
+        if report.get("error") == "no_tables":
+            print("No tables in this graph. Rebuild after adding SQL migrations (*.sql): `./omni graph build`.", file=sys.stderr)
+        else:
+            print(f"Unknown table {args.table!r}. Tables: {', '.join(report['tables'])}", file=sys.stderr)
+        return 1
+    if args.format == "json":
+        print(json.dumps(report, indent=2))
+        return 0
+    if args.format == "mermaid":
+        print(omni_graph.schema_mermaid(report))
+        return 0
+    print(f"{len(report['tables'])} of {report['table_count']} tables (rebuilt from SQL migrations; DDL facts are EXTRACTED)")
+    for table in report["tables"]:
+        entity = f"   <- entity: {', '.join(table['entities'])}" if table["entities"] else ""
+        print(f"\nTABLE {table['name']}  ({len(table['columns'])} columns){entity}")
+        foreign = {column: fk for fk in table["foreign_keys"] for column in fk["columns"]}
+        for column in table["columns"]:
+            flags = []
+            if column.get("pk"):
+                flags.append("PK")
+            if not column.get("nullable", True):
+                flags.append("NOT NULL")
+            if column.get("unique"):
+                flags.append("UNIQUE")
+            if column["name"] in foreign:
+                fk = foreign[column["name"]]
+                flags.append(f"FK -> {fk['table']}({', '.join(fk['ref_columns']) or '?'})")
+            print(f"  {column['name']:<32} {column['type']:<28} {' '.join(flags)}")
+        for index in table["indexes"]:
+            print(f"  index {index['name']}{' UNIQUE' if index['unique'] else ''} ({', '.join(index['columns'])})")
+        if table["referenced_by"]:
+            print("  referenced by: " + ", ".join(sorted({ref["table"] for ref in table["referenced_by"]})))
+    return 0
+
+
+def run_graph_benchmark(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+    graph_path = Path(args.graph)
+    if not graph_path.is_file():
+        print(f"Graph file not found: {graph_path}; run ./omni graph build first", file=sys.stderr)
+        return 1
+    result = omni_graph.benchmark(graph_path, Path(args.root))
+    if args.json:
+        print(json.dumps(result, indent=2))
+        return 0
+    if not result["cases"]:
+        print("Nothing to benchmark: this graph has no requirement, commit, failure or file node to pick from.", file=sys.stderr)
+        return 1
+    print("A targeted graph query vs. the naive alternative (grep for the name, read every match whole; a")
+    print("commit compares against `git show` instead). Both are run for real against this project right now.")
+    print("Tokens are chars / 4: a rough estimate, not a real tokenizer.\n")
+    for case in result["cases"]:
+        print(f"{case['kind']}: {case['node']}")
+        print(f"  graph query   {case['graph_chars']:>8,} chars  (~{case['graph_tokens_est']:,} tokens)")
+        capped = "  [capped]" if case["naive_files_capped"] else ""
+        print(f"  naive ({case['naive_method']}, {case['naive_files_read']} file(s){capped})")
+        print(f"                {case['naive_chars']:>8,} chars  (~{case['naive_tokens_est']:,} tokens)")
+        if case["ratio"]:
+            print(f"  -> naive costs {case['ratio']}x the targeted query")
+        print()
+    print(result["note"])
+    return 0
+
+
+def run_graph_sources(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+    root = Path(args.root).resolve()
+    report = omni_graph.describe_sources(root)
+    if args.write:
+        target = root / omni_graph.GRAPH_CONFIG_PATH
+        if target.exists() and not args.force:
+            print(f"{omni_graph.GRAPH_CONFIG_PATH} already exists; pass --force to overwrite it.", file=sys.stderr)
+            return 1
+        draft = omni_graph.draft_graph_config(root)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        write_json(target, {"_comment": "Only keys that differ from the defaults are needed. Keys: " + ", ".join(sorted(omni_graph._DEFAULT_GRAPH_CONFIG)), **draft})
+        print(f"Wrote {omni_graph.GRAPH_CONFIG_PATH} with {len(draft)} setting(s) that differ from the defaults.")
+    if args.json:
+        print(json.dumps(report, indent=2))
+        return 0
+
+    layers = report["layers"]
+    print(f"Graph sources for {root}")
+    print(f"  config: {report['config_file']} ({'present' if report['config_present'] else 'not present; defaults apply'})")
+    for problem in report["problems"]:
+        print(f"    ! {problem}")
+    g = layers["governance"]
+    print("  governance")
+    for r in g["requirements"]:
+        state = f"{r['requirements']} requirement(s)" if r["exists"] else "not found"
+        print(f"    requirements  {r['path']}: {state}")
+        for problem in r["problems"]:
+            print(f"      ! {problem}")
+    for c in g["changelog"]:
+        print(f"    changelog     {c['path']}: {c['entries']} entr{'y' if c['entries'] == 1 else 'ies'} ({c['dated']} dated, {c['versioned']} versioned)")
+    if not g["changelog"]:
+        print("    changelog     none found")
+    h = layers["history"]
+    print(f"  history       {'git repository, ' + str(h['commits']) + ' commit(s)' if h['git'] else 'not a git repository'} (scans up to {h['max_commits']})")
+    a = layers["assurance"]
+    print(f"  assurance     {len(a['registered_suites'])} registered suite(s), {len(a['detected_suites'])} detected but unregistered; "
+          f"failure ledger {'present' if a['failure_ledger']['exists'] else 'absent'} ({a['failure_ledger']['path']}); {a['ci_commands']} CI test command(s) found")
+    for s in a["detected_suites"]:
+        print(f"      detected  {s['id']}  [{s['framework']}] {s['files']} file(s)  {s['command'] or '-'}")
+    w = layers["workspace"]
+    print(f"  workspace     {w['rulepacks']} rulepack file(s), {w['playbooks']} playbook(s), {w['checklists']} checklist(s)" + ("" if w["ai_dir"] else " (no .ai/ directory)"))
+    print(f"  code          {layers['code']['source_files']} source file(s)")
+    if report["hints"]:
+        print("\nTo improve the graph:")
+        for hint in report["hints"]:
+            print(f"  - {hint}")
+    return 0
+
+
+def run_graph_timeline(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+
+    graph_path = Path(args.graph)
+    if not graph_path.is_file():
+        print(f"Graph file not found: {graph_path}; run ./omni graph build first", file=sys.stderr)
+        return 1
+
+    result = omni_graph.timeline(graph_path, args.node, depth=args.depth)
+    if args.json:
+        print(json.dumps(result, indent=2))
+        return 0 if result.get("ok") else 1
+    if not result.get("ok"):
+        print(f"Could not uniquely resolve node. Matches: {result.get('matches')}", file=sys.stderr)
+        return 1
+
+    events = result["events"]
+    print(f"{result['node']['name']} ({result['node']['kind']}): {len(events)} dated event(s) within {args.depth} hop(s)")
+    shown = events[-args.limit:] if args.limit else events
+    if len(shown) < len(events):
+        print(f"  (showing the newest {len(shown)}; --limit 0 for all)")
+    last_date = None
+    for event in shown:
+        if event["date"] != last_date:
+            print(f"\n{event['date']}")
+            last_date = event["date"]
+        print(f"  {event['kind']:<10} {event['name']:<16} {event['summary'][:100]}")
+    return 0
+
+
+def run_graph_why(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+
+    graph_path = Path(args.graph)
+    if not graph_path.is_file():
+        print(f"Graph file not found: {graph_path}; run ./omni graph build first", file=sys.stderr)
+        return 1
+
+    result = omni_graph.why(graph_path, args.node)
+    if args.json:
+        print(json.dumps(result, indent=2))
+        return 0 if result.get("ok") else 1
+    if not result.get("ok"):
+        print(f"Could not uniquely resolve node. Matches: {result.get('matches')}", file=sys.stderr)
+        return 1
+
+    node = result["node"]
+    print(f"{node['name']} ({node['kind']})" + (f"  {node['file']}" if node.get("file") else ""))
+    if node.get("summary"):
+        print(f"  {node['summary']}")
+    if not result["sections"]:
+        print("  Nothing in the governance or assurance layers touches this node.")
+        print("  (If you expected something, rebuild with `omni graph build` and check `omni graph show --all --layer governance`.)")
+        return 0
+    order = [
+        "requirements", "requirement", "files touched", "affected code", "changelog", "changelog entries", "commits", "fix commits",
+        "files modified", "files mentioned", "previous commit", "next commit", "test files", "tests", "test suites", "covers",
+        "guards", "regression tests", "failures", "repeats", "repeated by", "prevented by",
+        "rules and playbooks from those failures", "failures it prevents", "rules", "gaps",
+    ]
+    for section in sorted(result["sections"], key=lambda name: order.index(name) if name in order else len(order)):
+        items = result["sections"][section]
+        print(f"\n{section} ({len(items)})")
+        for item in items[: args.limit]:
+            extras = [item.get(key) for key in ("status", "date", "severity") if item.get(key)]
+            line = f"  {item['name']}" + (f"  [{', '.join(str(e) for e in extras)}]" if extras else "")
+            if item.get("summary"):
+                line += f"  {item['summary'][:110]}"
+            if item.get("via"):
+                line += f"  <{item['via'][:80]}>"
+            print(line)
+        if len(items) > args.limit:
+            print(f"  ... and {len(items) - args.limit} more (--limit or --json)")
+    return 0
+
+
+def run_graph_lineage(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+
+    graph_path = Path(args.graph)
+    if not graph_path.is_file():
+        print(f"Graph file not found: {graph_path}; run ./omni graph build first", file=sys.stderr)
+        return 1
+
+    direction = "up" if args.up and not args.down else "down" if args.down and not args.up else "both"
+    result = omni_graph.lineage(graph_path, args.node, direction=direction, depth=max(1, args.depth), include_code=args.code, limit=max(1, args.max_nodes))
+    if args.json:
+        print(json.dumps(result, indent=2))
+        return 0 if result.get("ok") else 1
+    if not result.get("ok"):
+        print(f"Could not uniquely resolve node. Matches: {result.get('matches')}", file=sys.stderr)
+        return 1
+
+    node = result["node"]
+    print(f"{node['name']} ({node['kind']})" + (f"  {node['file']}" if node.get("file") else ""))
+    if node.get("summary"):
+        print(f"  {node['summary'][:140]}")
+    for label, key, arrow in (("Upstream: what led to it", "upstream", "^"), ("Downstream: what came from it", "downstream", "v")):
+        if (key == "upstream" and direction == "down") or (key == "downstream" and direction == "up"):
+            continue
+        items = result[key]
+        dropped = result["truncated"][key]
+        print(f"\n{label} ({len(items)}{'+' + str(dropped) if dropped else ''})")
+        if not items:
+            print("  (nothing)")
+            continue
+        by_kind: dict[str, list[dict[str, Any]]] = {}
+        for item in items:
+            by_kind.setdefault(item["kind"], []).append(item)
+        for kind_name, group in sorted(by_kind.items(), key=lambda pair: (min(i["depth"] for i in pair[1]), pair[0])):
+            print(f"  {kind_name} ({len(group)})")
+            for item in group[: args.limit]:
+                extras = [item.get(k) for k in ("status", "date", "severity") if item.get(k)]
+                line = f"    {arrow}{item['depth']} {item['name']}" + (f"  [{', '.join(str(e) for e in extras)}]" if extras else "")
+                if item.get("summary"):
+                    line += f"  {item['summary'][:90]}"
+                print(line + f"  <{item['via']}>")
+            if len(group) > args.limit:
+                print(f"    ... and {len(group) - args.limit} more (--limit or --json)")
+    if any(result["truncated"].values()):
+        print(f"\nStopped at {args.max_nodes} nodes per direction, nearest first. Narrow with --depth, or raise --max-nodes.")
+    return 0
+
+
+# --------------------------------------------------------------------------
+# Failure ledger: what went wrong, why, and what now prevents it
+# --------------------------------------------------------------------------
+
+FAILURE_STATUSES = ["open", "fixed", "mitigated", "wontfix"]
+FAILURE_LIST_FIELDS = ("affected", "fix_commits", "regression_tests", "prevention_rules")
+
+
+def failure_ledger_path() -> Path:
+    return Path(omni_graph.graph_config(Path("."))["failure_ledger"]) if omni_graph else FAILURE_LEDGER_PATH
+
+
+def test_suites_path() -> Path:
+    return Path(omni_graph.graph_config(Path("."))["test_suites_file"]) if omni_graph else TEST_SUITES_PATH
+
+
+def load_failure_ledger() -> dict[str, Any]:
+    if failure_ledger_path().is_file():
+        return load_json(failure_ledger_path())
+    return {"version": "1.0.0", "failure_id_prefix": "FAIL", "failures": []}
+
+
+def next_failure_id(ledger: dict[str, Any]) -> str:
+    prefix = str(ledger.get("failure_id_prefix", "FAIL"))
+    numbers = [
+        int(match.group(1))
+        for item in ledger.get("failures", [])
+        if isinstance(item, dict) and (match := re.fullmatch(rf"{re.escape(prefix)}-(\d+)", str(item.get("id", ""))))
+    ]
+    return f"{prefix}-{(max(numbers) + 1) if numbers else 1:03d}"
+
+
+def normalize_failure_id(value: str, ledger: dict[str, Any]) -> str:
+    value = value.strip().upper()
+    if value.isdigit():
+        return f"{ledger.get('failure_id_prefix', 'FAIL')}-{int(value):03d}"
+    return value
+
+
+def find_failure(ledger: dict[str, Any], failure_id: str) -> dict[str, Any] | None:
+    wanted = normalize_failure_id(failure_id, ledger)
+    for item in ledger.get("failures", []):
+        if isinstance(item, dict) and item.get("id") == wanted:
+            return item
+    return None
+
+
+def format_failure(item: dict[str, Any]) -> str:
+    lines = [f"{item.get('id')}  [{item.get('status')}]  {item.get('title')}"]
+    for label, key in (
+        ("date", "date"), ("severity", "severity"), ("requirement", "requirement"), ("symptom", "symptom"),
+        ("how detected", "how_detected"), ("root cause", "root_cause"), ("fix", "fix_summary"),
+        ("no test because", "no_test_reason"), ("prevention notes", "prevention_notes"), ("repeats", "recurrence_of"),
+    ):
+        if item.get(key):
+            lines.append(f"  {label}: {item[key]}")
+    for label, key in (
+        ("affected", "affected"), ("fix commits", "fix_commits"), ("regression tests", "regression_tests"),
+        ("prevention rules", "prevention_rules"),
+    ):
+        if item.get(key):
+            lines.append(f"  {label}: {', '.join(str(v) for v in item[key])}")
+    return "\n".join(lines)
+
+
+def run_failure_add(args: argparse.Namespace) -> int:
+    ledger = load_failure_ledger()
+    failure_id = args.id or next_failure_id(ledger)
+    if find_failure(ledger, failure_id) is not None:
+        print(f"Failure already exists: {failure_id}", file=sys.stderr)
+        return 1
+    if args.requirement and known_requirement_ids() and normalize_requirement_id(args.requirement) not in known_requirement_ids():
+        print(f"Warning: {args.requirement} is not in the requirements registry.", file=sys.stderr)
+    item: dict[str, Any] = {
+        "id": failure_id,
+        "date": args.date or datetime.now().strftime("%Y-%m-%d"),
+        "title": args.title,
+        "status": args.status,
+        "severity": args.severity,
+        "symptom": args.symptom,
+        "how_detected": args.detected or "",
+        "root_cause": args.root_cause or "",
+        "requirement": normalize_requirement_id(args.requirement) if args.requirement else "",
+        "affected": split_csv(args.affected),
+        "fix_summary": args.fix or "",
+        "fix_commits": split_csv(args.commits),
+        "regression_tests": split_csv(args.tests),
+        "no_test_reason": args.no_test_reason or "",
+        "prevention_rules": split_csv(args.prevention_rules),
+        "prevention_notes": args.prevention_notes or "",
+        "recurrence_of": normalize_failure_id(args.recurrence_of, ledger) if args.recurrence_of else "",
+    }
+    ledger.setdefault("failures", []).append(item)
+    failure_ledger_path().parent.mkdir(parents=True, exist_ok=True)
+    write_json(failure_ledger_path(), ledger)
+    print(f"Recorded {failure_id}: {args.title}")
+    if item["recurrence_of"] and find_failure(ledger, item["recurrence_of"]) is None:
+        print(f"Warning: {item['recurrence_of']} is not in the ledger.", file=sys.stderr)
+    _print_failure_gaps(item)
+    return 0
+
+
+def _print_failure_gaps(item: dict[str, Any]) -> None:
+    gaps = omni_graph_failure_gaps(item)
+    for gap in gaps:
+        print(f"  still needed: {gap}")
+
+
+def omni_graph_failure_gaps(item: dict[str, Any]) -> list[str]:
+    gaps = []
+    if item.get("status") in ("fixed", "mitigated"):
+        if not item.get("root_cause"):
+            gaps.append("root_cause (--root-cause): why it happened, not just what broke")
+        if not item.get("fix_summary"):
+            gaps.append("fix_summary (--fix)")
+        if not item.get("regression_tests") and not item.get("no_test_reason"):
+            gaps.append("a regression test (--tests) or an honest --no-test-reason")
+        if not item.get("prevention_rules") and not item.get("prevention_notes"):
+            gaps.append("what stops it recurring (--prevention-rules or --prevention-notes)")
+    elif item.get("status") == "open" and not item.get("root_cause"):
+        gaps.append("root_cause once it is understood (omni failure update --root-cause ...)")
+    return gaps
+
+
+def run_failure_list(args: argparse.Namespace) -> int:
+    ledger = load_failure_ledger()
+    items = [i for i in ledger.get("failures", []) if isinstance(i, dict) and (not args.status or i.get("status") == args.status)]
+    if not items:
+        print("No failures recorded." if not args.status else f"No failures with status {args.status}.")
+        return 0
+    for item in items:
+        tests = len(item.get("regression_tests") or [])
+        print(f"{item.get('id')}  {str(item.get('status')):<9}  {str(item.get('date', '')):<10}  {tests} test(s)  {item.get('title')}")
+    return 0
+
+
+def run_failure_show(args: argparse.Namespace) -> int:
+    ledger = load_failure_ledger()
+    item = find_failure(ledger, args.id)
+    if item is None:
+        print(f"Failure not found: {args.id}", file=sys.stderr)
+        return 1
+    print(format_failure(item))
+    return 0
+
+
+def run_failure_search(args: argparse.Namespace) -> int:
+    ledger = load_failure_ledger()
+    needle = args.text.lower()
+    hits = [i for i in ledger.get("failures", []) if isinstance(i, dict) and needle in json.dumps(i).lower()]
+    if not hits:
+        print("No matches.")
+        return 0
+    for item in hits:
+        print(f"{item.get('id')}  [{item.get('status')}]  {item.get('title')}")
+    return 0
+
+
+def run_failure_update(args: argparse.Namespace) -> int:
+    ledger = load_failure_ledger()
+    item = find_failure(ledger, args.id)
+    if item is None:
+        print(f"Failure not found: {args.id}", file=sys.stderr)
+        return 1
+    changed: list[str] = []
+    for field, value in (
+        ("status", args.status), ("severity", args.severity), ("title", args.title), ("symptom", args.symptom),
+        ("how_detected", args.detected), ("root_cause", args.root_cause), ("fix_summary", args.fix),
+        ("no_test_reason", args.no_test_reason), ("prevention_notes", args.prevention_notes),
+    ):
+        if value:
+            item[field] = value
+            changed.append(field)
+    if args.requirement:
+        item["requirement"] = normalize_requirement_id(args.requirement)
+        changed.append("requirement")
+    if args.recurrence_of:
+        item["recurrence_of"] = normalize_failure_id(args.recurrence_of, ledger)
+        changed.append("recurrence_of")
+    for field, value in (
+        ("affected", args.affected), ("fix_commits", args.commits), ("regression_tests", args.tests),
+        ("prevention_rules", args.prevention_rules),
+    ):
+        additions = [v for v in split_csv(value) if v not in (item.get(field) or [])]
+        if additions:
+            item[field] = list(item.get(field) or []) + additions
+            changed.append(field)
+    if not changed:
+        print("Nothing to update: pass --status, --root-cause, --fix, --tests, --prevention-rules, etc.", file=sys.stderr)
+        return 1
+    write_json(failure_ledger_path(), ledger)
+    print(f"Updated {item['id']} ({', '.join(changed)}); status is {item.get('status')}.")
+    _print_failure_gaps(item)
+    return 0
+
+
+def run_failure_check(args: argparse.Namespace) -> int:
+    """Ledger completeness, plus whether every reference resolves to something real."""
+    problems: list[str] = []
+    if not failure_ledger_path().is_file():
+        print("No failure ledger yet; nothing to check.")
+        return 0
+    if omni_graph is not None:
+        problems.extend(omni_graph.check_failure_ledger(Path("."))["problems"])
+    ledger = load_failure_ledger()
+    ids = known_requirement_ids()
+    known = {i.get("id") for i in ledger.get("failures", []) if isinstance(i, dict)}
+    for item in ledger.get("failures", []):
+        if not isinstance(item, dict):
+            continue
+        fid = item.get("id")
+        if item.get("requirement") and ids and item["requirement"] not in ids:
+            problems.append(f"{fid}: requirement {item['requirement']} is not in the registry")
+        if item.get("recurrence_of") and item["recurrence_of"] not in known:
+            problems.append(f"{fid}: recurrence_of {item['recurrence_of']} is not in the ledger")
+        for path in list(item.get("regression_tests") or []) + list(item.get("affected") or []):
+            file_part = re.split(r"::|#", str(path))[0]
+            file_part = re.sub(r":\d+(?:-\d+)?$", "", file_part)
+            if ("/" in file_part or re.search(r"\.\w{1,5}$", file_part)) and not Path(file_part).exists():
+                problems.append(f"{fid}: '{path}' does not exist on disk")
+        rule_ids = _all_rule_ids()
+        for ref in item.get("prevention_rules") or []:
+            if ref not in rule_ids and not Path(str(ref)).exists():
+                problems.append(f"{fid}: prevention rule '{ref}' is neither a rule id in .ai/rules nor an existing file")
+    if problems:
+        print(f"Failure ledger: {len(problems)} problem(s)")
+        for problem in problems:
+            print(f"  - {problem}")
+        return 1
+    print(f"Failure ledger OK ({len(known)} failure(s)).")
+    return 0
+
+
+def _all_rule_ids() -> set[str]:
+    ids: set[str] = set()
+    for file_path in RULEPACK_FILES:
+        try:
+            pack = load_json(Path(file_path))
+        except (OSError, json.JSONDecodeError):
+            continue
+        for rule in pack.get("rules", []) if isinstance(pack, dict) else []:
+            if isinstance(rule, dict) and rule.get("id"):
+                ids.add(str(rule["id"]))
+    return ids
+
+
+def known_requirement_ids() -> set[str]:
+    """Ids from the configured requirement files (any project's), else from the OmniEngineering registry."""
+    if omni_graph is not None:
+        ids = {item["id"] for item in omni_graph._load_requirement_items(Path("."))}
+        if ids:
+            return ids
+    return all_requirement_ids()
+
+
+def failures_referencing(requirement_id: str) -> list[str]:
+    ledger = load_failure_ledger() if failure_ledger_path().is_file() else {"failures": []}
+    return [str(i.get("id")) for i in ledger.get("failures", []) if isinstance(i, dict) and i.get("requirement") == requirement_id]
+
+
+# --------------------------------------------------------------------------
+# Test suites: which tests exist, where, and how to run them
+# --------------------------------------------------------------------------
+
+
+def project_source_files() -> list[str]:
+    if omni_graph is None:
+        return []
+    root = Path(".").resolve()
+    return sorted(
+        path.relative_to(root).as_posix()
+        for path, _language in omni_graph.discover_source_files(root, sorted(omni_graph.language_extensions()))
+    )
+
+
+def load_test_suites_config() -> dict[str, Any]:
+    if test_suites_path().is_file():
+        return load_json(test_suites_path())
+    return {"version": "1.0.0", "suites": []}
+
+
+def suite_entry(suite: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": suite["id"], "name": suite.get("name") or suite["id"], "kind": suite.get("kind") or "unit",
+        "framework": suite.get("framework") or "", "paths": list(suite.get("paths") or []),
+        "command": suite.get("command") or "", "covers": list(suite.get("covers") or []), "notes": suite.get("notes") or "",
+    }
+
+
+def run_test_detect(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+    files = project_source_files()
+    registered = omni_graph.resolve_test_suites(Path("."), files)
+    proposals = registered["auto"]
+    if args.json:
+        print(json.dumps({"registered": [s["id"] for s in registered["manual"]], "detected": proposals}, indent=2))
+    elif not proposals:
+        print(f"Nothing new: every detected test file is already in a registered suite ({len(registered['manual'])} registered).")
+    else:
+        print(f"{len(proposals)} detected suite(s) not yet in {test_suites_path()}:")
+        for suite in proposals:
+            print(f"\n  {suite['id']}  [{suite['kind']}, {suite['framework']}]  {len(suite['files'])} file(s)")
+            print(f"    paths:   {', '.join(suite['paths'][:6])}{' ...' if len(suite['paths']) > 6 else ''}")
+            print(f"    command: {suite['command'] or '(unknown; pass --command to omni test add)'}")
+            if suite["covers"]:
+                print(f"    covers:  {', '.join(suite['covers'])}")
+    if args.write and proposals:
+        config = load_test_suites_config()
+        config.setdefault("suites", []).extend(suite_entry(s) for s in proposals)
+        test_suites_path().parent.mkdir(parents=True, exist_ok=True)
+        write_json(test_suites_path(), config)
+        print(f"\nRegistered {len(proposals)} suite(s) in {test_suites_path()}. Review the commands and paths, then `omni graph build`.")
+    elif proposals and not args.json:
+        print("\nRegister them with `omni test detect --write`, or add one by hand with `omni test add`.")
+    return 0
+
+
+def run_test_add(args: argparse.Namespace) -> int:
+    config = load_test_suites_config()
+    suite_id = args.id or re.sub(r"[^a-z0-9]+", "-", args.name.lower()).strip("-")
+    if any(isinstance(s, dict) and s.get("id") == suite_id for s in config.get("suites", [])):
+        print(f"Test suite already exists: {suite_id} (remove it first with `omni test remove {suite_id}`)", file=sys.stderr)
+        return 1
+    paths = split_csv(args.paths)
+    if not paths:
+        print("--paths is required: files, directories or globs that hold this suite's tests.", file=sys.stderr)
+        return 1
+    if omni_graph is not None and not args.allow_missing:
+        _files, gone = omni_graph._expand_suite_paths(Path("."), paths, project_source_files())
+        if gone:
+            print(f"These paths match no source file: {', '.join(gone)}. Fix them, or pass --allow-missing.", file=sys.stderr)
+            return 1
+    config.setdefault("suites", []).append(suite_entry({
+        "id": suite_id, "name": args.name, "kind": args.kind, "framework": args.framework, "paths": paths,
+        "command": args.run_command, "covers": split_csv(args.covers), "notes": args.notes,
+    }))
+    test_suites_path().parent.mkdir(parents=True, exist_ok=True)
+    write_json(test_suites_path(), config)
+    print(f"Registered test suite {suite_id}: {args.name}")
+    return 0
+
+
+def run_test_remove(args: argparse.Namespace) -> int:
+    config = load_test_suites_config()
+    before = len(config.get("suites", []))
+    config["suites"] = [s for s in config.get("suites", []) if not (isinstance(s, dict) and s.get("id") == args.id)]
+    if len(config["suites"]) == before:
+        print(f"Test suite not found: {args.id}", file=sys.stderr)
+        return 1
+    write_json(test_suites_path(), config)
+    print(f"Removed test suite {args.id}")
+    return 0
+
+
+def run_test_list(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+    resolved = omni_graph.resolve_test_suites(Path("."), project_source_files())
+    if not resolved["suites"]:
+        print("No test suites registered or detected.")
+        return 0
+    for suite in resolved["suites"]:
+        tag = "registered" if suite["source"] == "manual" else "detected  "
+        print(f"{tag}  {suite['id']:<32} {suite['kind']:<11} {suite['framework']:<10} {len(suite['files']):>3} file(s)  {suite['command'] or '-'}")
+    return 0
+
+
+def run_test_check(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+    result = omni_graph.check_test_suites(Path("."), project_source_files())
+    if not result["present"]:
+        print(f"No {test_suites_path()} yet; run `omni test detect --write` to register what was found.")
+    for problem in result["problems"]:
+        print(f"  - {problem}")
+    if result["unregistered_files"]:
+        print(f"note: {len(result['unregistered_files'])} detected test file(s) are not in a registered suite: run `omni test detect`.")
+    if result["problems"]:
+        return 1
+    print(f"Test suites OK ({result['suites']} registered).")
+    return 0
+
+
 def run_graph_render(args: argparse.Namespace) -> int:
     if not require_omni_graph():
         return 1
@@ -1719,6 +2806,7 @@ def run_graph_render(args: argparse.Namespace) -> int:
         max_nodes=args.max_nodes,
         focus=args.focus,
         depth=args.depth,
+        all_layers=args.all_layers,
     )
     if not result.get("ok"):
         print(f"Could not resolve --focus symbol: {args.focus}", file=sys.stderr)
@@ -1803,11 +2891,13 @@ def run_context(args: argparse.Namespace) -> int:
         else:
             print(f"- {file_path} (missing)")
     print("")
+    print("Requirements: never read the registry in full. Use `./omni requirement list --status pending`,")
+    print("`./omni requirement show <ID>`, or `./omni requirement search <text>`.")
     print("Then inspect only the task-relevant project files selected from .ai/project-map.md.")
     return 0
 
 
-def run_doctor() -> int:
+def build_doctor_report() -> DoctorReport:
     report = DoctorReport()
     verify_required_ai_files(report)
     parsed = validate_json_files(report)
@@ -1815,6 +2905,9 @@ def run_doctor() -> int:
     validate_ruleset(parsed.get(".ai/rules/universal-engineering-ruleset.json"), report)
     validate_rulepacks(parsed, report)
     validate_requirements(parsed.get(".ai/requirements/requirements.json"), report)
+    validate_failure_ledger(parsed.get(".ai/failures/failure-ledger.json"), report)
+    validate_test_suites(parsed.get(".ai/test-suites.json"), report)
+    validate_graph_config(report)
     validate_assistant_pointers(report)
     validate_entrypoint_sources(report)
     validate_synced_ignore_files(report)
@@ -1827,6 +2920,11 @@ def run_doctor() -> int:
     validate_cli_entrypoints(report)
     validate_agent_team(report)
     validate_omni_version_present(report)
+    return report
+
+
+def run_doctor() -> int:
+    report = build_doctor_report()
     report.print()
     return 0 if report.ok else 1
 
@@ -1911,6 +3009,16 @@ def copy_adoption_path(source_root: Path, target_root: Path, relative_path: str,
         )
     else:
         shutil.copy2(source, target)
+    if relative_path == ".ai":
+        # The source repository's own failure history and test suites are not the adopter's; ship empty ones.
+        for reset_path, empty in (
+            (FAILURE_LEDGER_PATH, {"version": "1.0.0", "failure_id_prefix": "FAIL", "failures": []}),
+            (TEST_SUITES_PATH, {"version": "1.0.0", "suites": []}),
+        ):
+            if (target_root / reset_path).is_file():
+                write_json(target_root / reset_path, empty)
+        # graph-config.json in this repository marks OmniEngineering itself as the project; an adopter's differs.
+        (target_root / ".ai/graph-config.json").unlink(missing_ok=True)
     return f"copied: {relative_path}"
 
 
@@ -2323,11 +3431,7 @@ def run_requirement_add(args: argparse.Namespace) -> int:
         "risk_notes": split_csv(args.risks),
     }
 
-    existing_ids = {
-        requirement.get("id")
-        for requirement in requirements.get("requirements", [])
-        if isinstance(requirement, dict)
-    }
+    existing_ids = all_requirement_ids()
     if requirement_id in existing_ids:
         print(f"Requirement already exists: {requirement_id}", file=sys.stderr)
         return 1
@@ -2335,6 +3439,826 @@ def run_requirement_add(args: argparse.Namespace) -> int:
     requirements.setdefault("requirements", []).append(new_requirement)
     write_json(path, requirements)
     print(f"Added requirement {requirement_id}: {args.title}")
+    return 0
+
+
+def infer_draft_category(paths: list[str]) -> str:
+    """A deterministic, no-model guess at a requirement category from the files a change touched.
+
+    It only has to be a reasonable starting point: `omni requirement draft` always leaves the entry in
+    `proposed` status, so a human corrects the category (and everything else) before it is trusted."""
+    lowered = [p.lower() for p in paths]
+    if not lowered:
+        return "Process"
+    if all(p.endswith(".md") or p.endswith(".txt") for p in lowered):
+        return "Documentation"
+    if any(p.startswith(("tests/", "test/")) or "/tests/" in p or "/test/" in p or Path(p).name.startswith(("test_", "test-")) for p in lowered):
+        return "Testing"
+    if any(p.startswith((".github/workflows/", ".githooks/")) or Path(p).name in ("dockerfile", "docker-compose.yml", "docker-compose.yaml") for p in lowered):
+        return "Process"
+    if any("fix" in p or "bug" in p or "hotfix" in p for p in lowered):
+        return "Defect"
+    return "Feature"
+
+
+def draft_changed_paths(commit: str | None) -> list[str] | None:
+    """The files a draft should be scoped to: one named commit, or everything `omni gate` would currently check."""
+    if commit:
+        top = git_run("rev-parse", "--show-toplevel")
+        if top is None:
+            return None
+        # --root: without it, diff-tree shows nothing for a repository's first commit (it has no parent to diff against).
+        listing = git_run("diff-tree", "--no-commit-id", "--name-only", "-r", "--root", commit)
+        return sorted({line.strip() for line in (listing or "").splitlines() if line.strip()})
+    base = gate_base_commit()
+    return sorted(gate_changed_paths(base))
+
+
+def draft_existing_requirement_ids(text: str) -> list[str]:
+    prefix = str(load_json(REQUIREMENTS_PATH).get("requirement_id_prefix", "REQ")) if REQUIREMENTS_PATH.is_file() else "REQ"
+    return sorted(set(re.findall(rf"\b{re.escape(prefix)}-\d+\b", text)))
+
+
+def insert_changelog_draft(req_id: str, category: str, title: str) -> None:
+    path = Path("CHANGELOG.md")
+    today = datetime.now().strftime("%Y-%m-%d")
+    bullet = (
+        f"- `{req_id}` | {category} | DRAFT: {title}\n"
+        f"  - Generated by `omni requirement draft`. Replace this line and the requirement's description, "
+        f"acceptance criteria and validation, then move the requirement out of `proposed` status.\n"
+    )
+    if not path.is_file():
+        path.write_text(f"# Changelog\n\n## {today}\n\n### Proposed\n\n{bullet}\n", encoding="utf-8")
+        return
+    text = path.read_text(encoding="utf-8")
+    heading_match = re.search(r"^## (\S+)", text, re.MULTILINE)
+    if heading_match and heading_match.group(1) == today:
+        section_match = re.search(r"^### Proposed\s*\n\n", text[heading_match.end():], re.MULTILINE)
+        if section_match:
+            insert_at = heading_match.end() + section_match.end()
+            text = text[:insert_at] + bullet + text[insert_at:]
+        else:
+            insert_at = heading_match.end()
+            # right after today's date heading, before whatever subsection (usually "### Completed") comes next
+            text = text[:insert_at] + f"\n\n### Proposed\n\n{bullet}" + text[insert_at:].lstrip("\n")
+    else:
+        insert_at = heading_match.start() if heading_match else len(text.split("\n", 1)[0]) + 1
+        text = text[:insert_at] + f"## {today}\n\n### Proposed\n\n{bullet}\n" + text[insert_at:]
+    path.write_text(text, encoding="utf-8")
+
+
+def run_requirement_draft(args: argparse.Namespace) -> int:
+    paths = draft_changed_paths(args.commit)
+    if paths is None:
+        print("omni requirement draft: not inside a git repository.", file=sys.stderr)
+        return 1
+    if not paths:
+        print("Nothing to draft: no changed paths " + (f"in {args.commit}" if args.commit else "against the gate's base commit") + ".", file=sys.stderr)
+        return 1
+
+    scan_text = ""
+    if args.commit:
+        scan_text = git_run("show", "-s", "--format=%B", args.commit) or ""
+    existing = draft_existing_requirement_ids(scan_text) if scan_text else []
+    if existing and not args.force:
+        print(f"Already recorded under {', '.join(existing)}; not drafting a duplicate (use --force to draft anyway).", file=sys.stderr)
+        return 0
+
+    title = args.title
+    if not title and args.commit:
+        title = (git_run("show", "-s", "--format=%s", args.commit) or "").strip()
+    if not title:
+        title = f"{len(paths)} file(s) changed -- replace this title"
+    category = args.category or infer_draft_category(paths)
+    requirements = load_json(REQUIREMENTS_PATH) if REQUIREMENTS_PATH.is_file() else {"requirement_id_prefix": "REQ", "requirements": []}
+    requirement_id = args.id or next_requirement_id(requirements)
+
+    source = f"commit {args.commit}" if args.commit else "the current change set"
+    add_args = argparse.Namespace(
+        id=requirement_id, category=category, title=title,
+        description=(
+            f"DRAFT -- generated by `omni requirement draft` from {source} on {datetime.now().strftime('%Y-%m-%d')}. "
+            "Replace this description, the acceptance criteria and the validation steps, then set --status once reviewed."
+        ),
+        priority="low", status="proposed", scope=",".join(paths[:60]) + (f",... and {len(paths) - 60} more" if len(paths) > 60 else ""),
+        # no commas in these: split_csv() below would fragment a plain sentence into several list items
+        acceptance="Reviewed and rewritten by a person rather than left as the auto-generated draft",
+        validation="", docs="",
+        risks="Auto-drafted: category and scope are a starting point rather than a verified claim",
+    )
+    result = run_requirement_add(add_args)
+    if result != 0:
+        return result
+    if not args.no_changelog:
+        insert_changelog_draft(requirement_id, category, title)
+        print(f"Drafted a Proposed entry in CHANGELOG.md for {requirement_id}.")
+    print(f"Review and edit {requirement_id} (`omni requirement show {requirement_id}`), then `omni requirement update {requirement_id} --status ...`.")
+    return 0
+
+
+# --------------------------------------------------------------------------
+# Project configuration helpers
+# --------------------------------------------------------------------------
+
+
+def project_configuration() -> dict[str, Any]:
+    try:
+        data = load_json(RULESET_PATH)
+    except (OSError, json.JSONDecodeError):
+        return {}
+    config = data.get("configuration") if isinstance(data, dict) else None
+    return config if isinstance(config, dict) else {}
+
+
+def classification_banner() -> str | None:
+    value = project_configuration().get("classification_banner")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return None
+
+
+def classification_block() -> str:
+    banner = classification_banner()
+    return f"**Classification:** {banner}\n\n" if banner else ""
+
+
+def configured_allowed_root_paths() -> set[str]:
+    value = project_configuration().get("allowed_root_paths")
+    if not isinstance(value, list):
+        return set()
+    return {str(item).rstrip("/") for item in value if isinstance(item, str) and item.strip()}
+
+
+def is_git_ignored(path: str) -> bool:
+    try:
+        result = subprocess.run(
+            ["git", "check-ignore", "-q", "--", path],
+            capture_output=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return result.returncode == 0
+
+
+# --------------------------------------------------------------------------
+# Requirements registry: query, update, archive
+# --------------------------------------------------------------------------
+
+
+def normalize_requirement_id(value: str) -> str:
+    value = value.strip().upper()
+    if value.isdigit():
+        prefix = "REQ"
+        if REQUIREMENTS_PATH.is_file():
+            try:
+                prefix = str(load_json(REQUIREMENTS_PATH).get("requirement_id_prefix", "REQ"))
+            except (OSError, json.JSONDecodeError):
+                pass
+        return f"{prefix}-{int(value):03d}"
+    return value
+
+
+def all_requirement_ids() -> set[str]:
+    ids: set[str] = set()
+    for path in (REQUIREMENTS_PATH, REQUIREMENTS_ARCHIVE_PATH):
+        if not path.is_file():
+            continue
+        try:
+            registry = load_json(path)
+        except (OSError, json.JSONDecodeError):
+            continue
+        for item in registry.get("requirements", []) if isinstance(registry, dict) else []:
+            if isinstance(item, dict) and isinstance(item.get("id"), str):
+                ids.add(item["id"])
+    return ids
+
+
+def find_requirement(requirement_id: str) -> tuple[Path, dict[str, Any], dict[str, Any]] | None:
+    wanted = normalize_requirement_id(requirement_id)
+    for path in (REQUIREMENTS_PATH, REQUIREMENTS_ARCHIVE_PATH):
+        if not path.is_file():
+            continue
+        registry = load_json(path)
+        for item in registry.get("requirements", []):
+            if isinstance(item, dict) and item.get("id") == wanted:
+                return path, registry, item
+    return None
+
+
+def load_requirement_items(include_archive: bool) -> tuple[list[dict[str, Any]], int]:
+    active = load_json(REQUIREMENTS_PATH).get("requirements", [])
+    archived: list[dict[str, Any]] = []
+    if REQUIREMENTS_ARCHIVE_PATH.is_file():
+        archived = load_json(REQUIREMENTS_ARCHIVE_PATH).get("requirements", [])
+    items = list(active) + (list(archived) if include_archive else [])
+    return [item for item in items if isinstance(item, dict)], len(archived)
+
+
+def format_requirement(item: dict[str, Any]) -> str:
+    lines = [
+        f"{item.get('id')}  [{item.get('status')}]  {item.get('priority')}  {item.get('category', '')}",
+        str(item.get("title", "")),
+        "",
+        str(item.get("description", "")),
+    ]
+    sections = (
+        ("Minimum access scope", "minimum_access_scope"),
+        ("Acceptance criteria", "acceptance_criteria"),
+        ("Validation required", "validation_required"),
+        ("Documentation required", "documentation_required"),
+        ("Risk notes", "risk_notes"),
+    )
+    for label, key in sections:
+        values = item.get(key) or []
+        if isinstance(values, str):
+            values = [values]
+        if values:
+            lines.extend(["", f"{label}:"])
+            lines.extend(f"  - {value}" for value in values)
+    return "\n".join(lines)
+
+
+def run_requirement_show(args: argparse.Namespace) -> int:
+    found = find_requirement(args.id)
+    if found is None:
+        print(f"Requirement not found: {args.id}", file=sys.stderr)
+        return 1
+    path, _registry, item = found
+    if args.json:
+        print(json.dumps(item, indent=2))
+        return 0
+    print(format_requirement(item))
+    if path == REQUIREMENTS_ARCHIVE_PATH:
+        print("\n(archived)")
+    return 0
+
+
+def run_requirement_list(args: argparse.Namespace) -> int:
+    items, archived_count = load_requirement_items(include_archive=args.all)
+    if args.status:
+        items = [item for item in items if item.get("status") in args.status]
+    if args.last:
+        items = items[-args.last:]
+    if args.json:
+        print(json.dumps(items, indent=2))
+        return 0
+    for item in items:
+        print(f"{item.get('id')}  {str(item.get('status')):<12}  {item.get('title')}")
+    note = f"{len(items)} shown"
+    if archived_count and not args.all:
+        note += f"; {archived_count} archived requirement(s) not listed (use --all or `show <ID>`)"
+    print(note, file=sys.stderr)
+    return 0
+
+
+def run_requirement_search(args: argparse.Namespace) -> int:
+    needle = " ".join(args.text).lower()
+    items, _ = load_requirement_items(include_archive=not args.active_only)
+    matches = 0
+    for item in items:
+        haystacks = {
+            "id": str(item.get("id", "")),
+            "title": str(item.get("title", "")),
+            "category": str(item.get("category", "")),
+            "description": str(item.get("description", "")),
+            "risk_notes": " ".join(str(v) for v in (item.get("risk_notes") or [])),
+            "acceptance_criteria": " ".join(str(v) for v in (item.get("acceptance_criteria") or [])),
+        }
+        fields = [name for name, text in haystacks.items() if needle in text.lower()]
+        if not fields:
+            continue
+        matches += 1
+        print(f"{item.get('id')}  {str(item.get('status')):<12}  {item.get('title')}  (matched: {', '.join(fields)})")
+    print(f"{matches} match(es)", file=sys.stderr)
+    return 0 if matches else 1
+
+
+def run_requirement_update(args: argparse.Namespace) -> int:
+    found = find_requirement(args.id)
+    if found is None:
+        print(f"Requirement not found: {args.id}", file=sys.stderr)
+        return 1
+    path, registry, item = found
+    changed: list[str] = []
+    for field in ("status", "title", "description"):
+        value = getattr(args, field, None)
+        if value:
+            item[field] = value
+            changed.append(field)
+    if args.note:
+        notes = item.get("risk_notes")
+        if not isinstance(notes, list):
+            notes = [notes] if isinstance(notes, str) and notes else []
+        notes.append(args.note)
+        item["risk_notes"] = notes
+        changed.append("risk_notes")
+    if not changed:
+        print("Nothing to update: pass --status, --title, --description, or --note.", file=sys.stderr)
+        return 1
+    write_json(path, registry)
+    print(f"Updated {item['id']} ({', '.join(changed)}); status is now {item.get('status')}.")
+    return 0
+
+
+DEFECT_CATEGORY = re.compile(r"defect|bug|fix|regress|incident|failure", re.IGNORECASE)
+
+
+def run_requirement_complete(args: argparse.Namespace) -> int:
+    found = find_requirement(args.id)
+    if found is not None and DEFECT_CATEGORY.search(str(found[2].get("category", ""))):
+        requirement_id = str(found[2].get("id"))
+        reason = (getattr(args, "no_failure_entry", None) or "").strip()
+        if not failures_referencing(requirement_id):
+            if len(reason) < 10:
+                print(
+                    f"{requirement_id} is a {found[2].get('category')} requirement, so completing it needs a failure-ledger entry\n"
+                    f"recording what broke, why (root cause), the regression test, and what prevents a repeat:\n"
+                    f'  ./omni failure add --requirement {requirement_id} --title "..." --symptom "..." --root-cause "..." --status fixed \\\n'
+                    f'      --fix "..." --tests <test path or name> --prevention-rules <rule id>\n'
+                    f'If this really was not a failure worth recording: --no-failure-entry "<why, 10+ chars>".',
+                    file=sys.stderr,
+                )
+                return 1
+            args.note = f"No failure-ledger entry: {reason}" + (f" | {args.note}" if getattr(args, "note", None) else "")
+    args.status = "completed"
+    args.title = None
+    args.description = None
+    return run_requirement_update(args)
+
+
+def run_requirement_archive(args: argparse.Namespace) -> int:
+    active = load_json(REQUIREMENTS_PATH)
+    items = active.get("requirements", [])
+    completed_positions = [
+        index for index, item in enumerate(items) if isinstance(item, dict) and item.get("status") == "completed"
+    ]
+    keep_positions = set(completed_positions[-args.keep_recent:]) if args.keep_recent > 0 else set()
+    archive_positions = [index for index in completed_positions if index not in keep_positions]
+    if not archive_positions:
+        print("Nothing to archive.")
+        return 0
+
+    to_archive = [items[index] for index in archive_positions]
+    remaining = [item for index, item in enumerate(items) if index not in set(archive_positions)]
+    print(
+        f"Archiving {len(to_archive)} completed requirement(s); "
+        f"{len(remaining)} stay active (all non-completed + the {args.keep_recent} most recent completed)."
+    )
+    if args.dry_run:
+        print("Dry run: no files written.")
+        return 0
+
+    if REQUIREMENTS_ARCHIVE_PATH.is_file():
+        archive = load_json(REQUIREMENTS_ARCHIVE_PATH)
+    else:
+        archive = {
+            "version": active.get("version", "1.0.0"),
+            "requirement_id_prefix": active.get("requirement_id_prefix", "REQ"),
+            "requirements": [],
+        }
+    known = {item.get("id") for item in archive.get("requirements", []) if isinstance(item, dict)}
+    archive.setdefault("requirements", []).extend(item for item in to_archive if item.get("id") not in known)
+    write_json(REQUIREMENTS_ARCHIVE_PATH, archive)
+    active["requirements"] = remaining
+    write_json(REQUIREMENTS_PATH, active)
+    print(f"Wrote {REQUIREMENTS_ARCHIVE_PATH} and {REQUIREMENTS_PATH}.")
+    return 0
+
+
+# --------------------------------------------------------------------------
+# Completion gate: turns rulepack `co_changed` validations into real checks
+# --------------------------------------------------------------------------
+
+
+def git_run(*args: str) -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", "-c", "core.quotepath=off", *args],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return result.stdout if result.returncode == 0 else None
+
+
+def glob_regex(pattern: str) -> "re.Pattern[str]":
+    out: list[str] = []
+    index = 0
+    while index < len(pattern):
+        if pattern.startswith("**/", index):
+            out.append("(?:.*/)?")
+            index += 3
+        elif pattern.startswith("**", index):
+            out.append(".*")
+            index += 2
+        elif pattern[index] == "*":
+            out.append("[^/]*")
+            index += 1
+        elif pattern[index] == "?":
+            out.append("[^/]")
+            index += 1
+        else:
+            out.append(re.escape(pattern[index]))
+            index += 1
+    return re.compile("^" + "".join(out) + "$")
+
+
+def matches_any(path: str, patterns: list[str]) -> bool:
+    return any(glob_regex(pattern).match(path) for pattern in patterns)
+
+
+def gate_base_commit() -> str | None:
+    head = git_run("rev-parse", "--verify", "-q", "HEAD")
+    if head is None:
+        return None
+    for ref in GATE_DEFAULT_BASE_REFS:
+        if git_run("rev-parse", "--verify", "-q", ref) is None:
+            continue
+        base = git_run("merge-base", "HEAD", ref)
+        if base and base.strip():
+            return base.strip()
+    return head.strip()
+
+
+def gate_changed_paths(base: str | None) -> set[str]:
+    paths: set[str] = set()
+    if base:
+        diff = git_run("diff", "--name-only", "--no-renames", base)
+    else:
+        diff = git_run("diff", "--name-only", "--no-renames", "--cached")
+    for line in (diff or "").splitlines():
+        if line.strip():
+            paths.add(line.strip())
+    for line in (git_run("ls-files", "--others", "--exclude-standard") or "").splitlines():
+        if line.strip():
+            paths.add(line.strip())
+    return paths
+
+
+# Kept in step with every validation type a check function below actually implements. A rule can declare a
+# validation the gate does not (yet) execute; gate_rules() silently skips those rather than crashing on them,
+# but "declared and silently never checked" is exactly the trap this set exists to avoid falling into by accident.
+EXECUTABLE_VALIDATION_TYPES = {"co_changed", "requirement_registry_entry", "content_forbidden"}
+
+
+def gate_rules() -> list[dict[str, Any]]:
+    rules: list[dict[str, Any]] = []
+    for file_path in RULEPACK_FILES:
+        try:
+            rulepack = load_json(Path(file_path))
+        except (OSError, json.JSONDecodeError):
+            continue
+        for rule in rulepack.get("rules", []) if isinstance(rulepack, dict) else []:
+            validation = rule.get("validation") if isinstance(rule, dict) else None
+            if (
+                isinstance(validation, dict)
+                and validation.get("type") in EXECUTABLE_VALIDATION_TYPES
+                and rule.get("severity") == "required"
+            ):
+                rules.append(rule)
+    return rules
+
+
+def _gate_check_co_changed(rule: dict[str, Any], validation: dict[str, Any], changed: set[str]) -> str | None:
+    when = [str(p) for p in validation.get("when_changed", ["**"])]
+    ignore = [str(p) for p in validation.get("ignore", [])]
+    must = [str(p) for p in validation.get("must_also_change", [])]
+    triggers = sorted(p for p in changed if matches_any(p, when) and not matches_any(p, ignore))
+    if not triggers or not must or any(matches_any(p, must) for p in changed):
+        return None
+    rule_id = str(rule["id"])
+    example = ", ".join(triggers[:2]) + (f" (+{len(triggers) - 2} more)" if len(triggers) > 2 else "")
+    return (
+        f"{rule_id}: {len(triggers)} changed file(s) [{example}] need a matching change to "
+        f"{' or '.join(must)}. If genuinely not applicable: "
+        f'./omni waive {rule_id} --reason "<why>"'
+    )
+
+
+def _gate_check_requirement_registry_entry(rule: dict[str, Any], validation: dict[str, Any], changed: set[str], base: str | None) -> str | None:
+    """Every requirement id cited by this change (in a commit message since the base, or newly added to
+    CHANGELOG.md) must actually exist in the requirements registry. The registry's own schema validation
+    (which `omni doctor`, and so every `omni gate` call, already runs) only checks the registry's own
+    shape; it cannot see a typo'd or invented REQ-### that some other file merely claims about it."""
+    target = Path(str(validation.get("target", REQUIREMENTS_PATH)))
+    try:
+        prefix = str(load_json(target).get("requirement_id_prefix", "REQ")) if target.is_file() else "REQ"
+    except (OSError, json.JSONDecodeError):
+        return None  # a malformed registry is already reported by doctor; do not double up here
+    pattern = re.compile(rf"\b{re.escape(prefix)}-\d+\b")
+    cited: set[str] = set()
+    if base:
+        cited.update(pattern.findall(git_run("log", f"{base}..HEAD", "--format=%B") or ""))
+    if "CHANGELOG.md" in changed and Path("CHANGELOG.md").is_file():
+        cited.update(pattern.findall(Path("CHANGELOG.md").read_text(encoding="utf-8", errors="replace")))
+    if not cited:
+        return None
+    unknown = sorted(cited - all_requirement_ids())
+    if not unknown:
+        return None
+    rule_id = str(rule["id"])
+    return (
+        f"{rule_id}: {', '.join(unknown)} cited (in a commit message or CHANGELOG.md) but not found in "
+        f"{target}. Fix the typo, or add it: ./omni requirement add --id {unknown[0]} ..."
+    )
+
+
+def _gate_check_content_forbidden(rule: dict[str, Any], validation: dict[str, Any], changed: set[str]) -> str | None:
+    """A lightweight, honest safety net -- a handful of regexes for the most common accidental leaks (a
+    private-key header, an AWS-shaped access key, an obviously hardcoded credential) -- not a claim of
+    exhaustive secret scanning. Skips this rulepack's own files, whose JSON literally contains the pattern
+    source text and would otherwise flag itself."""
+    when = [str(p) for p in validation.get("when_changed", ["**"])]
+    ignore = [str(p) for p in validation.get("ignore", [])] + list(RULEPACK_FILES)
+    compiled: list[tuple[re.Pattern[str], str]] = []
+    for entry in validation.get("patterns", []):
+        try:
+            compiled.append((re.compile(str(entry["pattern"])), str(entry.get("message", "matches a forbidden pattern"))))
+        except (KeyError, re.error):
+            continue
+    if not compiled:
+        return None
+    hits: list[str] = []
+    for path_str in sorted(changed):
+        if not matches_any(path_str, when) or matches_any(path_str, ignore):
+            continue
+        path = Path(path_str)
+        if not path.is_file():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        for regex, message in compiled:
+            found = regex.search(text)
+            if found:
+                line = text.count("\n", 0, found.start()) + 1
+                hits.append(f"{path_str}:{line} {message}")
+                break  # one hit is enough to flag the file; this is a net, not a full audit
+    if not hits:
+        return None
+    rule_id = str(rule["id"])
+    example = "; ".join(hits[:3]) + (f" (+{len(hits) - 3} more)" if len(hits) > 3 else "")
+    return f"{rule_id}: {example}"
+
+
+def gate_waivers(base: str | None) -> dict[str, str]:
+    if not GATE_WAIVERS_PATH.is_file():
+        return {}
+    tracked = git_run("ls-files", "--error-unmatch", "--", str(GATE_WAIVERS_PATH)) is not None
+    if tracked:
+        if not base:
+            return {}
+        diff = git_run("diff", "--unified=0", "--no-color", base, "--", str(GATE_WAIVERS_PATH)) or ""
+        lines = [line[1:] for line in diff.splitlines() if line.startswith("+") and not line.startswith("+++")]
+    else:
+        lines = GATE_WAIVERS_PATH.read_text(encoding="utf-8").splitlines()
+    waivers: dict[str, str] = {}
+    for line in lines:
+        try:
+            entry = json.loads(line)
+        except ValueError:
+            continue
+        reason = str(entry.get("reason", "")).strip() if isinstance(entry, dict) else ""
+        if isinstance(entry, dict) and entry.get("rule") and len(reason) >= 10:
+            waivers[str(entry["rule"])] = reason
+    return waivers
+
+
+def gate_evaluate(changed: set[str], waivers: dict[str, str], base: str | None = None) -> tuple[list[str], list[str]]:
+    failures: list[str] = []
+    waived: list[str] = []
+    for rule in gate_rules():
+        validation = rule["validation"]
+        vtype = validation.get("type")
+        if vtype == "co_changed":
+            failure = _gate_check_co_changed(rule, validation, changed)
+        elif vtype == "requirement_registry_entry":
+            failure = _gate_check_requirement_registry_entry(rule, validation, changed, base)
+        elif vtype == "content_forbidden":
+            failure = _gate_check_content_forbidden(rule, validation, changed)
+        else:
+            continue
+        if failure is None:
+            continue
+        rule_id = str(rule["id"])
+        if rule_id in waivers:
+            waived.append(f"{rule_id}: waived ({waivers[rule_id]})")
+            continue
+        failures.append(failure)
+    return failures, waived
+
+
+def gate_state_file() -> Path | None:
+    git_dir = git_run("rev-parse", "--git-dir")
+    return Path(git_dir.strip()) / "omni-gate-last.json" if git_dir else None
+
+
+def gate_signature(failures: list[str], changed: set[str]) -> str:
+    parts = sorted(failures)
+    for path in sorted(changed):
+        try:
+            parts.append(f"{path}:{Path(path).stat().st_mtime_ns}")
+        except OSError:
+            parts.append(f"{path}:gone")
+    return hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()
+
+
+def run_gate(args: argparse.Namespace) -> int:
+    top = git_run("rev-parse", "--show-toplevel")
+    if top is None:
+        print("omni gate: not inside a git repository; nothing to check.")
+        return 0
+    os.chdir(top.strip())
+
+    hook_input: dict[str, Any] = {}
+    if args.hook and not sys.stdin.isatty():
+        try:
+            parsed = json.loads(sys.stdin.read() or "{}")
+            hook_input = parsed if isinstance(parsed, dict) else {}
+        except (ValueError, OSError):
+            hook_input = {}
+    if args.hook and hook_input.get("stop_hook_active"):
+        return 0
+
+    base = gate_base_commit()
+    changed = gate_changed_paths(base)
+    failures: list[str] = []
+    waived: list[str] = []
+    if changed:
+        doctor = build_doctor_report()
+        failures.extend(f"doctor: {message}" for message in doctor.errors)
+        rule_failures, waived = gate_evaluate(changed, gate_waivers(base), base)
+        failures.extend(rule_failures)
+
+    if not failures:
+        if not args.hook:
+            print(f"omni gate: PASS ({len(changed)} changed path(s) checked)")
+            for note in waived:
+                print(f"  waived  {note}")
+        return 0
+
+    lines = ["omni gate: completion gates NOT satisfied"]
+    lines.extend(f"  - {failure}" for failure in failures)
+    lines.append("Do not report this task complete until `./omni gate` passes.")
+    message = "\n".join(lines)
+
+    if not args.hook:
+        print(message)
+        return 1
+
+    state_file = gate_state_file()
+    signature = gate_signature(failures, changed)
+    if state_file is not None:
+        try:
+            if json.loads(state_file.read_text(encoding="utf-8")).get("signature") == signature:
+                return 0
+        except (OSError, ValueError):
+            pass
+        try:
+            state_file.write_text(json.dumps({"signature": signature}), encoding="utf-8")
+        except OSError:
+            pass
+    print(message, file=sys.stderr)
+    return 2
+
+
+def run_waive(args: argparse.Namespace) -> int:
+    reason = args.reason.strip()
+    if len(reason) < 10:
+        print("A waiver needs a real --reason (at least 10 characters).", file=sys.stderr)
+        return 1
+    known = {str(rule["id"]) for rule in gate_rules()}
+    if args.rule not in known:
+        print(f"Unknown gate rule: {args.rule}. Gated rules: {', '.join(sorted(known)) or 'none'}", file=sys.stderr)
+        return 1
+    entry = {
+        "rule": args.rule,
+        "reason": reason,
+        "requirement": args.requirement,
+        "date": datetime.now(timezone.utc).date().isoformat(),
+    }
+    GATE_WAIVERS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with GATE_WAIVERS_PATH.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(entry) + "\n")
+    print(f"Recorded waiver for {args.rule} in {GATE_WAIVERS_PATH}.")
+    return 0
+
+
+def run_hook_install(args: argparse.Namespace) -> int:
+    settings_path = Path(args.settings)
+    data: dict[str, Any] = {}
+    if settings_path.is_file():
+        try:
+            data = load_json(settings_path)
+        except json.JSONDecodeError as exc:
+            print(f"{settings_path} is not valid JSON ({exc}); fix it first.", file=sys.stderr)
+            return 1
+    stop_entries = data.setdefault("hooks", {}).setdefault("Stop", [])
+    already = any(
+        hook.get("command") == CLAUDE_STOP_HOOK_COMMAND
+        for entry in stop_entries
+        if isinstance(entry, dict)
+        for hook in entry.get("hooks", [])
+        if isinstance(hook, dict)
+    )
+    if already:
+        print(f"Stop hook already installed in {settings_path}.")
+        return 0
+    stop_entries.append({"hooks": [{"type": "command", "command": CLAUDE_STOP_HOOK_COMMAND}]})
+    write_json(settings_path, data)
+    print(f"Installed Claude Code Stop hook in {settings_path}: `{CLAUDE_STOP_HOOK_COMMAND}`.")
+    print("It blocks the assistant from finishing while `omni gate` fails.")
+    if settings_path.name.endswith(".local.json"):
+        print("This is a local settings file, so it applies to you only; enforce the gate for everyone by running `omni gate` in CI.")
+    else:
+        print("Commit this file to share the hook with your team.")
+    return 0
+
+
+def _write_git_hook(root: Path, relpath: Path, marker: str, script: str, force: bool) -> int | None:
+    """Write one hook file, refusing to clobber a foreign hook without --force. None means "wrote it"; an int is
+    the exit code for a refusal."""
+    hook_path = root / relpath
+    if hook_path.is_file() and marker not in hook_path.read_text(encoding="utf-8", errors="replace") and not force:
+        print(f"{hook_path} already exists and was not installed by omni; rerun with --force to overwrite.", file=sys.stderr)
+        return 1
+    hook_path.parent.mkdir(parents=True, exist_ok=True)
+    hook_path.write_text(script, encoding="utf-8", newline="\n")
+    try:
+        hook_path.chmod(hook_path.stat().st_mode | 0o111)
+    except OSError:
+        pass  # Windows ignores the executable bit; Git for Windows runs the hook through its bundled sh regardless.
+    print(f"Wrote {hook_path}.")
+    return None
+
+
+def run_hook_install_git(args: argparse.Namespace) -> int:
+    top = git_run("rev-parse", "--show-toplevel")
+    if top is None:
+        print("omni hook install-git: not inside a git repository.", file=sys.stderr)
+        return 1
+    root = Path(top.strip())
+
+    refusal = _write_git_hook(root, PRE_COMMIT_HOOK_RELPATH, PRE_COMMIT_HOOK_MARKER, PRE_COMMIT_HOOK_SCRIPT, args.force)
+    if refusal is not None:
+        return refusal
+    if args.with_graph_rebuild:
+        refusal = _write_git_hook(root, POST_COMMIT_HOOK_RELPATH, POST_COMMIT_HOOK_MARKER, POST_COMMIT_HOOK_SCRIPT, args.force)
+        if refusal is not None:
+            return refusal
+
+    old_cwd = Path.cwd()
+    try:
+        os.chdir(root)
+        git_run("config", "--local", "core.hooksPath", ".githooks")
+    finally:
+        os.chdir(old_cwd)
+    print("Set core.hooksPath=.githooks for this clone.")
+    print("Commit .githooks/ so every clone can `git config core.hooksPath .githooks` (or rerun this command) to "
+          "opt in with the same scripts; CI enforces the gate for everyone regardless of whether they do.")
+    if args.with_graph_rebuild:
+        print("Each commit will also rebuild the graph in the background; watch .ai/.graph-build.log if `omni "
+              "graph` output ever looks stale.")
+    return 0
+
+
+def run_mcp_serve(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+    try:
+        import omni_mcp
+    except ImportError:
+        print(
+            "omni_mcp.py is missing next to make_ai.py, so `omni mcp` is unavailable. "
+            "Re-run `omni adopt --include-cli` or `omni update` from a current OmniEngineering source to restore it.",
+            file=sys.stderr,
+        )
+        return 1
+    print(f"omni mcp: serving {len(omni_mcp.TOOLS)} tool(s) over stdio (JSON-RPC 2.0, one message per line).", file=sys.stderr)
+    try:
+        omni_mcp.serve_stdio()
+    except (KeyboardInterrupt, BrokenPipeError):
+        pass
+    return 0
+
+
+def run_mcp_tools(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+    try:
+        import omni_mcp
+    except ImportError:
+        print("omni_mcp.py is missing next to make_ai.py.", file=sys.stderr)
+        return 1
+    if args.json:
+        print(json.dumps([tool.spec() for tool in omni_mcp.TOOLS], indent=2))
+        return 0
+    for tool in omni_mcp.TOOLS:
+        print(f"{tool.name}\n  {tool.description}")
     return 0
 
 
@@ -2509,8 +4433,27 @@ def build_parser() -> argparse.ArgumentParser:
     )
     graph_build.add_argument(
         "--languages",
-        default="python,javascript,typescript",
-        help="Comma-separated languages to parse. Requires the [graph] extra.",
+        default="auto",
+        help=(
+            "Comma-separated languages to parse, or auto (default) to use every language found. "
+            "Languages without an installed grammar still appear as file-level nodes; SQL migrations "
+            "become a table/foreign-key schema."
+        ),
+    )
+    graph_build.add_argument(
+        "--layers",
+        default="",
+        help=(
+            "Comma-separated layers to build: code, governance (requirements, changelog), history (git commits), "
+            "assurance (tests, suites, failure ledger), workspace (rulepacks, rules, playbooks, checklists). "
+            "Defaults to all five; code is always built."
+        ),
+    )
+    graph_build.add_argument(
+        "--max-commits",
+        type=int,
+        default=None,
+        help="Most recent commits scanned when building the history layer (default: max_commits in .ai/graph-config.json, else 400).",
     )
     graph_build.add_argument(
         "--semantic",
@@ -2542,15 +4485,106 @@ def build_parser() -> argparse.ArgumentParser:
 
     graph_show = graph_subparsers.add_parser(
         "show",
-        help="List the direct EXTRACTED/INFERRED edges for one symbol.",
+        help="List the direct EXTRACTED/INFERRED edges for one symbol, or every node with --all.",
     )
-    graph_show.add_argument("node", help="Name or qualified name to inspect.")
+    graph_show.add_argument("node", nargs="?", help="Name, qualified name, or full id to inspect (omit with --all).")
     graph_show.add_argument(
         "--graph",
         default=GRAPH_DEFAULT_OUTPUT,
         help=f"Graph file to read. Defaults to {GRAPH_DEFAULT_OUTPUT}.",
     )
     graph_show.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+    graph_show.add_argument("--all", action="store_true", help="List every node instead of inspecting one (externals hidden unless --include-external).")
+    graph_show.add_argument("--kind", choices=["module", "class", "interface", "function", "method", "table", "external", "file", "requirement", "changelog", "commit", "failure", "rule", "suite", "rulepack", "playbook", "checklist"], help="With --all: only this node kind.")
+    graph_show.add_argument("--layer", choices=["code", "governance", "history", "assurance", "workspace"], help="With --all: only this layer.")
+    graph_show.add_argument("--language", help="With --all: only this language (python, java, sql, go, ...).")
+    graph_show.add_argument("--file", help="With --all: only files matching this glob, or containing this text.")
+    graph_show.add_argument("--include-external", action="store_true", help="With --all: include external placeholder nodes.")
+    graph_show.add_argument("--edges", action="store_true", help="With --all: also print the edges among the listed nodes.")
+    graph_show.add_argument("--sort", choices=["file", "degree", "name"], default="file", help="With --all: ordering (default file).")
+    graph_show.add_argument("--limit", type=int, default=0, help="With --all: list at most N nodes.")
+
+    graph_why = graph_subparsers.add_parser(
+        "why",
+        help=(
+            "Cross-layer traversal for a file, symbol, requirement or failure: the requirements, changelog entries, "
+            "commits, tests, failures and rules that touch it."
+        ),
+    )
+    graph_why.add_argument("node", help="File path, symbol, requirement id (REQ-021) or failure id (FAIL-001).")
+    graph_why.add_argument("--graph", default=GRAPH_DEFAULT_OUTPUT, help=f"Graph file to read. Defaults to {GRAPH_DEFAULT_OUTPUT}.")
+    graph_why.add_argument("--limit", type=int, default=12, help="Items shown per section (default 12).")
+    graph_why.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+
+    graph_lineage = graph_subparsers.add_parser(
+        "lineage",
+        help=(
+            "Trace everything upstream (what led to it) and downstream (what came from it) of any node, with no second "
+            "endpoint: pick a requirement, commit, change-log entry, failure, file or symbol."
+        ),
+    )
+    graph_lineage.add_argument("node", help="Requirement id (REQ-021), commit hash, failure id, file path or symbol.")
+    graph_lineage.add_argument("--graph", default=GRAPH_DEFAULT_OUTPUT, help=f"Graph file to read. Defaults to {GRAPH_DEFAULT_OUTPUT}.")
+    graph_lineage.add_argument("--up", action="store_true", help="Only trace upstream.")
+    graph_lineage.add_argument("--down", action="store_true", help="Only trace downstream.")
+    graph_lineage.add_argument("--depth", type=int, default=6, help="How many links to follow (default 6).")
+    graph_lineage.add_argument("--code", action="store_true", help="Also follow calls, imports, inheritance and table mappings between code symbols.")
+    graph_lineage.add_argument("--max-nodes", type=int, default=400, help="Most nodes returned per direction, nearest first (default 400).")
+    graph_lineage.add_argument("--limit", type=int, default=12, help="Items shown per kind in text output (default 12).")
+    graph_lineage.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+
+    graph_sources = graph_subparsers.add_parser(
+        "sources",
+        help="Show what each layer would read from this project (requirements, changelog, git, tests, ledger) and what is missing.",
+    )
+    graph_sources.add_argument("--root", default=".", help="Project root. Defaults to the current repository.")
+    graph_sources.add_argument("--write", action="store_true", help="Draft .ai/graph-config.json from what was found (only settings that differ from the defaults).")
+    graph_sources.add_argument("--force", action="store_true", help="With --write: overwrite an existing config.")
+    graph_sources.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+
+    graph_benchmark = graph_subparsers.add_parser(
+        "benchmark",
+        help=(
+            "Measure a targeted graph query against the naive alternative (grep for the name and read every match "
+            "whole; a commit compares against `git show`), for one real node per kind this project's graph already "
+            "has. Every size is measured live, against the current graph and repository -- nothing is canned."
+        ),
+    )
+    graph_benchmark.add_argument("--graph", default=GRAPH_DEFAULT_OUTPUT, help=f"Graph file to read. Defaults to {GRAPH_DEFAULT_OUTPUT}.")
+    graph_benchmark.add_argument("--root", default=".", help="Project root, for the naive grep/read comparison. Defaults to the current repository.")
+    graph_benchmark.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+
+    graph_timeline = graph_subparsers.add_parser(
+        "timeline",
+        help="Chronology of everything tied to a file, symbol, requirement or failure: commits, changelog entries, failures.",
+    )
+    graph_timeline.add_argument("node", help="File path, symbol, requirement id (REQ-021) or failure id (FAIL-001).")
+    graph_timeline.add_argument("--graph", default=GRAPH_DEFAULT_OUTPUT, help=f"Graph file to read. Defaults to {GRAPH_DEFAULT_OUTPUT}.")
+    graph_timeline.add_argument("--depth", type=int, default=1, help="Hops across the layers to follow (default 1: what is directly tied to the node).")
+    graph_timeline.add_argument("--limit", type=int, default=40, help="Show the newest N events (0 for all; default 40).")
+    graph_timeline.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+
+    graph_view = graph_subparsers.add_parser(
+        "view",
+        help="Write an interactive, offline 3D viewer (rotate, pan, zoom, click to read, double-click to expand).",
+    )
+    graph_view.add_argument("--graph", default=GRAPH_DEFAULT_OUTPUT, help=f"Graph file to read. Defaults to {GRAPH_DEFAULT_OUTPUT}.")
+    graph_view.add_argument("--output", default=VIEW_DEFAULT_OUTPUT, help=f"HTML output path. Defaults to {VIEW_DEFAULT_OUTPUT}.")
+    graph_view.add_argument("--focus", help="Start with only this symbol's neighbourhood.")
+    graph_view.add_argument("--depth", type=int, default=RENDER_DEFAULT_DEPTH, help=f"Hops around --focus. Defaults to {RENDER_DEFAULT_DEPTH}.")
+    graph_view.add_argument("--max-initial", type=int, default=VIEW_DEFAULT_MAX_INITIAL, help=f"Nodes in the starting view, highest-degree first. Defaults to {VIEW_DEFAULT_MAX_INITIAL}.")
+    graph_view.add_argument("--all", action="store_true", help="Start with every node in view (may be slow on large graphs).")
+    graph_view.add_argument("--include-external", action="store_true", help="Start with external placeholder nodes visible.")
+    graph_view.add_argument("--mode", choices=["auto", "2d", "3d"], default="auto", help="Start in the flat 2D view (no GPU memory needed) or the 3D view. auto remembers your last choice in the browser and otherwise starts in 2D.")
+    graph_view.add_argument("--open", action="store_true", help="Open the result in the default browser.")
+
+    graph_schema = graph_subparsers.add_parser(
+        "schema",
+        help="Print the database schema reconstructed from SQL migrations (tables, columns, keys, entities).",
+    )
+    graph_schema.add_argument("--graph", default=GRAPH_DEFAULT_OUTPUT, help=f"Graph file to read. Defaults to {GRAPH_DEFAULT_OUTPUT}.")
+    graph_schema.add_argument("--table", help="Show only this table.")
+    graph_schema.add_argument("--format", choices=["text", "mermaid", "json"], default="text", help="Output format (default text).")
 
     graph_render = graph_subparsers.add_parser(
         "render",
@@ -2589,6 +4623,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=RENDER_DEFAULT_DEPTH,
         help=f"Hops out from --focus to include. Defaults to {RENDER_DEFAULT_DEPTH}. Ignored without --focus.",
+    )
+    graph_render.add_argument(
+        "--all-layers",
+        action="store_true",
+        help="Also render the governance and assurance layers (requirements, changelog, commits, tests, failures, rules).",
     )
     graph_render.add_argument("--json", action="store_true", help="Print a machine-readable summary instead of a human summary.")
 
@@ -2734,6 +4773,158 @@ def build_parser() -> argparse.ArgumentParser:
     )
     requirement_add.add_argument("--risks", default="", help="Comma-separated risk notes.")
 
+    requirement_draft = requirement_subparsers.add_parser(
+        "draft",
+        help=(
+            "Draft a requirement (status proposed) and a CHANGELOG.md stub from the files a commit or the current "
+            "change set touched, so the manual step is editing a draft rather than writing one from nothing."
+        ),
+    )
+    requirement_draft.add_argument("--commit", help="Draft from this commit's changed files and subject line, instead of the current (uncommitted) change set.")
+    requirement_draft.add_argument("--id", help="Requirement ID. Defaults to next REQ-###.")
+    requirement_draft.add_argument("--title", help="Override the guessed title (the commit subject, or a placeholder).")
+    requirement_draft.add_argument("--category", help="Override the guessed category.")
+    requirement_draft.add_argument("--no-changelog", action="store_true", help="Only draft the requirement; skip the CHANGELOG.md stub.")
+    requirement_draft.add_argument("--force", action="store_true", help="Draft even if --commit already names a requirement ID.")
+
+    requirement_show = requirement_subparsers.add_parser("show", help="Print one requirement by ID (active or archived).")
+    requirement_show.add_argument("id", help="Requirement ID, e.g. REQ-042 or 42.")
+    requirement_show.add_argument("--json", action="store_true", help="Print the raw JSON entry.")
+
+    requirement_list = requirement_subparsers.add_parser("list", help="One line per requirement (active registry by default).")
+    requirement_list.add_argument("--status", action="append", choices=REQUIREMENT_STATUSES, help="Filter by status. May be repeated.")
+    requirement_list.add_argument("--all", action="store_true", help="Include archived requirements.")
+    requirement_list.add_argument("--last", type=int, default=0, help="Show only the last N entries.")
+    requirement_list.add_argument("--json", action="store_true", help="Print raw JSON entries.")
+
+    requirement_search = requirement_subparsers.add_parser("search", help="Case-insensitive text search across requirements.")
+    requirement_search.add_argument("text", nargs="+", help="Text to look for.")
+    requirement_search.add_argument("--active-only", action="store_true", help="Skip archived requirements.")
+
+    requirement_update = requirement_subparsers.add_parser("update", help="Change a requirement's status, title, description, or append a risk note.")
+    requirement_update.add_argument("id", help="Requirement ID.")
+    requirement_update.add_argument("--status", choices=REQUIREMENT_STATUSES, help="New status.")
+    requirement_update.add_argument("--title", help="New title.")
+    requirement_update.add_argument("--description", help="New description.")
+    requirement_update.add_argument("--note", help="Append a risk note.")
+
+    requirement_complete = requirement_subparsers.add_parser("complete", help="Mark a requirement completed.")
+    requirement_complete.add_argument("id", help="Requirement ID.")
+    requirement_complete.add_argument("--note", help="Append a risk note.")
+    requirement_complete.add_argument(
+        "--no-failure-entry",
+        help="For defect/bug/fix requirements only: why no failure-ledger entry is warranted (10+ characters, recorded as a risk note).",
+    )
+
+    test_parser = subparsers.add_parser(
+        "test",
+        help="Register and inspect test suites (paths, framework, command); auto-detected suites feed the graph.",
+    )
+    test_subparsers = test_parser.add_subparsers(dest="test_command")
+    test_detect = test_subparsers.add_parser("detect", help="Find test suites from file contents and CI commands; --write registers them.")
+    test_detect.add_argument("--write", action="store_true", help=f"Add the detected suites to {TEST_SUITES_PATH}.")
+    test_detect.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+    test_add = test_subparsers.add_parser("add", help="Register a test suite by hand.")
+    test_add.add_argument("--name", required=True, help="Human name, e.g. 'Backend JUnit'.")
+    test_add.add_argument("--id", help="Suite id; defaults to a slug of the name.")
+    test_add.add_argument("--paths", required=True, help="Comma-separated files, directories or globs that hold the tests.")
+    test_add.add_argument("--kind", choices=["unit", "integration", "e2e", "validation", "smoke", "other"], default="unit")
+    test_add.add_argument("--framework", default="", help="junit, vitest, jest, pytest, playwright, script, ...")
+    test_add.add_argument("--command", dest="run_command", default="", help="How to run it, e.g. 'cd backend && mvn test'.")
+    test_add.add_argument("--covers", default="", help="Comma-separated code paths this suite is meant to cover.")
+    test_add.add_argument("--notes", default="")
+    test_add.add_argument("--allow-missing", action="store_true", help="Register even if a path matches no file yet.")
+    test_remove = test_subparsers.add_parser("remove", help="Remove a registered suite.")
+    test_remove.add_argument("id")
+    test_subparsers.add_parser("list", help="Registered suites plus any detected but unregistered.")
+    test_subparsers.add_parser("check", help="Verify every registered path matches files, and report unregistered tests.")
+
+    failure_parser = subparsers.add_parser(
+        "failure",
+        help="Record what went wrong, why, and what now prevents it (the failure ledger, a graph layer).",
+    )
+    failure_subparsers = failure_parser.add_subparsers(dest="failure_command")
+
+    def add_failure_fields(sub: argparse.ArgumentParser, creating: bool) -> None:
+        sub.add_argument("--status", choices=FAILURE_STATUSES, default="open" if creating else None, help="open, fixed, mitigated or wontfix.")
+        sub.add_argument("--severity", choices=["critical", "high", "medium", "low"], default="medium" if creating else None)
+        sub.add_argument("--requirement", help="Requirement being worked when this surfaced (REQ-###).")
+        sub.add_argument("--symptom", required=creating, help="What was observed: the error text or wrong behaviour.")
+        sub.add_argument("--root-cause", help="WHY it happened. The reasoning is the point of the ledger.")
+        sub.add_argument("--detected", help="How it was found (test, review, user report, production).")
+        sub.add_argument("--affected", help="Comma-separated files, directories or symbols it affected.")
+        sub.add_argument("--fix", help="What changed to fix it.")
+        sub.add_argument("--commits", help="Comma-separated commit hashes that fixed it.")
+        sub.add_argument("--tests", help="Comma-separated regression tests (path, path::name, or qualified name).")
+        sub.add_argument("--no-test-reason", help="If no regression test is practical, say why.")
+        sub.add_argument("--prevention-rules", help="Comma-separated rule ids (or playbook paths) that stop it recurring.")
+        sub.add_argument("--prevention-notes", help="What now prevents a repeat, in words.")
+        sub.add_argument("--recurrence-of", help="Earlier failure id this repeats.")
+
+    failure_add = failure_subparsers.add_parser("add", help="Record a failure.")
+    failure_add.add_argument("--id", help="Failure ID. Defaults to the next FAIL-###.")
+    failure_add.add_argument("--title", required=True, help="Short title.")
+    failure_add.add_argument("--date", help="YYYY-MM-DD; defaults to today.")
+    add_failure_fields(failure_add, creating=True)
+
+    failure_update = failure_subparsers.add_parser("update", help="Add reasoning, tests or prevention to a failure. Lists append; scalars replace.")
+    failure_update.add_argument("id", help="Failure ID.")
+    failure_update.add_argument("--title", help="New title.")
+    add_failure_fields(failure_update, creating=False)
+
+    failure_show = failure_subparsers.add_parser("show", help="Print one failure.")
+    failure_show.add_argument("id")
+    failure_list = failure_subparsers.add_parser("list", help="One line per failure.")
+    failure_list.add_argument("--status", choices=FAILURE_STATUSES)
+    failure_search = failure_subparsers.add_parser("search", help="Case-insensitive text search across failures.")
+    failure_search.add_argument("text")
+    failure_subparsers.add_parser("check", help="Verify the ledger is complete and every reference resolves.")
+
+    requirement_archive = requirement_subparsers.add_parser(
+        "archive",
+        help="Move older completed requirements into requirements-archive.json to keep the live registry small.",
+    )
+    requirement_archive.add_argument("--keep-recent", type=int, default=25, help="Completed requirements to keep active (default 25).")
+    requirement_archive.add_argument("--dry-run", action="store_true", help="Report what would move without writing.")
+
+    gate_parser = subparsers.add_parser(
+        "gate",
+        help="Check that changed files carry the changelog/registry updates the completion rulepack requires.",
+    )
+    gate_parser.add_argument("--hook", action="store_true", help="Claude Code Stop-hook mode: read hook JSON on stdin, exit 2 to block.")
+
+    waive_parser = subparsers.add_parser("waive", help="Record an explicit, auditable waiver for a gate rule.")
+    waive_parser.add_argument("rule", help="Gate rule ID, e.g. completion.changelog_gate.")
+    waive_parser.add_argument("--reason", required=True, help="Why the gate does not apply to this change.")
+    waive_parser.add_argument("--requirement", help="Requirement ID the waiver belongs to.")
+
+    mcp_parser = subparsers.add_parser(
+        "mcp",
+        help="MCP (Model Context Protocol) server: the graph and registries as tools, for any MCP-speaking assistant.",
+    )
+    mcp_subparsers = mcp_parser.add_subparsers(dest="mcp_command")
+    mcp_subparsers.add_parser(
+        "serve",
+        help="Serve the tools over stdio (JSON-RPC 2.0, newline-delimited) until stdin closes. Point an MCP client's command at `omni mcp serve`.",
+    )
+    mcp_tools = mcp_subparsers.add_parser("tools", help="List the available tools without starting the server (for a quick check, or piping into a client's config).")
+    mcp_tools.add_argument("--json", action="store_true", help="Print the full tool specs (name, description, input schema) as JSON.")
+
+    hook_parser = subparsers.add_parser("hook", help="Install assistant hooks that enforce the gate.")
+    hook_subparsers = hook_parser.add_subparsers(dest="hook_command")
+    hook_install = hook_subparsers.add_parser("install", help="Install the Claude Code Stop hook that runs `omni gate`.")
+    hook_install.add_argument("--settings", default=".claude/settings.json", help="Claude Code project settings file.")
+    hook_install_git = hook_subparsers.add_parser(
+        "install-git",
+        help="Install a portable git pre-commit hook (Linux, macOS, Windows) that runs `omni gate`, no assistant required.",
+    )
+    hook_install_git.add_argument("--force", action="store_true", help="Overwrite an existing pre-commit hook that omni did not install.")
+    hook_install_git.add_argument(
+        "--with-graph-rebuild",
+        action="store_true",
+        help="Also install a post-commit hook that rebuilds the graph in the background after every commit (never blocks the commit).",
+    )
+
     rule_parser = subparsers.add_parser("rule", help="Manage structured rulepacks.")
     rule_subparsers = rule_parser.add_subparsers(dest="rule_command")
     rule_add = rule_subparsers.add_parser(
@@ -2783,13 +4974,43 @@ def main(argv: list[str] | None = None) -> int:
             return run_graph_show(args)
         if args.graph_command == "render":
             return run_graph_render(args)
-        parser.error("graph requires a subcommand (build, trace, show, render)")
+        if args.graph_command == "view":
+            return run_graph_view(args)
+        if args.graph_command == "schema":
+            return run_graph_schema(args)
+        if args.graph_command == "why":
+            return run_graph_why(args)
+        if args.graph_command == "lineage":
+            return run_graph_lineage(args)
+        if args.graph_command == "timeline":
+            return run_graph_timeline(args)
+        if args.graph_command == "sources":
+            return run_graph_sources(args)
+        if args.graph_command == "benchmark":
+            return run_graph_benchmark(args)
+        parser.error("graph requires a subcommand (build, trace, show, why, lineage, timeline, sources, benchmark, render, view, schema)")
     if command == "agents":
         if args.agents_command == "install":
             return run_agents_install(args)
         if args.agents_command == "doctor":
             return run_agents_doctor(args)
         parser.error("agents requires a subcommand (install, doctor)")
+    if command == "test":
+        handlers = {
+            "detect": run_test_detect, "add": run_test_add, "remove": run_test_remove,
+            "list": run_test_list, "check": run_test_check,
+        }
+        if args.test_command in handlers:
+            return handlers[args.test_command](args)
+        parser.error("test requires a subcommand (detect, add, remove, list, check)")
+    if command == "failure":
+        handlers = {
+            "add": run_failure_add, "update": run_failure_update, "show": run_failure_show,
+            "list": run_failure_list, "search": run_failure_search, "check": run_failure_check,
+        }
+        if args.failure_command in handlers:
+            return handlers[args.failure_command](args)
+        parser.error("failure requires a subcommand (add, update, show, list, search, check)")
     if command == "context":
         return run_context(args)
     if command == "adopt":
@@ -2797,9 +5018,35 @@ def main(argv: list[str] | None = None) -> int:
     if command == "update":
         return run_update(args)
     if command == "requirement":
-        if args.requirement_command == "add":
-            return run_requirement_add(args)
+        handlers = {
+            "add": run_requirement_add,
+            "draft": run_requirement_draft,
+            "show": run_requirement_show,
+            "list": run_requirement_list,
+            "search": run_requirement_search,
+            "update": run_requirement_update,
+            "complete": run_requirement_complete,
+            "archive": run_requirement_archive,
+        }
+        if args.requirement_command in handlers:
+            return handlers[args.requirement_command](args)
         parser.error("requirement requires a subcommand")
+    if command == "gate":
+        return run_gate(args)
+    if command == "waive":
+        return run_waive(args)
+    if command == "hook":
+        if args.hook_command == "install":
+            return run_hook_install(args)
+        if args.hook_command == "install-git":
+            return run_hook_install_git(args)
+        parser.error("hook requires a subcommand (install, install-git)")
+    if command == "mcp":
+        if args.mcp_command == "serve":
+            return run_mcp_serve(args)
+        if args.mcp_command == "tools":
+            return run_mcp_tools(args)
+        parser.error("mcp requires a subcommand (serve, tools)")
     if command == "rule":
         if args.rule_command == "add":
             return run_rule_add(args)

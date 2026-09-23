@@ -708,6 +708,23 @@ python3 -m pip install "tree-sitter>=0.23,<1.0" "tree-sitter-python>=0.23,<1.0" 
   "tree-sitter-javascript>=0.23,<1.0" "tree-sitter-typescript>=0.23,<1.0"
 ```
 
+On Debian/Ubuntu (and other PEP 668 "externally managed" Pythons) `pip`
+refuses system-wide installs. Use a virtualenv and run `build` with its
+interpreter, rather than `--break-system-packages`:
+
+```bash
+python3 -m venv ~/.venvs/omni-graph
+~/.venvs/omni-graph/bin/pip install "tree-sitter>=0.23,<1.0" "tree-sitter-python>=0.23,<1.0" \
+  "tree-sitter-javascript>=0.23,<1.0" "tree-sitter-typescript>=0.23,<1.0"
+~/.venvs/omni-graph/bin/python ./omni graph build
+```
+
+You do not have to remember the long form: if `omni graph build` finds tree-sitter
+missing, it re-runs itself under `~/.venvs/omni-graph/bin/python` (or the
+interpreter named by `OMNI_GRAPH_PYTHON`) when that venv has the packages, so a
+plain `./omni graph build` works. If no such venv exists it prints the setup
+commands above instead of a `pip install` that would be refused.
+
 Without either, `omni graph build` fails with a clear install message
 instead of a traceback. `trace` and `show` below only read the JSON `build`
 already wrote, so they work with just the standard library.
@@ -751,7 +768,47 @@ map`. Large graphs are capped to the highest-degree `--max-nodes` (default
 neighborhood instead of the whole codebase, and `--include-external` to
 also show unresolved references (stdlib calls, third-party imports).
 
-Both `trace`/`show`/`render` take `--json` for machine-readable output
+List everything the graph knows, not just one symbol:
+
+```bash
+omni graph show --all                       # every symbol, grouped by file, with in/out edge counts
+omni graph show --all --kind class --sort degree --limit 20
+omni graph show --all --file 'frontend/*' --language typescript
+omni graph show --all --edges --include-external   # also print edges and unresolved references
+```
+
+Explore it interactively in 3D -- rotate, pan, zoom, click a node to read
+it, double-click to pull its neighbours into the view:
+
+```bash
+omni graph view --open
+```
+
+This writes `.ai/project-graph.html`, one self-contained file (about 1.5 MB
+plus your graph) that works offline: nothing is fetched at view time. It
+starts with the 500 best-connected symbols (`--max-initial`, or `--all`,
+or `--focus <symbol> --depth 2` for one neighbourhood) and grows as you
+expand. The page has search (`/`), language and edge-type filters, colouring
+by language, kind or top-level directory, an INFERRED-edge toggle, an
+edge-strength slider, and a detail panel that lists each symbol's callers and callees -- click any of
+them to jump there. Nodes and edges are scaled by distance so outliers far from the core cluster
+and far-away edges stay readable; the styling follows the OmniEngineering brand
+(`#e0475c` on `#0f0f12`). It needs a WebGL-capable browser; the SVG from `omni
+graph render` and `show --all` remain for everything else. The output is
+git-ignored like the JSON and SVG.
+
+Under WSL, `omni graph view` prints the `file:///C:/...` URL (and the plain Windows
+path) that a Windows browser can open, not the Linux `/mnt/c/...` path it cannot,
+and `--open` launches your default Windows browser through `cmd.exe`.
+
+The 3D engine is the unmodified [3d-force-graph](https://github.com/vasturiano/3d-force-graph)
+bundle (MIT, (c) Vasco Asturiano), which renders with [three.js](https://threejs.org)
+(MIT) and contains 33 other permissively licensed packages. Their notices
+live in `.ai/graph-viewer/THIRD_PARTY_NOTICES.md` and are embedded in every
+generated page. The assets in `.ai/graph-viewer/` are excluded from
+`.ai/.ignore` so assistants do not read the 1.3 MB minified bundle.
+
+Both `trace`/`show`/`render` for machine-readable output
 (render's is a summary, not the SVG itself), and every `omni graph`
 subcommand is a thin, scriptable wrapper (one verb in, one JSON document
 out) so it can be exposed 1:1 as tools by an MCP relay, the same way
@@ -771,6 +828,197 @@ Every relation the API suggests is checked against known graph symbol names
 before being added as an edge, so a hallucinated relation can't be written
 into the graph silently.
 
+### Five layers: code, governance, history, assurance, workspace
+
+`omni graph build` builds five layers in one graph, each with its own nodes and
+edge types, so a single traversal can go from a line of code to why it exists,
+when it changed, how it is proven, and which rule stops it breaking again. This
+is what keeps long histories manageable: instead of rereading a changelog or a
+git log, ask the graph what is tied to the thing you are about to touch.
+
+| Layer | Nodes | Edges | Source |
+| --- | --- | --- | --- |
+| **code** | modules, classes, functions, tables | `calls`, `imports`, `defines`, `inherits`, ... | your source (tree-sitter, SQL migrations) |
+| **governance** | `requirement`, `changelog` | `touches`, `records`, `mentions` | requirement files, changelog |
+| **history** | `commit` | `delivers`, `modifies`, `logged_in`, `follows` | the git log |
+| **assurance** | test files, `suite`, `failure` | `verifies`, `contains`, `covers`, `affects`, `arose_in`, `guards`, `fixed_by`, `recurs` | tests, the suite registry, the failure ledger |
+| **workspace** | `rulepack`, `rule`, `playbook`, `checklist`, and OmniEngineering's own code | `defines`, `prevented_by` | `.ai/rules`, `.ai/playbooks`, `.ai/checklists`, `make_ai.py`, `omni_graph.py` |
+
+- A requirement `touches` the files in its declared scope (EXTRACTED) and the
+  files changed by commits that deliver it (INFERRED). Changelog entries `record`
+  the requirements they name and `mention` the files they cite.
+- Every commit is a node, chained in order (`follows`). A commit `delivers` the
+  requirement named in its subject line (a body that cites another project's id is
+  ignored), `modifies` the files it changed, and is `logged_in` the changelog entry
+  whose heading it added. A squash commit with no id in its message is tied to the
+  requirement its changelog entry records (INFERRED).
+- The assurance layer is about **your project's tests**. Test files (`test_*.py`,
+  `*.test.ts`, `*Test.java`, `tests/`, ...) and anything a registered suite claims
+  move to it, and `verifies` edges connect each test file to the code it calls.
+  OmniEngineering's own files are tooling: they sit in the workspace layer and are
+  never counted as tests, suites, or coverage. A suite groups its test files, says
+  how to run them, and `covers` the code it is meant to cover.
+- The failure ledger adds a `failure` node per entry with its symptom and root
+  cause, linked to the code it affected, the requirement, the tests or suite that
+  `guard` it, the rule or playbook that prevents a repeat (`prevented_by`, into the
+  workspace layer), and any earlier failure it repeats.
+
+Traverse across the layers:
+
+```bash
+omni graph why omni_graph.py        # requirements, changelog, commits, tests, suites, failures, rules
+omni graph why REQ-021              # files touched, changelog entries, commits, failures
+omni graph why FAIL-003             # affected code, regression tests, prevention, fix commits
+omni graph why a1b2c3d              # a commit: requirements, changelog entry, files, previous/next commit
+omni graph why backend-junit        # a suite: its test files, what it covers
+omni graph lineage REQ-021          # everything upstream and downstream of it, no second endpoint needed
+omni graph lineage a1b2c3d --up     # a commit: the requirement and previous commit that led to it
+omni graph lineage FAIL-003 --depth 3 --json   # a failure: cause above it, tests, rules and fixes below it
+omni graph timeline REQ-021         # everything dated that is tied to it, oldest first
+omni graph show --all --layer history --kind commit
+omni graph build --layers code,governance      # skip layers; --max-commits N bounds the git scan
+```
+
+Measure the token-savings claim instead of just asserting it, on your own project's own graph, right now:
+
+```bash
+omni graph benchmark          # a targeted query vs. grep-and-read-whole (git show for a commit), for real
+omni graph benchmark --json
+```
+
+For one real requirement, commit, failure and file this project's own graph already has (never invented,
+never hardcoded to a specific project), it runs the graph query and the naive alternative -- a plain-text
+grep for the name, then every matching file read in full; a commit compares against `git show`, the diff a
+person would actually read -- and reports both sizes. "Tokens" are `chars / 4`, a labelled rough estimate,
+not a real tokenizer. Two safeguards keep the file case honest: it only ever picks an already-parsed
+source module (never a generic file node, so a `.pptx` or an image can't win) and only a git-tracked one
+(so a gitignored multi-hundred-megabyte build log that merely happens to have a graph node can't either --
+both were real results the first time this ran).
+
+### The viewer
+
+`omni graph view` writes one self-contained, offline HTML page (nothing is fetched when it opens).
+
+- **2D or 3D, one big switch.** The 2D view is a flat Canvas 2D drawing you pan (drag) and zoom
+  (scroll or pinch); it never tilts and needs no WebGL or video memory, so it suits low-power
+  machines. It is the default. The 3D view orbits in space and needs WebGL; it is created only when
+  chosen and destroyed when you switch back, so 2D never holds a GPU context. `--mode 2d|3d|auto`
+  sets the start (`auto` remembers your last choice).
+- **Views, not layer switches.** Tabs across the top (Everything, Code, Requirements, History, Tests &
+  failures, Rules & playbooks, Database) each set the layers, colours and layout for one purpose. A strip
+  under them names the current view in large type, explains it in a sentence, and shows a colour key
+  with counts for what is on screen. Each layer has one strong hue; kinds also have distinct shapes in 2D
+  (diamond requirement, triangle commit, hexagon failure or table, page change-log entry or playbook).
+- **2D layouts.** *Network* (connected things sit together), *Layers* (one labelled band per layer, parents
+  kept beside their children, so links between layers stay short), and *Tree* (files, classes and methods
+  as a tree, parent to child; everything without a parent is listed below, grouped by kind).
+- **Select a node and its whole chain lights up.** Everything above it (parents) and below it (children)
+  is drawn in gold with bold links, the rest recedes, and the view zooms to that chain. The detail panel
+  shows a breadcrumb (`file > class > method`) and buttons that bring in what it connects to, grouped by
+  layer. A node with no parent or child highlights what it connects to instead.
+- **Trace a path between any two things.** Set a From and a To (in the *Trace a path* menu, from search
+  results, or with *Trace from here / to here*) and the shortest chain of links is drawn in pink, every
+  node on it labelled, with the steps written out.
+- **Search.** Every word must match; `kind:commit`, `layer:assurance`, `lang:java` and `file:...`
+  narrow it; results show kind, date and summary, and go to / trace from / trace to buttons; arrow keys and
+  Enter work; a miss suggests the closest things. With nothing typed, a kind lists everything of that kind.
+- **Comfort.** Every menu section collapses (remembered), every option has a tooltip, filter groups have
+  All / None, and there is a soft-grey light theme (not pure white) as well as the dark one.
+
+`omni graph render` draws the code layer only unless you pass `--all-layers`.
+
+### Using it in your own project
+
+Nothing is hard-wired to OmniEngineering's layout. Ask what the build would read
+from your project, and what it is missing:
+
+```bash
+omni graph sources             # per layer: files found, counts, what is missing, how to fix it
+omni graph sources --write     # draft .ai/graph-config.json from what it found
+```
+
+Only the settings that differ from the defaults belong in `.ai/graph-config.json`:
+
+| Key | Default | Use it when |
+| --- | --- | --- |
+| `requirements_files` | `.ai/requirements/requirements*.json` | your requirements or issues live elsewhere (a JSON list, or an object with `requirements`, of `{id/key, title/summary, status, scope/files}`) |
+| `requirement_id_pattern` | derived from your ids | your ids are unusual (`#42`); by default the exact ids in your registry are matched, so `PROJ-12`, `FEAT_7` and `REQ-001` all work |
+| `changelog_files` | `CHANGELOG.md`, `HISTORY.md`, `docs/CHANGELOG.md`, ... | your changelog is named or placed differently (dated `## 2026-01-31`, versioned `## [1.2.0] - 2026-01-31` and `## v1.2.0 (2026-01-31)` headings all work) |
+| `test_globs` / `exclude_test_globs` | naming conventions | your tests do not follow them |
+| `test_suites_file`, `failure_ledger` | `.ai/test-suites.json`, `.ai/failures/failure-ledger.json` | you keep them elsewhere |
+| `ci_files` | GitHub, GitLab, Cloud Build, Azure, Jenkins, Makefile | extra CI files hold your test commands |
+| `rules_dir`, `playbook_dirs`, `checklist_dirs` | `.ai/...` | your rules and playbooks live elsewhere |
+| `max_commits` | 400 | you want more or less history |
+| `tooling_paths` | `make_ai.py`, `omni_graph.py`, `omni`, `.ai/*` | set to `[]` if OmniEngineering itself is your project |
+
+A project with no `.ai/`, no git, no requirements, or no tests still builds: each
+missing source becomes a note that says what was looked for and how to point at it.
+Malformed JSON is reported by file and line instead of silently ignored, and `omni
+doctor` validates the config. The suite registry is managed with `omni test`:
+
+```bash
+omni test detect [--write]   # find suites from file contents and CI commands; register them
+omni test add --name "Backend JUnit" --paths backend/src/test --framework junit --command "cd backend && mvn test" --covers backend/src/main
+omni test list | check | remove <id>
+```
+
+### MCP server: the graph as tools for any assistant
+
+`omni graph why/lineage/trace/...` and `omni requirement/failure show/list/search`
+already print plain JSON (`--json`). `omni mcp serve` exposes the same data as MCP
+(Model Context Protocol) tools over stdio, so an assistant queries this project's
+requirements, changelog, commits, tests and failures directly, without a shell tool
+to run the CLI and parse its output -- and without that assistant being Claude. This
+is the multi-LLM half of "context management": the graph is one project fact base,
+reachable by whatever is asking.
+
+```bash
+omni mcp tools          # list the tools without starting the server
+omni mcp tools --json   # ...with full input schemas, e.g. to feed a client's config
+omni mcp serve          # serve them over stdio (JSON-RPC 2.0, one JSON object per line) until stdin closes
+```
+
+Point an MCP client's command at `omni mcp serve` (working directory: your project
+root). Every tool is read-only -- `graph_lineage`, `graph_why`, `graph_trace`,
+`graph_timeline`, `graph_show`, `graph_sources`, `requirement_show`,
+`requirement_list`, `requirement_search`, `failure_show`, `gate_status` -- so a
+client can call them with no confirmation step; nothing here writes a requirement,
+a changelog entry or a waiver. `omni requirement draft`, `omni requirement add` and
+`omni gate --hook` remain how anything gets written. Hand-rolled against the wire
+protocol (JSON-RPC 2.0, stdlib only) rather than an SDK dependency, in keeping with
+everything else here: this has to work with only the standard library, on whatever
+Python an assistant's environment already has.
+
+## Failure Ledger
+
+Errors are only useful if they are not made twice. The failure ledger
+(`.ai/failures/failure-ledger.json`, schema `.ai/schemas/failure-ledger.schema.json`)
+records what went wrong, why, the test that now catches it, and the rule or
+playbook that prevents a repeat. Manage it with the CLI, not by hand:
+
+```bash
+omni failure add --requirement REQ-042 --title "Rounding drops cents" \
+  --symptom "total is 10.00, expected 10.05"
+omni failure update FAIL-001 --status fixed \
+  --root-cause "float used for money" --fix "use Decimal" \
+  --tests tests/test_totals.py::test_keeps_cents \
+  --affected src/totals.py --prevention-rules money.no_floats
+omni failure list --status open
+omni failure search "rounding"
+omni failure check       # complete, and every file/test/rule it names exists
+```
+
+`omni doctor` fails a `fixed` entry that lacks a root cause, a fix, a regression
+test (or an honest `no_test_reason`), or a prevention. `omni requirement complete`
+refuses a defect/bug/fix/regression requirement that has no ledger entry unless
+`--no-failure-entry "<reason>"` is given (the reason is recorded as a risk note).
+The rules `completion.failure_ledger`, `completion.regression_test`,
+`completion.failure_becomes_rule` and `controlled.consult_failure_history`, and
+steps in the debugging, testing, implementation, review, planning, handoff and
+release playbooks, make consulting and recording failures part of the standard
+workflow. `omni adopt` ships an empty ledger, an empty suite registry and no graph config,
+never this repository's own.
+
 ## Low-Friction Editing
 
 Most people should not need to hand-edit large JSON files for routine updates.
@@ -789,6 +1037,54 @@ omni requirement add \
 ```
 
 If `--id` is omitted, the CLI assigns the next `REQ-###` ID.
+
+Writing that by hand for every commit is exactly the manual overhead this workspace exists to cut down
+on. Draft it instead, then edit the draft rather than starting from nothing:
+
+```bash
+omni requirement draft                 # from the current (uncommitted) change set
+omni requirement draft --commit HEAD   # from one already-made commit: its subject becomes the title
+```
+
+The category is guessed from the changed paths (tests, `.github/workflows`, all-Markdown, "fix" in a
+path, or a plain default), the scope is the changed files, and the requirement is always written with
+status `proposed` -- never `completed` -- so nothing is trusted until a person reviews it. A matching
+`### Proposed` stub is appended to `CHANGELOG.md` under today's date. If the commit's message already
+cites a requirement ID, nothing is drafted (a duplicate would just be noise); `--force` overrides that.
+
+Query and update the registry without opening the file (it grows large):
+
+```bash
+omni requirement list --status pending
+omni requirement show REQ-042
+omni requirement search "login"
+omni requirement update REQ-042 --status blocked --note "waiting on API key"
+omni requirement complete REQ-042
+omni requirement archive --keep-recent 25   # move old completed entries aside
+```
+
+Enforce the completion rulepack instead of trusting the assistant to remember it:
+
+```bash
+omni gate            # fail if changed files lack changelog/registry updates
+omni waive completion.changelog_gate --reason "docs-only typo fix"
+omni hook install         # Claude Code Stop hook: blocks the assistant from finishing while the gate fails
+omni hook install-git     # portable git pre-commit hook: blocks `git commit` too, any assistant, no assistant, any OS
+omni hook install-git --with-graph-rebuild   # ...and rebuild the graph in the background after every commit
+```
+
+Most of the 60-odd rules across the rulepacks are judgment calls -- "reduce
+cognitive load," "prefer composition," "use clear names" -- and stay that way
+on purpose: mechanizing them would mean checking a shallow proxy and letting
+the real judgment slide, which is worse than an honest "not machine-checked."
+A rule earns a `validation` block only when there is a real, non-fake check
+for it. Three types exist today:
+
+| `validation.type` | What it actually checks |
+| --- | --- |
+| `co_changed` | When any changed path matches `when_changed` (and not `ignore`), at least one changed path must also match `must_also_change` -- e.g. touching anything requires touching `CHANGELOG.md`. |
+| `requirement_registry_entry` | Every `REQ-###`-shaped ID cited in a commit message since the base, or newly added to `CHANGELOG.md`, must actually exist in the requirements registry -- catches a typo'd or invented ID that `omni doctor`'s registry-schema check cannot see, since that only validates the registry's own shape, never what other files claim about it. |
+| `content_forbidden` | Changed files are scanned for a short list of regex patterns (a private-key header, an AWS-shaped access key, an obviously hardcoded credential). A bounded, honest safety net for the most common accidental leaks, not a claim of exhaustive secret scanning. |
 
 Add a rule to a rulepack:
 

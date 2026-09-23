@@ -799,6 +799,420 @@
         "STIG coverage was confirmed absent by reading Arbiter's actual pack YAML data (a literal residual note on the FedRAMP Moderate pack), not inferred from documentation alone, after an initial GitHub code-search result turned out to be a false positive (the substring 'stig' inside the word 'investigation').",
         "This is the ninth roster entry; the platform's own limit is 20, so there is headroom, but each further addition raises the cost of the coordinator's delegation decision and is worth weighing against that, not just against the roster ceiling."
       ]
+    },
+    {
+      "id": "REQ-024",
+      "category": "Feature",
+      "title": "Lineage: pick any node and trace up and down with no second endpoint (CLI and viewer)",
+      "description": "omni graph lineage <node> and the viewer's selection now trace everything upstream (what led to a node) and downstream (what came from it) from a single pick: a requirement, commit, change-log entry, failure, file or symbol. Each edge type has a flow direction (intent -> delivery -> code -> assurance). Up/Both/Down, depth, and an opt-in for code calls/imports; upstream draws cyan and downstream gold. The viewer's flow table is checked against the CLI's by a test.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "omni_graph.py",
+        "make_ai.py",
+        ".ai/graph-viewer/viewer.html",
+        "tests/test_lineage.py",
+        "tests/test_viewer.py",
+        "README.md",
+        "design/cli-design.md",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "A requirement",
+        "commit and failure each trace up and down with one argument",
+        "Direction",
+        "depth and node cap bound the result",
+        "Viewer and CLI agree on flow directions",
+        "Contents of a module are not expanded from a requirement"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests",
+        "omni graph lineage on a real graph",
+        "headless-Chromium check of a requirement and a commit"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "REQ-025",
+      "category": "Process",
+      "title": "Portable enforcement: a real CI matrix and a git pre-commit hook, not just the Claude Stop hook",
+      "description": "The completion gate previously enforced only inside Claude Code (a Stop hook) and CI only ran omni doctor on ubuntu-latest. Added: (1) omni hook install-git, a portable .githooks/pre-commit + core.hooksPath install that runs omni gate on every commit, any assistant or none, on Linux/macOS/Windows (Git for Windows runs hooks through its own bundled sh); (2) a CI matrix across ubuntu-latest/macos-latest/windows-latest x Python 3.10/3.12 that runs the full test suite, omni doctor and omni gate with plain 'python' so it doesn't depend on the executable bit or which of python/python3 is on PATH; (3) a separate CI job that installs the optional [graph] extra and builds/renders the graph, so that path is also checked in CI.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        ".github/workflows/ci.yml",
+        "tests/test_gate_hook.py",
+        "README.md",
+        "design/cli-design.md",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "omni hook install-git writes a working LF-only pre-commit hook and sets core.hooksPath",
+        "A foreign pre-commit hook is not overwritten without --force",
+        "CI runs tests/doctor/gate on all three OSes",
+        "graph build and graph view are exercised in CI via the [graph] extra"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests (97 tests)",
+        "omni gate PASS in the real repo",
+        "omni hook install-git verified end to end in a scratch repo (blocks an unscaffolded commit",
+        "passes once adopted)",
+        "graph-extra job simulated locally in a clean venv"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "REQ-026",
+      "category": "Process",
+      "title": "Cut manual process: draft requirements/changelog from a commit, and rebuild the graph on commit",
+      "description": "Two of the workspace's remaining manual steps: (1) omni requirement draft [--commit REF] infers a category from the changed paths, takes the title from the commit subject (or a placeholder), and writes a proposed (never completed) requirement plus a matching CHANGELOG.md Proposed stub, so review replaces hand-authoring; it refuses to draft a duplicate when the commit message already cites a requirement ID. (2) omni hook install-git --with-graph-rebuild adds a post-commit hook that rebuilds the graph in the background after every commit (a lock directory skips an overlapping run; output goes to .ai/.graph-build.log; a full rebuild never blocks git commit, which matters since a real rebuild can take well over a minute on a large repo).",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        "tests/test_draft.py",
+        "tests/test_gate_hook.py",
+        "README.md",
+        "design/cli-design.md",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "omni requirement draft produces a proposed entry and a changelog stub from both the working tree and a named commit",
+        "A commit that already cites a requirement is not re-drafted",
+        "The post-commit hook rebuilds the graph in the background without blocking git commit",
+        "A build already in flight is not duplicated"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests (118 tests)",
+        "omni gate PASS in the real repo",
+        "end-to-end scratch-repo verification of both features (including a real timed git commit and a directly-run post-commit hook)"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "REQ-027",
+      "category": "Feature",
+      "title": "MCP server: the graph and registries as tools for any assistant, not only Claude",
+      "description": "omni mcp serve exposes graph_why, graph_lineage, graph_trace, graph_timeline, graph_show, graph_sources, requirement_show, requirement_list, requirement_search, failure_show and gate_status as MCP (Model Context Protocol) tools over stdio (JSON-RPC 2.0, newline-delimited), hand-rolled against the wire protocol in stdlib only (no SDK dependency), so any MCP-speaking assistant can query this project's requirements, changelog, commits, tests and failures directly instead of shelling out to the CLI. Every tool is read-only (gate_status runs the same check as omni gate but never writes a waiver or blocks); nothing here writes a requirement, changelog entry or waiver. omni mcp tools [--json] lists the tools without starting the server. Added to the root allowlist, the adopt/update copy list (ADOPTION_CLI_FILES) and pyproject.toml's py-modules, since omni doctor caught it missing from all three on first build.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "omni_mcp.py",
+        "make_ai.py",
+        "pyproject.toml",
+        "tests/test_mcp.py",
+        "README.md",
+        "design/cli-design.md",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "initialize/tools list/tools call all work over a real stdio pipe and over the real CLI subprocess",
+        "Every tool is read-only",
+        "A not-found result (ok:false) and a raised ToolError both surface as isError:true",
+        "A tool that raises unexpectedly does not crash the server",
+        "omni adopt --include-cli copies omni_mcp.py",
+        "omni doctor has 0 errors"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests (149 tests)",
+        "omni gate PASS in the real repo",
+        "end-to-end JSON-RPC session against the real STEP_App-scale graph (initialize",
+        "tools/list",
+        "tools/call for lineage/requirement/gate_status/error cases)"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "REQ-028",
+      "category": "Process",
+      "title": "Make declared rule validations real: a dead check fixed, one new honest safety net added",
+      "description": "gate_rules() only ever selected validation.type == co_changed, so controlled.requirement_id's declared requirement_registry_entry validation was silently never executed -- a rule that looked machine-checked but was not. Fixed by implementing it for real: every REQ-###-shaped ID cited in a commit message since the base, or newly added to CHANGELOG.md, must exist in the registry (catches a typo'd/invented id that the registry's own schema validation cannot see, since that only checks the registry's own shape). Added one new, honestly-scoped validation type, content_forbidden: changed files are scanned for a short list of regexes (private-key header, AWS-shaped access key, obviously hardcoded credential), applied to data.privacy. Deliberately did not try to mechanize the other ~55 unvalidated rules (cognitive load, composition vs inheritance, naming, ...): those are real judgment calls with no honest mechanical proxy, and faking one would be worse than leaving it a judgment call. EXECUTABLE_VALIDATION_TYPES now documents the matched pair (gate_rules selection + gate_evaluate dispatch) so a new type added to one and not the other fails loudly instead of silently doing nothing, which is exactly the bug this fixes.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        "omni_mcp.py",
+        ".ai/rules/data-governance.json",
+        "tests/test_gate_rules.py",
+        "README.md",
+        "design/cli-design.md",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "requirement_registry_entry actually runs and catches a cited-but-nonexistent requirement id",
+        "content_forbidden catches a private-key header and an AWS-shaped key with a line number",
+        "A rulepack's own files never self-match their own pattern source text",
+        "Every existing gate behavior (co_changed) is unchanged",
+        "omni gate PASS on the real repo"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests (165 tests)",
+        "omni gate PASS in the real repo",
+        "omni doctor 0 errors"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "REQ-029",
+      "category": "Feature",
+      "title": "omni graph benchmark: measure the token-savings claim instead of just asserting it",
+      "description": "omni graph benchmark [--json] runs a targeted graph query (why/lineage) against the naive alternative (grep -l -F for the name, then read every matching file whole; a commit compares against git show, the actual diff) for one real requirement, commit, failure and file the current project's own graph and registries already have -- never invented, never hardcoded to a specific project's IDs, so any adopter gets their own honest numbers. Tokens are reported as chars/4, explicitly labelled a rough estimate, not a real tokenizer. Two data-quality bugs were found and fixed while building this: the file case first picked a 290MB gitignored .expo build log (a generic 'file' graph node existed for it despite it being gitignored), then a 5.5MB .pptx after tracked-only filtering (a binary asset). Fixed by restricting the file pick to git-tracked, already-parsed source modules only -- never a generic file node, which can be a binary or an ignored artifact.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "omni_graph.py",
+        "make_ai.py",
+        "tests/test_benchmark.py",
+        "README.md",
+        "design/cli-design.md",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "Picks a real requirement/commit/failure/file from whatever graph is passed in",
+        "A gitignored file is never picked",
+        "A binary or unparsed file is never picked (module nodes only)",
+        "A commit's naive cost is git show",
+        "not a grep",
+        "Reported ratio equals naive_chars/graph_chars",
+        "Live run against both STEP_App and OmniEngineering's own graphs produces sane",
+        "non-degenerate numbers"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests (178 tests)",
+        "omni gate PASS",
+        "live omni graph benchmark run against STEP_App (88x-630x) and OmniEngineering (40x-91x) after the fix"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "REQ-030",
+      "category": "Defect",
+      "title": "Fix CI: graph build needs tree-sitter for every language, python included -- no ast fallback exists",
+      "description": "The CI matrix's main test job (no [graph] extra installed, by design) failed 6/6 jobs: 3 real test failures (test_benchmark.py::TestBenchmarkCLI x2, test_gate_hook.py's background-rebuild test). Root cause: parse_python_file() calls load_language('python') unconditionally -- Python parsing has always gone through tree-sitter, there is no stdlib-ast fallback anywhere in this codebase, contrary to build_graph()'s own stats label which defaulted to the string 'mode: ast' (misleading; fixed to 'tree-sitter'). This mislabel is what let local verification pass silently: this machine's ~/.venvs/omni-graph venv was always auto-detected and re-exec'd into, so the true no-extras path was never actually exercised locally, only in CI. Fixed the 2 TestBenchmarkCLI tests to use a hand-built fixture graph (same pattern as TestBenchmark) instead of invoking omni graph build for real, so they need no extra. Skipped the one test that must invoke a real build when tree-sitter is unavailable, and made the graph-extra CI job (which does install [graph]) also run the full test suite, so that skipped test is exercised there instead.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "omni_graph.py",
+        "tests/test_benchmark.py",
+        "tests/test_gate_hook.py",
+        ".github/workflows/ci.yml",
+        ".ai/failures/failure-ledger.json"
+      ],
+      "acceptance_criteria": [
+        "CI's main test matrix (6 jobs) passes with no [graph] extra installed",
+        "The graph-extra job installs the extra and runs the full suite too",
+        "exercising the previously-skipped test",
+        "build_graph's stats no longer claims ast when tree-sitter is what actually runs",
+        "Reproduced locally with HOME overridden so ~/.venvs/omni-graph is not found",
+        "matching CI's real environment"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests under a forced no-tree-sitter HOME (reproduces CI exactly)",
+        "gh run watch after pushing"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": [
+        "Follow-up: the first push of this fix broke .github/workflows/ci.yml itself (an unquoted colon in a step name parsed as YAML; FAIL-010). Quoted it and validated locally before pushing again."
+      ]
+    },
+    {
+      "id": "REQ-031",
+      "category": "Enforcement",
+      "title": "Make completion enforcement real: executable gates, registry CLI, typed validation, config-driven banner",
+      "description": "Rulepack validation blocks were never executed and omni doctor checked that registry keys existed but never their types, so assistants could skip changelog/registry updates and hand-write malformed requirement entries (25 schema violations in one adopter) without any check failing. The 531 KB adopter registry was also pushed into every context profile. Adds omni gate (co_changed rule execution against the git change set plus doctor errors) with auditable waivers and a Claude Code Stop hook, requirement show/list/search/update/complete/archive so nobody reads or hand-edits the registry JSON, type and enum validation of the registry and its archive, and config-driven classification_banner and allowed_root_paths.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        ".ai/rules/completion-workflow.json",
+        ".ai/rules/universal-engineering-ruleset.json",
+        ".ai/context-manifest.json",
+        ".ai/context-brief.md",
+        ".ai/entrypoints",
+        "README.md",
+        "design/cli-design.md"
+      ],
+      "acceptance_criteria": [
+        "omni gate fails when files change without CHANGELOG and registry updates",
+        "Waivers need a reason and only count when added in the current change set",
+        "Stop hook exits 2 at most once per failing state and never when stop_hook_active is set",
+        "doctor rejects string-instead-of-array registry fields",
+        "requirement archive keeps ids unique and archived entries queryable",
+        "classification banner rendered into every shim and enforced by doctor",
+        "git-ignored root paths are not flagged by doctor"
+      ],
+      "validation_required": [
+        "42-check end-to-end script in a throwaway git repo",
+        "omni doctor",
+        "omni gate"
+      ],
+      "documentation_required": [
+        "changelog",
+        "README",
+        "design/cli-design.md"
+      ],
+      "risk_notes": [
+        "Stop hook was verified by piping hook JSON to omni gate --hook and not inside a live Claude Code session; omni gate compares against origin/main or main so a repo with neither ref falls back to HEAD and only sees uncommitted changes; co_changed globs are path-only and cannot judge whether the changelog text is adequate"
+      ]
+    },
+    {
+      "id": "REQ-032",
+      "category": "Code understanding",
+      "title": "omni graph show --all and an offline interactive 3D graph viewer (omni graph view)",
+      "description": "The code graph could only be inspected one symbol at a time (show) or as a static 2D SVG capped at 300 nodes (render). Adds omni graph show --all (every node grouped by file with in/out degree; filter by kind/language/file glob; --edges; --sort; --limit; --json) and omni graph view, which writes one self-contained offline HTML page built on the unmodified vendored 3d-force-graph bundle (MIT; three.js and 33 other permissively licensed packages) with orbit/pan/zoom, search, language/edge-type filters, colour by language/kind/directory, click-to-read detail panel listing callers and callees, and double-click expand-neighbours. Attribution: NOTICE, .ai/graph-viewer/THIRD_PARTY_NOTICES.md generated from each package's own license file, and the same notices embedded in every generated page.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "omni_graph.py",
+        "make_ai.py",
+        ".ai/graph-viewer",
+        ".ai/.ignore",
+        "README.md",
+        "design/cli-design.md",
+        "NOTICE",
+        ".gitignore"
+      ],
+      "acceptance_criteria": [
+        "show --all lists all nodes with degree and supports kind/language/file/edges/sort/limit/json",
+        "view writes a self-contained HTML that loads with no network",
+        "viewer renders in WebGL and supports search and select and expand and isolate",
+        "notices for all 35 bundled packages are embedded in the page and the repository",
+        "assets are copied by adopt --include-cli and excluded from assistant prompt context",
+        "graph build never parses the vendored bundle"
+      ],
+      "validation_required": [
+        "56-check end-to-end script including graph show and view and adopt",
+        "headless Chromium WebGL run with search and select and expand and isolate and screenshots",
+        "omni doctor",
+        "omni gate"
+      ],
+      "documentation_required": [
+        "changelog",
+        "README",
+        "design/cli-design.md",
+        "NOTICE"
+      ],
+      "risk_notes": [
+        "Adds a 1.3 MB vendored minified bundle to .ai/graph-viewer so every adopter carries it and omni update merges it as an opaque file",
+        "viewer needs WebGL and was verified in Chromium with software rendering only",
+        "initial view is capped at 500 nodes by default and Show all on very large graphs may be slow",
+        "the viewer was not exercised on touch devices",
+        "Follow-up: omni graph build re-runs itself under ~/.venvs/omni-graph (or OMNI_GRAPH_PYTHON) when tree-sitter is missing, and prints venv setup instructions instead of a pip install that PEP 668 systems refuse. Verified by plain ./omni graph build from a system Python without tree-sitter and by the failure path with HOME pointed at an empty directory.",
+        "Follow-up: omni graph view prints the Windows file:/// URL and path under WSL and --open launches the Windows browser via cmd.exe; the Linux /mnt/c URL it printed before cannot be opened by a Windows browser. Not verified in a real Windows Chrome.",
+        "Follow-up: viewer rebranded (title OmniEngineering CodeGraph, brand mark and palette) and made readable at distance: outlier nodes grow with distance from the core cluster, node and edge sizes compensate for camera distance, brighter edge colours, Edge strength slider, unrelated nodes recede on selection. Verified in headless Chromium only.",
+        "Follow-up: multi-language graph (Java, Kotlin, C/C++, Go, Rust, etc. via a generic tree-sitter extractor; Flyway SQL migrations replayed into a table schema; omni graph schema). Verified on STEP_App: 5881 nodes / 19421 edges. Supersedes the earlier note that only Python and JS/TS are covered. The SQL parser skips unusual DDL."
+      ]
+    },
+    {
+      "id": "REQ-033",
+      "category": "Code understanding",
+      "title": "Five-layer code graph (code, governance, history, assurance, workspace) with a failure ledger, project-focused test suites, and configuration that works for any project",
+      "description": "The code graph showed only what the code says. It now has five layers: code; governance (requirements, changelog); history (every commit, tied to the changelog entries it wrote, the requirements it delivered and the files it changed); assurance (the project's tests and test suites, the failure ledger with root-cause reasoning and regression tests); and workspace (OmniEngineering's rules, playbooks, checklists and own code). omni graph why and timeline traverse them, omni failure and omni test manage the ledger and suite registry, the viewer has layer/kind filters with All/None and a kind-filtered search, and an optional graph-config makes the whole thing work for any project layout. Rules and playbooks make recording, testing and preventing failures part of the standard workflow.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "omni_graph.py",
+        "make_ai.py",
+        ".ai/graph-viewer",
+        ".ai/failures",
+        ".ai/schemas",
+        ".ai/rules",
+        ".ai/playbooks",
+        ".ai/checklists",
+        ".ai/entrypoints",
+        "tests",
+        "README.md",
+        "design",
+        ".ai/requirements",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "graph build adds governance and assurance layers with per-layer stats",
+        "omni graph why joins requirements changelog commits tests failures and rules for a file or symbol",
+        "omni failure add|update|show|list|search|check work and doctor rejects an incomplete fixed failure",
+        "omni requirement complete refuses defect requirements with no failure entry",
+        "viewer has layer toggles and a stacked-planes mode",
+        "completion and controlled-implementation rulepacks and the playbooks and checklists require recording and consulting failures",
+        "unit tests cover the layers ledger why and CLI"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests",
+        "omni doctor",
+        "omni gate",
+        "graph build against STEP_App (6450 nodes / 24250 edges)",
+        "viewer driven in headless Chromium"
+      ],
+      "documentation_required": [
+        "changelog",
+        "README",
+        "design docs"
+      ],
+      "risk_notes": [
+        "Test detection is by naming convention so unconventionally named tests only join the graph when a ledger entry names them;verifies edges are aggregated per test file and inferred from calls/imports;governance edges from declared scope are broad for directory-wide scopes and are ranked below git-proven links;stack-layers force verified numerically in headless Chromium only",
+        "History layer: all commits (not only those naming a requirement), tied to changelog entries by the heading each commit added; INFERRED requirement ties for squash commits use the changelog entry heading ids"
+      ]
+    },
+    {
+      "id": "REQ-034",
+      "category": "Code understanding",
+      "title": "Graph viewer: real 2D view (no GPU), views instead of layers, chain highlight, path tracing, better search, collapsible menus, tooltips, light theme",
+      "description": "Adds a flat Canvas 2D renderer (pan and zoom, no tilt, no WebGL context) as the default beside the existing 3D view with a large 2D/3D switch; replaces layer checkboxes with views (Everything, Code, Requirements, History, Tests and failures, Rules and playbooks, Database) and a strip that names the current view and its colour key; strong per-layer colours and per-kind shapes; Network, Layers and Tree layouts; selecting a node highlights its whole parent-to-child chain and zooms to it; shortest-path tracing between two nodes; multi-word search with kind/layer/lang/file filters and closest-match suggestions; collapsible menu sections; tooltips on every option; a soft-grey light theme. omni graph view gains --mode.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        ".ai/graph-viewer",
+        "omni_graph.py",
+        "make_ai.py",
+        "tests",
+        "README.md",
+        "design",
+        "CHANGELOG.md",
+        ".ai/requirements"
+      ],
+      "acceptance_criteria": [
+        "2D view creates no WebGL context and 3D releases it when switching back",
+        "views replace layer toggles and the strip names the current view",
+        "selecting a node highlights its chain and zooms to it",
+        "a path can be traced between any two nodes",
+        "menus collapse and every option has a tooltip",
+        "light theme is not pure white",
+        "tests pass"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests",
+        "headless Chromium against the 6980-node host graph",
+        "omni doctor",
+        "omni gate"
+      ],
+      "documentation_required": [
+        "changelog",
+        "README",
+        "design docs"
+      ],
+      "risk_notes": [
+        "Not verified on a real Windows browser or touch device;pinch zoom implemented but untested;tree layout is most useful where files contain classes and methods;force layout of very large graphs is capped by the number of visible nodes"
+      ]
     }
   ]
 }

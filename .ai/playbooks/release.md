@@ -18,6 +18,8 @@ Use this before merge, publish, package handoff, or public release.
 - Economics decision checklist is satisfied for major scope, cost, or tradeoff
   decisions.
 - Engineering foundations checklist is satisfied for high-impact releases.
+- No failure is left `open` without a decision, and every `fixed` failure has a
+  root cause, a regression test or reason, and a prevention (`omni failure check`).
 - Known risks and follow-ups are stated.
 - Commit sentence is ready.
 - Pull request summary is ready.
