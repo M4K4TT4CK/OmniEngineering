@@ -1,0 +1,36 @@
+# Arbiter policy for this repository. See docs/configuration.md in the
+# arbiter checkout for every key; this is the minimum `omni gate` relies on.
+version: 1
+profile: offline
+
+gate:
+  fail_on:
+    severity: critical
+    new: high
+  gate_on_inferred: false
+
+suppress:
+  # arbiter/ is a vendored workspace with its own arbiter.yaml, its own gate
+  # and a fixture corpus of planted defects. This repository's scan keeps
+  # those findings visible and attributed, but they are the subtree's to act
+  # on, not the workspace's.
+  - rule: "*"
+    path: "arbiter/**"
+    reason: "vendored Arbiter subtree; gated by its own arbiter.yaml (cd arbiter && arbiter gate .)"
+    expires: 2099-01-01
+  # The adopt-loop CI job and its test plant a request call with TLS
+  # verification switched off into a throwaway repository on purpose, to
+  # prove that `omni gate` fails on it and passes once it is fixed. The text
+  # sits in a shell heredoc and a test literal; neither file makes a request.
+  # Reported as existing since the baseline, but code scanning reads the
+  # uploaded SARIF without the baseline and failed the first upstream pull
+  # request on this one error-level alert. (This comment deliberately does
+  # not spell the planted text: the scanner reads this file too.)
+  - rule: "arbiter/authored.security-check-disabled"
+    path: ".github/workflows/ci.yml"
+    reason: "the adopt-loop job plants a TLS-verification-off request as text to prove the gate catches it; the workflow makes no request"
+    expires: 2099-01-01
+  - rule: "arbiter/authored.security-check-disabled"
+    path: "tests/test_adopt_loop.py"
+    reason: "the adopt-loop test plants a TLS-verification-off request as text to prove the gate catches it; the test makes no request"
+    expires: 2099-01-01

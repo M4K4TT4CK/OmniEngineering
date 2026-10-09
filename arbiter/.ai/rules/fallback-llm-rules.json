@@ -1,0 +1,69 @@
+{
+  "rulepack_id": "fallback_llm",
+  "version": "1.0.0",
+  "title": "Fallback LLM Operating Rules",
+  "purpose": "Structured form of .ai/entrypoints/fallback-contract.md's numbered rules, for a session that can only reach one rulepack file and needs the fallback rules machine-checkable rather than prose-only.",
+  "applies_to": ["fallback_sessions", "generic_llm_sessions", "degraded_context_sessions"],
+  "rules": [
+    {
+      "id": "fallback.declare_when_active",
+      "severity": "required",
+      "statement": "If any .ai/ source file is unavailable, unreadable, or skipped, say so explicitly and state that the fallback contract is now the controlling instruction set, rather than proceeding silently on partial context.",
+      "scope": ["startup"]
+    },
+    {
+      "id": "fallback.require_requirement_id",
+      "severity": "required",
+      "statement": "Assign or confirm a REQ-### id before work begins. Do not begin implementation work under a fallback session with no id at all.",
+      "scope": ["startup", "tracking"]
+    },
+    {
+      "id": "fallback.state_minimum_scope",
+      "severity": "required",
+      "statement": "State the minimum access scope for the task before inspecting files.",
+      "scope": ["startup"]
+    },
+    {
+      "id": "fallback.bounded_traversal",
+      "severity": "required",
+      "statement": "Inspect only files needed for the active requirement. Do not scan the whole repository unless the task cannot be completed safely without it.",
+      "scope": ["access"]
+    },
+    {
+      "id": "fallback.no_secret_exposure",
+      "severity": "required",
+      "statement": "Do not read or expose .env, .env.*, private keys, certificates, credentials, database files, logs, build artifacts, dependency folders, cache directories, or anything listed in .ai/.ignore.",
+      "scope": ["access", "security"]
+    },
+    {
+      "id": "fallback.no_unrelated_modification",
+      "severity": "required",
+      "statement": "Do not modify unrelated files, unrelated deployment scripts, unrelated infrastructure, generated dependency folders, secrets, credentials, or local environment files.",
+      "scope": ["implementation"]
+    },
+    {
+      "id": "fallback.smallest_safe_change",
+      "severity": "required",
+      "statement": "Make the smallest safe, maintainable change. Preserve existing behavior unless it conflicts with the active requirement.",
+      "scope": ["implementation"]
+    },
+    {
+      "id": "fallback.honest_validation",
+      "severity": "required",
+      "statement": "Do not claim completion if validation was skipped or could not be run in this session. State explicitly why it was not run, rather than implying it passed.",
+      "scope": ["validation", "reporting"]
+    },
+    {
+      "id": "fallback.complete_final_output",
+      "severity": "required",
+      "statement": "Final output includes requirement id and status, files changed, validation performed, documentation/changelog status, known risks or follow-ups, a commit-entry sentence, and pull-request information.",
+      "scope": ["reporting"]
+    },
+    {
+      "id": "fallback.no_context_fabrication",
+      "severity": "required",
+      "statement": "Do not fabricate the contents of an .ai/ file that could not be read. Report it missing and proceed under this rulepack instead of guessing its content.",
+      "scope": ["startup", "reporting"]
+    }
+  ]
+}

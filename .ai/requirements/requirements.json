@@ -1059,6 +1059,732 @@
       "risk_notes": [
         "Follow-up: the first push of this fix broke .github/workflows/ci.yml itself (an unquoted colon in a step name parsed as YAML; FAIL-010). Quoted it and validated locally before pushing again."
       ]
+    },
+    {
+      "id": "REQ-031",
+      "category": "Feature",
+      "title": "Terminal 'withdrawn' status, targeted archiving, and a live check of registered MCP servers",
+      "description": "Ported from the arbiter adopter's fork of make_ai.py, where both had proven useful: (1) a requirement can be withdrawn (terminal, like completed) and archive moves withdrawn entries too; archive --id names specific entries and refuses pending, blocked or proposed work instead of silently hiding it. (2) omni doctor launches every stdio MCP server .mcp.json registers, runs the real initialize + tools/list handshake, and fails if the server does not start or lists no tools -- a static read of the file cannot tell that a server's SDK or entry point has moved. Remote (url) servers are not probed. .mcp.json is an allowed root file.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        "tests/test_doctor_mcp.py",
+        "tests/test_requirement_archive.py",
+        ".ai/schemas/requirements.schema.json",
+        ".ai/rules/universal-engineering-ruleset.json",
+        "README.md",
+        "design/cli-design.md",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "withdrawn is accepted by requirement update/add and the schema",
+        "archive moves completed-beyond-keep-recent plus withdrawn and --id refuses non-terminal ids",
+        "doctor probes each stdio server in .mcp.json and reports a FAIL when it cannot start or lists no tools",
+        "new tests pass under python3 -m unittest"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests",
+        "./omni doctor",
+        "./omni gate"
+      ],
+      "documentation_required": [
+        "changelog",
+        "readme"
+      ],
+      "risk_notes": [
+        "The live probe starts a subprocess per registered server and waits up to 30s each; a server that needs credentials or a network is better registered as a remote url",
+        "which is not probed.",
+        "Also: exclude_code_globs for the graph's code layer, dated ### sections under an Unreleased heading parsed as entries, and the doctor's partially-readable registry warning scoped to its own errors."
+      ]
+    },
+    {
+      "id": "REQ-032",
+      "category": "Feature",
+      "title": "A command validation type for the gate, and a configurable defect-category pattern",
+      "description": "omni gate could only check co-change, registry citations and forbidden content; a project's own scanner or test suite had to be wired into CI separately. The command validation type runs it inside the gate when a changed path matches, with {base} substituted, a timeout, and failure on non-zero exit or a missing executable. omni requirement complete recognised defect work by a hardcoded regex over the category name; configuration.defect_category_pattern now overrides it.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        "tests/test_gate_rules.py",
+        "README.md",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "a command rule passes on exit 0 and fails with the output tail on non-zero",
+        "missing executable and timeout are failures",
+        "when_changed and ignore gate whether it runs",
+        "defect_category_pattern from configuration is honoured and an invalid one falls back"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests",
+        "./omni doctor",
+        "./omni gate"
+      ],
+      "documentation_required": [
+        "changelog",
+        "readme"
+      ],
+      "risk_notes": [
+        "gate_status over MCP evaluates the same rules",
+        "so a command rule runs there too; keep it to checks that only read."
+      ]
+    },
+    {
+      "id": "REQ-033",
+      "category": "Feature",
+      "title": "Arbiter installs alongside the workspace: omni adopt --with-arbiter and omni arbiter install",
+      "description": "Adopting the workspace should bring the evaluator it pairs with. omni adopt --with-arbiter [SOURCE] and omni arbiter install pip-install arbiter-eval[mcp] from a checkout or the GitHub URL and write the wiring: the arbiter MCP server in .mcp.json, a completion.arbiter_gate command rule so omni gate runs arbiter gate --changed, a starter arbiter.yaml, and arbiter-out/ in .gitignore. Idempotent, never overwrites, --skip-pip and --dry-run.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        "tests/test_arbiter_install.py",
+        "README.md",
+        "design/cli-design.md",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "omni arbiter install writes the four wiring artefacts and reports each as already present on rerun",
+        "existing .mcp.json servers and an existing arbiter.yaml are kept",
+        "--dry-run writes nothing",
+        "adopt --with-arbiter accepts a source or defaults to the GitHub URL",
+        "omni doctor in an adopted directory starts arbiter mcp and lists its tools"
+      ],
+      "validation_required": [
+        "python3 -m unittest tests.test_arbiter_install",
+        "end-to-end adopt into a scratch directory with a local arbiter checkout",
+        "./omni doctor",
+        "./omni gate"
+      ],
+      "documentation_required": [
+        "changelog",
+        "readme"
+      ],
+      "risk_notes": [
+        "Arbiter is proprietary and not on PyPI; the default source is its GitHub URL",
+        "which needs access. The pip step reports failure with the output tail and leaves the wiring in place."
+      ]
+    },
+    {
+      "id": "REQ-034",
+      "category": "Process",
+      "title": "Vendored workspaces: gate, doctor and CI treat a subtree with its own .ai/ as its own workspace",
+      "description": "A directory below the root carrying .ai/omni-version.json is a workspace of its own. The requirement-id gate accepts ids from its registry (a subtree pull's commit messages cite them); omni doctor warns when its CLI copies differ from the root's and names the omni update command; CI runs a vendored Arbiter's suite, integrity and mutation checks when arbiter/pyproject.toml exists. Dependency folders are never read as workspaces.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        "tests/test_gate_rules.py",
+        ".github/workflows/ci.yml",
+        "README.md",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "an id from a vendored registry passes the requirement-id gate without a waiver",
+        "a directory without the adoption marker is not a workspace",
+        "doctor warns on tooling drift and passes when identical",
+        "ci.yml parses and the vendored job skips when arbiter/ is absent"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests",
+        "./omni doctor",
+        "./omni gate"
+      ],
+      "documentation_required": [
+        "changelog",
+        "readme"
+      ],
+      "risk_notes": [
+        "The CI job needs GitHub Actions enabled on this repository",
+        "which it currently is not.",
+        "CI also runs on pushes to the arbiter branch so the vendored-Arbiter job exercises the subtree there.",
+        "The matrix installs a vendored Arbiter when present; without it doctor's live MCP check fails on the arbiter branch (first run, 6/6 jobs)."
+      ]
+    },
+    {
+      "id": "REQ-035",
+      "category": "Process",
+      "title": "Publish Arbiter into this repository as a subtree on the arbiter branch",
+      "description": "The arbiter branch vendors Arbiter's source under arbiter/ as a git subtree with its full history, so the workspace and the evaluator can be read, cloned and run from one place. main carries only the workspace. The branch allows arbiter as a root path, exempts arbiter/** from the data.privacy content check (Arbiter's fixture corpus is planted secrets by design), excludes arbiter/ from this repository's code graph (the subtree has its own), states at the root that the Apache-2.0 grant does not extend to arbiter/, and wires Arbiter to gate this repository too. Arbiter keeps its own LICENSE and NOTICE.md under arbiter/. Merged to main on 2026-10-09 (pull request #3).",
+      "priority": "low",
+      "status": "completed",
+      "minimum_access_scope": [
+        "arbiter/ (subtree)",
+        "README.md",
+        "NOTICE",
+        "LICENSES/README.md",
+        ".ai/graph-config.json",
+        ".mcp.json",
+        "arbiter.yaml",
+        ".ai/rules/universal-engineering-ruleset.json",
+        ".ai/rules/data-governance.json",
+        ".ai/rules/completion-workflow.json",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "git log --oneline arbiter/ shows Arbiter's history",
+        "./omni doctor reports no errors and the vendored workspace runs the same tooling",
+        "./omni gate passes without a waiver",
+        "arbiter gate . passes natively on this repository",
+        "the subtree's own suite passes"
+      ],
+      "validation_required": [
+        "./omni doctor",
+        "./omni gate",
+        "arbiter gate . --no-adapters",
+        "cd arbiter && python -m pytest -q"
+      ],
+      "documentation_required": [
+        "changelog",
+        "readme"
+      ],
+      "risk_notes": [
+        "Mixed licensing on one branch: Apache-2.0 for the workspace",
+        "all rights reserved for arbiter/",
+        "stated at the root. Merged to main on 2026-10-09 (pull request #3)."
+      ]
+    },
+    {
+      "id": "REQ-036",
+      "category": "Doctor / drift detection",
+      "title": "omni doctor prints an assurance posture and offers --json",
+      "description": "Doctor reported checks but no posture. After the Result line it prints Posture: the newest Arbiter report under the completion.arbiter_gate rule's output directory (grade, coverage, new high-or-above, gate result, fresh or stale against HEAD and the changed files), the count of open or mitigated failures and the open requirements by status. omni doctor --json emits the same report as a versioned JSON document. Doctor also errors on duplicate requirement ids across the root registry, its archive and every vendored workspace registry.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        "tests/test_doctor_posture.py",
+        "README.md"
+      ],
+      "acceptance_criteria": [
+        "Posture line after Result with the Result line unchanged",
+        "--json round-trips with schema_version and errors",
+        "stale and missing reports are named as such",
+        "duplicate requirement ids are a doctor error"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests",
+        "./omni doctor",
+        "./omni doctor --json"
+      ],
+      "documentation_required": [
+        "README.md",
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "posture must never change the Result line that tools parse"
+      ]
+    },
+    {
+      "id": "REQ-037",
+      "category": "Enforcement",
+      "title": "omni requirement complete refuses while the branch's Arbiter gate is missing, stale or red",
+      "description": "Completing a requirement implied the product-side gate had run, but nothing checked. When the completion rulepack carries completion.arbiter_gate, complete refuses unless the newest report under its output directory was scanned at HEAD, after the newest changed file, and passed; the refusal prints the exact omni gate command. --no-arbiter-check REASON (10+ chars) records the reason in the note.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        "tests/test_requirement_complete_arbiter.py",
+        "README.md"
+      ],
+      "acceptance_criteria": [
+        "no rule means no check",
+        "missing stale and failed reports each refuse with their reason",
+        "the escape hatch records its reason"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests"
+      ],
+      "documentation_required": [
+        "README.md",
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "repositories that wire Arbiter must run omni gate before completing"
+      ]
+    },
+    {
+      "id": "REQ-038",
+      "category": "Feature",
+      "title": "Arbiter baseline at install and omni arbiter baseline",
+      "description": "Without a committed baseline every Arbiter finding counted as new, so fail_on new: high failed any legacy repository on adoption. arbiter_install writes .arbiter/baseline.json from a full offline scan and says to commit it; the generated completion.arbiter_gate rule passes --baseline and asks for json,sarif,pr-comment output; omni arbiter baseline [--refresh] re-baselines only when the last gate passed and refuses partial-scan reports; doctor warns when the rule exists without a baseline, when the baseline predates the newest fixed ledger entry, or when its config hash no longer matches arbiter.yaml.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        "tests/test_arbiter_install.py",
+        "README.md"
+      ],
+      "acceptance_criteria": [
+        "install writes the baseline when arbiter is on PATH and skips otherwise",
+        "refresh requires a green last report and prunes vanished ids",
+        "partial reports are refused",
+        "doctor warns on the three conditions",
+        "the rule carries --baseline"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests"
+      ],
+      "documentation_required": [
+        "README.md",
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "a reintroduced finding with identical evidence stays existing until the next refresh"
+      ]
+    },
+    {
+      "id": "REQ-039",
+      "category": "Code understanding",
+      "title": "omni graph impact: changed files to requirements, tests, failures and rules",
+      "description": "The graph could answer why for one node but not what a change touches. omni graph impact [--changed BASE] [--depth N] [--json] resolves the changed set like the gate, walks the governance, history, assurance and workspace edges and buckets what it reaches; omni gate prints a one-line impact summary when the graph exists; the omni MCP server exposes graph_impact.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "omni_graph.py",
+        "make_ai.py",
+        "omni_mcp.py",
+        "tests/test_graph_impact.py",
+        "README.md"
+      ],
+      "acceptance_criteria": [
+        "a changed file reaches its requirement failure and suite",
+        "unknown paths are listed as unresolved",
+        "MCP returns the same structure",
+        "gate prints impact:"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests"
+      ],
+      "documentation_required": [
+        "README.md",
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "none beyond graph staleness which the existing freshness check reports"
+      ]
+    },
+    {
+      "id": "REQ-040",
+      "category": "Executable validation",
+      "title": "omni test run executes registered suites, optionally only the impacted ones",
+      "description": "omni test only registered suites; nothing ran them. omni test run [NAMES] [--impacted] [--changed BASE] [--json] [--timeout] runs each suite's command at the root and reports PASS, FAIL or SKIP with the last lines; --impacted selects suites whose paths intersect the impact set and falls back to all suites without a graph. The upstream completion rulepack gains a recommended completion.tests rule as a documented example.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        ".ai/rules/completion-workflow.json",
+        "tests/test_test_run.py",
+        "README.md"
+      ],
+      "acceptance_criteria": [
+        "pass and fail propagate to the exit code",
+        "selection by name and by impact",
+        "JSON shape",
+        "the example rule is recommended not required"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests",
+        "./omni test run"
+      ],
+      "documentation_required": [
+        "README.md",
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "commands run through the shell so suite commands stay as registered"
+      ]
+    },
+    {
+      "id": "REQ-041",
+      "category": "CI / repo hygiene",
+      "title": "The adopt loop is proven end to end in CI and a test",
+      "description": "No test proved adopt, wire Arbiter, plant a defect, gate fails, fix, gate passes. A CI job and a unittest adopt the workspace into a temp directory with --with-arbiter from the vendored subtree, commit, add verify=False in Python, assert omni gate fails naming completion.arbiter_gate, fix it, assert it passes. CI also uploads the gate's SARIF to code scanning and reads requires-python from arbiter/pyproject.toml to decide which cells can run a vendored Arbiter.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        ".github/workflows/ci.yml",
+        "tests/test_adopt_loop.py"
+      ],
+      "acceptance_criteria": [
+        "the job and the test fail on the planted defect and pass after the fix",
+        "the test skips without arbiter",
+        "the SARIF upload is continue-on-error"
+      ],
+      "validation_required": [
+        "python3 -m unittest tests.test_adopt_loop"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "doctor's live MCP probes run inside the gate so the test takes tens of seconds",
+        "2026-10-09: the upstream's first CI run on PR #3 raised Arbiter alerts on this loop's own files; ci.yml now pins every action to its tag's commit SHA (FAIL-016) and arbiter.yaml suppresses the planted TLS-verification-off literal in the CI script and the test, with reasons and 2027-10-01 expiries.",
+        "2026-10-09: the FAIL-017 teardown race recurred on macOS in test_lineage, which commits through the shared Fixture.git helper (FAIL-018); the helper now runs every git call with -c gc.auto=0 so every fixture subclass is covered."
+      ]
+    },
+    {
+      "id": "REQ-042",
+      "category": "CLI / template maintainability",
+      "title": "Arbiter version tracking and omni arbiter update",
+      "description": "omni update never touched an installed or vendored Arbiter. arbiter_install records {source, version} under arbiter in .ai/omni-version.json (other keys preserved); doctor warns when the installed version differs; omni update warns when the installed completion.arbiter_gate rule drifted from the template; omni arbiter update [--source] [--keep-rule] [--squash] [--force] upgrades the package, rewrites the rule, pulls the subtree when one is vendored (refusing to mix squash modes unless forced), re-records the version and suggests a baseline refresh.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        "tests/test_arbiter_install.py",
+        "README.md"
+      ],
+      "acceptance_criteria": [
+        "the version is recorded and preserved across omni update",
+        "doctor warns on mismatch",
+        "subtree mode mismatch is refused unless forced",
+        "the pip and subtree commands are built as documented"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests"
+      ],
+      "documentation_required": [
+        "README.md",
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "subtree history was pulled unsquashed so squash stays opt-in"
+      ]
+    },
+    {
+      "id": "REQ-043",
+      "category": "Code understanding",
+      "title": "Arbiter findings are graph nodes, traceable by id, category, severity, depth and directory, interactively",
+      "description": "An Arbiter finding was traceable only through its file path and only after adjudication. omni graph build reads the newest gate report and adds finding nodes with flags, cites and recorded_as edges; directories contain their files so the tree reads root to finding; omni graph findings rolls findings up by directory with filters and depth; the viewer gains a Findings tab, colour by category and severity, findings filters, search prefixes, a source row with copy and editor links, and one-click traces to the requirement or failure; the MCP server exposes graph_findings.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "omni_graph.py",
+        "make_ai.py",
+        "omni_mcp.py",
+        ".ai/graph-viewer/viewer.html",
+        "tests/test_graph_findings.py",
+        "tests/test_viewer.py",
+        "README.md"
+      ],
+      "acceptance_criteria": [
+        "finding nodes with the three edge types",
+        "why on a finding id",
+        "findings --tree with filters",
+        "lineage by depth",
+        "viewer tab colours filters and source row",
+        "no report means no nodes and no tab",
+        "no evidence in nodes or viewer"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests",
+        "./omni graph build",
+        "./omni graph findings --tree"
+      ],
+      "documentation_required": [
+        "README.md",
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "evidence must never reach the graph or the viewer"
+      ]
+    },
+    {
+      "id": "REQ-044",
+      "category": "CLI / template maintainability",
+      "title": "Requirement id aliases and omni requirement renumber",
+      "description": "Two workspaces that both use the REQ prefix collide the moment one is vendored into the other. The registry gains an optional id_aliases map (old id to new id). The gate's requirement-id check, requirement show/update/complete, the failure ledger check and doctor resolve an alias to its target, and doctor errors on an alias that points nowhere. omni requirement renumber --prefix NEW [--dry-run] changes the prefix, renumbers the registry and archive keeping the numbers, writes the aliases, and rewrites references in the workspace's governance text (ledger, changelog, .ai, root and docs markdown, .claude) but never in code, tests or git history, so Arbiter can move to ARB-### while its commits that cite REQ-### stay valid.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        ".ai/schemas/requirements.schema.json",
+        "tests/test_requirement_aliases.py",
+        "README.md"
+      ],
+      "acceptance_criteria": [
+        "a commit citing an aliased id passes the gate",
+        "an unknown id still fails",
+        "requirement show resolves an alias",
+        "doctor errors on a dangling alias",
+        "renumber rewrites registry archive ledger and governance text and is idempotent and dry-runnable",
+        "code and tests are never rewritten"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests",
+        "./omni doctor",
+        "./omni gate"
+      ],
+      "documentation_required": [
+        "README.md",
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "text rewriting is limited to governance files by an explicit allow list"
+      ]
+    },
+    {
+      "id": "REQ-045",
+      "category": "Documentation",
+      "title": "Integration handbook and dated release notes for the Arbiter loop",
+      "description": "The README and PR bodies described pieces; nothing explained how Arbiter and OmniEngineering run as one loop. docs/arbiter-integration.md covers the division of labour, the three topologies, the wiring written at install, the edit-to-adjudication loop, findings in the graph and how to trace one along four axes, impact and test selection, PR output, what each CI job proves, keeping both level, requirement ids across the two, and the off switches. docs/release-notes-2026-10-09.md lists every requirement landed on the date and the adopter steps. Both are linked from the README design list, the Arbiter section and the context brief.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "docs/arbiter-integration.md",
+        "docs/release-notes-2026-10-09.md",
+        "README.md",
+        ".ai/context-brief.md"
+      ],
+      "acceptance_criteria": [
+        "both documents exist and are linked from README and the context brief",
+        "every command named in them exists",
+        "doctor's markdown checks pass"
+      ],
+      "validation_required": [
+        "./omni doctor",
+        "./omni gate"
+      ],
+      "documentation_required": [
+        "docs/arbiter-integration.md",
+        "docs/release-notes-2026-10-09.md"
+      ],
+      "risk_notes": [
+        "command names must be re-checked against the final Arbiter release",
+        "2026-10-09: the release notes list every requirement on both sides (REQ-035 and REQ-045 were missing, ARB-044 has its own row, FAIL-015 is counted) and end with a table of every path the integration added and the commands that did not exist before; the README's Arbiter section carries the same inventory and its License section states the arbiter/ exclusion."
+      ]
+    },
+    {
+      "id": "REQ-046",
+      "category": "Developer tooling",
+      "title": "Posture reads the newest full and the newest partial Arbiter report separately",
+      "description": "The Posture line showed grade withheld (coverage 15%) because the gate's --changed report is partial by design. arbiter_report_state finds the newest full report (grade, coverage, existing highs, when it ran) and the newest partial one (gate result, new highs, freshness judged against the rule's scope) and the line says which is which; when one kind is missing it names the command that makes it. --json schema_version 2 carries arbiter.full and arbiter.gate.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        "tests/",
+        "docs/arbiter-integration.md"
+      ],
+      "acceptance_criteria": [
+        "posture shows the full scan's grade and the gate's freshness at once",
+        "a missing full scan says to run ./omni arbiter baseline",
+        "a missing gate report says to run ./omni gate",
+        "doctor --json has arbiter.full and arbiter.gate"
+      ],
+      "validation_required": [
+        "./omni doctor",
+        "./omni gate",
+        "python3 -m unittest discover -s tests"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md",
+        "docs/arbiter-integration.md"
+      ],
+      "risk_notes": [
+        "report readers that assumed one report must read scan_scope.mode",
+        "Posture reads the newest full (arbiter-out/baseline) and newest partial (arbiter-out/omni-gate) report separately; the line names ./omni arbiter baseline or ./omni gate when one is missing; doctor --json schema_version 2 with posture.arbiter.full and .gate, schema 1 keys kept one release; the completion check judges the gate report and falls back to the full scan. Validated: 410 unit tests OK, ./omni doctor 0 errors, ./omni gate PASS."
+      ]
+    },
+    {
+      "id": "REQ-047",
+      "category": "Developer tooling",
+      "title": "The registered test suites are required in the gate, with impact selection and a per-rule pass memo",
+      "description": "completion.tests becomes required on this repository and in the vendored Arbiter workspace, running omni test run --impacted so only suites the change reaches run. omni gate --hook does not re-run a command rule that passed on the same scoped change set (per-rule pass records in the gate state file keyed on the scoped files and their mtimes); a scoped file change invalidates the memo. The adopt-loop CI script asserts the rule passes on a repository with no suites.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        ".ai/rules/completion-workflow.json",
+        ".github/workflows/ci.yml",
+        "tests/"
+      ],
+      "acceptance_criteria": [
+        "omni gate fails when a reached suite fails",
+        "a passed rule is not re-run by the hook until a scoped file changes",
+        "the adopt loop stays green",
+        "the unit suite covers the memo"
+      ],
+      "validation_required": [
+        "./omni doctor",
+        "./omni gate",
+        "python3 -m unittest discover -s tests"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md",
+        "docs/arbiter-integration.md"
+      ],
+      "risk_notes": [
+        "hook latency grows by one suite run per change; the fast tier on Arbiter keeps it under three minutes",
+        "completion.tests promoted to required with a rewritten statement; per-rule pass memo keyed on the scoped change set (mtime, size, run text) in the gate state file, never applied to a failed rule, --no-memo forces, durations printed; omni in run texts resolves to the sibling CLI; the adopt loop asserts the tests rule passes with no suites; handbook and README updated. Gate 175.6 s cold / 6.4 s warm on a make_ai.py change. Validated: unittest 410 OK, doctor 0 errors, gate PASS, failure check OK."
+      ]
+    },
+    {
+      "id": "REQ-048",
+      "category": "CI / repo hygiene",
+      "title": "The viewer is exercised in a browser: a finding is traced to its requirement in headless Chromium",
+      "description": "tests/test_viewer_browser.py builds a graph from a fixture repository plus a synthetic Arbiter report, renders the viewer, opens it in headless Chromium through Playwright, switches to the Findings view, selects a finding, and asserts the source row, the breadcrumb (directory, file, finding) and the Trace to requirement result; the severity colour mode is checked through the exported meta. The test skips without Playwright or a Chromium; a dedicated CI job installs both.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "tests/test_viewer_browser.py",
+        ".github/workflows/ci.yml",
+        ".ai/graph-viewer/viewer.html",
+        "docs/arbiter-integration.md"
+      ],
+      "acceptance_criteria": [
+        "the test passes in CI on ubuntu",
+        "it skips cleanly elsewhere",
+        "the handbook says the trace is proven in a browser"
+      ],
+      "validation_required": [
+        "./omni doctor",
+        "./omni gate",
+        "python3 -m unittest discover -s tests"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md",
+        "docs/arbiter-integration.md"
+      ],
+      "risk_notes": [
+        "the browser download is a CI dependency; its own job keeps the matrix independent",
+        "tests/test_viewer_browser.py drives the built viewer in headless Chromium (Findings tab, search, source row, breadcrumb, trace to requirement and to failure, severity colour mode, no console errors) in 3.5 s; viewer.html exposes colorMode and nodeColor(id); the viewer-browser CI job pins playwright 1.63.0, caches Chromium and retries the install once. Validated: the test ran for real, 410 unit tests OK, doctor 0 errors, gate PASS."
+      ]
+    },
+    {
+      "id": "REQ-049",
+      "category": "CLI / template maintainability",
+      "title": "omni arbiter sync levels the subtree, the installed package, the recorded version and the baseline in one command; doctor warns on a mismatched commit identity",
+      "description": "The three-way sync (subtree pull, pip install, version record, baseline refresh, doctor) was manual and error-prone. omni arbiter sync runs the steps in order and stops at the first failure naming the step; --dry-run prints the commands; in pip mode it updates and re-baselines. Doctor warns (never errors) when a commit since the gate base carries an author or committer email that differs from git config user.email or ends in .local or localhost.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        "tests/",
+        "docs/arbiter-integration.md"
+      ],
+      "acceptance_criteria": [
+        "omni arbiter sync --dry-run lists the steps",
+        "a failing step stops the sequence with its name",
+        "doctor warns on an omni@local author",
+        "the adopt loop stays quiet"
+      ],
+      "validation_required": [
+        "./omni doctor",
+        "./omni gate",
+        "python3 -m unittest discover -s tests"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md",
+        "docs/arbiter-integration.md"
+      ],
+      "risk_notes": [
+        "subtree pull conflicts still need a person; sync stops and says so",
+        "omni arbiter sync runs subtree pull (or pip --upgrade), pip install -e, version record, baseline (--refresh when present, --skip-baseline), doctor in order, printing each step, stopping at the first failure with its name and advice, --dry-run prints only; doctor validate_commit_identity warns (never errors) on an author or committer email other than git config user.email or a .local/localhost domain for commits since the gate base (last 20 without one, merges skipped), skipped without a configured email; handbook section 9 rewritten around sync. Validated: unittest 410 OK, doctor 0 errors, gate PASS, sync --dry-run lists the steps."
+      ]
+    },
+    {
+      "id": "REQ-050",
+      "category": "Developer tooling",
+      "title": "Doctor's live MCP probe is memoised on the registration and the server executables; omni gate uses the memo",
+      "description": "omni gate ran both MCP servers for real on every commit. The probe result is stored in the local gate state directory keyed on the .mcp.json digest, each stdio server's resolved executable (path, mtime, size) and PATH; a hit within 24 hours skips the launch and the doctor line says when it was probed. omni doctor --probe forces a live probe; omni gate never forces one; a changed executable or registration invalidates the memo.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        "tests/"
+      ],
+      "acceptance_criteria": [
+        "a second omni doctor within 24 hours does not launch the servers",
+        "--probe launches them",
+        "a changed executable invalidates the memo",
+        "the memo file is git-ignored"
+      ],
+      "validation_required": [
+        "./omni doctor",
+        "./omni gate",
+        "python3 -m unittest discover -s tests"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md",
+        "docs/arbiter-integration.md"
+      ],
+      "risk_notes": [
+        "a server that breaks without its file changing is caught at the next --probe or after 24 hours",
+        "Live MCP probe memoised in <git-dir>/omni-mcp-probe.json keyed on the .mcp.json digest, PATH and each executable's path, mtime and size, for 24 h; omni doctor --probe forces, omni gate never forces, failed probes are not stored, OMNI_DOCTOR_NO_MEMO=1 disables. Warm doctor 2.2 s to 0.35 s. Validated: 410 unit tests OK (14 memo tests), doctor 0 errors, gate PASS."
+      ]
+    },
+    {
+      "id": "REQ-051",
+      "category": "Code understanding",
+      "title": "A finding traces to the requirement that introduced its line, through git blame and the history layer",
+      "description": "The governance probe tags a finding with every requirement open when the scan ran, so a finding cited all five of a round's requirements. omni graph build now blames each finding's line (git blame -L on the path at the scanned commit), links the finding to that commit with an introduced_by edge, and through the history layer's commit-to-requirement edges to the one requirement whose commit wrote the line. omni graph why f:<id> prints introduced by <commit> (<requirement>); the viewer's finding panel gains an Introduced by row with its own trace button; the cites edges from the req: tags stay and are labelled as context (being worked when the scan ran). A line with no blame (uncommitted, or a path outside git) has no edge and says so.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "omni_graph.py",
+        ".ai/graph-viewer/viewer.html",
+        "make_ai.py",
+        "tests/",
+        "docs/arbiter-integration.md"
+      ],
+      "acceptance_criteria": [
+        "a finding on a committed line has exactly one introduced_by commit and the requirement that commit cites",
+        "omni graph why prints it",
+        "the browser test clicks the Introduced by trace",
+        "an uncommitted line yields no edge and no error"
+      ],
+      "validation_required": [
+        "./omni doctor",
+        "./omni gate",
+        "python3 -m unittest discover -s tests"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md",
+        "docs/arbiter-integration.md"
+      ],
+      "risk_notes": [
+        "git blame on hundreds of findings costs time: one blame per file with all its lines",
+        "not one per finding",
+        "Blame-based introduced_by edges (one git blame per file at the scanned commit, HEAD and working-tree fallbacks), why/findings print the introducing commit and requirement, viewer Introduced by row and three-step trace proven in headless Chromium; cites relabelled as context. All 33 findings here resolve; the stub finding traces to b49f2eb (REQ-050). Validated: 450 unit tests OK, browser test ran, doctor 0 errors, gate PASS."
+      ]
+    },
+    {
+      "id": "REQ-052",
+      "category": "Code understanding",
+      "title": "Vendored workspaces' ledgers and registries join the graph, namespaced, so a finding traces to the entry that fixed it wherever it lives",
+      "description": "A failure recorded in the vendored Arbiter workspace's ledger (arbiter/.ai/failures/failure-ledger.json) was invisible to this repository's graph, so the stub finding from pull request #5 had no recorded_as edge although FAIL-042 fixed it. omni graph build reads every vendored workspace's failure ledger and requirements registry, adds their nodes with a workspace prefix (arbiter/FAIL-042, arbiter/ARB-048) because both ledgers number from FAIL-001, resolves recorded_as edges across workspaces by finding id, and the viewer shows the workspace on the node and in the breadcrumb. omni graph findings and why print the prefixed ids. Entries name the finding id in how_detected for the edge to exist; the handbook states the convention.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "omni_graph.py",
+        ".ai/graph-viewer/viewer.html",
+        "tests/",
+        "docs/arbiter-integration.md"
+      ],
+      "acceptance_criteria": [
+        "a ledger entry in arbiter/.ai whose how_detected names a finding id yields a recorded_as edge",
+        "prefixed ids never collide with the root ledger",
+        "the viewer shows the workspace",
+        "omni graph why f:<id> lists the vendored entry"
+      ],
+      "validation_required": [
+        "./omni doctor",
+        "./omni gate",
+        "python3 -m unittest discover -s tests"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md",
+        "docs/arbiter-integration.md"
+      ],
+      "risk_notes": [
+        "a vendored workspace with hundreds of entries grows the graph; only ledgers and registries are read",
+        "never code",
+        "Vendored workspaces' registries and ledgers join the graph with a directory prefix (arbiter/ARB-048, arbiter/FAIL-042), recorded_as resolves across workspaces by finding id in how_detected or symptom, viewer and CLI show the workspace; the how_detected convention is in the handbook. 26 requirements and 41 failures of arbiter/ joined here. Validated: 450 unit tests OK, doctor 0 errors, gate PASS."
+      ]
     }
   ]
 }

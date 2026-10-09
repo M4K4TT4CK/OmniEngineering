@@ -1,0 +1,210 @@
+framework:
+  id: CMMC-L2
+  title: Cybersecurity Maturity Model Certification Level 2
+  version: "2.0 (32 CFR Part 170)"
+  authority: https://www.ecfr.gov/current/title-32/subtitle-A/chapter-I/subchapter-G/part-170
+  baseline: Level 2
+  # 110 practices, aligned one-to-one with the NIST SP 800-171 Rev 2 security
+  # requirements.
+  declared_controls: 110
+  declared_source: >-
+    CMMC Level 2 — 110 practices, aligned to NIST SP 800-171 Rev 2.
+  notes: >-
+    An INDEPENDENT pack, and the case where independence matters most.
+    CMMC Level 2 shares its 110 practices with 800-171 Rev 2, so crosswalking
+    looks free. It is not, because CMMC is an ASSESSED certification: a
+    practice is met when a certified assessor accepts evidence for it, against
+    a published assessment guide, at a defined scope. "A scanner found nothing"
+    is an input an assessor may consider. It is not a practice being met, and
+    nothing in this pack should be pasted into an SSP as though it were.
+
+    Practice identifiers follow the CMMC form (DOMAIN.L2-REQUIREMENT) rather
+    than the bare 800-171 numbering, so a reader cannot mistake one pack's
+    output for the other's.
+
+controls:
+  # ---- AC — Access Control -----------------------------------------------
+  - id: AC.L2-3.1.1
+    title: Limit system access to authorized users, processes and devices
+    family: AC
+    automatable: partial
+    machine_scope: Storage and databases declared publicly reachable.
+    residual: >-
+      Account management, authorization records, and the assessor's view of
+      the enclave boundary.
+    satisfied_by:
+      - arbiter/resource.public-object-store
+      - arbiter/resource.database-publicly-accessible
+
+  - id: AC.L2-3.1.5
+    title: Employ the principle of least privilege
+    family: AC
+    automatable: partial
+    machine_scope: >-
+      Escalation enabled, capabilities retained, writable root filesystems,
+      privileged containers, IAM grants nothing uses.
+    residual: Role design, privileged account inventory, review records.
+    satisfied_by:
+      - arbiter/resource.k8s-privilege-escalation
+      - arbiter/resource.k8s-privilege-escalation-not-disabled
+      - arbiter/resource.k8s-capabilities-not-dropped
+      - arbiter/resource.k8s-writable-root-filesystem
+      - arbiter/resource.privileged-container
+      - arbiter/interface.permission-unused
+
+  - id: AC.L2-3.1.20
+    title: Verify and control connections to external systems
+    family: AC
+    automatable: partial
+    machine_scope: Ingress rules admitting any address.
+    residual: Interconnection agreements and boundary devices.
+    satisfied_by:
+      - arbiter/resource.unrestricted-ingress
+
+  # ---- AU — Audit and Accountability -------------------------------------
+  - id: AU.L2-3.3.1
+    title: Create and retain audit logs enabling monitoring and investigation
+    family: AU
+    automatable: partial
+    machine_scope: Access logging and retention declared on resources.
+    residual: Whether the records captured support after-the-fact investigation.
+    satisfied_by:
+      - arbiter/resource.no-object-store-logging
+      - arbiter/resource.no-log-retention
+
+  # ---- CM — Configuration Management -------------------------------------
+  - id: CM.L2-3.4.1
+    title: Establish and maintain baseline configurations and inventories
+    family: CM
+    automatable: partial
+    machine_scope: Dependencies and images pinned to immutable references.
+    residual: Approved baseline records and asset inventory.
+    satisfied_by:
+      - arbiter/supply.unpinned-python-dep
+      - arbiter/supply.unpinned-npm-dep
+      - arbiter/resource.k8s-mutable-image-tag
+
+  - id: CM.L2-3.4.2
+    title: Establish and enforce security configuration settings
+    family: CM
+    automatable: partial
+    machine_scope: Declared settings measured against this build's rules.
+    residual: The benchmark the assessor expects, which is not this rule set.
+    satisfied_by:
+      - arbiter/resource.k8s-no-security-context
+      - arbiter/resource.k8s-not-run-as-non-root
+      - arbiter/resource.k8s-runs-as-root
+
+  - id: CM.L2-3.4.6
+    title: Employ the principle of least functionality
+    family: CM
+    automatable: partial
+    machine_scope: Mutable CI action references; untrusted-code checkouts.
+    residual: Prohibited function and service lists.
+    satisfied_by:
+      - arbiter/supply.unpinned-action
+      - arbiter/supply.pull-request-target
+
+  # ---- IA — Identification and Authentication ----------------------------
+  - id: IA.L2-3.5.10
+    title: Store and transmit only cryptographically protected passwords
+    family: IA
+    automatable: partial
+    machine_scope: Plaintext credentials and keys committed to version control.
+    residual: Runtime credential storage and hashing.
+    satisfied_by:
+      - arbiter/secrets.private-key
+      - arbiter/secrets.aws-access-key
+      - arbiter/secrets.gh-token
+      - arbiter/secrets.slack-token
+      - arbiter/secrets.pg-url
+      - arbiter/secrets.assigned-credential
+
+  # ---- RA — Risk Assessment ----------------------------------------------
+  - id: RA.L2-3.11.2
+    title: Scan for vulnerabilities periodically and when new ones are identified
+    family: RA
+    automatable: partial
+    machine_scope: That static analysis ran, with coverage recorded.
+    residual: Scan cadence records and remediation evidence.
+    satisfied_by:
+      - checkov/CKV_AWS_1
+      - bandit/B105
+
+  # ---- SC — System and Communications Protection -------------------------
+  - id: SC.L2-3.13.1
+    title: Monitor and protect communications at external boundaries
+    family: SC
+    automatable: partial
+    machine_scope: Open ingress and host-namespace sharing.
+    residual: Boundary placement and runtime monitoring.
+    satisfied_by:
+      - arbiter/resource.unrestricted-ingress
+      - arbiter/resource.k8s-host-namespace
+      - arbiter/resource.host-network
+
+  - id: SC.L2-3.13.8
+    title: Implement cryptographic mechanisms to prevent disclosure in transit
+    family: SC
+    automatable: partial
+    machine_scope: Listeners declared without TLS.
+    residual: FIPS validation and cipher policy.
+    satisfied_by:
+      - arbiter/resource.plaintext-listener
+
+  - id: SC.L2-3.13.16
+    title: Protect the confidentiality of CUI at rest
+    family: SC
+    automatable: partial
+    machine_scope: Encryption at rest requested on declared storage.
+    residual: >-
+      Key custody, FIPS validation, and CUI stored anywhere the scan did not
+      reach. This is the practice most often over-claimed from a scan result.
+    satisfied_by:
+      - arbiter/resource.unencrypted-database
+      - arbiter/resource.unencrypted-volume
+      - arbiter/resource.unencrypted-object-store
+      - arbiter/resource.unencrypted-queue
+
+  # ---- domains no repository scan reaches --------------------------------
+  - id: AT.L2-3.2.1
+    title: Ensure personnel are aware of security risks
+    family: AT
+    automatable: none
+    residual: Training records.
+    satisfied_by: []
+
+  - id: IR.L2-3.6.1
+    title: Establish an operational incident-handling capability
+    family: IR
+    automatable: none
+    residual: A capability, exercised and documented.
+    satisfied_by: []
+
+  - id: MA.L2-3.7.1
+    title: Perform maintenance on organizational systems
+    family: MA
+    automatable: none
+    residual: Maintenance records.
+    satisfied_by: []
+
+  - id: MP.L2-3.8.3
+    title: Sanitize or destroy media containing CUI before disposal
+    family: MP
+    automatable: none
+    residual: Destruction certificates.
+    satisfied_by: []
+
+  - id: PS.L2-3.9.1
+    title: Screen individuals prior to authorizing access to CUI
+    family: PS
+    automatable: none
+    residual: Background investigation records.
+    satisfied_by: []
+
+  - id: PE.L2-3.10.1
+    title: Limit physical access to organizational systems
+    family: PE
+    automatable: none
+    residual: A site walk by the assessor.
+    satisfied_by: []

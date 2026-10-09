@@ -1,0 +1,175 @@
+# Arbiter on every pull request.
+#
+# ## What makes this workable
+#
+# A full scan of a large repository takes about a minute per half-million
+# lines, which is too slow to sit in front of a merge. This workflow passes
+# `--changed`, so Arbiter reads the files this branch touched (plus dependency
+# manifests, lockfiles, CI workflows and Terraform, which its rules reason
+# across) and skips the checks that need the whole tree.
+#
+# Those skipped checks are not silently dropped. They appear in the report as
+# NOT ASSESSED with the partial scan named as the reason, the overall grade is
+# withheld, and no claim in the report is scoped as being about the repository.
+# A green pull-request check means "this change introduced nothing that crosses
+# a threshold", never "this repository is clean". The nightly job below is what
+# says the second thing.
+#
+# ## Two jobs, on purpose
+#
+#   pull-request : fast, partial, blocking
+#   nightly      : full, complete, refreshes the baseline
+#
+# The baseline is what makes `new: high` mean anything. Without it every
+# pre-existing finding is new and the gate fires on the first pull request
+# after you install it.
+
+name: arbiter
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+  schedule:
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write        # the nightly job commits the refreshed baseline
+  pull-requests: write   # the pull-request job posts its comment
+
+concurrency:
+  group: arbiter-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pull-request:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # fetch-depth: 0 is required. Arbiter diffs against the merge base with
+      # three dots, so it scans what THIS branch changed and not what somebody
+      # else landed on main meanwhile. A shallow clone has no merge base and
+      # Arbiter refuses rather than scanning nothing.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Arbiter
+        run: pip install git+https://github.com/OWNER/arbiter.git@main
+
+      - name: Scan what changed
+        id: scan
+        run: |
+          git fetch --no-tags origin "${{ github.base_ref }}"
+          arbiter gate . \
+            --changed "origin/${{ github.base_ref }}" \
+            --baseline .arbiter/baseline.json \
+            --out arbiter-out \
+            --format json,sarif,markdown,console
+
+      # Uploaded whether or not the gate passed: the report is the useful part
+      # even when nothing blocked.
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: arbiter-pr-${{ github.run_number }}
+          path: arbiter-out/
+          retention-days: 14
+
+      # Code scanning alerts, so findings land in the files-changed view next
+      # to the lines they are about.
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: arbiter-out/report.sarif
+        continue-on-error: true
+
+      - name: Comment on the pull request
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'arbiter-out/REPORT.md';
+            if (!fs.existsSync(path)) return;
+            const body = fs.readFileSync(path, 'utf8').slice(0, 65000);
+            const marker = '<!-- arbiter -->';
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const mine = comments.find(c => c.body && c.body.includes(marker));
+            const payload = marker + '\n' + body;
+            if (mine) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                comment_id: mine.id, body: payload,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: context.issue.number, body: payload,
+              });
+            }
+
+  full:
+    # Everything the pull-request job could not answer. This is the job whose
+    # result may be quoted as being about the repository.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Arbiter
+        run: pip install git+https://github.com/OWNER/arbiter.git@main
+
+      - name: Full scan
+        run: arbiter scan . --out arbiter-out --format json,sarif,html,markdown,console
+
+      - name: Check that no claim outran its basis
+        run: arbiter verify arbiter-out/report.json
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: arbiter-out/report.sarif
+        continue-on-error: true
+
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: arbiter-full-${{ github.run_number }}
+          path: arbiter-out/
+          retention-days: 30
+
+      # The baseline is only refreshed from a FULL scan on the default branch.
+      # Refreshing it from a partial scan would quietly forgive every finding
+      # in the files that scan did not read.
+      - name: Refresh the baseline
+        if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        run: |
+          arbiter baseline arbiter-out/report.json --out .arbiter/baseline.json
+          git config user.name  "arbiter"
+          git config user.email "arbiter@users.noreply.github.com"
+          git add .arbiter/baseline.json
+          git diff --cached --quiet || {
+            git commit -m "arbiter: refresh baseline from run ${{ github.run_number }}"
+            git push
+          }

@@ -1,0 +1,489 @@
+# Provider-neutral resource policy.
+#
+# Rules are written against normalized `kind`, so one rule fires on an S3
+# bucket, an Azure storage account and a GCS bucket alike. Provider-specific
+# knowledge lives in the graph normalizers, never here.
+#
+# assert kinds:
+#   property_truthy          satisfied when any listed property is truthy
+#   property_absent_or_false satisfied when no listed property is truthy
+#   property_equals          satisfied when property == value
+#   property_not_in          satisfied when no listed property holds a banned value
+#   text_absent              satisfied when none of the strings appear anywhere in the resource
+#   no_open_ingress          satisfied when no ingress rule allows 0.0.0.0/0 or ::/0
+
+rules:
+  - id: unencrypted-database
+    title: Database storage is not encrypted at rest
+    match_kinds: [database]
+    assert: property_truthy
+    # These encrypt at rest unconditionally under a service-managed key and
+    # express nothing on the resource. Reporting them is the S3 situation --
+    # about key custody, not plaintext -- and there is no property here to
+    # carry that distinction, so they are excluded rather than mis-reported.
+    exclude_native: [azurerm_postgresql_server, azurerm_mysql_server,
+                     azurerm_postgresql_flexible_server, azurerm_mysql_flexible_server]
+    any_of: [storage_encrypted, StorageEncrypted, encrypted, Encrypted, kms_key_id, KmsKeyId,
+             EncryptionAtRestOptions.Enabled, SSESpecification.SSEEnabled,
+             # Azure: transparent data encryption and infrastructure encryption
+             transparent_data_encryption_enabled, infrastructure_encryption_enabled,
+             customer_managed_key.key_vault_key_id, customer_managed_key,
+             # GCP: encryption is on by default, so the question is key custody
+             encryption_key_name, kms_key_name, encryption.kms_key_name,
+             disk_encryption_key.kms_key_name, encryption_config.kms_key_name]
+    severity: high
+    confidence: high
+    dimension: security
+    description: No encryption-at-rest property is set on this database resource.
+    remediation: Enable storage encryption with a customer-managed key.
+    controls: [NIST-800-53r5:SC-28, CIS-AWS:2.3.1]
+
+  - id: unencrypted-object-store
+    title: Object store does not declare server-side encryption
+    match_kinds: [object_store]
+    assert: property_truthy
+    any_of: [server_side_encryption_configuration, BucketEncryption, encryption,
+             sse_algorithm, encryption_config,
+             # Azure storage encrypts by default; a declared key is the signal
+             customer_managed_key, infrastructure_encryption_enabled,
+             # GCP likewise
+             encryption.default_kms_key_name, default_kms_key_name]
+    severity: medium
+    confidence: medium
+    dimension: security
+    description: >-
+      No server-side encryption is declared on this bucket. Major providers now
+      encrypt object storage by default, so this is usually about key custody
+      rather than plaintext at rest: without a declared key the data is
+      encrypted under a provider-managed key you do not control or rotate.
+    remediation: Declare server-side encryption with a customer-managed key.
+    controls: [NIST-800-53r5:SC-28, CIS-AWS:2.1.1]
+
+  - id: unencrypted-volume
+    title: Block or file storage is not encrypted
+    match_kinds: [block_store, filesystem]
+    # A Kubernetes PVC is a block_store, but encryption is a property of its
+    # StorageClass, not of the claim. Without this exclusion the rule fired on
+    # every PersistentVolumeClaim in Kubernetes' own examples repository.
+    exclude_providers: [k8s]
+    assert: property_truthy
+    any_of: [encrypted, Encrypted, kms_key_id, KmsKeyId,
+             # Azure managed disks
+             disk_encryption_set_id, encryption_settings,
+             # GCP persistent disks and Filestore
+             disk_encryption_key, disk_encryption_key.kms_key_self_link,
+             kms_key_name]
+    severity: high
+    confidence: high
+    dimension: security
+    description: Volume-level encryption is not enabled on this resource.
+    remediation: Set encryption and reference a managed key.
+    controls: [NIST-800-53r5:SC-28]
+
+  - id: unencrypted-queue
+    title: Queue or topic has no encryption configured
+    match_kinds: [queue, topic]
+    assert: property_truthy
+    any_of: [kms_master_key_id, KmsMasterKeyId, sqs_managed_sse_enabled, SqsManagedSseEnabled,
+             # GCP Pub/Sub
+             kms_key_name,
+             # Azure Service Bus and Event Hubs
+             customer_managed_key, encryption]
+    severity: medium
+    confidence: medium
+    dimension: security
+    description: Messages are stored unencrypted at rest.
+    remediation: Set a KMS key or enable managed server-side encryption.
+    controls: [NIST-800-53r5:SC-28]
+
+  - id: public-object-store
+    title: Object store grants public access
+    match_kinds: [object_store]
+    assert: property_not_in
+    any_of: [acl, ACL, AccessControl]
+    values: [public-read, public-read-write, PublicRead, PublicReadWrite, authenticated-read]
+    unless_truthy: [public_access_block.block_public_acls, PublicAccessBlockConfiguration.BlockPublicAcls]
+    severity: critical
+    confidence: high
+    dimension: security
+    description: The bucket ACL permits access from outside the account.
+    remediation: Remove the public ACL and serve through a signed URL or CDN origin access identity.
+    controls: [NIST-800-53r5:AC-3, CIS-AWS:2.1.5]
+
+  - id: database-publicly-accessible
+    title: Database is reachable from the public internet
+    match_kinds: [database]
+    assert: property_absent_or_false
+    any_of: [publicly_accessible, PubliclyAccessible,
+             public_network_access_enabled,        # Azure
+             public_network_access]                # GCP / Azure variants
+    severity: critical
+    confidence: high
+    dimension: security
+    description: The instance is provisioned with a public endpoint.
+    remediation: Place the database in private subnets and reach it through a bastion or VPC endpoint.
+    controls: [NIST-800-53r5:SC-7, CIS-AWS:2.3.3]
+
+  - id: unrestricted-ingress
+    title: Security group allows ingress from any address
+    match_kinds: [firewall, firewall_rule]
+    assert: no_open_ingress
+    severity: high
+    confidence: high
+    dimension: security
+    description: An ingress rule accepts traffic from 0.0.0.0/0 or ::/0.
+    remediation: Narrow the source to a specific prefix list, security group or CIDR.
+    controls: [NIST-800-53r5:SC-7, CIS-AWS:5.2]
+
+  - id: plaintext-listener
+    title: Load balancer listener terminates in plaintext
+    match_kinds: [listener]
+    assert: property_not_in
+    any_of: [protocol, Protocol]
+    values: [HTTP, http, TCP, tcp]
+    # An HTTP listener whose only action is a redirect to HTTPS never forwards
+    # a plaintext request to a target -- it's the standard, recommended way to
+    # get HTTP clients onto TLS, not a plaintext data path.
+    unless_text_present: ['"type": "redirect"']
+    severity: high
+    confidence: medium
+    dimension: security
+    description: Traffic to this listener is not encrypted in transit.
+    remediation: Use HTTPS or TLS and attach a certificate.
+    controls: [NIST-800-53r5:SC-8]
+
+  - id: database-allows-plaintext-connections
+    title: Database accepts unencrypted connections
+    match_kinds: [database]
+    # AWS RDS enforces TLS through a parameter group rather than a property on
+    # the instance, so the property is absent there for a reason that is not a
+    # defect. Scoping to the providers that DO express it on the resource is
+    # what keeps this from firing on every RDS instance ever written -- the
+    # same mistake the Kubernetes PersistentVolumeClaim episode was.
+    match_providers: [azure, gcp, alicloud]
+    # Azure SQL enforces TLS unconditionally and has no property that says so.
+    exclude_native: [azurerm_mssql_database, azurerm_mssql_server,
+                     azurerm_sql_database, azurerm_sql_server,
+                     azurerm_cosmosdb_account]
+    assert: property_truthy
+    any_of: [ssl_enforcement_enabled, ssl_enforcement, require_ssl,
+             settings.ip_configuration.require_ssl, enforce_ssl, tls_enforced,
+             ssl_mode, minimum_tls_version, ssl_action]
+    severity: high
+    confidence: medium
+    dimension: security
+    description: >-
+      Nothing on this database requires connections to use TLS, so a client
+      that does not ask for it gets an unencrypted session and no error. The
+      credential and every row cross the network in the clear.
+    remediation: >-
+      Require SSL on the server. Turning it on at the client is not the same
+      thing, because it leaves the unencrypted path open.
+    controls: [NIST-800-53r5:SC-8, NIST-800-171r2:3.13.8]
+
+  - id: weak-tls-version
+    title: TLS version policy allows 1.0 or 1.1
+    match_kinds: [database, object_store, load_balancer, listener, compute, search]
+    assert: property_not_in
+    any_of: [minimum_tls_version, min_tls_version, MinimumTlsVersion, tls_policy,
+             TLSSecurityPolicy, ssl_policy, security_policy, minimum_protocol_version,
+             MinimumProtocolVersion]
+    values: ["1.0", "1.1", "TLS1_0", "TLS1_1", "TLSv1", "TLSv1.1", "TLSv1_2016",
+             "Policy-Min-TLS-1-0-2019-07", "Policy-Min-TLS-1-1-2019-07",
+             "ELBSecurityPolicy-TLS-1-0-2015-04", "SSLv3", "TLS_1_0", "TLS_1_1"]
+    severity: medium
+    confidence: high
+    dimension: security
+    description: >-
+      This resource explicitly permits TLS 1.0 or 1.1. Both are withdrawn, and
+      a policy naming them is usually a default nobody revisited rather than a
+      decision about which clients need supporting.
+    remediation: Raise the minimum to TLS 1.2.
+    controls: [NIST-800-53r5:SC-8, NIST-800-53r5:SC-13]
+
+  - id: no-https-redirect
+    title: Web endpoint does not redirect HTTP to HTTPS
+    match_kinds: [listener, compute]
+    match_native: [azurerm_app_service, azurerm_linux_web_app, azurerm_windows_web_app,
+                   aws_api_gateway_domain_name, google_compute_target_http_proxy]
+    assert: property_truthy
+    any_of: [https_only, httpsOnly, redirect_http_to_https, force_https,
+             https_redirect, ssl_redirect]
+    severity: medium
+    confidence: medium
+    dimension: security
+    description: >-
+      The endpoint answers on HTTP and does not redirect to HTTPS, so the first
+      request of every session — the one carrying the session cookie — can be
+      made in the clear.
+    remediation: Set HTTPS-only, or add a redirect at the edge.
+    controls: [NIST-800-53r5:SC-8]
+
+  - id: no-log-retention
+    title: Log group has no retention period
+    match_kinds: [log_group]
+    assert: property_truthy
+    any_of: [retention_in_days, RetentionInDays,
+             retention_in_days,                    # Azure Log Analytics
+             retention_policy.days,                # GCP logging bucket
+             retention_days]
+    severity: low
+    confidence: high
+    dimension: compliance
+    description: Logs accumulate indefinitely, or are deleted on an undeclared schedule.
+    remediation: Set an explicit retention period that matches your records policy.
+    controls: [NIST-800-53r5:AU-11]
+
+  - id: no-object-store-logging
+    title: Object store has no access logging
+    match_kinds: [object_store]
+    assert: property_truthy
+    # Azure storage logging is a diagnostic setting on a separate resource, so
+    # its absence here says nothing. Noted in the description already; now
+    # enforced rather than merely mentioned.
+    exclude_providers: [azure]
+    any_of: [logging, LoggingConfiguration, logging_config,
+             # Azure diagnostic settings are a separate resource; this catches
+             # the inline form only, which is why the rule stays at low
+             # confidence on that provider.
+             logs, enabled_log,
+             # GCP
+             log_config, logging_service]
+    # The bucket other buckets deliver their access logs to has none of its
+    # own -- pointing it at itself would be a delivery loop, not a gap.
+    unless_referenced_by: [LoggingConfiguration.DestinationBucketName]
+    severity: low
+    confidence: medium
+    dimension: compliance
+    description: Access to this bucket is not recorded.
+    remediation: Enable access logging to a separate, restricted bucket.
+    controls: [NIST-800-53r5:AU-2]
+
+  - id: no-deletion-protection
+    title: Stateful resource has no deletion protection
+    match_kinds: [database]
+    assert: property_truthy
+    # Azure has no per-resource deletion protection property; it uses
+    # management locks, which are a separate resource this rule cannot see.
+    exclude_providers: [azure]
+    any_of: [deletion_protection, DeletionProtection, DeletionProtectionEnabled,
+             deletion_protection_enabled,          # GCP / newer Azure providers
+             prevent_deletion,
+             lifecycle.prevent_destroy]
+    severity: low
+    confidence: medium
+    dimension: quality
+    description: The resource can be destroyed by a single apply.
+    remediation: Enable deletion protection on production data stores.
+    controls: [NIST-800-53r5:CP-9]
+
+  - id: privileged-container
+    title: Container runs privileged
+    match_kinds: [compute]
+    assert: text_absent
+    values: ['"privileged": true', 'privileged: true']
+    severity: high
+    confidence: high
+    dimension: security
+    description: A privileged container has effectively unrestricted host access.
+    remediation: Drop the privileged flag and grant only the specific capabilities needed.
+    controls: [NIST-800-53r5:AC-6, NIST-800-190:4.4]
+
+  - id: host-network
+    title: Workload attaches to the host network
+    match_kinds: [compute]
+    assert: text_absent
+    values: ['"hostNetwork": true', 'hostNetwork: true']
+    severity: medium
+    confidence: high
+    dimension: security
+    description: The workload bypasses pod network isolation.
+    remediation: Remove hostNetwork and expose the workload through a Service.
+    controls: [NIST-800-53r5:SC-7]
+
+  # -------------------------------------------------------------------------
+  # Kubernetes workloads.
+  #
+  # Added after a breadth run found that a deliberately vulnerable Kubernetes
+  # repository produced two findings while Kubernetes' own examples produced
+  # twenty-five. The coverage was three rules, one of which was wrong.
+  #
+  # These match on the serialized workload rather than on typed properties:
+  # container security context is nested under an arbitrary number of
+  # containers and init containers, and a text assertion over the whole
+  # workload is honest about being coarse. Confidence is set accordingly.
+  # -------------------------------------------------------------------------
+
+  - id: k8s-privilege-escalation
+    title: Container allows privilege escalation
+    match_kinds: [compute]
+    match_providers: [k8s]
+    assert: text_absent
+    values: ['"allowprivilegeescalation": true']
+    severity: high
+    confidence: high
+    dimension: security
+    description: A process in the container can gain more privileges than its parent.
+    remediation: Set allowPrivilegeEscalation to false in the container security context.
+    controls: [NIST-800-53r5:AC-6, NIST-800-190:4.4]
+
+  - id: k8s-host-namespace
+    title: Workload shares a host namespace
+    match_kinds: [compute]
+    match_providers: [k8s]
+    assert: text_absent
+    values: ['"hostpid": true', '"hostipc": true']
+    severity: high
+    confidence: high
+    dimension: security
+    description: Sharing the host PID or IPC namespace breaks container isolation.
+    remediation: Remove hostPID and hostIPC.
+    controls: [NIST-800-53r5:SC-39, NIST-800-190:4.4]
+
+  - id: k8s-host-path-volume
+    title: Workload mounts a host path
+    match_kinds: [compute]
+    match_providers: [k8s]
+    assert: text_absent
+    values: ['"hostpath"']
+    severity: medium
+    confidence: medium
+    dimension: security
+    description: A hostPath mount exposes the node filesystem to the container.
+    remediation: Use a PersistentVolumeClaim, ConfigMap or emptyDir instead.
+    controls: [NIST-800-190:4.4]
+
+  - id: k8s-runs-as-root
+    title: Container runs as root
+    match_kinds: [compute]
+    match_providers: [k8s]
+    assert: text_absent
+    values: ['"runasuser": 0']
+    severity: medium
+    confidence: high
+    dimension: security
+    description: UID 0 inside the container widens the blast radius of any escape.
+    remediation: Set runAsNonRoot and a non-zero runAsUser.
+    controls: [NIST-800-53r5:AC-6]
+
+  - id: k8s-dangerous-capabilities
+    title: Container adds a dangerous Linux capability
+    match_kinds: [compute]
+    match_providers: [k8s]
+    assert: text_absent
+    values: ['"sys_admin"', '"net_admin"', '"sys_ptrace"', '"sys_module"']
+    severity: high
+    confidence: medium
+    dimension: security
+    description: These capabilities are close to full host privilege.
+    remediation: Drop ALL and add back only the specific capability required.
+    controls: [NIST-800-53r5:AC-6, NIST-800-190:4.4]
+
+  - id: k8s-mutable-image-tag
+    title: Container image uses a mutable tag
+    match_kinds: [compute]
+    match_providers: [k8s]
+    assert: text_absent
+    values: [':latest"']
+    severity: low
+    confidence: high
+    dimension: supply_chain
+    description: The running image can change without any change to the manifest.
+    remediation: Pin the image by digest, or at least by an immutable version tag.
+    controls: [NIST-800-218:PW.4, NIST-800-53r5:CM-2]
+
+  - id: k8s-no-resource-limits
+    title: Container declares no resource limits
+    match_kinds: [compute]
+    match_providers: [k8s]
+    assert: text_present
+    values: ['"limits"']
+    severity: low
+    confidence: medium
+    dimension: quality
+    description: Without limits one workload can starve every other pod on the node.
+    remediation: Set CPU and memory limits.
+    controls: [NIST-800-53r5:SC-6]
+
+  # -------------------------------------------------------------------------
+  # Kubernetes hardening that is absent rather than wrong.
+  #
+  # The rules above all fire when something dangerous is present. Running them
+  # against a deliberately vulnerable Kubernetes repository produced two
+  # findings, because that repository's weakness is that its manifests declare
+  # no security context at all — and every Kubernetes default is the insecure
+  # one. allowPrivilegeEscalation defaults to true; runAsNonRoot defaults to
+  # false; the root filesystem is writable; default capabilities are retained.
+  #
+  # These carry low and medium severity deliberately: a manifest that has not
+  # been hardened is a gap to close, not a live vulnerability, and teaching
+  # examples legitimately skip all of it.
+  # -------------------------------------------------------------------------
+
+  - id: k8s-no-security-context
+    title: Workload declares no security context
+    match_kinds: [compute]
+    match_providers: [k8s]
+    assert: text_present
+    values: ['"securitycontext"']
+    severity: medium
+    confidence: high
+    dimension: security
+    description: >-
+      No securityContext anywhere in the workload, so every Kubernetes default
+      applies: privilege escalation permitted, root user, writable root
+      filesystem, default capabilities retained.
+    remediation: Add a pod and container securityContext and set the four defaults explicitly.
+    controls: [NIST-800-53r5:CM-6, NIST-800-190:4.4]
+
+  - id: k8s-privilege-escalation-not-disabled
+    title: Privilege escalation is not explicitly disabled
+    match_kinds: [compute]
+    match_providers: [k8s]
+    assert: text_present
+    values: ['"allowprivilegeescalation": false']
+    severity: medium
+    confidence: medium
+    dimension: security
+    description: allowPrivilegeEscalation defaults to true when it is not set.
+    remediation: Set allowPrivilegeEscalation to false on every container.
+    controls: [NIST-800-53r5:AC-6, NIST-800-190:4.4]
+
+  - id: k8s-not-run-as-non-root
+    title: Workload does not require a non-root user
+    match_kinds: [compute]
+    match_providers: [k8s]
+    assert: text_present
+    values: ['"runasnonroot": true']
+    severity: medium
+    confidence: medium
+    dimension: security
+    description: runAsNonRoot defaults to false, so the image's own USER decides.
+    remediation: Set runAsNonRoot true and give the image a non-root USER.
+    controls: [NIST-800-53r5:AC-6]
+
+  - id: k8s-writable-root-filesystem
+    title: Container root filesystem is writable
+    match_kinds: [compute]
+    match_providers: [k8s]
+    assert: text_present
+    values: ['"readonlyrootfilesystem": true']
+    severity: low
+    confidence: medium
+    dimension: security
+    description: A writable root filesystem lets an attacker persist inside the container.
+    remediation: Set readOnlyRootFilesystem and mount an emptyDir for scratch space.
+    controls: [NIST-800-53r5:CM-7]
+
+  - id: k8s-capabilities-not-dropped
+    title: Container retains default Linux capabilities
+    match_kinds: [compute]
+    match_providers: [k8s]
+    assert: text_present
+    values: ['"drop"']
+    severity: low
+    confidence: medium
+    dimension: security
+    description: Without an explicit drop the container keeps the runtime's default capability set.
+    remediation: Drop ALL and add back only what the workload needs.
+    controls: [NIST-800-53r5:AC-6]

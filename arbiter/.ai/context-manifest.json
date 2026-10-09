@@ -1,0 +1,177 @@
+{
+  "version": "1.3.0",
+  "purpose": "Machine-readable OmniContext loading order for arbiter (Claude Code first; the other assistant shims are installed and route to the same .ai/ source of truth).",
+  "entrypoints": {
+    "universal": "LLM_CONTEXT.md",
+    "codex": "AGENTS.md",
+    "claude_code": "CLAUDE.md",
+    "cursor": ".cursorrules",
+    "github_copilot": ".github/copilot-instructions.md",
+    "kiro": ".kiro/steering/omnicontext.md",
+    "model_router": ".ai/adapters/model-router.md",
+    "openrouter": ".ai/adapters/openrouter.md"
+  },
+  "entrypoint_sources": {
+    "universal": ".ai/entrypoints/universal.md",
+    "codex": ".ai/entrypoints/codex.md",
+    "claude_code": ".ai/entrypoints/claude.md",
+    "cursor": ".ai/entrypoints/cursor.md",
+    "github_copilot": ".ai/entrypoints/copilot.md",
+    "kiro": ".ai/entrypoints/kiro.md",
+    "fallback_contract": ".ai/entrypoints/fallback-contract.md"
+  },
+  "indexes": {
+    "context_brief": ".ai/context-brief.md",
+    "playbooks": ".ai/playbooks/README.md",
+    "checklists": ".ai/checklists/README.md",
+    "swebok": ".ai/knowledge/swebok/README.md",
+    "adapters": ".ai/adapters/README.md"
+  },
+  "project_context": ".ai/project-context.md",
+  "context_profiles": {
+    "minimum": [
+      ".ai/context-brief.md",
+      ".ai/project-context.md",
+      ".ai/project-configuration.md"
+    ],
+    "implementation": [
+      ".ai/context-brief.md",
+      ".ai/project-context.md",
+      ".ai/project-configuration.md",
+      ".ai/project-map.md",
+      ".ai/rules/controlled-implementation.json",
+      ".ai/playbooks/implementation.md"
+    ],
+    "review": [
+      ".ai/context-brief.md",
+      ".ai/project-context.md",
+      ".ai/project-configuration.md",
+      ".ai/project-map.md",
+      ".ai/playbooks/review.md",
+      ".ai/checklists/pre-completion.md"
+    ],
+    "deep_policy": [
+      ".ai/context-brief.md",
+      ".ai/project-context.md",
+      ".ai/core-context.md",
+      ".ai/project-configuration.md",
+      ".ai/rules/universal-engineering-ruleset.json",
+      ".ai/rules/controlled-implementation.json",
+      ".ai/rules/completion-workflow.json"
+    ]
+  },
+  "ignore_files": {
+    "prompt_exclusions": ".ai/.ignore",
+    "cursor": ".cursorignore",
+    "git": ".gitignore"
+  },
+  "project_map": ".ai/project-map.md",
+  "changelog": "CHANGELOG.md",
+  "requirements_registry": ".ai/requirements/requirements.json",
+  "requirements_archive": ".ai/requirements/requirements-archive.json",
+  "requirements_schema": ".ai/schemas/requirements.schema.json",
+  "failure_ledger": ".ai/failures/failure-ledger.json",
+  "failure_ledger_schema": ".ai/schemas/failure-ledger.schema.json",
+  "test_suites": ".ai/test-suites.json",
+  "test_suites_schema": ".ai/schemas/test-suites.schema.json",
+  "graph_config": ".ai/graph-config.json",
+  "required_read_order": [
+    ".ai/context-brief.md",
+    ".ai/project-context.md",
+    ".ai/core-context.md",
+    ".ai/project-configuration.md",
+    ".ai/rules/universal-engineering-ruleset.json",
+    ".ai/rules/controlled-implementation.json",
+    ".ai/rules/completion-workflow.json",
+    ".ai/rules/data-governance.json",
+    ".ai/rules/oop-design.json"
+  ],
+  "adapter_prompts": {
+    "generic_llm": ".ai/adapters/generic-llm.md",
+    "local_model": ".ai/adapters/local-model.md",
+    "model_router": ".ai/adapters/model-router.md",
+    "openrouter": ".ai/adapters/openrouter.md",
+    "deepseek": ".ai/adapters/deepseek.md",
+    "kiro": ".ai/adapters/kiro.md"
+  },
+  "task_playbooks": {
+    "planning": ".ai/playbooks/planning.md",
+    "implementation": ".ai/playbooks/implementation.md",
+    "review": ".ai/playbooks/review.md",
+    "testing": ".ai/playbooks/testing.md",
+    "debugging": ".ai/playbooks/debugging.md",
+    "refactoring": ".ai/playbooks/refactoring.md",
+    "migration": ".ai/playbooks/migration.md",
+    "release": ".ai/playbooks/release.md",
+    "handoff": ".ai/playbooks/handoff.md"
+  },
+  "checklists": {
+    "pre_implementation": ".ai/checklists/pre-implementation.md",
+    "pre_completion": ".ai/checklists/pre-completion.md",
+    "security": ".ai/checklists/security.md",
+    "public_release": ".ai/checklists/public-release.md"
+  },
+  "knowledge_packs": {
+    "swebok": ".ai/knowledge/swebok/README.md"
+  },
+  "validation_commands": [
+    "python -m pytest tests/ -q",
+    "python tools/integrity.py",
+    "python tools/mutate_tests.py",
+    "python omni doctor",
+    "python omni gate"
+  ],
+  "sync_command": "python omni sync",
+  "security_exclusions": ".ai/.ignore",
+  "fallback_contract_source": ".ai/entrypoints/fallback-contract.md",
+  "requirement_access": {
+    "policy": "Never read .ai/requirements/requirements.json or requirements-archive.json in full and never hand-edit them; query and change them through the CLI, which allocates ids across both files so a retired id is never reused.",
+    "read": [
+      "python omni requirement list --status pending",
+      "python omni requirement show <ID>",
+      "python omni requirement search <text>",
+      "python omni requirement list --all"
+    ],
+    "write": [
+      "python omni requirement add --title ... --description ...",
+      "python omni requirement draft [--commit REF]",
+      "python omni requirement update <ID> --status <status> --note <text>",
+      "python omni requirement complete <ID>"
+    ],
+    "archive": "python omni requirement archive (sweeps completed beyond --keep-recent and every withdrawn entry) or --id REQ-### once the outcome is recorded in CHANGELOG.md and .ai/project-context.md; archived entries stay queryable with show, search and list --all."
+  },
+  "failure_access": {
+    "policy": "Before editing a file run `python omni graph why <path>`; when a defect or failed check is fixed, record it with `python omni failure add` and update it with `python omni failure update` (root cause, regression test, prevention rule). `requirement complete` refuses a defect requirement without an entry.",
+    "read": [
+      "python omni failure list --status open",
+      "python omni failure show <FAIL-ID>",
+      "python omni failure search <text>",
+      "python omni graph why <path or symbol>"
+    ]
+  },
+  "completion_gate": {
+    "command": "python omni gate",
+    "purpose": "Executes the co_changed validations in the completion rulepack against the git change set. training/ and .arbiter/ (the nightly measurement job's output) are exempt in the rulepack; waive anything else explicitly with python omni waive <rule-id> --reason \"...\". Enforced three ways: the git hooks (python omni hook install-git --with-graph-rebuild; each clone opts in with git config core.hooksPath .githooks), the Claude Code Stop hook (python omni hook install), and the pull-request workflow, which runs python omni doctor and python omni gate.",
+    "git_hooks": ".githooks",
+    "claude_code_hook": ".claude/settings.json",
+    "ci": ".github/workflows/pr-check.yml"
+  },
+  "mcp_servers": {
+    "registration": ".mcp.json",
+    "arbiter": "arbiter mcp (src/arbiter/mcp.py): arbiter_scan, arbiter_gate, arbiter_review_queue; see docs/mcp.md",
+    "omni": "python omni mcp serve (omni_mcp.py): read-only graph, requirement, failure and gate tools",
+    "note": "python omni doctor starts both servers for real and fails if either cannot answer initialize and tools/list."
+  },
+  "context_retention_strategy": {
+    "any_session": [
+      "Read .ai/context-brief.md and .ai/project-context.md first.",
+      "Read .ai/project-configuration.md, .ai/project-map.md, and the active requirement (python omni requirement show <ID>).",
+      "Read only the rulepack, playbook or checklist relevant to the active task.",
+      "Allocate ids with `python omni requirement add` or `draft`; complete with `python omni requirement complete`; sweep terminal entries out with `python omni requirement archive` once their outcome is recorded in CHANGELOG.md and .ai/project-context.md.",
+      "Update CHANGELOG.md when behavior, probes, adapters, packs, gates or scoring change; reference the REQ-### the change serves. python omni gate checks that the change set carries it.",
+      "Run python omni graph why <path> before editing, and record fixed defects in the failure ledger.",
+      "Use .ai/.ignore to exclude sensitive or irrelevant paths."
+    ]
+  },
+  "note": "2026-10-09 (ARB-031): re-synced to the OmniEngineering upstream (see .ai/omni-version.json) with python omni update; the registry moved to the upstream flat format, the archive to requirements-archive.json, and the arbiter-authored adapters, rulepacks and public-release checklist from ARB-028 were kept and 3-way merged. See .ai/project-context.md."
+}

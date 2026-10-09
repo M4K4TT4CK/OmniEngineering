@@ -1,0 +1,1328 @@
+{
+  "version": "1.0.0",
+  "failure_id_prefix": "FAIL",
+  "failures": [
+    {
+      "id": "FAIL-001",
+      "date": "2026-09-12",
+      "title": "Read cache served one file's bytes for another",
+      "status": "fixed",
+      "severity": "high",
+      "symptom": "The injection harness, which invokes probes directly and writes every generated case to the same path, was served the previous case's text; recall on four rules read 0.0000 and the harness reported the number without complaint.",
+      "how_detected": "injection-harness recall figures (relayed from the offline bundle session; not reproduced on this machine)",
+      "root_cause": "`_READ_CACHE` in probes.py keyed on path alone and depended on every caller clearing it between scans; the harness never calls run_scan, so nothing cleared it.",
+      "requirement": "ARB-007",
+      "affected": [
+        "src/arbiter/probes.py"
+      ],
+      "fix_summary": "The cache key is now (path, st_mtime_ns, st_size) with a bounded size, so the cache cannot be wrong regardless of who calls it.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_graph_system.py::test_the_read_cache_is_correct_without_anyone_clearing_it",
+        "tests/test_graph_system.py::test_the_read_cache_never_serves_one_scans_bytes_for_another"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "data.testing"
+      ],
+      "prevention_notes": "The test calls probes._read directly with no scan and no clearing call, exactly as the harness does. Fix landed in the offline bundle (8775017..54f9a13), which predates this shallow clone, so no SHA is cited.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-002",
+      "date": "2026-09-12",
+      "title": "tools/*.sh shebang indented, scripts not runnable as scripts",
+      "status": "fixed",
+      "severity": "low",
+      "symptom": "The four tools/*.sh scripts were not recognised by the kernel as scripts whatever their mode bit said: `#!/usr/bin/env bash` had been indented by two spaces.",
+      "how_detected": "reading the bundle diffs while recording ARB-007",
+      "root_cause": "An earlier commit indented the shebang line; a shebang is only honoured at byte 0 of the file.",
+      "requirement": "ARB-007",
+      "affected": [
+        "tools/bootstrap_repo.sh",
+        "tools/fetch_corpus.sh",
+        "tools/install_tools.sh",
+        "tools/train_cycle.sh"
+      ],
+      "fix_summary": "Restored the shebang at column 0 and the executable bits on the four scripts.",
+      "fix_commits": [],
+      "regression_tests": [],
+      "no_test_reason": "No test reads the scripts' first line or mode bits; the CHANGELOG records the repair from the bundle diff only.",
+      "prevention_rules": [
+        "completion.validation"
+      ],
+      "prevention_notes": "Fix landed in the offline bundle, which predates this shallow clone; no SHA is cited.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-003",
+      "date": "2026-09-12",
+      "title": "Adapter timeout crashed instead of killing the analyzer on Windows",
+      "status": "fixed",
+      "severity": "high",
+      "symptom": "On Windows every adapter timeout raised AttributeError out of the cleanup path (`signal.SIGKILL` does not exist there) and the analyzer ran on past the timeout meant to stop it.",
+      "how_detected": "by hand on a Windows developer machine; no automation had ever run on Windows",
+      "root_cause": "`Adapter._kill_group` named `signal.SIGKILL` unconditionally and relied on `os.setsid`/`os.killpg`, none of which exist on Windows, so the process-group guarantee the timeout depends on had no implementation there. CI was ubuntu-only with no matrix.",
+      "requirement": "ARB-006",
+      "affected": [
+        "src/arbiter/adapters.py"
+      ],
+      "fix_summary": "`_kill_group` delegates to a new `Adapter._kill_tree` when `os.killpg` is absent; it runs `taskkill /T /F /PID` and falls back to `proc.kill()` if taskkill is missing or fails. The one-line `getattr(_signal, 'SIGKILL', SIGTERM)` repair was rejected because signalling the direct child alone leaves fanned-out workers running. POSIX path unchanged.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_adapters.py::test_adapter_timeout_kills_the_whole_process_group",
+        "tests/test_adapters.py::test_a_timeout_still_kills_the_process_where_there_are_no_process_groups",
+        "tests/test_adapters.py::test_the_no_process_group_path_kills_the_whole_tree_not_just_the_child",
+        "tests/test_adapters.py::test_the_no_process_group_path_falls_back_when_taskkill_is_missing",
+        "tests/test_adapters.py::test_the_no_process_group_path_falls_back_when_taskkill_fails"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "completion.validation"
+      ],
+      "prevention_notes": "The four no-process-group tests were added by ARB-024 (5f92818, 2026-09-14), which also made pr-check.yml a ubuntu/windows matrix with fail-fast false; they delete os.killpg so the fallback runs on Linux too. Residual risk: taskkill /T cannot reach a grandchild already orphaned by an exited intermediate process. The ARB-006 fix commit predates this shallow clone.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-004",
+      "date": "2026-09-12",
+      "title": "Doc-reference drift rule reported every dotted path as missing",
+      "status": "fixed",
+      "severity": "high",
+      "symptom": "`drift.doc-references-missing-file` produced 187 of 230 unsuppressed findings in a self-scan (81%), every dotted path in the repository reading as missing; all 20 findings already queued for adjudication were among them.",
+      "how_detected": "reading the evidence while preparing the first adjudication queue from a self-scan; measured by scanning Arbiter with itself before and after",
+      "root_cause": "The rule normalised a backtick-quoted path with `lstrip(\"./\")`, which strips a character set rather than a prefix, so `.ai/context-brief.md` became `ai/context-brief.md` and neither the exact nor the suffix membership test could match.",
+      "requirement": "ARB-008",
+      "affected": [
+        "src/arbiter/probes.py"
+      ],
+      "fix_summary": "The rule uses `_normalize_relative()`, the helper the sibling link rule in probes.py already used, and skips paths that escape the repository root; 187 findings to 28.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_probes_drift.py::test_dotted_paths_in_prose_resolve",
+        "tests/test_probes_drift.py::test_missing_file_in_prose_still_found",
+        "tests/test_probes_drift.py::test_prose_path_escaping_the_repository_is_not_checked"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [],
+      "prevention_notes": "Adjudicating the queue first would have spent a fifth of the rule's lifetime evidence (MIN_OBSERVATIONS 20) recording a bug permanently, since record() refuses re-adjudication. Lesson recorded in project-context: measure a rule by running the scanner, not an out-of-band script. Fix commit predates this shallow clone.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-005",
+      "date": "2026-09-12",
+      "title": "Arbiter's own artifacts written in the console codepage on Windows",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "A generated review-queue.md was undecodable as UTF-8 on Windows: byte 0x97, an em dash written as cp1252.",
+      "how_detected": "reading the first calibration queue back on a Windows machine",
+      "root_cause": "Thirteen `write_text()` calls across cli.py, report.py, engine.py and learn.py omitted `encoding=`, so the HTML, markdown, PR-comment and review-queue renderings took the platform default. JSON writers escaped non-ASCII and were unaffected but were made explicit too.",
+      "requirement": "ARB-009",
+      "affected": [
+        "src/arbiter/cli.py",
+        "src/arbiter/report.py",
+        "src/arbiter/engine.py",
+        "src/arbiter/learn.py"
+      ],
+      "fix_summary": "Every write of an Arbiter-authored artifact, and the matching reads, name encoding='utf-8'.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_report_output.py::test_text_artifacts_are_written_as_utf8",
+        "tests/test_invariants.py::test_every_text_read_and_write_names_its_encoding"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "data.contract_preservation"
+      ],
+      "prevention_notes": "ARB-009 deliberately left the target-file readers and the YAML/TOML config readers alone; both came back (FAIL-007, FAIL-033). The invariants test, added by ARB-030, walks src/ with ast rather than covering the known sites. Fix commit predates this shallow clone.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-006",
+      "date": "2026-09-12",
+      "title": "A scan read its own output directory",
+      "status": "fixed",
+      "severity": "high",
+      "symptom": "Two identical self-scans differed: the second reported on the first's rendering. 28 of 101 unsuppressed findings (27.7%) sat inside arbiter-out, 24 of them `assurance.blanket-suppression`, the rule about to be adjudicated, because a report is full of the strings that rule searches for.",
+      "how_detected": "before/after figures for ARB-008 refused to reconcile",
+      "root_cause": "`--out` defaults to `arbiter-out`, a relative path inside the tree being scanned, and the walk knew nothing about it, so the previous run's report.json and review-queue.md were read as source.",
+      "requirement": "ARB-011",
+      "affected": [
+        "src/arbiter/engine.py",
+        "src/arbiter/inventory.py"
+      ],
+      "fix_summary": "`run_scan` takes `out_dir`, threads it through inventory building, and `walk_repo` skips the resolved output directory. Two consecutive scans into the default path now produce identical findings.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_graph_system.py::test_output_directory_is_not_scanned"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "data.scope_boundary"
+      ],
+      "prevention_notes": "Only the current run's out_dir is excluded here; a leftover directory under another --out name came back as FAIL-028 (ARB-029). Fix commit predates this shallow clone.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-007",
+      "date": "2026-09-12",
+      "title": "Scanned files decoded under the platform default codec",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "An em dash in a scanned file reached a generated review queue as `â€”`.",
+      "how_detected": "reading the first adjudication queue closely",
+      "root_cause": "Nine target-file read sites used `read_text(errors=\"replace\")` with no encoding, so the codec was the platform default (cp1252 on Windows), which decodes nearly every byte without raising. ARB-009 had excluded these sites on the stated reasoning that errors='replace' was the design intent; the intent was never crashing on a target file, which encoding='utf-8' preserves.",
+      "requirement": "ARB-012",
+      "affected": [
+        "src/arbiter/graph.py",
+        "src/arbiter/review_ui.py"
+      ],
+      "fix_summary": "All target-file reads pass encoding='utf-8' with errors='replace' retained.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_report_output.py::test_evidence_from_a_utf8_source_file_is_not_mangled",
+        "tests/test_invariants.py::test_every_text_read_and_write_names_its_encoding"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "data.contract_preservation",
+        "data.no_silent_drop"
+      ],
+      "prevention_notes": "Project-context records that the mistake was a stated justification that had not been checked, not an oversight. The records name graph.py and review_ui.py as the target-file readers; the other sites are not named individually. Fix commit predates this shallow clone.",
+      "recurrence_of": "FAIL-005"
+    },
+    {
+      "id": "FAIL-008",
+      "date": "2026-09-12",
+      "title": "Documented files under SKIP_DIRS reported as missing",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "Documentation naming tracked files under .arbiter/ (knowledge.json, external-severity.json) was reported as drift: 8 of 31 doc-drift findings on a self-scan, all false.",
+      "how_detected": "reading the 28 findings that survived the ARB-008 fix; omni doctor independently confirmed the 22 genuine ones",
+      "root_cause": "The doc-reference rule resolved paths against ctx.inventory.files, and directories in inventory.SKIP_DIRS never enter the inventory, so 'absent' and 'deliberately not walked' were indistinguishable. The sibling broken-link rule had the identical defect fifteen lines away.",
+      "requirement": "ARB-013",
+      "affected": [
+        "src/arbiter/probes.py",
+        "src/arbiter/inventory.py"
+      ],
+      "fix_summary": "Both rules in probe_doc_drift confirm existence on disk before reporting. .arbiter/baseline.json, documented but genuinely absent, still reports, which is the evidence the fix is precise rather than blanket.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_probes_drift.py::test_documented_file_in_a_skipped_directory_is_not_missing",
+        "tests/test_probes_drift.py::test_link_into_a_skipped_directory_is_not_broken"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [],
+      "prevention_notes": "Fix commit predates this shallow clone.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-009",
+      "date": "2026-09-12",
+      "title": "Doc-drift findings rendered without a repository",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "All 330 doc-drift findings in a 36-repository corpus scan rendered as bare paths in the review queue; two repositories each contain a python/ tree, so a line naming a README under it identified no repository a reader could open.",
+      "how_detected": "the first corpus-scale review queues",
+      "root_cause": "`Location.short()` builds its repo:path prefix from the Location, and the three doc_drift construction sites set repo_id on the Finding only. The requirement as first written claimed the sibling probes already did this correctly; measurement showed the reverse (secrets 0 of 377 attributed, supply_chain 0 of 1,817, resource_policy 7 of 1,040).",
+      "requirement": "ARB-014",
+      "affected": [
+        "src/arbiter/probes.py",
+        "src/arbiter/core.py"
+      ],
+      "fix_summary": "The three doc_drift Finding sites in probes.py pass repo_id into the Location.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_probes_drift.py::test_doc_drift_findings_name_their_repository"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "data.contract_preservation"
+      ],
+      "prevention_notes": "First of three fixes for the same missing repo_id (FAIL-010, FAIL-011); ARB-030 later made attribution a standing invariant over whole-scan output. Fix commit predates this shallow clone.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-010",
+      "date": "2026-09-12",
+      "title": "Review queue could not name the repository for most probes",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "3,227 of 3,564 findings in the corpus scan carried a blank Location.repo_id (supply_chain 0 of 1,817, secrets 0 of 377, resource_policy 7 of 1,040), so review-queue lines named no repository.",
+      "how_detected": "measuring every probe after FAIL-009 showed doc_drift was not the outlier",
+      "root_cause": "Roughly twenty Location construction sites across eight probes omitted repo_id; only assurance set it everywhere. The Finding carried the id in all 3,564 cases.",
+      "requirement": "ARB-015",
+      "affected": [
+        "src/arbiter/review.py",
+        "src/arbiter/review_ui.py"
+      ],
+      "fix_summary": "`review.where()` qualifies the path from the Finding's repo_id when the Location is blank, without double-prefixing one that carries it; both the markdown and HTML (review_ui) front ends use it. The probe sites were left wrong and recorded as residual risk, so SARIF, HTML and console output stayed unqualified.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_graph_system.py::test_queue_line_names_the_repository"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "data.contract_preservation"
+      ],
+      "prevention_notes": "Measured afterwards: 120 of 120 queue lines name their repository, checked against real corpus directory names after an earlier regex-based measurement proved wrong. Fix commit predates this shallow clone.",
+      "recurrence_of": "FAIL-009"
+    },
+    {
+      "id": "FAIL-011",
+      "date": "2026-09-12",
+      "title": "Probe construction sites omitted repo_id; two guessed the wrong repository",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "SARIF, the HTML report and console output stayed unqualified after FAIL-010. The interface permission-unused finding attributed itself to the alphabetically first infrastructure repository, and one repository's LICENSE satisfied a house_rules required-path rule for all thirty-six.",
+      "how_detected": "closing the residual risk ARB-015 recorded",
+      "root_cause": "Eighteen construction sites in probes.py had the id in scope on the enclosing Finding but never passed it to the Location. The interface rule collected IAM service names into a set and discarded the grant site; the two house_rules path rules matched against every path in the scan flattened into one set and set no repo_id at all.",
+      "requirement": "ARB-016",
+      "affected": [
+        "src/arbiter/probes.py"
+      ],
+      "fix_summary": "Every Location built in probes.py carries its Finding's repo_id; granted_services records a Location so the finding cites the file of the grant; file_exists/file_absent are evaluated per repository. Re-measured: 3,564 findings before and after, unattributed 3,227 to 0, no finding changed repository.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_graph_system.py::test_every_finding_names_its_repository_in_the_location",
+        "tests/test_graph_system.py::test_unused_permission_cites_the_grant_it_found",
+        "tests/test_probes_quality.py::test_house_rule_required_path_is_asked_per_repository",
+        "tests/test_invariants.py::test_every_finding_in_a_system_scan_names_its_repository",
+        "tests/test_invariants.py::test_reported_repo_ids_are_repositories_that_exist"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "data.contract_preservation"
+      ],
+      "prevention_notes": "Behaviour change recorded as risk: file_absent/file_exists now report per repository. Core.Location.__post_init__ records that per-site fixes were missed at one site in ARB-014, every probe in ARB-015, the sites again in ARB-016 and the adapters in ARB-029, which is why ARB-030 moved normalisation to one boundary. Fix commit predates this shallow clone.",
+      "recurrence_of": "FAIL-010"
+    },
+    {
+      "id": "FAIL-012",
+      "date": "2026-09-12",
+      "title": "Review sampler measured repositories rather than rules",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "Of six review queues drawn from the 36-repository corpus, resource.k8s-no-security-context took 19 of 20 findings from one repository and all 20 from teaching material the corpus tooling calls useless as a false-positive measure; unencrypted-database 18 of 20 and private-key 16 of 20 from one repository each.",
+      "how_detected": "measuring the six queues drawn after FAIL-010",
+      "root_cause": "`review.select()` ordered findings within a rule so that distinct files came first, which one repository satisfies on its own; the ledger records a verdict against the rule, so twenty marks from one repository would have been laundered into a rule precision figure and then into the gate.",
+      "requirement": "ARB-017",
+      "affected": [
+        "src/arbiter/review.py"
+      ],
+      "fix_summary": "select() round-robins across repositories and keeps file spread as the secondary axis inside each; population is deliberately not an input, since that label lives in tools/corpus.py and the library must not import the test harness. Average distinct repositories per queue 6.0 to 12.2, largest single-repository share 64.2% to 30.0%.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_review_learn.py::test_review_spreads_across_repositories_within_a_rule"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [],
+      "prevention_notes": "The six old queues were regenerated; they were 120 of 120 lines blank, so nothing human was lost. Spread cannot exceed the pool: unencrypted-database still draws 18 of 20 from terragoat because only three corpus repositories produce it. Fix commit predates this shallow clone.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-013",
+      "date": "2026-09-13",
+      "title": "Hosted API endpoints broken by string annotations in api.py",
+      "status": "fixed",
+      "severity": "high",
+      "symptom": "Every upload to /v1/scan and /v1/gate failed inside body validation, and /v1/review-queue read its body as a query parameter and rejected all JSON; all three real endpoints were broken.",
+      "how_detected": "the first tests to drive the assembled application through a real request (two of twelve new tests failed on arrival)",
+      "root_cause": "`from __future__ import annotations` makes every annotation in api.py a string, which FastAPI resolves against the module's globals; `UploadFile` and the `ReviewRequest` body model are local to `create_app` by design, so neither could be found. Nothing had ever exercised create_app.",
+      "requirement": "ARB-018",
+      "affected": [
+        "src/arbiter/api.py"
+      ],
+      "fix_summary": "Both names are published to the module when the app is built. Thirteen tests now go through a real request; httpx2 was added to the dev extra so they run rather than skip.",
+      "fix_commits": [
+        "50903e8"
+      ],
+      "regression_tests": [
+        "tests/test_api_app.py::test_an_oversized_upload_is_refused_by_the_endpoint",
+        "tests/test_api_app.py::test_a_request_is_audited_end_to_end",
+        "tests/test_api_app.py::test_a_report_with_nothing_to_review_is_an_empty_queue_not_an_error"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "completion.no_unvalidated_success"
+      ],
+      "prevention_notes": "The cited tests post a multipart upload and a JSON body through starlette's TestClient, which is the path that failed; none is named after this defect.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-014",
+      "date": "2026-09-13",
+      "title": "A clean report asked for its review queue got a 400 naming a server path",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "A caller with a report holding no findings left to review, the good outcome, received HTTP 400 whose message named a server temporary directory.",
+      "how_detected": "the same first real-request tests as FAIL-013",
+      "root_cause": "`arbiter review` exits 0 and writes no file when a report has no findings or every finding is already adjudicated; `service.review_queue` treated the missing file as a failure.",
+      "requirement": "ARB-018",
+      "affected": [
+        "src/arbiter/service.py"
+      ],
+      "fix_summary": "service.review_queue returns an empty queue (entry_count 0, recorded false) when there is nothing to review, with no server path in the body.",
+      "fix_commits": [
+        "50903e8"
+      ],
+      "regression_tests": [
+        "tests/test_api_app.py::test_a_report_with_nothing_to_review_is_an_empty_queue_not_an_error"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [],
+      "prevention_notes": "The empty-queue case is now an explicit branch in service.review_queue with its own test; the general rule is that an absent output file is a result to interpret, not an error to forward, and no server path may appear in an HTTP response body.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-015",
+      "date": "2026-09-13",
+      "title": "arbiter mcp stdio server broken against every mcp SDK 2.x",
+      "status": "fixed",
+      "severity": "high",
+      "symptom": "`arbiter mcp` raised AttributeError at startup: `@server.list_tools()` no longer exists on the installed SDK 2.2.0.",
+      "how_detected": "building the HTTP transport under ARB-010; no test had ever started the server",
+      "root_cause": "The SDK moved handlers from decorators to constructor arguments at 2.0, inside the old `mcp>=1.0` pin's own range. `TOOLS` is plain data so the schema tests passed without the SDK, and nothing ever spoke to the server.",
+      "requirement": "ARB-010",
+      "affected": [
+        "src/arbiter/mcp.py",
+        "pyproject.toml"
+      ],
+      "fix_summary": "Pin raised to mcp>=2.2; `_build_server` builds both transports one way; a refusing tool returns with is_error set; one test starts `arbiter mcp` as a subprocess and speaks MCP down the pipes (initialize, list tools, a success, a refusal).",
+      "fix_commits": [
+        "d8433dd"
+      ],
+      "regression_tests": [
+        "tests/test_mcp_api.py::test_the_stdio_server_actually_starts_and_answers_a_real_client",
+        "tests/test_mcp_api.py::test_the_tool_schemas_still_build_against_the_installed_sdk"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "completion.no_unvalidated_success"
+      ],
+      "prevention_notes": "The SDK moved again on 2026-09-16 (23bc43e): _build_server now introspects Server.__init__ at runtime, and ARB-025 made omni doctor build the server for real rather than grep .mcp.json.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-016",
+      "date": "2026-09-13",
+      "title": "Nightly training job committed nothing: training/ was gitignored",
+      "status": "fixed",
+      "severity": "high",
+      "symptom": "Run 1 measured for fifty-five minutes and committed nothing: `git add -A .arbiter training` exited 1 and the step's `bash -e` failed the job two seconds after the cycle finished. The failure read as though the measurement had broken rather than the bookkeeping.",
+      "how_detected": "the first nightly run's log",
+      "root_cause": "`.gitignore` listed `training/`, which ignores the directory itself, so the add matched an ignore entry and git exited 1.",
+      "requirement": "ARB-023",
+      "affected": [
+        ".gitignore",
+        ".github/workflows/train.yml"
+      ],
+      "fix_summary": "`training/*` is ignored with negations for WORKLIST.md, fix-pairs.json and disagreements.json, so the accumulating files are tracked while stamped per-run logs stay out.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_tools_training.py::test_the_accumulating_training_files_are_committable",
+        "tests/test_tools_training.py::test_the_writeback_check_refuses_a_ledger_it_could_not_commit",
+        "tests/test_tools_training.py::test_the_writeback_check_lists_what_gitignore_keeps"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "completion.validation",
+        "data.no_silent_drop"
+      ],
+      "prevention_notes": "Repaired on 2026-09-13 as unplanned work with no requirement covering the job; ARB-023 (9bd5e3b, 2026-09-14) was created to own it and added tools/check_writeback.sh, which runs before the cycle in CI and in train_cycle.sh, plus a rebase before push. No commit in this shallow clone touches .gitignore on 2026-09-13, so no SHA is cited.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-017",
+      "date": "2026-09-13",
+      "title": "Nightly job overwrote the handoff it exists to produce",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "Every night the complete training/WORKLIST.md that train_cycle.sh had just written was overwritten with one headed 'Incomplete: no results found for corpus, discrimination'.",
+      "how_detected": "reading the nightly job's output after FAIL-016",
+      "root_cause": "The workflow's final step read /tmp/corpus-out/summary.json and /tmp/discriminate.json, which nothing writes.",
+      "requirement": "ARB-023",
+      "affected": [
+        ".github/workflows/train.yml"
+      ],
+      "fix_summary": "The step reads the newest stamped files under training/ and still runs on failure, so a cycle that dies early leaves a handoff from what did finish.",
+      "fix_commits": [],
+      "regression_tests": [],
+      "no_test_reason": "The repair is a workflow step that only runs in CI; no test reads train.yml's final step or its path discovery.",
+      "prevention_rules": [
+        "data.no_silent_drop"
+      ],
+      "prevention_notes": "Unplanned repair; ARB-023 later gave the job a contract. No commit in this shallow clone carries the change.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-018",
+      "date": "2026-09-13",
+      "title": "Fix-pair mining found nothing because the corpus was cloned shallow",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "Fix-pair mining reported '0 candidate fix pairs from 41 repositories in 0s' every night: every repository skipped.",
+      "how_detected": "reading the nightly job's output after FAIL-016",
+      "root_cause": "The corpus was cloned at depth 1 and `tools/fixpairs.py` skips a shallow clone. Those pairs are the only ground truth in the system Arbiter did not generate itself.",
+      "requirement": "ARB-023",
+      "affected": [
+        "tools/fetch_corpus.sh",
+        "tools/train_cycle.sh",
+        "tools/fixpairs.py"
+      ],
+      "fix_summary": "fetch_corpus.sh clones 300 commits deep, deepens clones already on disk and records the depth reached; train_cycle.sh runs it every cycle rather than only when the corpus is missing.",
+      "fix_commits": [],
+      "regression_tests": [],
+      "no_test_reason": "Needs the cloned corpus and network access; the suite skips the corpus-dependent test when the corpus is not cloned.",
+      "prevention_rules": [
+        "data.no_silent_drop"
+      ],
+      "prevention_notes": "Unplanned repair; ARB-023 later gave the job a contract. No commit in this shallow clone carries the change.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-019",
+      "date": "2026-09-14",
+      "title": "Migrated knowledge ledger saved still declaring schema 1",
+      "status": "fixed",
+      "severity": "low",
+      "symptom": "A schema 1 ledger read and re-saved was written back with schema_version 1: the migration happened and then denied itself.",
+      "how_detected": "the migration test ARB-020 required",
+      "root_cause": "`Knowledge.from_dict` carried the file's schema_version forward instead of returning a current-schema object.",
+      "requirement": "ARB-020",
+      "affected": [
+        "src/arbiter/learn.py"
+      ],
+      "fix_summary": "from_dict always returns a current-schema object (KNOWLEDGE_VERSION 2). Nothing outside learn.py reads the field, so the blast radius was future migrations.",
+      "fix_commits": [
+        "96cf1f8"
+      ],
+      "regression_tests": [
+        "tests/test_review_learn.py::test_a_schema_1_ledger_migrates_without_losing_a_verdict"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "data.migration_safety"
+      ],
+      "prevention_notes": "schema_version feeds version_hash(), so the committed ledger moved k:0f258c4ce717 to k:a37f38560140 with no evidence change; pinned scans had to be re-pinned.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-020",
+      "date": "2026-09-14",
+      "title": "Partial-scan skip reason made a false claim about external analyzers",
+      "status": "fixed",
+      "severity": "low",
+      "symptom": "Every repo-scoped probe skipped in a partial scan printed 'this check reads relationships between files and cannot answer from a subset', which is true of the native probes and false of semgrep and the other external analyzers, held back only because subset-exactness is unmeasured.",
+      "how_detected": "declaring adapter scope under ARB-022",
+      "root_cause": "`Probe` carried one skip reason for every repo-scoped probe; adapter-backed probes inherited the native probes' explanation along with the scope default.",
+      "requirement": "ARB-022",
+      "affected": [
+        "src/arbiter/probes.py",
+        "src/arbiter/adapters.py",
+        "docs/ci.md",
+        "RUNNING-ON-YOUR-OWN-CODE.md"
+      ],
+      "fix_summary": "`Probe.scope_reason` carries the real reason, defaulted to the relationships wording for native probes and overridden by `adapters.SCOPE_REASON` for adapters; docs/ci.md and RUNNING-ON-YOUR-OWN-CODE.md now say a pull-request gate runs no third-party analyzer.",
+      "fix_commits": [
+        "7035178"
+      ],
+      "regression_tests": [
+        "tests/test_incremental_scan.py::test_an_adapter_backed_probe_carries_the_scope_its_manifest_declared"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "completion.documentation_gate"
+      ],
+      "prevention_notes": "Nothing about what runs changed; the limit was made visible with an honest reason.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-021",
+      "date": "2026-09-16",
+      "title": "A library's PEM-parsing source reported as a leaked private key",
+      "status": "fixed",
+      "severity": "high",
+      "symptom": "ecdsa's own keys.py and packaging metadata, vendored in a CDK Lambda asset bundle, were reported as committed private keys: 3 critical findings on a real system scan.",
+      "how_detected": "running Arbiter as a system over two real repositories (STEP-Migration + STEP_App) rather than the fixture corpus",
+      "root_cause": "`_pem_has_key_material` judged a PEM block real if any text in the ~4000 characters after a BEGIN marker contained a colon, a check meant to allow encrypted-key preambles (Proc-Type: 4,ENCRYPTED) but satisfied by ordinary code and prose.",
+      "requirement": "ARB-026",
+      "affected": [
+        "src/arbiter/probes.py"
+      ],
+      "fix_summary": "It walks forward line by line and stops at the first line that is not base64 or a Key: value header, so surrounding text cannot manufacture a body.",
+      "fix_commits": [
+        "b53b58a"
+      ],
+      "regression_tests": [
+        "tests/test_probes_security.py::test_pem_header_quoted_in_code_is_not_a_key"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "data.testing"
+      ],
+      "prevention_notes": "One of three compounding gaps (FAIL-021..023); together the system scan went from 3 critical / 6,011 findings to 0 / 1,121.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-022",
+      "date": "2026-09-16",
+      "title": "Renamed CDK output directory classified as first-party source",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "A project using CDK_OUTDIR to redirect synth output to cdk.out.chk had everything inside it, including a Lambda asset bundle's vendored dependencies, classified role=source and scanned.",
+      "how_detected": "the same real-system scan as FAIL-021",
+      "root_cause": "`inventory.classify()` hardcoded the literal name cdk.out, and a branch-ordering bug meant even the unrenamed case would have classified the stack's own synthesized *.template.json as generated rather than the iac role that exempts nothing, losing ground truth SKIP_DIRS deliberately keeps.",
+      "requirement": "ARB-026",
+      "affected": [
+        "src/arbiter/inventory.py"
+      ],
+      "fix_summary": "IAC_HINTS is checked first and both hint patterns accept a cdk.out* suffix.",
+      "fix_commits": [
+        "b53b58a"
+      ],
+      "regression_tests": [
+        "tests/test_graph_system.py::test_renamed_cdk_output_directory_is_still_generated",
+        "tests/test_graph_system.py::test_cdk_synthesized_template_is_iac_not_generated",
+        "tests/test_probes_security.py::test_secrets_probe_skips_a_vendored_bundle_under_a_renamed_cdk_output_dir"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "data.testing"
+      ],
+      "prevention_notes": "",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-023",
+      "date": "2026-09-16",
+      "title": "bandit and checkov walked vendored trees SKIP_DIRS excludes",
+      "status": "fixed",
+      "severity": "high",
+      "symptom": "bandit produced 129,379 raw findings and consumed 669s of its 900s budget on one tree; a real system scan reported 6,011 findings, most from a vendored .venv and a Lambda asset bundle's dependencies.",
+      "how_detected": "the same real-system scan as FAIL-021",
+      "root_cause": "bandit and checkov each walk {workdir} with their own traversal, independent of inventory.SKIP_DIRS and of file roles.",
+      "requirement": "ARB-026",
+      "affected": [
+        "src/arbiter/packs/adapters/bandit.adapter.toml",
+        "src/arbiter/packs/adapters/checkov.adapter.toml"
+      ],
+      "fix_summary": "Both manifests invoke the tool with exclusions mirroring SKIP_DIRS, plus a cdk.out* pattern for bandit (it only reads Python) and a narrower asset.<hash> bundle pattern for checkov (which still needs the templates). bandit's runtime dropped from 669s to 4s.",
+      "fix_commits": [
+        "b53b58a"
+      ],
+      "regression_tests": [],
+      "no_test_reason": "The exclusions are argv in the adapter manifests and were verified empirically against a real vendored tree (the requirement's own acceptance criterion); exercising them needs bandit and checkov installed, which the suite does not assume.",
+      "prevention_rules": [
+        "data.scope_boundary"
+      ],
+      "prevention_notes": "Risk recorded on ARB-026: the lists mirror SKIP_DIRS by hand and can drift. semgrep was left uncovered and became FAIL-027 under ARB-029.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-024",
+      "date": "2026-09-16",
+      "title": "MCP tests read pydantic alias names instead of attributes",
+      "status": "fixed",
+      "severity": "low",
+      "symptom": "test_the_tool_schemas_still_build_against_the_installed_sdk and test_the_stdio_server_actually_starts_and_answers_a_real_client failed on main.",
+      "how_detected": "running the full suite during ARB-026; reproduced against plain main with ARB-026's changes stashed",
+      "root_cause": "The tests read .inputSchema, .serverInfo and .isError off objects the installed mcp SDK returns; those models take the camelCase alias on construction but expose the field as the snake_case Python attribute via an alias generator, confirmed from model_fields on the installed SDK.",
+      "requirement": "ARB-027",
+      "affected": [
+        "tests/test_mcp_api.py"
+      ],
+      "fix_summary": "The two tests read .input_schema, .server_info and .is_error.",
+      "fix_commits": [
+        "b53b58a"
+      ],
+      "regression_tests": [
+        "tests/test_mcp_api.py::test_the_tool_schemas_still_build_against_the_installed_sdk",
+        "tests/test_mcp_api.py::test_the_stdio_server_actually_starts_and_answers_a_real_client"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "completion.validation"
+      ],
+      "prevention_notes": "Test-only change. Commit 23bc43e the same day describes the SDK as having gone back to camelCase after a snake_case detour, which the ARB-027 record contradicts; the ledger follows the requirement entry and CHANGELOG.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-025",
+      "date": "2026-09-17",
+      "title": "gitleaks wrote its report into the repository being scanned",
+      "status": "fixed",
+      "severity": "high",
+      "symptom": "A file literally named `-`, full of gitleaks' own JSON output and so full of strings shaped like the secrets it finds, was created inside the scanned repository for the next scan of any repo to read as content.",
+      "how_detected": "continuing ARB-026's cross-repo scanning work outside the fixture corpus",
+      "root_cause": "gitleaks has no write-JSON-to-stdout mode; `--report-path -` was taken literally, and the adapter never set cwd so {workdir} was the default.",
+      "requirement": "ARB-029",
+      "affected": [
+        "src/arbiter/adapters.py",
+        "src/arbiter/packs/adapters/gitleaks.adapter.toml"
+      ],
+      "fix_summary": "`Adapter.invoke()` substitutes a private temp path for a {report_file} placeholder, reads it back once the process exits, and deletes it in a finally block.",
+      "fix_commits": [
+        "51df5e9"
+      ],
+      "regression_tests": [
+        "tests/test_adapters.py::test_adapter_reads_a_tool_that_only_writes_a_report_file",
+        "tests/test_adapters.py::test_adapter_report_file_is_cleaned_up_even_when_the_tool_never_writes_it"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "data.scope_boundary"
+      ],
+      "prevention_notes": "",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-026",
+      "date": "2026-09-17",
+      "title": "Backslash paths from checkov and bandit matched no suppress rule on Windows",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "On Windows, path-based suppress rules silently matched zero checkov or bandit findings.",
+      "how_detected": "the same cross-repo scanning work as FAIL-025, on Windows",
+      "root_cause": "checkov and bandit hand back backslash-separated relative paths on Windows (checkov's even start with a bare leading backslash), while every suppress-rule glob and Location.path in the codebase assumes '/'.",
+      "requirement": "ARB-029",
+      "affected": [
+        "src/arbiter/adapters.py"
+      ],
+      "fix_summary": "Adapter output paths are normalised to forward slashes before the existing './' stripping and before suppress-rule matching.",
+      "fix_commits": [
+        "51df5e9"
+      ],
+      "regression_tests": [
+        "tests/test_invariants.py::test_no_finding_anywhere_carries_a_backslash_path"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "data.contract_preservation"
+      ],
+      "prevention_notes": "The cited test was added by ARB-030 and asserts the property over every finding of the fixture scans plus the Location boundary; ARB-029 shipped no test specific to adapter output. ARB-030 then moved separator normalisation into Location.__post_init__ (FAIL-029) so adapters and probes share one boundary.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-027",
+      "date": "2026-09-17",
+      "title": "semgrep still walked vendored and CDK asset trees",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "semgrep continued to scan vendored .venv and CDK asset-bundle trees after ARB-026 excluded them for bandit and checkov.",
+      "how_detected": "ARB-026's own risk notes, confirmed while continuing its cross-repo work",
+      "root_cause": "semgrep walks {workdir} with the same independent traversal as bandit and checkov; ARB-026 covered only those two.",
+      "requirement": "ARB-029",
+      "affected": [
+        "src/arbiter/packs/adapters/semgrep.adapter.toml"
+      ],
+      "fix_summary": "semgrep.adapter.toml carries the same exclusion list plus a cdk.out* pattern, since none of its configured rulesets understand CloudFormation templates either.",
+      "fix_commits": [
+        "51df5e9"
+      ],
+      "regression_tests": [],
+      "no_test_reason": "Manifest argv change, like FAIL-023; exercising it needs semgrep installed, which the suite does not assume.",
+      "prevention_rules": [
+        "data.scope_boundary"
+      ],
+      "prevention_notes": "Risk recorded on ARB-029: three separate fixed lists now mirror SKIP_DIRS and can drift independently.",
+      "recurrence_of": "FAIL-023"
+    },
+    {
+      "id": "FAIL-028",
+      "date": "2026-09-17",
+      "title": "Leftover output directories under another --out name were scanned",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "A fresh arbiter-out/ (or any untracked, .gitignore-matched directory) left over from a previous run under whatever --out name was given that time was read as source.",
+      "how_detected": "the same cross-repo scanning work as FAIL-025",
+      "root_cause": "SKIP_DIRS is a fixed name list and the ARB-011 exclusion covers only the current run's out_dir.",
+      "requirement": "ARB-029",
+      "affected": [
+        "src/arbiter/inventory.py"
+      ],
+      "fix_summary": "`walk_repo` also excludes whatever `git ls-files --others --ignored --exclude-standard --directory` reports, the plumbing incremental.py already uses for changed-file detection.",
+      "fix_commits": [
+        "51df5e9"
+      ],
+      "regression_tests": [],
+      "no_test_reason": "No test creates an ignored directory and asserts walk_repo skips it; tests/test_graph_system.py::test_output_directory_is_not_scanned covers only the current run's out_dir.",
+      "prevention_rules": [
+        "data.scope_boundary"
+      ],
+      "prevention_notes": "",
+      "recurrence_of": "FAIL-006"
+    },
+    {
+      "id": "FAIL-029",
+      "date": "2026-09-17",
+      "title": "Finding fingerprints differed between platforms",
+      "status": "fixed",
+      "severity": "high",
+      "symptom": "The same finding had two identities, one per path-separator spelling: a verdict recorded on one platform could never match the same finding on another, and a baseline built on one reported every finding as new on the other. Nothing reported it.",
+      "how_detected": "the ARB-030 audit of the whole bug history",
+      "root_cause": "`Finding.fingerprint()` hashed location.path as written, so backslash and forward-slash spellings of one path hashed differently; adjudications are permanent and keyed by that fingerprint and record() refuses to re-adjudicate.",
+      "requirement": "ARB-030",
+      "affected": [
+        "src/arbiter/core.py"
+      ],
+      "fix_summary": "Separator normalisation in `Location.__post_init__`, the boundary all ~54 construction sites pass through, rather than at each site, which is the form that was tried and missed in ARB-014, ARB-015, ARB-016 and ARB-029.",
+      "fix_commits": [
+        "7f0f7cd"
+      ],
+      "regression_tests": [
+        "tests/test_invariants.py::test_the_same_finding_has_one_fingerprint_on_either_platform",
+        "tests/test_invariants.py::test_no_finding_anywhere_carries_a_backslash_path",
+        "tests/test_properties.py::test_a_path_has_one_fingerprint_whichever_separator_wrote_it"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "data.contract_preservation"
+      ],
+      "prevention_notes": "tools/mutate_tests.py ('path-separator') puts the defect back and requires the invariants test to fail; it runs in the pull-request check.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-030",
+      "date": "2026-09-17",
+      "title": "Nightly external-severity measurement never reached the scanner",
+      "status": "fixed",
+      "severity": "high",
+      "symptom": "Every nightly run since the tool was written measured 818 external checks and changed nothing; the 178 severities in the live ledger came from a one-off step that no longer exists.",
+      "how_detected": "the ARB-030 audit of every measurement tool",
+      "root_cause": "`tools/calibrate_external.py` wrote its measured severities to `.arbiter/external-severity.json` while `learn.apply()` read a flat map inside knowledge.json, and no code path moved a value from one to the other.",
+      "requirement": "ARB-030",
+      "affected": [
+        "src/arbiter/learn.py",
+        "tools/train_cycle.sh"
+      ],
+      "fix_summary": "`Knowledge.merge_external_severity()` merges the report into the ledger, storing no check the tool declined to grade; train_cycle.sh calls it after calibration. Merging the current report yields 288 entries, 110 of them checks that had no measured severity at all.",
+      "fix_commits": [
+        "7f0f7cd"
+      ],
+      "regression_tests": [
+        "tests/test_measurement.py::test_a_measured_severity_reaches_a_scan"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "data.no_silent_drop",
+        "data.testing"
+      ],
+      "prevention_notes": "tools/mutate_tests.py ('ungraded-check-stored') covers the merge's refusal to store ungraded checks.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-031",
+      "date": "2026-09-17",
+      "title": "calibrate_external.py documented a severity band its code cannot produce",
+      "status": "fixed",
+      "severity": "low",
+      "symptom": "The module documented a >=50x -> high band that its own BANDS constant cannot produce and that its own prose says measurement is forbidden to claim.",
+      "how_detected": "the ARB-030 audit of every measurement tool",
+      "root_cause": "The documentation and the BANDS constant disagreed; the records do not say which changed first.",
+      "requirement": "ARB-030",
+      "affected": [
+        "tools/calibrate_external.py"
+      ],
+      "fix_summary": "The documentation now matches BANDS = [(10.0, 'medium'), (3.0, 'low')] with floor info, and states why measurement may not promote a check to high.",
+      "fix_commits": [
+        "7f0f7cd"
+      ],
+      "regression_tests": [
+        "tests/test_measurement.py::test_measurement_cannot_promote_a_check_to_high"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "completion.documentation_gate"
+      ],
+      "prevention_notes": "The cited test pins the code's ceiling at medium, which is what the stale documentation contradicted; the documentation text itself is not under test.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-032",
+      "date": "2026-09-17",
+      "title": "UTF-16 files classified as binary and never read",
+      "status": "fixed",
+      "severity": "high",
+      "symptom": "A credential in a file an editor saved as 'Unicode' (UTF-16 with a byte-order mark) was invisible: the file was classified as data and never read, a confident pass on a file that was never opened.",
+      "how_detected": "the new metamorphic encoding test written under ARB-030 found it immediately",
+      "root_cause": "`inventory._is_binary` treated any NUL byte as binary, and UTF-16 puts one between every ASCII character.",
+      "requirement": "ARB-030",
+      "affected": [
+        "src/arbiter/inventory.py",
+        "src/arbiter/probes.py"
+      ],
+      "fix_summary": "A declared byte-order mark (_TEXT_BOMS) means text, and probes._decode honours the BOM when decoding. Headerless UTF-16 is still left as data on purpose: telling it from a real binary means guessing, and guessing wrong turns a binary into mojibake to scan.",
+      "fix_commits": [
+        "7f0f7cd"
+      ],
+      "regression_tests": [
+        "tests/test_metamorphic.py::test_a_credential_is_found_however_the_file_is_encoded",
+        "tests/test_metamorphic.py::test_headerless_utf16_is_left_as_unread_rather_than_called_clean"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "data.no_silent_drop"
+      ],
+      "prevention_notes": "tools/mutate_tests.py ('utf16-is-binary') puts the defect back and requires the metamorphic test to fail.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-033",
+      "date": "2026-09-17",
+      "title": "Seven configuration reads used the platform default codec",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "YAML and TOML configuration in policy.py, ab.py, controls.py, probes.py and adapters.py was read under the platform default codec, cp1252 on Windows, which mis-decodes silently rather than raising.",
+      "how_detected": "the new ast-walking encoding test written under ARB-030 found it immediately",
+      "root_cause": "The same defect as ARB-009 and ARB-012 in seven call sites those fixes did not touch; ARB-009 had explicitly left the config readers alone, noting adapters.py's TOML read as a latent defect of the same family.",
+      "requirement": "ARB-030",
+      "affected": [
+        "src/arbiter/policy.py",
+        "src/arbiter/ab.py",
+        "src/arbiter/controls.py",
+        "src/arbiter/probes.py",
+        "src/arbiter/adapters.py"
+      ],
+      "fix_summary": "Each read names encoding='utf-8'; the new test walks src/ with ast and fails on any text read or write without an explicit encoding, rather than covering the sites that were known.",
+      "fix_commits": [
+        "7f0f7cd"
+      ],
+      "regression_tests": [
+        "tests/test_invariants.py::test_every_text_read_and_write_names_its_encoding"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "data.contract_preservation"
+      ],
+      "prevention_notes": "tools/mutate_tests.py ('implicit-encoding') removes one encoding= and requires the invariants test to fail.",
+      "recurrence_of": "FAIL-007"
+    },
+    {
+      "id": "FAIL-034",
+      "date": "2026-09-17",
+      "title": "CRLF line endings dropped when file reading moved to bytes",
+      "status": "fixed",
+      "severity": "high",
+      "symptom": "Six secret formats stopped being detected on any CRLF file: the rule that reads `name = value` ends at end of line and was seeing a trailing carriage return.",
+      "how_detected": "the existing suite caught it during ARB-030 before merge; the first regression test written for it used an AWS key, recognised by its own shape anywhere, and tools/mutate_tests.py reported that test as passing with the defect present",
+      "root_cause": "Moving file reading from read_text to bytes, which made the byte-order-mark check possible, silently dropped Python's newline translation with it.",
+      "requirement": "ARB-030",
+      "affected": [
+        "src/arbiter/probes.py"
+      ],
+      "fix_summary": "probes._decode normalises CRLF and lone CR to LF after decoding.",
+      "fix_commits": [
+        "7f0f7cd"
+      ],
+      "regression_tests": [
+        "tests/test_metamorphic.py::test_every_carrier_survives_windows_line_endings"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "data.testing"
+      ],
+      "prevention_notes": "Introduced and fixed within ARB-030; it never reached main. tools/mutate_tests.py ('crlf-not-normalized') exists because the first test for this defect did not fail with the defect present: a test that has never failed is not evidence.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-035",
+      "date": "2026-10-09",
+      "title": "Tests spawning bare 'bash' ran the WSL launcher on the Windows runner",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "pr-check (windows-latest), first run: test_install_script_never_fails_a_build, test_bootstrap_refuses_when_it_is_not_a_repository and test_bootstrap_is_idempotent_about_an_existing_remote failed with exit 1 and a UTF-16 stdout reading 'Windows Subsystem for Linux has no installed distributions'.",
+      "how_detected": "CI, the first pull request to run the Windows matrix added in ARB-024",
+      "root_cause": "subprocess.run(['bash', ...]) hands the bare name to CreateProcess, which searches the System32 directory before PATH; System32\\bash.exe is the WSL launcher, so Git Bash (on PATH) was never reached. shutil.which searches PATH only, which is why the writeback test that resolved bash that way passed on the same runner.",
+      "requirement": "ARB-024",
+      "affected": [
+        "tests/test_tools_training.py"
+      ],
+      "fix_summary": "A _bash() helper resolves the shell with shutil.which and skips only when none exists; the three tests use it.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_tools_training.py::test_install_script_never_fails_a_build",
+        "tests/test_tools_training.py::test_bootstrap_refuses_when_it_is_not_a_repository",
+        "tests/test_tools_training.py::test_bootstrap_is_idempotent_about_an_existing_remote"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "completion.validation"
+      ],
+      "prevention_notes": "Never spawn a shell or tool by bare name from a test or from src/: resolve it with shutil.which first. The same CreateProcess ordering bit ARB-006's taskkill path.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-036",
+      "date": "2026-10-09",
+      "title": "The authored probe reported its own docstring's pattern list as three disabled TLS checks",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "First self-gate: three high findings arbiter/authored.security-check-disabled at src/arbiter/authored.py:33-34, evidence verify=False, rejectUnauthorized: false, InsecureSkipVerify: true. Those lines are the module docstring listing what the probe looks for.",
+      "how_detected": "running arbiter gate on this repository for the first time (ARB-032)",
+      "root_cause": "_blank_comments blanks # comments for hash languages but not Python triple-quoted strings, so docstring prose was scanned as code. _strip_prose already blanked docstrings for the import scanner; the disabled-check scanner never got the same treatment.",
+      "requirement": "ARB-032",
+      "affected": [
+        "src/arbiter/authored.py"
+      ],
+      "fix_summary": "_blank_comments blanks triple-quoted strings for Python using the existing _PY_DOCSTRING regex.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_probes_security.py::test_a_docstring_listing_the_dangerous_settings_is_not_the_setting"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "completion.validation"
+      ],
+      "prevention_notes": "Arbiter now gates its own pull requests (pr-check self-gate), so a probe that misreads its own source fails CI the day it ships.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-037",
+      "date": "2026-10-09",
+      "title": "The no-bare-except house rule matched every except clause",
+      "status": "fixed",
+      "severity": "low",
+      "symptom": "Self-scan: 89 house/no-bare-except findings under src/, including except OSError: and except BaseException: ... raise, none of them bare or broad.",
+      "how_detected": "self-scan triage (ARB-033)",
+      "root_cause": "The tree-sitter query was (except_clause) @hit with no predicate on the caught type, so it captured every handler; the title promised bare or broad.",
+      "requirement": "ARB-033",
+      "affected": [
+        "arbiter.yaml"
+      ],
+      "fix_summary": "Query narrowed with (#match? @t ...) to Exception and BaseException; bare except: is left to ruff E722, which the pull-request job now installs.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_probes_quality.py::test_the_broad_except_house_rule_matches_only_broad_clauses"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "completion.validation"
+      ],
+      "prevention_notes": "A house rule earns its place by a test that plants the thing it names and one it does not; the rule shipped with neither.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-038",
+      "date": "2026-10-09",
+      "title": "gitleaks findings on git-ignored and cache files reached the report as critical secrets",
+      "status": "fixed",
+      "severity": "high",
+      "symptom": "First self-gate with the analyzers installed: 4 critical gitleaks findings, three of them on .ai/project-graph.json (git-ignored) and tests/__pycache__/*.pyc, files the inventory never scans.",
+      "how_detected": "running arbiter gate on this repository with tools/install_tools.sh applied (ARB-032)",
+      "root_cause": "Every adapter walks the tree itself. ARB-026 and ARB-029 taught bandit, checkov and semgrep the inventory's exclusions through their own flags; gitleaks was never taught, and adapter output was never checked against the inventory on the way in.",
+      "requirement": "ARB-033",
+      "affected": [
+        "src/arbiter/adapters.py"
+      ],
+      "fix_summary": "Adapter.run keeps only findings whose path the inventory scanned (in_scope), so the boundary is enforced once for every tool rather than per manifest.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_adapters.py::test_adapter_findings_outside_the_inventory_are_dropped"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "data.scope_boundary"
+      ],
+      "prevention_notes": "Scope is decided in one place, the inventory; a tool's own traversal is an implementation detail its output must be reconciled with.",
+      "recurrence_of": "FAIL-023"
+    },
+    {
+      "id": "FAIL-039",
+      "date": "2026-10-09",
+      "title": "A missing python package read as not applicable, so the AST probes left the coverage denominator",
+      "status": "fixed",
+      "severity": "high",
+      "symptom": "pr-check (windows-latest), no tree-sitter: test_a_dimension_with_no_basis_cannot_claim_complete failed because the coverage claim read 'not applicable here: ast_metrics, interface, house_rules_ast'. Two probes with a question to answer here were counted as having none.",
+      "how_detected": "CI, first Windows run after ARB-033 (the Linux job has tree-sitter)",
+      "root_cause": "Probe.applicable() answered two different questions with one False: a missing python module (prevented) and a single-repository or stack mismatch (nothing to assess). The engine set applicable=False for both, and the new coverage rule dropped both from the denominator. CI-12's reason check did not list 'missing python package'.",
+      "requirement": "ARB-033",
+      "affected": [
+        "src/arbiter/probes.py",
+        "src/arbiter/engine.py",
+        "src/arbiter/claims.py"
+      ],
+      "fix_summary": "Probe.prevented() reports missing modules and the engine records them as skipped with applicable=True, like a missing binary; applicable() keeps only the nothing-to-assess cases; CI-12 lists the new wording.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_policy_gate.py::test_a_missing_dependency_is_prevented_not_inapplicable"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "completion.validation"
+      ],
+      "prevention_notes": "The Windows matrix is the machine without the optional dependency; a scoring rule that depends on applicability must be tested there, which the matrix now does on every pull request.",
+      "recurrence_of": "FAIL-036"
+    },
+    {
+      "id": "FAIL-040",
+      "date": "2026-10-09",
+      "title": "The Python 3.10 CI cell segfaulted: checkov installs the pyston JIT into Arbiter's interpreter",
+      "status": "fixed",
+      "severity": "high",
+      "symptom": "pr-check (ubuntu-latest, 3.10): pytest died with 'Fatal Python error: Segmentation fault' inside pytest's tmp_path fixture (posixpath.realpath), 'Extension modules: pyston, yaml._yaml', exit 139, after 25% of the suite.",
+      "how_detected": "pr-check on PR #5, the new 3.10 cell introduced by ARB-040",
+      "root_cause": "checkov==3.3.17 depends on pyston==2.3.5 and pyston-autoload on CPython < 3.11 (linux and macOS x86_64). tools/install_tools.sh installed checkov with plain pip into Arbiter's own interpreter, and pyston-autoload switches the JIT on in every process of that interpreter; pyston 2.3.5 crashes under pytest on 3.10. The 3.11 cells never saw it because the dependency marker excludes them.",
+      "requirement": "ARB-040",
+      "affected": [
+        "tools/install_tools.sh"
+      ],
+      "fix_summary": "checkov is installed into its own venv (install_checkov_isolated, mirroring semgrep's isolation) with the launcher copied onto PATH, and any checkov, pyston and pyston-autoload left in Arbiter's interpreter are uninstalled.",
+      "fix_commits": [],
+      "regression_tests": [],
+      "no_test_reason": "The crash lives in a third-party JIT under a specific interpreter; the 3.10 CI cell is the regression test and runs on every pull request.",
+      "prevention_rules": [
+        "completion.validation"
+      ],
+      "prevention_notes": "Every external analyzer that is a Python package is installed isolated from Arbiter's interpreter; a dependency marker that only fires on an older interpreter is why the matrix carries that interpreter.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-041",
+      "date": "2026-10-09",
+      "title": "The cache digest was memoised on (path, mtime, size), so a same-size edit in one mtime tick was served stale",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "pr-check (windows-latest, 3.11): tests/test_cache.py::test_an_edited_file_misses_the_cache failed: after rewriting b.py from 'y = 2' to 'y = 3' the cache key was unchanged.",
+      "how_detected": "pr-check on PR #5 (windows-latest), read by test name",
+      "root_cause": "file_digest memoised the sha256 under (abspath, st_mtime_ns, st_size). Windows reported the same mtime for two writes in quick succession, the size was identical, and the memo returned the previous digest, so the cache would have answered from the old findings.",
+      "requirement": "ARB-041",
+      "affected": [
+        "src/arbiter/cache.py"
+      ],
+      "fix_summary": "file_digest reads and hashes the bytes on every call; the memo table is gone. The cost is one read per file per cacheable probe, which the operating system cache absorbs.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_cache.py::test_a_same_size_edit_within_one_mtime_tick_changes_the_key"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "completion.validation"
+      ],
+      "prevention_notes": "A content key is computed from content; file metadata is never a proxy for it. The regression test pins the mtime so it fails on every platform if the memo returns.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-042",
+      "date": "2026-10-09",
+      "title": "The stub detector matched a pass nested under except, so a real function was reported as a stub",
+      "status": "fixed",
+      "severity": "low",
+      "symptom": "Code scanning on OmniEngineering PR #5 raised 'store_mcp_probe_memo is a stub' (arbiter/authored.stub-on-production-path) for a function that writes a JSON file and swallows a failed write with except OSError: pass.",
+      "how_detected": "code scanning alert from the SARIF the omni gate uploaded on OmniEngineering PR #5 (finding f:3780e4a24676)",
+      "root_cause": "_stubs searched the first eight body lines for any marker line (pass, ..., raise NotImplementedError, a temporary constant return) regardless of indentation, so a pass that was the body of a nested except, if or with branch counted as the body of the function.",
+      "requirement": "ARB-048",
+      "affected": [
+        "src/arbiter/authored.py"
+      ],
+      "fix_summary": "_stub_marker_at_body_level counts a marker only at the body's own indentation (the first statement after the docstring); a marker in a nested branch is ignored.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_authored_stub_precision.py::test_a_pass_nested_under_except_is_not_a_stub"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "completion.regression_test"
+      ],
+      "prevention_notes": "The regression test holds a function with a nested pass and asserts no stub finding, beside one whose whole body is pass and must still fire.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-043",
+      "date": "2026-10-09",
+      "title": "The review-draft test compared a Windows path against a posix string",
+      "status": "fixed",
+      "severity": "low",
+      "symptom": "pr-check (windows-latest, 3.11) on PR #6: tests/test_review_draft.py::test_the_knowledge_file_is_byte_identical_after_the_tool failed: {'out\\\\review-draft.md'} != {'out/review-draft.md'}.",
+      "how_detected": "pr-check on PR #6 (windows-latest), read by test name",
+      "root_cause": "The _tree helper built its set with str(path.relative_to(root)), which uses the platform separator; the expected value was written with a forward slash. The Linux run cannot see the difference.",
+      "requirement": "ARB-050",
+      "affected": [
+        "tests/test_review_draft.py"
+      ],
+      "fix_summary": "_tree returns relative_to(root).as_posix(), so the set compares the same on every platform.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_review_draft.py::test_the_knowledge_file_is_byte_identical_after_the_tool"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "completion.verify_target_environment"
+      ],
+      "prevention_notes": "A test that compares path strings builds them with as_posix() or compares Path objects; the Windows cell of pr-check is the control that catches the rest.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-044",
+      "date": "2026-10-09",
+      "title": "use_adapters=False only skipped registration, so a scan that asked for no analyzers ran all five once another scan had registered them",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "The fast test tier on the merged branch spent 28 minutes in semgrep: tests calling run_scan(use_adapters=False) ran every external analyzer after an earlier test in the same process had registered them; three such tests had been marked slow (ARB-046) to work around it.",
+      "how_detected": "a fast-tier run on the integration branch that took 28 minutes instead of two; agent report during ARB-046 named the mechanism",
+      "root_cause": "run_scan's use_adapters flag only guarded register_adapters(); the probe registry is module-global, so once registered the analyzers were ordinary probes and the scan loop ran them for every later scan whatever the flag said.",
+      "requirement": "ARB-047",
+      "affected": [
+        "src/arbiter/engine.py"
+      ],
+      "fix_summary": "The scan loop skips a probe marked external (ARB-047) when use_adapters is False and no explicit only= names it, with the outcome reason 'external analyzers disabled for this run'; an explicit only= still wins.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_use_adapters_flag.py::test_use_adapters_false_skips_a_registered_external_probe"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "completion.regression_test"
+      ],
+      "prevention_notes": "A flag that promises to keep something out of a run is enforced where the run happens, not only where the thing is registered; the regression test registers an external probe first and asserts the flag still skips it. Fast tier: 28 minutes to 1 minute 53 seconds.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-045",
+      "date": "2026-10-09",
+      "title": "The HTML report built its 'Read first' block and never rendered it",
+      "status": "fixed",
+      "severity": "low",
+      "symptom": "render_html assembled bluf_html (partial-scan fraction, withheld grade, skipped probes, scope notes) and the HTML page never contained it: the Markdown report showed the caveats, the HTML showed a clean-looking table with nothing above it. ruff F841 reported the local as never used.",
+      "how_detected": "ruff F841 on the ARB-049 self-scan",
+      "root_cause": "The commit that added the block (c86ba7b) interpolated it into the Markdown template and built the HTML string but left {bluf_html} out of the HTML f-string; no test rendered an HTML report with a caveat to show.",
+      "requirement": "ARB-049",
+      "affected": [
+        "src/arbiter/report.py"
+      ],
+      "fix_summary": "The HTML template interpolates {bluf_html} between the grade banner and the severity cards.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_report_output.py::test_html_puts_the_read_first_block_above_the_findings"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "completion.regression_test"
+      ],
+      "prevention_notes": "An unused local that holds rendered output is a rendering that never happened; the regression test renders a report with a skipped probe and asserts the block sits above the findings table in both formats.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-046",
+      "date": "2026-10-09",
+      "title": "pr-check.yml and train.yml pin their actions to mutable major tags",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "Every `uses:` in .github/workflows (actions/checkout@v4, actions/setup-python@v5, actions/cache@v4, actions/upload-artifact@v4, github/codeql-action/upload-sarif@v3) names a tag the action owner can repoint. At .github/workflows/pr-check.yml:66.",
+      "how_detected": "arbiter arbiter/supply.unpinned-action finding f:f351df511ecf and semgrep github-actions-mutable-action-tag finding f:6450363da7ac, adjudicated true positive in the ARB-049 sweep",
+      "root_cause": "The workflows were written with the major-tag convention GitHub's own examples use; nothing in the repository checks that a third-party ref is immutable.",
+      "requirement": "ARB-049",
+      "affected": [
+        ".github/workflows/pr-check.yml",
+        ".github/workflows/train.yml"
+      ],
+      "fix_summary": "pr-check.yml and train.yml name each action's commit SHA with the tag in a trailing comment (checkout 11d5960a v4, setup-python a26af69b v5, cache 0057852b v4, upload-artifact ea165f8d v4, upload-sarif 9f759ee6 v3), resolved with git ls-remote --tags.",
+      "fix_commits": [],
+      "regression_tests": [],
+      "no_test_reason": "A workflow file has no unit test; the self-gate's supply.unpinned-action rule is the check that catches a return to tags.",
+      "prevention_rules": [],
+      "prevention_notes": "Fix is to pin each action to a commit SHA with the version in a trailing comment and let Dependabot move it; outside the ARB-049 scope (src, tests, arbiter.yaml, baseline, ledger), left open.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-047",
+      "date": "2026-10-09",
+      "title": "test_a_bad_plan_path_fails_loudly accepted any exception as the loud failure",
+      "status": "fixed",
+      "severity": "low",
+      "symptom": "The test wrapped run_scan in pytest.raises(Exception), so a TypeError from a mistyped argument would have passed it as readily as the engine's refusal of a non-plan document. At tests/test_probes_iac.py:201.",
+      "how_detected": "arbiter ruff/B017 finding f:1186bedac20c, adjudicated true positive in the ARB-049 sweep",
+      "root_cause": "The test was written before the engine settled on RuntimeError for a bad plan path and was never tightened.",
+      "requirement": "ARB-049",
+      "affected": [
+        "tests/test_probes_iac.py"
+      ],
+      "fix_summary": "pytest.raises(RuntimeError, match='not a Terraform plan').",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_probes_iac.py::test_a_bad_plan_path_fails_loudly"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "completion.regression_test"
+      ],
+      "prevention_notes": "A loud failure is a named exception; a test that accepts Exception proves only that something broke.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-048",
+      "date": "2026-10-09",
+      "title": "The suppression census counted # noqa inside Python strings and docstrings",
+      "status": "fixed",
+      "severity": "low",
+      "symptom": "assurance.blanket-suppression reported 18 sites on the self-scan of which 16 were prose or fixtures: this module's own docstring explaining what a bare # noqa means, core.py's decision comment, and the strings the probe's tests write into temporary files.",
+      "how_detected": "arbiter arbiter/assurance.blanket-suppression finding f:bdf050c868b3 and its siblings, adjudicated false positive in the ARB-049 sweep",
+      "root_cause": "_suppressions ran the regex census over the whole file text; for Python a hash inside a string literal is not a comment, and the docs-role exclusion added for README did not cover source and test files.",
+      "requirement": "ARB-049",
+      "affected": [
+        "src/arbiter/assurance.py"
+      ],
+      "fix_summary": "_python_comments_only blanks everything the tokenizer does not report as a COMMENT token, positions kept, before the census runs over a Python file; a file that will not tokenize keeps the regex view.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_probes_quality.py::test_a_suppression_inside_a_python_string_is_not_a_suppression"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "completion.regression_test"
+      ],
+      "prevention_notes": "A directive is a comment; the third probe to blank prose before matching (after the import scanner's docstrings and the disabled-check scanner's comments) and the same lesson.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-049",
+      "date": "2026-10-09",
+      "title": "A requirement quoted inside a one-line manifest list was read as undeclared",
+      "status": "fixed",
+      "severity": "low",
+      "symptom": "authored.undeclared-import reported tree_sitter as declared in no manifest although pyproject.toml declares it in the ast extra; the extra is written as a one-line list.",
+      "how_detected": "arbiter arbiter/authored.undeclared-import finding f:6d0f30bbc168, adjudicated false positive in the ARB-049 sweep",
+      "root_cause": "_declared_dependencies anchored both name patterns to the start of a line, so only the first name of an inline list (or none, when the line starts with the extra's key) was read.",
+      "requirement": "ARB-049",
+      "affected": [
+        "src/arbiter/authored.py"
+      ],
+      "fix_summary": "A third pattern reads every quoted requirement followed by a version operator, an extras bracket, a marker or a closing quote, wherever it sits on the line.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_probes_quality.py::test_a_requirement_quoted_inside_a_one_line_list_is_declared"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "completion.regression_test"
+      ],
+      "prevention_notes": "Manifest formats put several requirements on one line; a reader anchored to line starts is a reader of the first column only.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-050",
+      "date": "2026-10-09",
+      "title": "An environment-variable name assigned to a credential-named symbol was reported as a hardcoded credential",
+      "status": "fixed",
+      "severity": "low",
+      "symptom": "Code scanning on upstream OmniEngineering PR #3: 'Hardcoded credential assigned to SEMANTIC_API_KEY_ENV' (arbiter/secrets.assigned-credential) for SEMANTIC_API_KEY_ENV = \"OMNI_GRAPH_SEMANTIC_API_KEY\" in omni_graph.py.",
+      "how_detected": "code scanning alert on upstream OmniEngineering PR #3, from the SARIF omni gate uploaded",
+      "root_cause": "_credential_finding judged the value by entropy and character classes; an upper-case identifier with underscores has two classes and enough entropy to pass, and nothing looked at the shape of the value or at a symbol suffix (_ENV, _VAR, _NAME) that says the symbol holds a name rather than a secret.",
+      "requirement": "ARB-048",
+      "affected": [
+        "src/arbiter/probes.py"
+      ],
+      "fix_summary": "_credential_finding returns None for a value shaped like an environment-variable name (^[A-Z][A-Z0-9_]{2,}$) and for a symbol whose suffix is _env, _env_var, _envvar, _var, _name or _key_name; a real credential beside it still fires.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_secrets_env_name.py::test_an_env_var_name_is_not_a_credential"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "completion.regression_test"
+      ],
+      "prevention_notes": "The regression test holds three name-holding assignments that must be silent and a live-looking key beside them that must fire.",
+      "recurrence_of": ""
+    }
+  ]
+}

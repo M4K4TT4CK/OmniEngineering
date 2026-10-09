@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "arbiter": {
+      "command": "arbiter",
+      "args": [
+        "mcp"
+      ]
+    },
+    "omni": {
+      "command": "python",
+      "args": [
+        "omni",
+        "mcp",
+        "serve"
+      ]
+    }
+  }
+}

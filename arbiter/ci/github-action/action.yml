@@ -1,0 +1,52 @@
+name: Arbiter
+description: Evaluate a repository or system and gate the build on policy
+inputs:
+  target:
+    description: Path to scan
+    required: false
+    default: "."
+  system:
+    description: Path to an arbiter-system.yaml (overrides target)
+    required: false
+    default: ""
+  profile:
+    description: Capability profile
+    required: false
+    default: "ci"
+  baseline:
+    description: Baseline JSON for new/existing labelling
+    required: false
+    default: ""
+  fail:
+    description: Fail the job when the gate fails
+    required: false
+    default: "true"
+outputs:
+  report:
+    description: Path to report.json
+    value: ${{ steps.run.outputs.report }}
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: pip install --quiet ${{ github.action_path }}/../..
+    - id: run
+      shell: bash
+      run: |
+        set +e
+        ARGS="--profile ${{ inputs.profile }} --out arbiter-out --format json,sarif,markdown --github"
+        if [ -n "${{ inputs.baseline }}" ]; then ARGS="$ARGS --baseline ${{ inputs.baseline }}"; fi
+        if [ -n "${{ inputs.system }}" ]; then
+          arbiter gate --system "${{ inputs.system }}" $ARGS
+        else
+          arbiter gate "${{ inputs.target }}" $ARGS
+        fi
+        CODE=$?
+        echo "report=arbiter-out/report.json" >> "$GITHUB_OUTPUT"
+        echo "gate_exit=$CODE" >> "$GITHUB_OUTPUT"
+        if [ "${{ inputs.fail }}" = "true" ]; then exit $CODE; fi
+        exit 0
+    - if: always()
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: arbiter-out/report.sarif

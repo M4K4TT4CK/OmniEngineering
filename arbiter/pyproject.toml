@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "arbiter-eval"
+version = "0.1.0"
+description = "Polyglot repository and system evaluator: security, compliance, quality, drift and cross-repo interfaces"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "Nicholas J Pauken" }]
+dependencies = [
+    "PyYAML>=6.0",
+    # tomllib joined the standard library in 3.11; tomli is the same parser
+    # published on its own, and the one import site is adapters._toml_loads.
+    "tomli>=2; python_version < '3.11'",
+]
+
+[project.optional-dependencies]
+ast = ["tree-sitter>=0.23", "tree-sitter-language-pack>=0.9"]
+tools = ["ruff", "bandit", "checkov", "semgrep"]
+# httpx2 is starlette's test client transport. Without it the app-level tests
+# skip, so the request path -- auth, TLS refusal, the limiter -- goes unexercised.
+# hypothesis generates the inputs for tests/test_properties.py. The parsers it
+# fuzzes are hand-rolled, and every historical bug in them was an edge of the
+# grammar nobody thought to write a fixture for.
+dev = ["pytest>=7", "httpx2", "hypothesis>=6"]
+# 2.2 is a hard floor, not caution: the server API changed shape there --
+# handlers are constructor arguments rather than decorators -- so a 1.x
+# install fails at startup. starlette and uvicorn arrive with it.
+mcp = ["mcp>=2.2"]
+api = ["fastapi>=0.110", "uvicorn>=0.29", "python-multipart>=0.0.9"]
+
+[project.scripts]
+arbiter = "arbiter.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+arbiter = ["packs/**/*.yaml", "packs/**/*.toml", "packs/**/*.adapter.toml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Two tiers (ARB-046). `-m "not slow"` is the pull-request gate's suite and the
+# one `.ai/test-suites.json` registers; `slow` marks the tests that run a real
+# external analyzer through the adapters or scan more than the fixtures, and CI
+# runs those once, on Linux, in pr-check's slow-tier job.
+markers = [
+    "slow: runs a real external analyzer or scans beyond the fixtures; CI runs these in the slow-tier job",
+]

@@ -1,0 +1,9 @@
+# Two Arbiter configurations over one target: what the offline profile costs.
+ab: offline vs connected
+targets: [../fixtures/legacy-platform]
+arms:
+  - name: offline-native
+    profile: offline
+    skip: [checkov, semgrep, bandit, ruff, gitleaks]
+  - name: connected-all
+    profile: connected

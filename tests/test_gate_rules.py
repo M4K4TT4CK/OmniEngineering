@@ -10,8 +10,10 @@ Stdlib only. Run with:
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -84,7 +86,7 @@ class TestGateRulesSelection(GateRuleFixture):
     def test_every_declared_type_this_module_implements_is_in_the_selection_set(self) -> None:
         # if a new elif branch is added to gate_evaluate() without adding the type here, gate_rules()
         # silently drops it again -- the same bug, reintroduced
-        for vtype in ("co_changed", "requirement_registry_entry", "content_forbidden"):
+        for vtype in ("co_changed", "requirement_registry_entry", "content_forbidden", "command"):
             self.assertIn(vtype, ma.EXECUTABLE_VALIDATION_TYPES)
 
 
@@ -227,6 +229,290 @@ class TestContentForbidden(GateRuleFixture):
         Path("a.py").write_text("hello\n", encoding="utf-8")
         failures, _ = ma.gate_evaluate({"a.py"}, {})
         self.assertEqual(failures, [])
+
+
+class TestCommandValidation(GateRuleFixture):
+    """`command` runs the project's own check as a gate. The executable here is this interpreter, so the
+    tests need nothing installed and still exercise exit codes, output capture, timeouts and PATH."""
+
+    def rule(self, run: str, **extra: object) -> dict:
+        validation = {"type": "command", "run": run, "when_changed": ["src/**"], **extra}
+        return {"id": "x.project_check", "severity": "required", "statement": "s", "validation": validation}
+
+    @staticmethod
+    def py(code: str) -> str:
+        return f"{shlex.quote(sys.executable)} -c {shlex.quote(code)}"
+
+    def test_a_passing_command_is_not_a_failure(self) -> None:
+        self.write_rulepack([self.rule(self.py("import sys; sys.exit(0)"))])
+        self.assertEqual(ma.gate_evaluate({"src/a.py"}, {})[0], [])
+
+    def test_a_failing_command_reports_its_exit_code_and_output_tail(self) -> None:
+        self.write_rulepack([self.rule(self.py("print('first'); print('the real reason'); raise SystemExit(3)"))])
+        failures, _ = ma.gate_evaluate({"src/a.py"}, {})
+        self.assertEqual(len(failures), 1)
+        self.assertIn("exited 3", failures[0])
+        self.assertIn("the real reason", failures[0])
+
+    def test_the_command_runs_only_when_a_matching_path_changed(self) -> None:
+        self.write_rulepack([self.rule(self.py("raise SystemExit(1)"))])
+        self.assertEqual(ma.gate_evaluate({"docs/readme.md"}, {})[0], [])
+        self.assertEqual(len(ma.gate_evaluate({"src/a.py"}, {})[0]), 1)
+
+    def test_ignored_paths_do_not_trigger_it(self) -> None:
+        self.write_rulepack([self.rule(self.py("raise SystemExit(1)"), ignore=["src/generated/**"])])
+        self.assertEqual(ma.gate_evaluate({"src/generated/x.py"}, {})[0], [])
+
+    def test_base_is_substituted(self) -> None:
+        self.write_rulepack([self.rule(self.py("import sys; sys.exit(0 if 'abc123' in sys.argv else 1)") + " {base}")])
+        self.assertEqual(ma.gate_evaluate({"src/a.py"}, {}, base="abc123")[0], [])
+        self.assertEqual(len(ma.gate_evaluate({"src/a.py"}, {}, base="other")[0]), 1)
+
+    def test_a_missing_executable_is_a_failure_not_a_pass(self) -> None:
+        self.write_rulepack([self.rule("omni-gate-test-no-such-tool-xyz --flag")])
+        failures, _ = ma.gate_evaluate({"src/a.py"}, {})
+        self.assertEqual(len(failures), 1)
+        self.assertIn("not on PATH", failures[0])
+
+    def test_a_hanging_command_times_out(self) -> None:
+        self.write_rulepack([self.rule(self.py("import time; time.sleep(30)"), timeout=1)])
+        failures, _ = ma.gate_evaluate({"src/a.py"}, {})
+        self.assertEqual(len(failures), 1)
+        self.assertIn("did not finish within 1s", failures[0])
+
+    def test_a_waiver_still_applies(self) -> None:
+        self.write_rulepack([self.rule(self.py("raise SystemExit(1)"))])
+        failures, waived = ma.gate_evaluate({"src/a.py"}, {"x.project_check": "known red, tracked in REQ-9"})
+        self.assertEqual(failures, [])
+        self.assertEqual(len(waived), 1)
+
+
+class TestCommandMemo(GateRuleFixture):
+    """REQ-047: a `command` rule that passed is memoised on its scoped change set (the paths its globs select,
+    their mtimes and sizes, and the run text) in the gate state file, and not re-run until that changes."""
+
+    def rule(self, code: str) -> dict:
+        return {"id": "x.suite", "severity": "required", "statement": "s", "validation": {
+            "type": "command", "run": TestCommandValidation.py(code), "when_changed": ["src/**"], "ignore": ["src/generated/**"],
+        }}
+
+    COUNTING = "open('ran.log', 'a').write('x')"
+
+    def runs(self) -> int:
+        return len(Path("ran.log").read_text(encoding="utf-8")) if Path("ran.log").is_file() else 0
+
+    def evaluate(self, changed: set[str], memo: dict, waivers: dict | None = None) -> tuple[list[str], list[dict]]:
+        outcomes: list[dict] = []
+        failures, _ = ma.gate_evaluate(changed, waivers or {}, memo=memo, outcomes=outcomes)
+        return failures, outcomes
+
+    def test_a_pass_is_memoised_and_not_re_run_on_the_same_scoped_change_set(self) -> None:
+        self.write_rulepack([self.rule(self.COUNTING)])
+        Path("src").mkdir()
+        Path("src/a.py").write_text("x = 1\n", encoding="utf-8")
+        memo: dict[str, str] = {}
+        failures, outcomes = self.evaluate({"src/a.py"}, memo)
+        self.assertEqual(failures, [])
+        self.assertEqual(self.runs(), 1)
+        self.assertEqual(outcomes[0]["status"], "pass")
+        self.assertEqual(memo, {"x.suite": ma.gate_rule_memo_signature(self.rule(self.COUNTING), {"src/a.py"})})
+        failures, outcomes = self.evaluate({"src/a.py"}, memo)
+        self.assertEqual(failures, [])
+        self.assertEqual(self.runs(), 1, "memo hit: the command must not run again")
+        self.assertEqual(outcomes[0]["status"], "memo")
+
+    def test_a_scoped_file_change_invalidates_the_memo_and_an_unscoped_one_does_not(self) -> None:
+        self.write_rulepack([self.rule(self.COUNTING)])
+        Path("src").mkdir()
+        Path("src/a.py").write_text("x = 1\n", encoding="utf-8")
+        memo: dict[str, str] = {}
+        self.evaluate({"src/a.py"}, memo)
+        Path("docs").mkdir()
+        Path("docs/notes.md").write_text("hi\n", encoding="utf-8")
+        _, outcomes = self.evaluate({"src/a.py", "docs/notes.md", "src/generated/x.py"}, memo)
+        self.assertEqual(outcomes[0]["status"], "memo", "a path the rule does not watch leaves the memo valid")
+        self.assertEqual(self.runs(), 1)
+        Path("src/a.py").write_text("x = 2\n", encoding="utf-8")
+        _, outcomes = self.evaluate({"src/a.py"}, memo)
+        self.assertEqual(outcomes[0]["status"], "pass")
+        self.assertEqual(self.runs(), 2, "an edit to a scoped file re-runs the rule")
+        stat = Path("src/a.py").stat()
+        os.utime("src/a.py", ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000))
+        _, outcomes = self.evaluate({"src/a.py"}, memo)
+        self.assertEqual(self.runs(), 3, "a touch (mtime only) re-runs it too")
+        Path("src/b.py").write_text("y = 1\n", encoding="utf-8")
+        self.evaluate({"src/a.py", "src/b.py"}, memo)
+        self.assertEqual(self.runs(), 4, "a new scoped path re-runs it")
+
+    def test_a_different_run_text_is_a_different_memo(self) -> None:
+        self.write_rulepack([self.rule(self.COUNTING)])
+        Path("src").mkdir()
+        Path("src/a.py").write_text("x = 1\n", encoding="utf-8")
+        memo: dict[str, str] = {}
+        self.evaluate({"src/a.py"}, memo)
+        self.write_rulepack([self.rule(self.COUNTING + "; pass")])
+        self.evaluate({"src/a.py"}, memo)
+        self.assertEqual(self.runs(), 2)
+
+    def test_a_failed_rule_is_never_memoised(self) -> None:
+        self.write_rulepack([self.rule(self.COUNTING + "; raise SystemExit(1)")])
+        Path("src").mkdir()
+        Path("src/a.py").write_text("x = 1\n", encoding="utf-8")
+        rule = self.rule(self.COUNTING + "; raise SystemExit(1)")
+        memo = {"x.suite": ma.gate_rule_memo_signature(rule, {"src/a.py"})}  # a stale record must not survive a failure
+        failures, outcomes = self.evaluate({"src/a.py"}, memo)
+        self.assertEqual(outcomes[0]["status"], "memo", "sanity: the planted record matched")
+        memo = {}
+        failures, outcomes = self.evaluate({"src/a.py"}, memo)
+        self.assertEqual(len(failures), 1)
+        self.assertEqual(outcomes[0]["status"], "fail")
+        self.assertEqual(memo, {})
+        failures, outcomes = self.evaluate({"src/a.py"}, memo)
+        self.assertEqual(len(failures), 1)
+        self.assertEqual(self.runs(), 2, "a failed rule runs every time")
+        self.assertEqual(memo, {})
+        failures, outcomes = self.evaluate({"src/a.py"}, memo, waivers={"x.suite": "known red, tracked in REQ-9"})
+        self.assertEqual(failures, [])
+        self.assertEqual(outcomes[0]["status"], "waived")
+        self.assertEqual(memo, {}, "a waived failure is still a failure, never a memoised pass")
+
+    def test_without_a_memo_dict_nothing_is_memoised(self) -> None:
+        self.write_rulepack([self.rule(self.COUNTING)])
+        Path("src").mkdir()
+        Path("src/a.py").write_text("x = 1\n", encoding="utf-8")
+        ma.gate_evaluate({"src/a.py"}, {})
+        ma.gate_evaluate({"src/a.py"}, {})
+        self.assertEqual(self.runs(), 2)
+
+    def test_omni_gate_reports_memo_hits_durations_and_honours_no_memo(self) -> None:
+        self.write_rulepack([self.rule(self.COUNTING)])
+        Path("src").mkdir()
+        Path("src/a.py").write_text("x = 1\n", encoding="utf-8")
+        Path("README.md").write_text("r\n", encoding="utf-8")
+        self.git("add", "README.md")
+        self.git("commit", "-q", "-m", "base")
+        import io
+        from contextlib import redirect_stdout
+
+        def gate(no_memo: bool = False) -> tuple[int, str]:
+            out = io.StringIO()
+            with redirect_stdout(out), mock.patch.object(ma, "build_doctor_report", return_value=ma.DoctorReport()):
+                code = ma.run_gate(argparse.Namespace(hook=False, no_memo=no_memo))
+            return code, out.getvalue()
+
+        code, output = gate()
+        self.assertEqual(code, 0, output)
+        self.assertRegex(output, r"(?m)^  ran     x\.suite \d+\.\ds PASS$")
+        self.assertIn("omni gate: PASS", output)
+        self.assertEqual(self.runs(), 1)
+        state = json.loads((self.root / ".git" / "omni-gate-last.json").read_text(encoding="utf-8"))
+        self.assertIn("x.suite", state["memo"])
+        code, output = gate()
+        self.assertEqual(code, 0, output)
+        self.assertIn("  memo    x.suite passed (memo)", output)
+        self.assertEqual(self.runs(), 1)
+        code, output = gate(no_memo=True)
+        self.assertEqual(code, 0, output)
+        self.assertRegex(output, r"(?m)^  ran     x\.suite \d+\.\ds PASS$")
+        self.assertEqual(self.runs(), 2, "--no-memo runs every rule")
+        code, output = gate()
+        self.assertIn("passed (memo)", output)
+        self.assertEqual(self.runs(), 2, "--no-memo still records the pass for the next run")
+
+    def test_the_memo_and_the_hook_signature_share_the_state_file(self) -> None:
+        ma.gate_state_save({"signature": "abc"})
+        ma.gate_state_save({"memo": {"x.suite": "sig"}})
+        self.assertEqual(ma.gate_state_load(), {"signature": "abc", "memo": {"x.suite": "sig"}})
+
+    def test_omni_in_a_run_text_resolves_to_this_cli_even_off_path(self) -> None:
+        with mock.patch.object(ma.shutil, "which", return_value=None):
+            argv = ma._gate_command_argv(["omni", "--help"])
+            self.assertIsNone(ma._gate_command_argv(["omni-gate-test-no-such-tool-xyz"]))
+        self.assertEqual(argv[0], sys.executable)
+        self.assertEqual(Path(argv[1]), ROOT / "omni")
+        self.assertEqual(argv[2:], ["--help"])
+        self.write_rulepack([{"id": "x.omni", "severity": "required", "statement": "s",
+                              "validation": {"type": "command", "run": "omni --help", "when_changed": ["src/**"]}}])
+        with mock.patch.object(ma.shutil, "which", return_value=None):
+            self.assertEqual(ma.gate_evaluate({"src/a.py"}, {})[0], [])
+
+
+class TestDefectCategoryPattern(unittest.TestCase):
+    def test_default_matches_the_usual_names(self) -> None:
+        with mock.patch.object(ma, "project_configuration", return_value={}):
+            pattern = ma.defect_category_pattern()
+        for name in ("Defect", "bug", "hotfix", "regression", "incident"):
+            self.assertTrue(pattern.search(name), name)
+        self.assertFalse(pattern.search("developer-tooling"))
+
+    def test_configuration_overrides_the_default(self) -> None:
+        with mock.patch.object(ma, "project_configuration", return_value={"defect_category_pattern": "tooling|defect"}):
+            pattern = ma.defect_category_pattern()
+        self.assertTrue(pattern.search("developer-tooling"))
+
+    def test_an_invalid_pattern_falls_back_to_the_default(self) -> None:
+        with mock.patch.object(ma, "project_configuration", return_value={"defect_category_pattern": "("}):
+            self.assertIs(ma.defect_category_pattern(), ma.DEFECT_CATEGORY)
+
+
+class TestVendoredWorkspaces(GateRuleFixture):
+    """A subtree with its own workspace carries its own registry; its commit messages cite ids this
+    registry does not hold, and the gate must read them as theirs, not as typos here."""
+
+    def vendor(self, ids: list[str], with_marker: bool = True) -> None:
+        (self.root / "subtree" / ".ai" / "requirements").mkdir(parents=True)
+        if with_marker:
+            (self.root / "subtree" / ".ai" / "omni-version.json").write_text('{"source": "x", "ref": "abc"}', encoding="utf-8")
+        (self.root / "subtree" / ".ai" / "requirements" / "requirements.json").write_text(json.dumps({
+            "version": "1.0.0", "requirement_id_prefix": "REQ",
+            "requirements": [{"id": i, "category": "Feature", "title": i, "description": "d", "priority": "low",
+                               "status": "completed", "minimum_access_scope": [], "acceptance_criteria": [],
+                               "validation_required": [], "documentation_required": [], "risk_notes": []} for i in ids],
+        }), encoding="utf-8")
+
+    def rule(self) -> dict:
+        return {"id": "x.req_entry", "severity": "required", "statement": "s",
+                "validation": {"type": "requirement_registry_entry", "target": ".ai/requirements/requirements.json"}}
+
+    def commits_citing(self, text: str) -> str:
+        Path("a.py").write_text("x = 1\n", encoding="utf-8")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "base")
+        parent = self.git("rev-parse", "HEAD").strip()
+        Path("b.py").write_text("y = 1\n", encoding="utf-8")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", text)
+        return parent
+
+    def test_an_id_from_a_vendored_registry_is_known(self) -> None:
+        self.write_rulepack([self.rule()])
+        self.write_requirements(["REQ-001"])
+        self.vendor(["REQ-900"])
+        parent = self.commits_citing("Vendored change (REQ-900)")
+        self.assertEqual(ma.vendored_requirement_ids(), {"REQ-900"})
+        self.assertEqual(ma.gate_evaluate({"b.py"}, {}, base=parent)[0], [])
+
+    def test_a_directory_without_the_adoption_marker_is_not_a_workspace(self) -> None:
+        self.write_rulepack([self.rule()])
+        self.write_requirements(["REQ-001"])
+        self.vendor(["REQ-900"], with_marker=False)
+        parent = self.commits_citing("Vendored change (REQ-900)")
+        self.assertEqual(ma.vendored_workspace_dirs(), [])
+        self.assertEqual(len(ma.gate_evaluate({"b.py"}, {}, base=parent)[0]), 1)
+
+    def test_doctor_reports_tooling_drift_in_a_vendored_workspace(self) -> None:
+        self.vendor(["REQ-900"])
+        Path("make_ai.py").write_text("# root\n", encoding="utf-8")
+        (self.root / "subtree" / "make_ai.py").write_text("# root\n", encoding="utf-8")
+        report = ma.DoctorReport()
+        ma.validate_vendored_workspaces(report)
+        self.assertEqual(report.warnings, [])
+        self.assertTrue(any("subtree/" in line for line in report.passed))
+        (self.root / "subtree" / "make_ai.py").write_text("# older\n", encoding="utf-8")
+        report = ma.DoctorReport()
+        ma.validate_vendored_workspaces(report)
+        self.assertEqual(len(report.warnings), 1)
+        self.assertIn("cd subtree && python omni update --source ..", report.warnings[0])
 
 
 if __name__ == "__main__":

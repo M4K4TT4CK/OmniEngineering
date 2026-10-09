@@ -1,0 +1,249 @@
+# Arbiter evaluating itself.
+version: 1
+profile: offline
+
+gate:
+  fail_on:
+    severity: critical
+    new: high
+  gate_on_inferred: false
+
+quality:
+  max_file_lines: 900
+  max_function_lines: 140
+
+suppress:
+  # The fixtures ARE the defects. Suppressing them here is the point of the
+  # feature: findings stay visible in the report, marked and attributed,
+  # rather than being deleted from the corpus.
+  - rule: "arbiter/*"
+    path: "fixtures/**"
+    reason: "planted defects — this is the golden-fixture test corpus"
+    expires: 2099-01-01
+  - rule: "checkov/*"
+    path: "fixtures/**"
+    reason: "planted defects — this is the golden-fixture test corpus"
+    expires: 2099-01-01
+  - rule: "semgrep/*"
+    path: "fixtures/**"
+    reason: "planted defects — this is the golden-fixture test corpus"
+    expires: 2099-01-01
+  - rule: "bandit/*"
+    path: "fixtures/**"
+    reason: "planted defects — this is the golden-fixture test corpus"
+    expires: 2099-01-01
+  - rule: "gitleaks/*"
+    path: "fixtures/**"
+    reason: "planted defects — this is the golden-fixture test corpus"
+    expires: 2099-01-01
+  - rule: "gitleaks/*"
+    path: "tests/**"
+    reason: "the tests assert on token shapes (Stripe, Slack) that are documentation examples, not live"
+    expires: 2099-01-01
+  # Semgrep's python36-compatibility rules flag the `encoding` and `errors`
+  # arguments to Popen. pyproject.toml requires Python 3.10 or later, so
+  # the incompatibility they warn about cannot occur here.
+  - rule: "semgrep/semgrep-rules.python.lang.compatibility.*"
+    reason: "requires-python >= 3.10 (pyproject.toml); the 3.6 compatibility warnings cannot apply"
+    expires: 2099-01-01
+  - rule: "arbiter/secrets.*"
+    path: "tests/**"
+    reason: "the test asserts on the AWS documentation example key, which is not live"
+    expires: 2099-01-01
+  # OmniEngineering's maintenance tooling ships into this repository as
+  # copies (see .ai/omni-version.json) and is improved upstream, not here.
+  # Scoring it as arbiter's own code put 44 of 90 complexity findings on
+  # files this project does not author. Suppressed, not excluded: the
+  # findings stay in the report, attributed to the tooling.
+  - rule: "arbiter/ast.*"
+    path: "make_ai.py"
+    reason: "OmniEngineering tooling, maintained upstream; see .ai/omni-version.json"
+    expires: 2099-01-01
+  - rule: "arbiter/ast.*"
+    path: "omni_graph.py"
+    reason: "OmniEngineering tooling, maintained upstream; see .ai/omni-version.json"
+    expires: 2099-01-01
+  - rule: "arbiter/ast.*"
+    path: "omni_mcp.py"
+    reason: "OmniEngineering tooling, maintained upstream; see .ai/omni-version.json"
+    expires: 2099-01-01
+  - rule: "arbiter/quality.*"
+    path: "omni_graph.py"
+    reason: "OmniEngineering tooling, maintained upstream; see .ai/omni-version.json"
+    expires: 2099-01-01
+  - rule: "arbiter/quality.*"
+    path: "make_ai.py"
+    reason: "OmniEngineering tooling, maintained upstream; see .ai/omni-version.json"
+    expires: 2099-01-01
+  - rule: "semgrep/*"
+    path: "make_ai.py"
+    reason: "OmniEngineering tooling, maintained upstream; see .ai/omni-version.json"
+    expires: 2099-01-01
+  - rule: "semgrep/*"
+    path: "omni_graph.py"
+    reason: "OmniEngineering tooling, maintained upstream; see .ai/omni-version.json"
+    expires: 2099-01-01
+  - rule: "semgrep/*"
+    path: "omni_mcp.py"
+    reason: "OmniEngineering tooling, maintained upstream; see .ai/omni-version.json"
+    expires: 2099-01-01
+  - rule: "bandit/*"
+    path: "make_ai.py"
+    reason: "OmniEngineering tooling, maintained upstream; see .ai/omni-version.json"
+    expires: 2099-01-01
+  - rule: "bandit/*"
+    path: "omni_graph.py"
+    reason: "OmniEngineering tooling, maintained upstream; see .ai/omni-version.json"
+    expires: 2099-01-01
+
+  # Accepted debt from the ARB-049 sweep: functions over the complexity or
+  # length limit that no mechanical split into same-input helpers would
+  # improve. Suppressed per file with the functions named, never by rule
+  # alone, and expiring so the question is asked again.
+  - rule: "arbiter/ast.high-complexity"
+    path: "src/arbiter/ab.py"
+    reason: "accepted debt (ARB-049): compare (cx 26), run_arm (cx 22); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+  - rule: "arbiter/ast.high-complexity"
+    path: "src/arbiter/adapters.py"
+    reason: "accepted debt (ARB-049): select (cx 25), to_findings (cx 34); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+  - rule: "arbiter/ast.high-complexity"
+    path: "src/arbiter/assurance.py"
+    reason: "accepted debt (ARB-049): _suppressions (cx 22); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+  - rule: "arbiter/ast.high-complexity"
+    path: "src/arbiter/authored.py"
+    reason: "accepted debt (ARB-049): _disabled_checks (cx 25), _undeclared_imports (cx 52); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+  - rule: "arbiter/ast.high-complexity"
+    path: "src/arbiter/bundle.py"
+    reason: "accepted debt (ARB-049): build (cx 23); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+  - rule: "arbiter/ast.high-complexity"
+    path: "src/arbiter/claims.py"
+    reason: "accepted debt (ARB-049): build_claims (cx 35), verify (cx 76); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+  - rule: "arbiter/ast.high-complexity"
+    path: "src/arbiter/cli.py"
+    reason: "accepted debt (ARB-049): cmd_remote (cx 34), cmd_review (cx 28), cmd_scan (cx 39), main (cx 23); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+  - rule: "arbiter/ast.high-complexity"
+    path: "src/arbiter/client.py"
+    reason: "accepted debt (ARB-049): load_settings (cx 22); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+  - rule: "arbiter/ast.high-complexity"
+    path: "src/arbiter/controls.py"
+    reason: "accepted debt (ARB-049): evaluate (cx 26); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+  - rule: "arbiter/ast.high-complexity"
+    path: "src/arbiter/engine.py"
+    reason: "accepted debt (ARB-049): _run_external_probes (cx 23), run_scan (cx 115); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+  - rule: "arbiter/ast.high-complexity"
+    path: "src/arbiter/graph.py"
+    reason: "accepted debt (ARB-049): _parse_hcl_body (cx 23), build_graph (cx 38), parse_cfn (cx 29), parse_tfplan (cx 42), resolve_siblings (cx 24); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+  - rule: "arbiter/ast.high-complexity"
+    path: "src/arbiter/inventory.py"
+    reason: "accepted debt (ARB-049): detect_stacks (cx 39), walk_repo (cx 24); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+  - rule: "arbiter/ast.high-complexity"
+    path: "src/arbiter/policy.py"
+    reason: "accepted debt (ARB-049): apply_suppressions (cx 21), compute_scorecard (cx 22), evaluate_gate (cx 21); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+  - rule: "arbiter/ast.high-complexity"
+    path: "src/arbiter/probes.py"
+    reason: "accepted debt (ARB-049): _credential_finding (cx 24), _eval_assert (cx 37), probe_doc_drift (cx 64), probe_house_rules (cx 50), probe_house_rules_ast (cx 23), probe_interface (cx 64), probe_resource_policy (cx 29), probe_secrets (cx 23), probe_supply_chain (cx 35); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+  - rule: "arbiter/ast.high-complexity"
+    path: "src/arbiter/report.py"
+    reason: "accepted debt (ARB-049): render_console (cx 37), render_markdown (cx 29); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+  - rule: "arbiter/ast.high-complexity"
+    path: "src/arbiter/review.py"
+    reason: "accepted debt (ARB-049): select (cx 25); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+  - rule: "arbiter/ast.high-complexity"
+    path: "tools/calibrate_external.py"
+    reason: "accepted debt (ARB-049): main (cx 44); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+  - rule: "arbiter/ast.high-complexity"
+    path: "tools/corpus.py"
+    reason: "accepted debt (ARB-049): main (cx 55); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+  - rule: "arbiter/ast.high-complexity"
+    path: "tools/disagree.py"
+    reason: "accepted debt (ARB-049): compare (cx 32); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+  - rule: "arbiter/ast.high-complexity"
+    path: "tools/discriminate.py"
+    reason: "accepted debt (ARB-049): main (cx 40); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+  - rule: "arbiter/ast.high-complexity"
+    path: "tools/inject.py"
+    reason: "accepted debt (ARB-049): main (cx 36), mine_seeds (cx 25); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+  - rule: "arbiter/ast.high-complexity"
+    path: "tools/integrity.py"
+    reason: "accepted debt (ARB-049): main (cx 22); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+  - rule: "arbiter/ast.high-complexity"
+    path: "tools/worklist.py"
+    reason: "accepted debt (ARB-049): main (cx 100); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+  - rule: "arbiter/ast.function-too-long"
+    path: "src/arbiter/engine.py"
+    reason: "accepted debt (ARB-049): run_scan (len 332); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+  - rule: "arbiter/ast.function-too-long"
+    path: "src/arbiter/probes.py"
+    reason: "accepted debt (ARB-049): probe_doc_drift (len 179), probe_interface (len 218); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+  - rule: "arbiter/ast.function-too-long"
+    path: "tools/calibrate_external.py"
+    reason: "accepted debt (ARB-049): main (len 201); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+  - rule: "arbiter/ast.function-too-long"
+    path: "tools/corpus.py"
+    reason: "accepted debt (ARB-049): main (len 230); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+  - rule: "arbiter/ast.function-too-long"
+    path: "tools/discriminate.py"
+    reason: "accepted debt (ARB-049): main (len 153); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+  - rule: "arbiter/ast.function-too-long"
+    path: "tools/worklist.py"
+    reason: "accepted debt (ARB-049): main (len 302); no mechanical split into same-input helpers"
+    expires: 2027-04-01
+
+rules:
+  - id: readme-present
+    type: file_exists
+    paths: ["README.md"]
+    title: "README.md is required at the repository root"
+    severity: medium
+
+  - id: no-debug-prints-in-engine
+    type: content_match
+    files: "src/arbiter/engine.py"
+    pattern: "breakpoint\\(\\)"
+    forbid: true
+    title: "Debugger breakpoint left in the engine"
+    severity: high
+
+  - id: no-bare-except
+    type: ast_query
+    languages: [python]
+    files: "src/**/*.py"
+    # The predicate is the rule. Without it `(except_clause)` matched every
+    # handler in the tree, `except OSError:` included -- 89 findings on a
+    # self-scan, none of them what the title says. A bare `except:` has no
+    # identifier child to match, so it is left to ruff E722, which the
+    # pull-request job installs.
+    query: '(except_clause (identifier) @t (#match? @t "^(Exception|BaseException)$")) @hit'
+    capture: hit
+    title: "Broad except clause"
+    description: "Structural check for `except Exception` and `except BaseException`; bare `except:` is ruff E722."
+    remediation: "Catch the specific exception, or re-raise after handling."
+    severity: low

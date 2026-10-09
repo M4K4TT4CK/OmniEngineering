@@ -1,0 +1,399 @@
+framework:
+  id: SOC2-TSC-2017
+  title: AICPA Trust Services Criteria (2017, with 2022 points of focus)
+  version: "2017 (revised points of focus 2022)"
+  authority: https://www.aicpa-cima.com/
+  baseline: All five trust services categories
+  # 33 common criteria (CC1.1–CC1.5, CC2.1–CC2.3, CC3.1–CC3.4, CC4.1–CC4.2,
+  # CC5.1–CC5.3, CC6.1–CC6.8, CC7.1–CC7.5, CC8.1, CC9.1–CC9.2), plus the
+  # additional criteria for Availability (A1.1–A1.3), Confidentiality
+  # (C1.1–C1.2), Processing Integrity (PI1.1–PI1.5) and Privacy (P1.1
+  # through P8.1, 18 criteria). The criterion is the unit. Following the
+  # convention of the government packs, the denominator is the full
+  # published set, not the number of controls listed below.
+  declared_controls: 61
+  declared_source: >-
+    AICPA TSC 2017 — 33 common criteria (Security) + Availability 3 +
+    Confidentiality 2 + Processing Integrity 5 + Privacy 18 = 61 criteria.
+    A SOC 2 engagement selects categories; a Security-only report has a
+    denominator of 33, and the figures this pack reports count against all
+    five. This pack enumerates the scanner-relevant subset and a
+    representative set of the rest; everything not listed resolves to
+    "not enumerated".
+  notes: >-
+    An INDEPENDENT pack. SOC 2 is not a certification. It is an attestation
+    report in which a CPA firm opines on management's description of the
+    system and on whether the controls management chose were suitably
+    designed and (for a Type 2) operated effectively over a period, against
+    these criteria. The criteria do not prescribe controls; the entity does,
+    and the auditor tests the entity's controls. A clean scan of a
+    repository is therefore not "meeting" any criterion. At most it is
+    evidence that one control, on one day, over the part of the system
+    declared as code, did what management said it does.
+
+    Two consequences follow. First, a Type 2 report covers a period, and a
+    point-in-time scan evidences a point in time; the auditor will want the
+    scan run repeatedly across the period with its results acted on, and
+    Arbiter's run history is the beginning of that, not the end. Second, the
+    COSO-derived criteria (CC1 through CC5) are about governance, risk
+    assessment and monitoring by people, and nothing a scanner produces
+    speaks to them except as an input to CC4 monitoring. They are marked
+    "none" below without apology.
+
+    Criterion identifiers and titles were transcribed from the public AICPA
+    materials. The Trust Services Criteria are a licensed AICPA document;
+    verify every identifier and wording against the licensed text before
+    any of this appears in a system description or an auditor's evidence
+    request.
+
+controls:
+  # ---- CC1 — Control Environment -----------------------------------------
+  - id: CC1.1
+    title: The entity demonstrates a commitment to integrity and ethical values
+    family: "CC1 Control Environment"
+    automatable: none
+    residual: Tone at the top, codes of conduct, and evidence they are enforced.
+    satisfied_by: []
+
+  # ---- CC2 — Communication and Information --------------------------------
+  - id: CC2.1
+    title: The entity obtains or generates and uses relevant, quality information to support the functioning of internal control
+    family: "CC2 Communication and Information"
+    automatable: none
+    residual: >-
+      Which information management relies on and whether it is accurate.
+      Arbiter's report is one such source; the criterion is about the
+      system of sources, not any one of them.
+    satisfied_by: []
+
+  # ---- CC3 — Risk Assessment ---------------------------------------------
+  - id: CC3.2
+    title: The entity identifies risks to the achievement of its objectives and analyzes risks as a basis for determining how the risks should be managed
+    family: "CC3 Risk Assessment"
+    automatable: none
+    residual: A risk assessment performed and documented by management.
+    satisfied_by: []
+
+  # ---- CC4 — Monitoring Activities ---------------------------------------
+  - id: CC4.1
+    title: The entity selects, develops, and performs ongoing and/or separate evaluations to ascertain whether the components of internal control are present and functioning
+    family: "CC4 Monitoring Activities"
+    automatable: partial
+    machine_scope: >-
+      That static and infrastructure analysis ran, with its coverage
+      recorded — an ongoing evaluation of the part of the system declared as
+      code.
+    residual: >-
+      The selection of evaluations, their follow-up, and their reporting to
+      management. A scan is an input to monitoring; it is not the monitoring,
+      and a scanner nobody reads is not an evaluation.
+    satisfied_by:
+      - checkov/CKV_AWS_1
+      - bandit/B105
+
+  # ---- CC5 — Control Activities ------------------------------------------
+  - id: CC5.3
+    title: The entity deploys control activities through policies that establish what is expected and in procedures that put policies into action
+    family: "CC5 Control Activities"
+    automatable: none
+    residual: Policies, procedures, and the evidence that people follow them.
+    satisfied_by: []
+
+  # ---- CC6 — Logical and Physical Access Controls -------------------------
+  - id: CC6.1
+    title: The entity implements logical access security software, infrastructure, and architectures over protected information assets
+    family: "CC6 Logical and Physical Access Controls"
+    automatable: partial
+    machine_scope: >-
+      Storage and databases declared publicly reachable, ingress open to the
+      world, encryption at rest requested on declared storage, and key
+      material or credentials committed to version control.
+    residual: >-
+      The asset inventory, identification and authentication of users, key
+      management, and every point of focus enforced at runtime rather than
+      declared. Encryption being on says nothing about who holds the key.
+    satisfied_by:
+      - arbiter/resource.public-object-store
+      - arbiter/resource.database-publicly-accessible
+      - arbiter/resource.unrestricted-ingress
+      - arbiter/resource.unencrypted-database
+      - arbiter/resource.unencrypted-object-store
+      - arbiter/resource.unencrypted-volume
+      - arbiter/resource.unencrypted-queue
+      - arbiter/secrets.private-key
+      - arbiter/secrets.assigned-credential
+
+  - id: CC6.2
+    title: Prior to issuing system credentials and granting system access, the entity registers and authorizes new internal and external users
+    family: "CC6 Logical and Physical Access Controls"
+    automatable: none
+    residual: >-
+      Provisioning and deprovisioning records in the identity provider and
+      the ticketing system. A joiners-and-leavers process, tested by sample.
+    satisfied_by: []
+
+  - id: CC6.3
+    title: The entity authorizes, modifies, or removes access based on roles, responsibilities, or system design, considering least privilege and segregation of duties
+    family: "CC6 Logical and Physical Access Controls"
+    automatable: partial
+    machine_scope: >-
+      IAM grants nothing in the system uses, policies with wildcard actions
+      or resources or attached directly to users, and workloads declared
+      with escalation enabled, capabilities retained or privileged.
+    residual: >-
+      Role design, segregation of duties, and periodic access reviews with a
+      record. No scan evidences a review cadence.
+    satisfied_by:
+      - arbiter/interface.permission-unused
+      - checkov/CKV_AWS_1
+      - checkov/CKV_AWS_62
+      - checkov/CKV_AWS_63
+      - arbiter/resource.k8s-privilege-escalation
+      - arbiter/resource.k8s-privilege-escalation-not-disabled
+      - arbiter/resource.k8s-capabilities-not-dropped
+      - arbiter/resource.privileged-container
+
+  - id: CC6.4
+    title: The entity restricts physical access to facilities and protected information assets
+    family: "CC6 Logical and Physical Access Controls"
+    automatable: none
+    residual: >-
+      Badges, visitor logs and a site walk — usually a carve-out or an
+      inherited control from the hosting provider's own SOC report.
+    satisfied_by: []
+
+  - id: CC6.5
+    title: The entity discontinues logical and physical protections over physical assets only after the ability to read or recover data has been diminished
+    family: "CC6 Logical and Physical Access Controls"
+    automatable: none
+    residual: Destruction and sanitization certificates.
+    satisfied_by: []
+
+  - id: CC6.6
+    title: The entity implements logical access security measures to protect against threats from sources outside its system boundaries
+    family: "CC6 Logical and Physical Access Controls"
+    automatable: partial
+    machine_scope: >-
+      Ingress rules admitting any address (including SSH and RDP from the
+      world), databases reachable from the internet, host-namespace sharing,
+      and HTTP endpoints that do not redirect to HTTPS.
+    residual: >-
+      Where the system boundary is, intrusion detection, and every boundary
+      device not declared as code.
+    satisfied_by:
+      - arbiter/resource.unrestricted-ingress
+      - arbiter/resource.host-network
+      - arbiter/resource.k8s-host-namespace
+      - arbiter/resource.database-publicly-accessible
+      - arbiter/resource.no-https-redirect
+      - checkov/CKV_AWS_24
+      - checkov/CKV_AWS_25
+
+  - id: CC6.7
+    title: The entity restricts the transmission, movement, and removal of information to authorized internal and external users and processes, and protects it during transmission, movement, or removal
+    family: "CC6 Logical and Physical Access Controls"
+    automatable: partial
+    machine_scope: >-
+      Listeners declared without TLS, TLS policies that admit 1.0 or 1.1,
+      databases that accept plaintext connections, and code that disables
+      certificate verification or pins withdrawn protocol versions.
+    residual: >-
+      Removable media, data loss prevention, cipher policy and certificate
+      provenance. TLS on is necessary; it is not the criterion met.
+    satisfied_by:
+      - arbiter/resource.plaintext-listener
+      - arbiter/resource.weak-tls-version
+      - arbiter/resource.database-allows-plaintext-connections
+      - checkov/CKV_AWS_103
+      - bandit/B501
+      - bandit/B502
+      - bandit/B503
+
+  - id: CC6.8
+    title: The entity implements controls to prevent or detect and act upon the introduction of unauthorized or malicious software
+    family: "CC6 Logical and Physical Access Controls"
+    automatable: partial
+    machine_scope: >-
+      CI actions, dependencies and container images on mutable references,
+      CI workflows that execute untrusted code with access to secrets, and
+      imports of packages that do not exist on the registry — the
+      dependency-confusion vector.
+    residual: >-
+      Anti-malware on endpoints and servers, control over software
+      installation, and whether the pinned components are themselves
+      trustworthy. Pinning says the build is reproducible, not that it is
+      safe.
+    satisfied_by:
+      - arbiter/supply.unpinned-action
+      - arbiter/supply.unpinned-python-dep
+      - arbiter/supply.unpinned-npm-dep
+      - arbiter/resource.k8s-mutable-image-tag
+      - arbiter/supply.pull-request-target
+      - arbiter/authored.import-of-nonexistent-package
+
+  # ---- CC7 — System Operations -------------------------------------------
+  - id: CC7.1
+    title: The entity uses detection and monitoring procedures to identify changes to configurations that result in new vulnerabilities, and susceptibilities to newly discovered vulnerabilities
+    family: "CC7 System Operations"
+    automatable: partial
+    machine_scope: >-
+      That static and infrastructure analysis ran, that container images are
+      scanned on push, and that log-file integrity validation is declared on
+      the cloud audit trail.
+    residual: >-
+      Configuration standards, change detection across the whole estate, and
+      vulnerability scans on a cadence with their results tracked. A SAST run
+      is not a vulnerability management programme.
+    satisfied_by:
+      - checkov/CKV_AWS_1
+      - bandit/B105
+      - checkov/CKV_AWS_163
+      - checkov/CKV_AWS_36
+
+  - id: CC7.2
+    title: The entity monitors system components and the operation of those components for anomalies indicative of malicious acts, natural disasters, and errors
+    family: "CC7 System Operations"
+    automatable: partial
+    machine_scope: >-
+      Access logging and retention declared on resources, and a multi-region
+      control-plane trail — the precondition for anything to be monitored.
+    residual: >-
+      The monitoring itself — alerting, a SIEM or equivalent, and people who
+      respond. Logs existing is not logs being watched.
+    satisfied_by:
+      - arbiter/resource.no-object-store-logging
+      - arbiter/resource.no-log-retention
+      - checkov/CKV_AWS_18
+      - checkov/CKV_AWS_35
+      - checkov/CKV_AWS_67
+
+  - id: CC7.3
+    title: The entity evaluates security events to determine whether they could or have resulted in a failure of the entity to meet its objectives and, if so, takes actions to prevent or address such failures
+    family: "CC7 System Operations"
+    automatable: none
+    residual: Triage decisions, made and recorded by people.
+    satisfied_by: []
+
+  - id: CC7.4
+    title: The entity responds to identified security incidents by executing a defined incident response program
+    family: "CC7 System Operations"
+    automatable: none
+    residual: An incident response programme, exercised and documented.
+    satisfied_by: []
+
+  - id: CC7.5
+    title: The entity identifies, develops, and implements activities to recover from identified security incidents
+    family: "CC7 System Operations"
+    automatable: none
+    residual: Recovery activities and post-incident reviews.
+    satisfied_by: []
+
+  # ---- CC8 — Change Management -------------------------------------------
+  - id: CC8.1
+    title: The entity authorizes, designs, develops or acquires, configures, documents, tests, approves, and implements changes to infrastructure, data, software, and procedures
+    family: "CC8 Change Management"
+    automatable: partial
+    machine_scope: >-
+      Whether what deploys is pinned to what was reviewed, CI workflows that
+      run untrusted code with secrets, whether the repository has tests at
+      all, tests permanently skipped, and security checks disabled in code.
+    residual: >-
+      Authorization, approval and segregation of duties for every change,
+      emergency change handling, and whether the tests that exist mean
+      anything. Test files existing is close to the weakest evidence
+      available for "tests".
+    satisfied_by:
+      - arbiter/supply.unpinned-action
+      - arbiter/resource.k8s-mutable-image-tag
+      - arbiter/supply.pull-request-target
+      - arbiter/quality.no-tests
+      - arbiter/assurance.permanently-skipped-test
+      - arbiter/authored.security-check-disabled
+
+  # ---- CC9 — Risk Mitigation ---------------------------------------------
+  - id: CC9.1
+    title: The entity identifies, selects, and develops risk mitigation activities for risks arising from potential business disruptions
+    family: "CC9 Risk Mitigation"
+    automatable: none
+    residual: Business continuity planning and insurance decisions.
+    satisfied_by: []
+
+  - id: CC9.2
+    title: The entity assesses and manages risks associated with vendors and business partners
+    family: "CC9 Risk Mitigation"
+    automatable: none
+    residual: Vendor reviews and the SOC reports of subservice organizations.
+    satisfied_by: []
+
+  # ---- A1 — Availability -------------------------------------------------
+  - id: A1.1
+    title: The entity maintains, monitors, and evaluates current processing capacity and use of system components to manage capacity demand
+    family: "A1 Availability"
+    automatable: partial
+    machine_scope: Workloads declared without CPU or memory limits.
+    residual: Capacity forecasting, monitoring and the decisions made on it.
+    satisfied_by:
+      - arbiter/resource.k8s-no-resource-limits
+
+  - id: A1.2
+    title: The entity authorizes, designs, develops or acquires, implements, operates, approves, maintains, and monitors environmental protections, software, data backup processes, and recovery infrastructure
+    family: "A1 Availability"
+    automatable: partial
+    machine_scope: >-
+      Deletion protection and versioning declared on storage, database and
+      load balancer resources.
+    residual: >-
+      Backups taken, tested and stored separately, and environmental
+      protections at the facility. Deletion protection is not a backup.
+    satisfied_by:
+      - arbiter/resource.no-deletion-protection
+      - checkov/CKV_AWS_21
+      - checkov/CKV_AWS_293
+      - checkov/CKV_AWS_150
+
+  - id: A1.3
+    title: The entity tests recovery plan procedures supporting system recovery
+    family: "A1 Availability"
+    automatable: none
+    residual: A restoration exercise, attended by people, with a report.
+    satisfied_by: []
+
+  # ---- C1 — Confidentiality ----------------------------------------------
+  - id: C1.1
+    title: The entity identifies and maintains confidential information to meet the entity's objectives related to confidentiality
+    family: "C1 Confidentiality"
+    automatable: none
+    residual: >-
+      Classification of what is confidential, which a scanner cannot infer
+      from a resource declaration.
+    satisfied_by: []
+
+  - id: C1.2
+    title: The entity disposes of confidential information to meet the entity's objectives related to confidentiality
+    family: "C1 Confidentiality"
+    automatable: none
+    residual: Retention schedules and disposal records.
+    satisfied_by: []
+
+  # ---- PI1 — Processing Integrity ----------------------------------------
+  - id: PI1.1
+    title: The entity obtains or generates, uses, and communicates relevant, quality information regarding the objectives related to processing
+    family: "PI1 Processing Integrity"
+    automatable: none
+    residual: Processing specifications and the people who own them.
+    satisfied_by: []
+
+  # ---- P — Privacy -------------------------------------------------------
+  - id: P1.1
+    title: The entity provides notice to data subjects about its privacy practices
+    family: "P Privacy"
+    automatable: none
+    residual: A privacy notice, reviewed by counsel.
+    satisfied_by: []
+
+  - id: P6.1
+    title: The entity discloses personal information to third parties with the explicit consent of data subjects, and such consent is obtained prior to disclosure
+    family: "P Privacy"
+    automatable: none
+    residual: Consent records and disclosure logs.
+    satisfied_by: []

@@ -1,0 +1,211 @@
+framework:
+  id: NIST-800-171r2
+  title: NIST SP 800-171 Revision 2 — Protecting CUI in Nonfederal Systems
+  version: "2"
+  authority: https://csrc.nist.gov/pubs/sp/800/171/r2/upd1/final
+  baseline: All requirements
+  # 110 security requirements across 14 families. Revision 3 reduces this to
+  # 97 requirements across 17 families; Rev 2 is kept here because CMMC
+  # Level 2 is assessed against Rev 2.
+  declared_controls: 110
+  declared_source: >-
+    NIST SP 800-171 Rev 2 — 110 security requirements in 14 families.
+  notes: >-
+    An INDEPENDENT pack. Requirements map directly to checks and are not
+    routed through 800-53, even though a published crosswalk exists. The
+    crosswalk is an approximation, and chaining two approximations produces a
+    compliance claim two translations removed from anything that ran.
+
+controls:
+  # ---- 3.1 Access Control ------------------------------------------------
+  - id: 3.1.1
+    title: Limit system access to authorized users and devices
+    family: "3.1 Access Control"
+    automatable: partial
+    machine_scope: Storage and database resources declared publicly reachable.
+    residual: Identity management, session control, everything enforced at runtime.
+    satisfied_by:
+      - arbiter/resource.public-object-store
+      - arbiter/resource.database-publicly-accessible
+
+  - id: 3.1.5
+    title: Employ the principle of least privilege
+    family: "3.1 Access Control"
+    automatable: partial
+    machine_scope: >-
+      Privilege escalation left enabled, capabilities retained, root
+      filesystems writable, privileged containers, and IAM grants no code uses.
+    residual: Role design, separation of duties, privileged account review.
+    satisfied_by:
+      - arbiter/resource.k8s-privilege-escalation
+      - arbiter/resource.k8s-privilege-escalation-not-disabled
+      - arbiter/resource.k8s-capabilities-not-dropped
+      - arbiter/resource.k8s-writable-root-filesystem
+      - arbiter/resource.privileged-container
+      - arbiter/interface.permission-unused
+
+  - id: 3.1.12
+    title: Monitor and control remote access sessions
+    family: "3.1 Access Control"
+    automatable: none
+    residual: Network equipment and monitoring outside the repository.
+    satisfied_by: []
+
+  - id: 3.1.20
+    title: Verify and control connections to external systems
+    family: "3.1 Access Control"
+    automatable: partial
+    machine_scope: Ingress rules admitting traffic from any address.
+    residual: Interconnection agreements and boundary devices.
+    satisfied_by:
+      - arbiter/resource.unrestricted-ingress
+
+  # ---- 3.3 Audit and Accountability --------------------------------------
+  - id: 3.3.1
+    title: Create and retain system audit logs
+    family: "3.3 Audit and Accountability"
+    automatable: partial
+    machine_scope: Access logging and retention declared on resources.
+    residual: Whether the records captured are sufficient for after-the-fact review.
+    satisfied_by:
+      - arbiter/resource.no-object-store-logging
+      - arbiter/resource.no-log-retention
+
+  - id: 3.3.5
+    title: Correlate audit review, analysis and reporting
+    family: "3.3 Audit and Accountability"
+    automatable: none
+    residual: An operational process with people in it.
+    satisfied_by: []
+
+  # ---- 3.4 Configuration Management --------------------------------------
+  - id: 3.4.1
+    title: Establish and maintain baseline configurations and inventories
+    family: "3.4 Configuration Management"
+    automatable: partial
+    machine_scope: Dependencies and images pinned to immutable references.
+    residual: Approval of the baseline; assets not declared as code.
+    satisfied_by:
+      - arbiter/supply.unpinned-python-dep
+      - arbiter/supply.unpinned-npm-dep
+      - arbiter/resource.k8s-mutable-image-tag
+
+  - id: 3.4.2
+    title: Establish and enforce security configuration settings
+    family: "3.4 Configuration Management"
+    automatable: partial
+    machine_scope: Declared resource settings, measured against this build's rules.
+    residual: The far larger set of settings no rule covers.
+    satisfied_by:
+      - arbiter/resource.k8s-no-security-context
+      - arbiter/resource.k8s-runs-as-root
+      - arbiter/resource.k8s-not-run-as-non-root
+
+  - id: 3.4.6
+    title: Employ the principle of least functionality
+    family: "3.4 Configuration Management"
+    automatable: partial
+    machine_scope: Mutable action references and untrusted-code checkouts in CI.
+    residual: Whether the functionality present is needed.
+    satisfied_by:
+      - arbiter/supply.unpinned-action
+      - arbiter/supply.pull-request-target
+
+  # ---- 3.5 Identification and Authentication -----------------------------
+  - id: 3.5.2
+    title: Authenticate the identities of users, processes and devices
+    family: "3.5 Identification and Authentication"
+    automatable: none
+    residual: A property of the identity provider.
+    satisfied_by: []
+
+  - id: 3.5.10
+    title: Store and transmit only cryptographically protected passwords
+    family: "3.5 Identification and Authentication"
+    automatable: partial
+    machine_scope: >-
+      Plaintext credentials, private keys, tokens and credentialed URLs
+      committed to version control.
+    residual: >-
+      Hashing and storage of credentials at runtime. No secret found in source
+      is not evidence that stored credentials are protected.
+    satisfied_by:
+      - arbiter/secrets.private-key
+      - arbiter/secrets.aws-access-key
+      - arbiter/secrets.gh-token
+      - arbiter/secrets.slack-token
+      - arbiter/secrets.pg-url
+      - arbiter/secrets.assigned-credential
+
+  # ---- 3.11 Risk Assessment ----------------------------------------------
+  - id: 3.11.2
+    title: Scan for vulnerabilities periodically and when new ones are identified
+    family: "3.11 Risk Assessment"
+    automatable: partial
+    machine_scope: That static analysis ran, and its own coverage figure.
+    residual: Authenticated and runtime scanning; remediation timelines.
+    satisfied_by:
+      - checkov/CKV_AWS_1
+      - bandit/B105
+
+  # ---- 3.13 System and Communications Protection --------------------------
+  - id: 3.13.1
+    title: Monitor and protect communications at external boundaries
+    family: "3.13 System and Communications Protection"
+    automatable: partial
+    machine_scope: Open ingress rules and host-namespace sharing.
+    residual: Boundary placement and runtime monitoring.
+    satisfied_by:
+      - arbiter/resource.unrestricted-ingress
+      - arbiter/resource.k8s-host-namespace
+      - arbiter/resource.host-network
+
+  - id: 3.13.8
+    title: Implement cryptographic mechanisms to prevent disclosure in transit
+    family: "3.13 System and Communications Protection"
+    automatable: partial
+    machine_scope: Listeners declared without TLS.
+    residual: Cipher policy and certificate provenance.
+    satisfied_by:
+      - arbiter/resource.plaintext-listener
+
+  - id: 3.13.16
+    title: Protect the confidentiality of CUI at rest
+    family: "3.13 System and Communications Protection"
+    automatable: partial
+    machine_scope: Encryption at rest requested on declared storage resources.
+    residual: Key custody and rotation; storage outside the scanned estate.
+    satisfied_by:
+      - arbiter/resource.unencrypted-database
+      - arbiter/resource.unencrypted-volume
+      - arbiter/resource.unencrypted-object-store
+      - arbiter/resource.unencrypted-queue
+
+  # ---- families no scanner reaches ---------------------------------------
+  - id: 3.2.1
+    title: Ensure personnel are trained on security risks
+    family: "3.2 Awareness and Training"
+    automatable: none
+    residual: Training records.
+    satisfied_by: []
+
+  - id: 3.6.1
+    title: Establish an operational incident-handling capability
+    family: "3.6 Incident Response"
+    automatable: none
+    residual: A capability, exercised and documented.
+    satisfied_by: []
+
+  - id: 3.9.1
+    title: Screen individuals prior to authorizing access
+    family: "3.9 Personnel Security"
+    automatable: none
+    residual: Background investigation records.
+    satisfied_by: []
+
+  - id: 3.10.1
+    title: Limit physical access to systems and equipment
+    family: "3.10 Physical Protection"
+    automatable: none
+    residual: A site walk.
+    satisfied_by: []

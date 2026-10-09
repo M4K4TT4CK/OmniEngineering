@@ -1,0 +1,43 @@
+{
+  "version": "1.0.0",
+  "suites": [
+    {
+      "id": "root-pytest",
+      "name": "root pytest unit tests (fast tier)",
+      "kind": "unit",
+      "framework": "pytest",
+      "paths": [
+        "tests"
+      ],
+      "command": "python -m pytest -q -rs -m \"not slow\"",
+      "covers": [],
+      "notes": "The gate's suite (ARB-046): every test except those marked slow. Fast enough to run on every commit."
+    },
+    {
+      "id": "root-pytest-slow",
+      "name": "root pytest slow tier",
+      "kind": "integration",
+      "framework": "pytest",
+      "paths": [
+        "tests"
+      ],
+      "command": "python -m pytest -q -rs -m slow",
+      "covers": [],
+      "notes": "Tests marked slow: a real external analyzer through the adapters, or a scan beyond the fixtures. CI's slow-tier job in pr-check.yml runs it with the analyzers installed; the gate does not."
+    },
+    {
+      "id": "check-writeback-script",
+      "name": "check writeback (script)",
+      "kind": "validation",
+      "framework": "script",
+      "paths": [
+        "tools/check_writeback.sh"
+      ],
+      "command": "bash tools/check_writeback.sh",
+      "covers": [
+        ".github/workflows/train.yml"
+      ],
+      "notes": ""
+    }
+  ]
+}

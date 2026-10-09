@@ -19,3 +19,11 @@ build/
 # Editor and assistant tool settings are local
 .idea/
 .serena/
+
+# Arbiter scan output
+arbiter-out/
+
+
+# Arbiter's per-file result cache is a per-machine memo, never source (FAIL-012 class).
+.arbiter/cache.json
+# Arbiter writes its reports here; they quote findings and are never source.

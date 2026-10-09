@@ -35,7 +35,8 @@ Both delegate to `make_ai.py`.
 | `omni requirement search <text>` | Case-insensitive search across active and archived requirements. |
 | `omni requirement update <ID>` | Change status/title/description or append a risk note. |
 | `omni requirement complete <ID>` | Mark a requirement completed. |
-| `omni requirement archive` | Move older completed requirements to `requirements-archive.json`. |
+| `omni arbiter install` | Install Arbiter (`arbiter-eval[mcp]`, from a checkout or the git URL) and wire it in: `.mcp.json`, the `completion.arbiter_gate` command rule, a starter `arbiter.yaml`. `omni adopt --with-arbiter` does the same during adoption. |
+| `omni requirement archive` | Move older completed and all withdrawn requirements to `requirements-archive.json`; `--id` names specific terminal entries and refuses live work. |
 | `omni graph show --all` | List every graph node (grouped by file, with in/out degree); filter by `--kind`, `--language`, `--file`; `--edges` adds the edges. |
 | `omni graph view [--mode 2d\|3d\|auto]` | Write an offline, interactive HTML viewer: a flat 2D view (Canvas 2D, no GPU needed, the default) and a 3D view (vendored 3d-force-graph, MIT), with views, layouts, chain highlight, path tracing, search, filters, tooltips and a light theme. |
 | `omni graph show --all --layer <code\|governance\|history\|assurance\|workspace>` | Restrict the listing to one graph layer. |

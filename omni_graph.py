@@ -31,6 +31,7 @@ import math
 import os
 import random
 import re
+import shlex
 import subprocess
 import urllib.error
 import urllib.request
@@ -106,6 +107,7 @@ NODE_KIND_LAYER = {
     "rulepack": LAYER_WORKSPACE,
     "playbook": LAYER_WORKSPACE,
     "checklist": LAYER_WORKSPACE,
+    "finding": LAYER_ASSURANCE,  # REQ-043: one Arbiter finding, read from the newest gate report
 }
 
 EDGE_LAYER = {
@@ -125,6 +127,11 @@ EDGE_LAYER = {
     "recurs": LAYER_ASSURANCE,  # failure -> earlier failure it repeats
     "contains": LAYER_ASSURANCE,  # test suite -> test file it groups
     "covers": LAYER_ASSURANCE,  # test suite -> code it is declared or inferred to cover
+    # REQ-043: Arbiter findings as nodes
+    "flags": LAYER_ASSURANCE,  # finding -> file (and the symbol whose span holds the line) it was raised on
+    "cites": LAYER_ASSURANCE,  # finding -> requirement named by a `req:<ID>` tag (context: being worked when the scan ran)
+    "recorded_as": LAYER_ASSURANCE,  # finding -> failure-ledger entry whose how_detected names the finding
+    "introduced_by": LAYER_ASSURANCE,  # REQ-051: finding -> the commit git blame holds for its line (the requirement is one `delivers` hop on)
 }
 
 FAILURE_LEDGER_PATH = ".ai/failures/failure-ledger.json"
@@ -151,6 +158,13 @@ _DEFAULT_GRAPH_CONFIG: dict[str, Any] = {
     # OmniEngineering's own files as embedded in a project. They join the workspace layer and are never counted as
     # the project's tests, suites or coverage targets. OmniEngineering's source repository sets this to [].
     "tooling_paths": ["make_ai.py", "omni_graph.py", "omni", ".ai/*"],
+    # Paths the code layer never parses, on top of .gitignore and .ai/.ignore: test corpora with planted defects,
+    # vendored examples, generated output. They are still readable by an assistant (unlike .ai/.ignore entries) and
+    # still appear in git history; they just never contribute symbols that would be attributed to the project.
+    "exclude_code_globs": [],
+    # REQ-043: the Arbiter report the finding nodes come from. "auto" reads the newest report.json under the
+    # `completion.arbiter_gate` rule's --out directory (default arbiter-out); a path names one report; null disables them.
+    "findings_report": "auto",
 }
 _CONFIG_CACHE: dict[str, tuple[Any, dict[str, Any]]] = {}
 
@@ -187,6 +201,8 @@ def graph_config(root: Path, problems: list[str] | None = None) -> dict[str, Any
                         config[name] = value
                     else:
                         found.append(f"{GRAPH_CONFIG_PATH}: 'requirement_id_pattern' must be a regular expression string")
+                elif name == "findings_report" and value is None:
+                    config[name] = None  # REQ-043: null switches the finding nodes off
                 elif isinstance(default, int):
                     if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
                         config[name] = value
@@ -391,6 +407,7 @@ def discover_source_files(root: Path, languages: list[str]) -> list[tuple[Path, 
             extensions[ext] = language
 
     ignore_patterns = _read_ignore_patterns(root)
+    excluded = [str(glob) for glob in graph_config(root).get("exclude_code_globs", []) if str(glob).strip()]
     found: list[tuple[Path, str]] = []
 
     def walk(current: Path) -> None:
@@ -404,6 +421,8 @@ def discover_source_files(root: Path, languages: list[str]) -> list[tuple[Path, 
             if is_dir and child.is_symlink():
                 continue  # a symlinked directory can loop back on itself
             if _should_skip(relative, is_dir, ignore_patterns):
+                continue
+            if any(_path_matches_pattern(relative, glob, is_dir) for glob in excluded):
                 continue
             if is_dir:
                 walk(child)
@@ -2198,6 +2217,80 @@ def _git_lines(root: Path, *args: str) -> str | None:
     return result.stdout
 
 
+# --------------------------------------------------------------------------
+# REQ-052: vendored workspaces
+#
+# A directory below the root that carries its own `.ai/omni-version.json` (a
+# subtree such as arbiter/, a monorepo package, an adopter checked in beside
+# the template) has its own failure ledger and requirements registry. Both
+# number from FAIL-001 / xxx-001, so their nodes join the graph under the
+# workspace's directory as a prefix: `failure:arbiter/FAIL-042`, named
+# `arbiter/FAIL-042`, attrs.workspace = "arbiter". The root's ids stay bare.
+# --------------------------------------------------------------------------
+
+VENDORED_WORKSPACE_MARKER = ".ai/omni-version.json"
+VENDORED_LEDGER = ".ai/failures/failure-ledger.json"
+VENDORED_REGISTRY = ".ai/requirements/requirements.json"
+
+
+def vendored_workspaces(root: Path) -> list[str]:
+    """Relative posix paths of the vendored workspaces below `root` (one or two levels down), never the root itself."""
+    found: list[str] = []
+    for marker in sorted(root.glob("*/" + VENDORED_WORKSPACE_MARKER)) + sorted(root.glob("*/*/" + VENDORED_WORKSPACE_MARKER)):
+        workspace = marker.parent.parent
+        try:
+            rel = workspace.relative_to(root)
+        except ValueError:
+            continue
+        if rel.parts and not any(part in _DEFAULT_EXCLUDED_DIRS for part in rel.parts) and rel.as_posix() not in found:
+            found.append(rel.as_posix())
+    return found
+
+
+def _requirement_lookup(graph: Graph) -> dict[str, str]:
+    """Bare requirement id -> node id. The root registry's ids win; a vendored workspace's bare ids (and the old ids in
+    its `id_aliases`) resolve to its prefixed nodes when the root does not claim them, so a subtree commit that cites
+    ARB-041, or a finding tagged req:ARB-041, still reaches the requirement it means."""
+    lookup: dict[str, str] = {}
+    vendored: dict[str, str] = {}
+    for node in graph.nodes.values():
+        if node.kind != "requirement":
+            continue
+        if node.attrs.get("workspace"):
+            vendored.setdefault(str(node.attrs.get("bare_id") or node.name.rsplit("/", 1)[-1]), node.id)
+            for old in node.attrs.get("aliases") or []:
+                vendored.setdefault(str(old), node.id)
+        else:
+            lookup[node.name] = node.id
+    for bare, node_id in vendored.items():
+        lookup.setdefault(bare, node_id)
+    return lookup
+
+
+def _workspace_requirement_lookup(graph: Graph, workspace: str) -> dict[str, str]:
+    """Bare id (or alias) -> node id inside one vendored workspace: what its own ledger entries mean by `requirement`."""
+    lookup: dict[str, str] = {}
+    for node in graph.nodes.values():
+        if node.kind == "requirement" and node.attrs.get("workspace") == workspace:
+            lookup.setdefault(str(node.attrs.get("bare_id") or node.name.rsplit("/", 1)[-1]), node.id)
+            for old in node.attrs.get("aliases") or []:
+                lookup.setdefault(str(old), node.id)
+    return lookup
+
+
+def _requirement_names(graph: Graph, node_ids: Any) -> list[str]:
+    return sorted(graph.nodes[r].name for r in node_ids if r in graph.nodes)
+
+
+def _message_requirements(commit: dict[str, Any], pattern: re.Pattern, lookup: dict[str, str]) -> list[str]:
+    """Node ids of the requirements a commit message cites: the subject's ids, else the body's (a body often quotes
+    another project's ids as context)."""
+    subject_refs = [lookup[r] for r in sorted(set(_find_ids(pattern, commit["subject"]))) if r in lookup]
+    if subject_refs:
+        return list(dict.fromkeys(subject_refs))
+    return list(dict.fromkeys(lookup[r] for r in sorted(set(_find_ids(pattern, commit["body"]))) if r in lookup))
+
+
 class _LayerIndex:
     """Lookups over the in-memory graph shared by the layer builders."""
 
@@ -2399,10 +2492,18 @@ def parse_changelog(text: str) -> list[dict[str, Any]]:
         if match:
             headings.append((number, len(match.group(1)), match.group(2).strip()))
 
-    def datable(heading: str) -> bool:
-        return bool(_DATE_ANY.search(heading) or _VERSION_ANY.search(heading) or re.match(r"(?i)\[?unreleased", heading))
+    def dated(heading: str) -> bool:
+        return bool(_DATE_ANY.search(heading) or _VERSION_ANY.search(heading))
 
-    level = next((lv for lv in (2, 1, 3, 4) if any(h[1] == lv and datable(h[2]) for h in headings)), None)
+    def datable(heading: str) -> bool:
+        return dated(heading) or bool(re.match(r"(?i)\[?unreleased", heading))
+
+    # A level whose headings carry real dates or versions wins over one that only says "Unreleased": a changelog that
+    # keeps dated `###` sections under one `## [Unreleased]` heading has its entries at level 3, not one undated entry
+    # at level 2. Only when no level is dated does an Unreleased-only level count.
+    level = next((lv for lv in (2, 1, 3, 4) if any(h[1] == lv and dated(h[2]) for h in headings)), None)
+    if level is None:
+        level = next((lv for lv in (2, 1, 3, 4) if any(h[1] == lv and datable(h[2]) for h in headings)), None)
     if level is None:
         level = next((lv for lv in (2, 3) if any(h[1] == lv for h in headings)), None)
     if level is None:
@@ -2496,6 +2597,7 @@ def add_governance_layer(graph: Graph, root: Path) -> dict[str, Any]:
                 stats["touches"] += len(graph.edges) - before
 
     req_pattern = _requirement_regex(root, list(req_ids))
+    _add_vendored_requirements(graph, root, index, stats)  # REQ-052
 
     changelogs = _changelog_paths(root)
     seen_ids: dict[str, int] = {}
@@ -2559,6 +2661,67 @@ def add_governance_layer(graph: Graph, root: Path) -> dict[str, Any]:
     graph.notes.extend(dict.fromkeys(found))
     graph.layer_stats[LAYER_GOVERNANCE] = stats
     return stats
+
+
+def _vendored_source_node(graph: Graph, index: _LayerIndex, workspace: str, rel: str, what: str, layer: str) -> GraphNode | None:
+    """The file node for a vendored ledger or registry, hung under the workspace's directory node so its entries sit
+    in the tree (root › arbiter › failure-ledger.json › arbiter/FAIL-042)."""
+    directory = index.file_node(workspace)
+    source = index.file_node(rel)
+    if source is None:
+        return None
+    source.layer = layer
+    source.summary = f"{what} of the vendored workspace {workspace}/"
+    source.attrs["workspace"] = workspace
+    if directory is not None:
+        directory.attrs["workspace"] = workspace
+        graph.add_edge(directory.id, source.id, "contains", "EXTRACTED", "filesystem", f"vendored workspace {what}")
+    return source
+
+
+def _add_vendored_requirements(graph: Graph, root: Path, index: _LayerIndex, stats: dict[str, Any]) -> None:
+    """REQ-052: every vendored workspace's registry, its ids prefixed with the workspace directory (`arbiter/ARB-048`).
+    The old ids in its `id_aliases` are kept on the node so commits and ledger entries that cite them still resolve."""
+    stats.setdefault("vendored_workspaces", 0)
+    stats.setdefault("vendored_requirements", 0)
+    for workspace in vendored_workspaces(root):
+        rel = f"{workspace}/{VENDORED_REGISTRY}"
+        problems: list[str] = []
+        items = _load_requirement_items(root, problems, [rel])
+        graph.notes.extend(f"governance: {problem}" for problem in problems)
+        if not items:
+            continue
+        stats["vendored_workspaces"] += 1
+        data = _read_json_file(root / rel)
+        raw_aliases = data.get("id_aliases") if isinstance(data, dict) else None
+        aliases: dict[str, list[str]] = {}
+        for old, new in (raw_aliases or {}).items() if isinstance(raw_aliases, dict) else ():
+            if isinstance(old, str) and isinstance(new, str):
+                aliases.setdefault(new, []).append(old)
+        source = _vendored_source_node(graph, index, workspace, rel, "requirements registry", LAYER_GOVERNANCE)
+        for item in items:
+            name = f"{workspace}/{item['id']}"
+            node_id = f"req:{name}"
+            node = graph.add_node(
+                GraphNode(
+                    node_id, "requirement", name, name, rel, None, None, None, _short(item.get("title"), 300),
+                    {
+                        "status": item.get("status"), "priority": item.get("priority"), "category": item.get("category"),
+                        "scope": [f"{workspace}/{entry}" for entry in item["minimum_access_scope"][:30]],
+                        "workspace": workspace, "bare_id": item["id"], "aliases": sorted(aliases.get(item["id"], [])),
+                    },
+                    LAYER_GOVERNANCE,
+                )
+            )
+            stats["requirements"] += 1
+            stats["vendored_requirements"] += 1
+            if source is not None:
+                graph.add_edge(source.id, node.id, "contains", "EXTRACTED", "requirements-registry", "entry of the vendored registry")
+            for entry in item["minimum_access_scope"]:
+                for target in index.scope_ids(f"{workspace}/{entry}"):
+                    before = len(graph.edges)
+                    graph.add_edge(node_id, target, "touches", "EXTRACTED", "requirements-registry", f"declared scope: {entry} (in {workspace}/)")
+                    stats["touches"] += len(graph.edges) - before
 
 
 _NO_FILE_NODE_SUFFIXES = {
@@ -2669,7 +2832,7 @@ def add_history_layer(graph: Graph, root: Path, max_commits: int = DEFAULT_MAX_C
         return stats
 
     index = _LayerIndex(graph, root)
-    req_ids = {n.name: n.id for n in graph.nodes.values() if n.kind == "requirement"}
+    req_ids = _requirement_lookup(graph)  # REQ-052: vendored ids (and their aliases) resolve too, the root's first
     req_pattern = _requirement_regex(root, list(req_ids))
     cfg = graph_config(root)
     changelog_set = set(_changelog_paths(root))
@@ -2689,9 +2852,8 @@ def add_history_layer(graph: Graph, root: Path, max_commits: int = DEFAULT_MAX_C
     for commit in commits:
         node = _commit_node(graph, commit)
         stats["commits"] += 1
-        subject_refs = [r for r in sorted(set(_find_ids(req_pattern, commit["subject"]))) if r in req_ids]
-        message_refs = subject_refs or [r for r in sorted(set(_find_ids(req_pattern, commit["body"]))) if r in req_ids]
-        delivered: dict[str, str] = {req_ids[r]: "EXTRACTED" for r in message_refs}
+        message_refs = _message_requirements(commit, req_pattern, req_ids)
+        delivered: dict[str, str] = {r: "EXTRACTED" for r in message_refs}
 
         touched: list[str] = []
         new_file_nodes = 0
@@ -2974,6 +3136,13 @@ def add_assurance_layer(graph: Graph, root: Path) -> dict[str, Any]:
             else:
                 unresolved.append(f"{fid} recurrence_of: '{earlier}' is not in the ledger")
 
+    detections = [
+        (str(item["id"]), f"{item.get('how_detected') or ''}\n{item.get('symptom') or ''}", failure_nodes[str(item["id"])])
+        for item in failures if isinstance(item, dict) and item.get("id")
+    ]
+    detections.extend(_add_vendored_failures(graph, root, index, stats))  # REQ-052
+    _add_finding_nodes(graph, root, index, detections, stats, unresolved)  # REQ-043
+    _link_directory_contents(graph)  # REQ-043: directory -> file / subdirectory `contains` edges
     stats["unresolved"] = len(unresolved)
     if unresolved:
         graph.notes.append(
@@ -3019,6 +3188,374 @@ def check_failure_ledger(root: Path) -> dict[str, Any]:
             if not item.get("prevention_rules") and not item.get("prevention_notes"):
                 problems.append(f"{fid}: no 'prevention_rules' or 'prevention_notes' -- say what stops this recurring")
     return {"ok": not problems, "present": True, "problems": problems, "failures": len(seen)}
+
+
+# --------------------------------------------------------------------------
+# REQ-043: Arbiter findings as graph nodes
+#
+# `omni gate` runs `arbiter gate` through the `completion.arbiter_gate` command
+# rule and the report lands under that rule's --out directory. Every finding
+# that is not suppressed becomes a `finding` node in the assurance layer,
+# `flags` the file (and the function, class or method whose span holds the
+# line), `cites` the requirements its `req:<ID>` tags name, and is
+# `recorded_as` the failure-ledger entry whose how_detected quotes its id.
+# Only the finding's identity, location, rule and category are copied: never
+# the evidence, description or remediation text, which may quote the code.
+# --------------------------------------------------------------------------
+
+ARBITER_GATE_RULE_ID = "completion.arbiter_gate"
+FINDINGS_DEFAULT_OUT = "arbiter-out"
+FINDINGS_REPORT_NAME = "report.json"
+FINDINGS_NO_REPORT_NOTE = "findings: no Arbiter report found (run ./omni gate)"
+_FINDING_SYMBOL_KINDS = ("function", "method", "class", "interface")
+_FINDING_LINK_EDGES = {"flags", "cites", "recorded_as", "introduced_by"}
+
+
+def _arbiter_out_dir(root: Path, cfg: dict[str, Any]) -> str:
+    """The --out directory of the `completion.arbiter_gate` rule's run text, else the Arbiter default."""
+    rules_dir = root / str(cfg.get("rules_dir") or ".ai/rules")
+    if not rules_dir.is_dir():
+        return FINDINGS_DEFAULT_OUT
+    for path in sorted(rules_dir.glob("*.json")):
+        data = _read_json_file(path)
+        rules = data.get("rules") if isinstance(data, dict) else None
+        for rule in rules or []:
+            if not isinstance(rule, dict) or rule.get("id") != ARBITER_GATE_RULE_ID:
+                continue
+            validation = rule.get("validation") if isinstance(rule.get("validation"), dict) else {}
+            try:
+                argv = shlex.split(str(validation.get("run") or ""))
+            except ValueError:
+                return FINDINGS_DEFAULT_OUT
+            for index, arg in enumerate(argv):
+                if arg == "--out" and index + 1 < len(argv):
+                    return argv[index + 1].replace("\\", "/").rstrip("/") or FINDINGS_DEFAULT_OUT
+                if arg.startswith("--out="):
+                    return arg[len("--out="):].replace("\\", "/").rstrip("/") or FINDINGS_DEFAULT_OUT
+            return FINDINGS_DEFAULT_OUT
+    return FINDINGS_DEFAULT_OUT
+
+
+def find_findings_report(root: Path, cfg: dict[str, Any] | None = None) -> Path | None:
+    """The report the finding nodes come from: graph-config `findings_report`, else the newest report.json under the
+    gate rule's --out directory (itself or one level below). None when disabled or nothing is there."""
+    cfg = cfg or graph_config(root)
+    setting = cfg.get("findings_report", "auto")
+    if setting is None:
+        return None
+    if isinstance(setting, str) and setting != "auto":
+        candidate = root / setting
+        return candidate if candidate.is_file() else None
+    out_dir = root / _arbiter_out_dir(root, cfg)
+    if not out_dir.is_dir():
+        return None
+    candidates = [out_dir / FINDINGS_REPORT_NAME]
+    try:
+        candidates.extend(child / FINDINGS_REPORT_NAME for child in sorted(out_dir.iterdir()) if child.is_dir())
+    except OSError:
+        return None
+    found = [c for c in candidates if c.is_file()]
+    if not found:
+        return None
+    return max(found, key=lambda c: (c.stat().st_mtime_ns, str(c)))
+
+
+def load_findings(root: Path, report: Path, problems: list[str] | None = None) -> list[dict[str, Any]]:
+    """The unsuppressed findings of an Arbiter report, reduced to the fields the graph keeps (never the evidence)."""
+    rel = report.relative_to(root).as_posix() if report.is_relative_to(root) else report.as_posix()
+    data = _read_json_file(report, problems, rel)
+    if not isinstance(data, dict) or not isinstance(data.get("findings"), list):
+        if problems is not None and data is not None:
+            problems.append(f"{rel}: no `findings` list in the report")
+        return []
+    items: list[dict[str, Any]] = []
+    for raw in data["findings"]:
+        if not isinstance(raw, dict) or not raw.get("id") or raw.get("suppressed"):
+            continue
+        location = raw.get("location") if isinstance(raw.get("location"), dict) else {}
+        path = str(location.get("path") or "").strip().replace("\\", "/")
+        if path.startswith("./"):
+            path = path[2:]
+        if not path:
+            continue
+        line = location.get("start_line")
+        line = int(line) if isinstance(line, int) and not isinstance(line, bool) and line > 0 else None
+        tags = [str(t) for t in raw.get("tags") or [] if isinstance(t, (str, int))]
+        parent = path.rsplit("/", 1)[0] if "/" in path else ""
+        items.append({
+            "id": str(raw["id"]), "rule_id": str(raw.get("rule_id") or ""), "dimension": str(raw.get("dimension") or "other"),
+            "severity": str(raw.get("severity") or "info"), "status": str(raw.get("status") or "new"), "tags": tags,
+            "title": _short(raw.get("title"), 300), "path": path, "line": line, "directory_path": parent, "report": rel,
+        })
+    return items
+
+
+def _add_vendored_failures(graph: Graph, root: Path, index: _LayerIndex, stats: dict[str, Any]) -> list[tuple[str, str, str]]:
+    """REQ-052: every vendored workspace's failure ledger, ids prefixed with the workspace directory (`arbiter/FAIL-042`),
+    paths resolved relative to the workspace, the requirement through the workspace's own registry (aliases included).
+    Returns (display id, how_detected + symptom, node id) for the recorded_as pass. Only the ledger is read, never code."""
+    stats.setdefault("vendored_failures", 0)
+    detections: list[tuple[str, str, str]] = []
+    rules = _rule_index(root)
+    for workspace in vendored_workspaces(root):
+        lookup = _workspace_requirement_lookup(graph, workspace)  # the entry's `requirement` is the workspace's own id, or its alias
+        rel = f"{workspace}/{VENDORED_LEDGER}"
+        problems: list[str] = []
+        ledger = _read_json_file(root / rel, problems, rel)
+        graph.notes.extend(f"assurance: {problem}" for problem in problems)
+        failures = ledger.get("failures") if isinstance(ledger, dict) else None
+        if not isinstance(failures, list):
+            continue
+        source = _vendored_source_node(graph, index, workspace, rel, "failure ledger", LAYER_ASSURANCE)
+        nodes: dict[str, str] = {}
+        for item in failures:
+            if not isinstance(item, dict) or not item.get("id"):
+                continue
+            name = f"{workspace}/{item['id']}"
+            node = graph.add_node(
+                GraphNode(
+                    f"failure:{name}", "failure", name, name, rel, None, None, None, _short(item.get("title"), 300),
+                    {
+                        **{key: _short(item.get(key), 600)
+                           for key in ("status", "severity", "date", "symptom", "root_cause", "fix_summary", "no_test_reason", "prevention_notes")
+                           if item.get(key)},
+                        "workspace": workspace, "bare_id": str(item["id"]),
+                    },
+                    LAYER_ASSURANCE,
+                )
+            )
+            nodes[str(item["id"])] = node.id
+            stats["failures"] += 1
+            stats["vendored_failures"] += 1
+            if source is not None:
+                graph.add_edge(source.id, node.id, "contains", "EXTRACTED", "failure-ledger", "entry of the vendored ledger")
+            detections.append((name, f"{item.get('how_detected') or ''}\n{item.get('symptom') or ''}", node.id))
+        for item in failures:
+            if not isinstance(item, dict) or not item.get("id"):
+                continue
+            node_id = nodes[str(item["id"])]
+            name = graph.nodes[node_id].name
+            for ref in item.get("affected") or []:
+                for target in index.symbol_ids(f"{workspace}/{ref}"):
+                    graph.add_edge(node_id, target, "affects", "EXTRACTED", "failure-ledger", f"recorded as affected in the {workspace}/ ledger")
+            requirement = lookup.get(str(item.get("requirement") or ""))
+            if requirement:
+                graph.add_edge(node_id, requirement, "arose_in", "EXTRACTED", "failure-ledger", "requirement being worked when it surfaced")
+            for ref in item.get("regression_tests") or []:
+                for target in index.symbol_ids(f"{workspace}/{ref}"):
+                    graph.add_edge(target, node_id, "guards", "EXTRACTED", "failure-ledger", f"regression test recorded for {name}")
+                    stats["guards"] += 1
+            for ref in item.get("prevention_rules") or []:
+                ref = str(ref)
+                if ref in rules:  # a vendored workspace carries the same rulepacks; the root's rule node stands for both
+                    graph.add_edge(node_id, f"rule:{ref}", "prevented_by", "EXTRACTED", "failure-ledger", "rule recorded as the prevention")
+                else:
+                    target = index.file_node(f"{workspace}/{ref}")
+                    if target is not None:
+                        graph.add_edge(node_id, target.id, "prevented_by", "EXTRACTED", "failure-ledger", "playbook or document recorded as the prevention")
+            earlier = str(item.get("recurrence_of") or "")
+            if earlier in nodes:
+                graph.add_edge(node_id, nodes[earlier], "recurs", "EXTRACTED", "failure-ledger", "repeats an earlier failure")
+    return detections
+
+
+def _add_finding_nodes(
+    graph: Graph, root: Path, index: _LayerIndex, detections: list[tuple[str, str, str]],
+    stats: dict[str, Any], unresolved: list[str],
+) -> None:
+    stats.update({"findings": 0, "flags": 0, "cites": 0, "recorded_as": 0, "introduced_by": 0, "uncommitted": 0})
+    cfg = graph_config(root)
+    if cfg.get("findings_report") is None:
+        return
+    report = find_findings_report(root, cfg)
+    if report is None:
+        graph.notes.append(f"assurance: {FINDINGS_NO_REPORT_NOTE}")
+        return
+    problems: list[str] = []
+    items = load_findings(root, report, problems)
+    graph.notes.extend(f"assurance: {problem}" for problem in problems)
+    if not items:
+        return
+    by_file: dict[str, list[GraphNode]] = {}
+    for node in graph.nodes.values():
+        if node.kind in _FINDING_SYMBOL_KINDS and node.file and node.start_line and node.end_line:
+            by_file.setdefault(node.file, []).append(node)
+    req_nodes = _requirement_lookup(graph)  # REQ-052: a req:ARB-048 tag reaches the vendored requirement
+    finding_nodes: list[tuple[dict[str, Any], GraphNode]] = []
+    for item in items:
+        node_id = f"finding:{item['id']}"
+        finding = graph.add_node(
+            GraphNode(
+                node_id, "finding", item["id"], item["id"], item["path"], item["line"], None, None, item["title"],
+                {key: item[key] for key in ("rule_id", "dimension", "severity", "status", "tags", "line", "directory_path", "report")},
+                LAYER_ASSURANCE,
+            )
+        )
+        finding_nodes.append((item, finding))
+        stats["findings"] += 1
+        covering = None
+        if item["line"] is not None:
+            spans = [n for n in by_file.get(item["path"], []) if n.start_line <= item["line"] <= n.end_line]
+            if spans:
+                covering = min(spans, key=lambda n: (n.end_line - n.start_line, n.start_line))
+        if covering is not None:  # the symbol first: the viewer treats the first `flags` target as the finding's parent
+            graph.add_edge(node_id, covering.id, "flags", "EXTRACTED", "arbiter-report", f"raised at line {item['line']} inside {covering.kind} {covering.name}")
+            stats["flags"] += 1
+        target = index.file_node(item["path"])
+        if target is None:
+            ids = index.symbol_ids(item["path"])
+            target = graph.nodes[ids[0]] if ids else None
+        if target is not None:
+            # make the directory chain explicit so the viewer's tree reads root > dir > file > symbol > finding
+            parts = item["path"].split("/")[:-1]
+            for depth in range(1, len(parts) + 1):
+                index.file_node("/".join(parts[:depth]))
+            graph.add_edge(node_id, target.id, "flags", "EXTRACTED", "arbiter-report", f"raised at {item['path']}:{item['line'] or '?'}")
+            stats["flags"] += 1
+        else:
+            unresolved.append(f"{item['id']} location: '{item['path']}' is not in the graph or on disk")
+        for tag in item["tags"]:
+            if tag.startswith("req:"):
+                requirement = tag[4:]
+                if requirement in req_nodes:
+                    graph.add_edge(node_id, req_nodes[requirement], "cites", "EXTRACTED", "arbiter-report", f"tagged {tag}")
+                    stats["cites"] += 1
+                else:
+                    unresolved.append(f"{item['id']} tag: '{requirement}' is not in the registry")
+        for fid, how, failure_id in detections:
+            if item["id"] in how:
+                graph.add_edge(node_id, failure_id, "recorded_as", "EXTRACTED", "failure-ledger", f"{fid} how_detected names this finding")
+                stats["recorded_as"] += 1
+    _blame_findings(graph, root, finding_nodes, _report_commit(report), stats)  # REQ-051
+
+
+# REQ-051: who introduced the line. One `git blame --porcelain` per distinct file, all of its flagged lines batched
+# with -L, at the commit the report scanned; HEAD, then the working tree, when that blame fails (a line past the
+# file's end at that commit, a commit the clone no longer has). A line with no blame is "uncommitted", never an error.
+_BLAME_HEADER = re.compile(r"^([0-9a-f]{40}) (\d+) (\d+)(?: (\d+))?$")
+_UNCOMMITTED_HASH = "0" * 40
+
+
+def _report_commit(report: Path) -> str | None:
+    """The commit an Arbiter report scanned (`repos[0].commit`), or None when the report does not say."""
+    data = _read_json_file(report)
+    repos = data.get("repos") if isinstance(data, dict) else None
+    if isinstance(repos, list) and repos and isinstance(repos[0], dict):
+        commit = str(repos[0].get("commit") or "").strip()
+        if re.fullmatch(r"[0-9a-fA-F]{4,40}", commit):
+            return commit
+    return None
+
+
+def blame_lines(root: Path, relpath: str, lines: list[int], commit: str | None = None) -> dict[int, str] | None:
+    """One `git blame --porcelain` for a file: the full hash each of `lines` came from, "" for a line git holds as
+    uncommitted. `commit` None blames the working tree. None when git cannot blame the file at all (not a repository,
+    an untracked path, a line past the end of the file at that commit)."""
+    wanted = sorted({int(line) for line in lines if line})
+    if not wanted:
+        return {}
+    args: list[str] = ["blame", "--porcelain"]
+    for line in wanted:
+        args += ["-L", f"{line},{line}"]
+    if commit:
+        args.append(commit)
+    args += ["--", relpath]
+    out = _git_lines(root, *args)
+    if out is None:
+        return None
+    found: dict[int, str] = {}
+    for text in out.splitlines():
+        match = _BLAME_HEADER.match(text)
+        if match:
+            found[int(match.group(3))] = "" if match.group(1) == _UNCOMMITTED_HASH else match.group(1)
+    return found
+
+
+def _blame_findings(graph: Graph, root: Path, finding_nodes: list[tuple[dict[str, Any], GraphNode]], scanned_commit: str | None, stats: dict[str, Any]) -> None:
+    """Tie every finding with a line to the commit that wrote it (`introduced_by`), creating the commit node when the
+    history layer did not reach it, with the `delivers` edges its message earns so `why` and the viewer resolve the
+    requirement one hop on."""
+    by_path: dict[str, list[int]] = {}
+    for item, _ in finding_nodes:
+        if item["line"]:
+            by_path.setdefault(item["path"], []).append(item["line"])
+    if not by_path:
+        return
+    in_git = _git_lines(root, "rev-parse", "--verify", "-q", "HEAD") is not None
+    refs: list[str | None] = []
+    for ref in (scanned_commit, "HEAD", None):
+        if ref not in refs:
+            refs.append(ref)
+    blamed: dict[str, dict[int, str]] = {}
+    if in_git:
+        for path, lines in sorted(by_path.items()):
+            for ref in refs:
+                result = blame_lines(root, path, lines, ref)
+                if result is not None:
+                    blamed[path] = result
+                    break
+    commit_nodes = {str(n.attrs.get("hash")): n for n in graph.nodes.values() if n.kind == "commit" and n.attrs.get("hash")}
+    lookup = _requirement_lookup(graph)
+    pattern = _requirement_regex(root, list(lookup))
+    for item, node in finding_nodes:
+        if not item["line"]:
+            continue
+        full = blamed.get(item["path"], {}).get(item["line"], "")
+        commit = commit_nodes.get(full) if full else None
+        if full and commit is None:
+            info = _git_history_single(root, full)
+            if info is not None:
+                commit = _commit_node(graph, info)
+                delivered = _message_requirements(info, pattern, lookup)
+                for req_id in delivered:
+                    graph.add_edge(commit.id, req_id, "delivers", "EXTRACTED", "git", "requirement id in the commit message")
+                commit.attrs.setdefault("requirements", _requirement_names(graph, delivered)[:20])
+                commit.attrs.setdefault("modules_touched", 0)
+                commit_nodes[full] = commit
+        if commit is None:
+            node.attrs["introduced_by"] = "uncommitted"
+            stats["uncommitted"] += 1
+            continue
+        node.attrs["introduced_by_commit"] = full
+        node.attrs["introduced_by"] = commit.name
+        graph.add_edge(node.id, commit.id, "introduced_by", "EXTRACTED", "git-blame", f"git blame {item['path']}:{item['line']} at {scanned_commit or 'HEAD'}")
+        stats["introduced_by"] += 1
+
+
+def _link_directory_contents(graph: Graph) -> int:
+    """`contains` edges from every directory node to its direct files and subdirectories already in the graph."""
+    directories = {node.file: node for node in graph.nodes.values() if node.kind == "file" and node.attrs.get("directory") and node.file}
+    if not directories:
+        return 0
+    added = 0
+    for node in graph.nodes.values():
+        if node.kind not in ("module", "file") or not node.file:
+            continue
+        relpath = node.file.rstrip("/")
+        if "/" not in relpath:
+            continue
+        parent = directories.get(relpath.rsplit("/", 1)[0])
+        if parent is None or parent.id == node.id:
+            continue
+        before = len(graph.edges)
+        graph.add_edge(parent.id, node.id, "contains", "EXTRACTED", "filesystem", "directory entry")
+        added += len(graph.edges) - before
+    return added
+
+
+def describe_findings_source(root: Path, cfg: dict[str, Any] | None = None) -> dict[str, Any]:
+    """What `omni graph sources` reports for the findings: which report would be read, how many it holds, or why none."""
+    cfg = cfg or graph_config(root)
+    setting = cfg.get("findings_report", "auto")
+    if setting is None:
+        return {"report": None, "findings": 0, "disabled": True, "note": "findings: disabled by findings_report: null in graph-config"}
+    report = find_findings_report(root, cfg)
+    if report is None:
+        return {"report": None, "findings": 0, "disabled": False, "note": FINDINGS_NO_REPORT_NOTE, "out_dir": _arbiter_out_dir(root, cfg)}
+    problems: list[str] = []
+    items = load_findings(root, report, problems)
+    rel = report.relative_to(root).as_posix() if report.is_relative_to(root) else report.as_posix()
+    return {"report": rel, "findings": len(items), "disabled": False, "note": "", "problems": problems}
 
 
 # --------------------------------------------------------------------------
@@ -3462,7 +3999,7 @@ def _resolve_one(graph_data: dict[str, Any], query: str) -> tuple[dict[str, Any]
     if len(matches) > 1:
         # A bare name matches a file, its class and that class's constructor alike; prefer the
         # outermost exact-name match when exactly one node of that kind exists.
-        rank = ("requirement", "failure", "rule", "suite", "changelog", "commit", "file", "playbook", "checklist", "rulepack",
+        rank = ("requirement", "failure", "finding", "rule", "suite", "changelog", "commit", "file", "playbook", "checklist", "rulepack",
                 "module", "table", "class", "interface", "function", "method")
         exact = [n for n in matches if n["name"] == query]
         for kind_name in rank:
@@ -3482,6 +4019,12 @@ def _node_brief(node: dict[str, Any], via: str = "") -> dict[str, Any]:
             entry[key] = attrs[key]
     if node.get("file"):
         entry["file"] = node["file"]
+    if attrs.get("workspace"):  # REQ-052
+        entry["workspace"] = attrs["workspace"]
+    if node["kind"] == "finding":  # REQ-043: the rule and category are what a reader needs to act on a finding
+        for key in ("rule_id", "dimension", "line"):
+            if attrs.get(key) is not None:
+                entry[key] = attrs[key]
     if via:
         entry["via"] = via
     return entry
@@ -3498,6 +4041,8 @@ LINEAGE_FLOW: dict[str, str] = {
     "arose_in": "up", "affects": "up",                         # a failure comes from a requirement and from code
     "guards": "up", "prevented_by": "down", "fixed_by": "down",  # ...and produces tests, rules and fixes
     "covers": "up", "verifies": "up",                          # tests answer the code they exercise
+    "flags": "up", "cites": "up", "recorded_as": "down",       # REQ-043: a finding comes from code and a requirement, and becomes a ledger entry
+    "introduced_by": "up",                                     # REQ-051: a finding comes from the commit that wrote its line
 }
 # Structural dependencies between code symbols. Off by default: they would drown a requirement's lineage in call graphs.
 LINEAGE_CODE_FLOW: dict[str, str] = {
@@ -3681,6 +4226,30 @@ def why(graph_path: Path, query: str) -> dict[str, Any]:
                 add("failures it prevents", e["source"])
             elif e["type"] == "defines":
                 add("rules", e["source"], "declared in this rulepack")
+    elif kind == "finding":  # REQ-043: the rule, where it was raised, and what it is tied to
+        attrs = node.get("attrs") or {}
+        sections["finding"] = [{
+            "id": node["id"], "kind": "finding", "name": str(attrs.get("rule_id") or "?"),
+            "summary": f"{attrs.get('severity', '?')} {attrs.get('dimension', '?')} finding ({attrs.get('status', '?')}): {node.get('summary', '')}",
+            "severity": attrs.get("severity", ""), "status": attrs.get("status", ""), "dimension": attrs.get("dimension", ""),
+            "via": f"{node.get('file', '')}:{attrs.get('line', '')}; report {attrs.get('report', '')}",
+        }]
+        for e in outgoing.get(node["id"], []):
+            section = {"flags": "flagged code", "cites": "requirement", "recorded_as": "failure"}.get(e["type"])
+            if section:
+                add(section, e["target"], "being worked when the scan ran" if e["type"] == "cites" else e.get("detail", ""))
+        # REQ-051: the commit git blame holds for the line, and the requirement(s) that commit cites
+        intro = next((e for e in outgoing.get(node["id"], []) if e["type"] == "introduced_by" and e["target"] in by_id), None)
+        if intro is not None:
+            commit = by_id[intro["target"]]
+            brief = _node_brief(commit, intro.get("detail", ""))
+            brief["requirements"] = sorted(by_id[e["target"]]["name"] for e in outgoing.get(commit["id"], []) if e["type"] == "delivers" and e["target"] in by_id)
+            sections["introduced by"] = [brief]
+        elif attrs.get("introduced_by") == "uncommitted":
+            sections["introduced by"] = [{
+                "id": "-", "kind": "change", "name": "uncommitted change", "requirements": [],
+                "summary": "the line has no blame: an uncommitted edit, an untracked file, or a path outside git",
+            }]
     else:
         # Rank the evidence: a requirement whose commits changed this file beats one that merely
         # declares it in scope, and a directory-wide scope is the weakest link of all.
@@ -3706,6 +4275,8 @@ def why(graph_path: Path, query: str) -> dict[str, Any]:
                     add("failures it prevented", e["source"])
                 elif e["type"] == "covers":
                     add("test suites", e["source"], "covers " + (by_id[anchor].get("file") or by_id[anchor]["name"]))
+                elif e["type"] == "flags":  # REQ-043
+                    add("findings", e["source"], e.get("detail", ""))
         requirement_ids = sorted(req_rank, key=lambda rid: (req_rank[rid][0], by_id[rid]["name"]))
         for req_id in requirement_ids:
             add("requirements", req_id, req_rank[req_id][1])
@@ -3743,10 +4314,140 @@ def why(graph_path: Path, query: str) -> dict[str, Any]:
     return {"ok": True, "node": _node_brief(node), "sections": sections}
 
 
+# --------------------------------------------------------------------------
+# Impact: what a pending change set reaches across the governance, history, assurance and workspace layers
+# --------------------------------------------------------------------------
+
+# Every cross-layer edge type except `follows`: walking the commit chain would replay the whole history, not the change's reach.
+IMPACT_EDGE_TYPES: frozenset[str] = frozenset(edge for edge, layer in EDGE_LAYER.items() if layer != LAYER_CODE and edge != "follows")
+IMPACT_BUCKETS = ("requirements", "changelog", "failures", "tests", "suites", "rules", "commits")
+# A changed registry, ledger or changelog must not seed every requirement, failure or entry it holds; those are reached, not changed.
+_IMPACT_NO_SEED_KINDS = {"requirement", "changelog", "commit", "failure", "suite", "external"}
+
+
+def _impact_relpath(path: str) -> str:
+    rel = str(path).strip().replace("\\", "/")
+    if rel.startswith("./"):
+        rel = rel[2:]
+    return rel.rstrip("/")
+
+
+def _impact_seeds(graph_data: dict[str, Any], rel: str) -> list[str]:
+    """The anchors `why()` uses for a path: its `file:` node, every symbol parsed from it, and the directory scopes above it."""
+    seeds: list[str] = []
+    for node in graph_data["nodes"]:
+        if node["kind"] in _IMPACT_NO_SEED_KINDS:
+            continue
+        attrs = node.get("attrs") or {}
+        if node["id"] == f"file:{rel}" or node.get("file") == rel:
+            seeds.append(node["id"])
+        elif node["kind"] == "file" and attrs.get("directory") and node.get("file") and rel.startswith(node["file"] + "/"):
+            seeds.append(node["id"])
+    return seeds
+
+
+def _impact_bucket(node: dict[str, Any]) -> str | None:
+    kind = node["kind"]
+    direct = {"requirement": "requirements", "changelog": "changelog", "failure": "failures", "suite": "suites", "rule": "rules", "commit": "commits"}
+    if kind in direct:
+        return direct[kind]
+    if (node.get("attrs") or {}).get("test") or (node.get("layer") == LAYER_ASSURANCE and kind in ("module", "file")):
+        return "tests"
+    return None
+
+
+def impact(graph_path: Path, changed: list[str], depth: int = 2) -> dict[str, Any]:
+    """What a set of changed paths reaches across the non-code layers, bucketed by kind with the hop count and edge each was reached by.
+
+    Each path resolves the way `why()` resolves it (its file node, the symbols parsed from it, the directory scopes above it);
+    a breadth-first walk then follows every cross-layer edge in both directions, `depth` hops at most, and never a code edge, so
+    a change to one file lists the requirements that scope it, the failures that broke in it, the suites that cover it, the tests
+    that exercise it and the rules those failures produced, without drowning that in call graphs.
+    """
+    graph_data = load_graph(graph_path)
+    by_id = {n["id"]: n for n in graph_data["nodes"]}
+    adjacency: dict[str, list[tuple[str, str]]] = {}
+    for edge in graph_data["edges"]:
+        if edge["type"] not in IMPACT_EDGE_TYPES:
+            continue
+        adjacency.setdefault(edge["source"], []).append((edge["target"], edge["type"]))
+        adjacency.setdefault(edge["target"], []).append((edge["source"], edge["type"]))
+
+    resolved: list[str] = []
+    unresolved: list[str] = []
+    hops: dict[str, int] = {}
+    for raw in changed:
+        rel = _impact_relpath(raw)
+        if not rel or rel in resolved or rel in unresolved:
+            continue
+        seeds = _impact_seeds(graph_data, rel)
+        if seeds:
+            resolved.append(rel)
+            for seed in seeds:
+                hops.setdefault(seed, 0)
+        else:
+            unresolved.append(rel)
+
+    reached_by: dict[str, tuple[str, str]] = {}
+    queue: deque[str] = deque(sorted(hops))
+    while queue:
+        current = queue.popleft()
+        level = hops[current]
+        if level >= depth:
+            continue
+        for other_id, edge_type in sorted(adjacency.get(current, []), key=lambda pair: ((by_id.get(pair[0]) or {}).get("name", ""), pair[1])):
+            if other_id in hops or other_id not in by_id:
+                continue
+            hops[other_id] = level + 1
+            reached_by[other_id] = (edge_type, current)
+            queue.append(other_id)
+
+    module_of_file = {n["file"]: n for n in graph_data["nodes"] if n["kind"] == "module" and n.get("file")}
+    buckets: dict[str, list[dict[str, Any]]] = {name: [] for name in IMPACT_BUCKETS}
+    listed: dict[str, dict[str, Any]] = {}
+    for node_id in sorted(hops, key=lambda nid: (hops[nid], (by_id[nid].get("name") or ""))):
+        level = hops[node_id]
+        if level == 0:
+            continue
+        node = by_id[node_id]
+        bucket = _impact_bucket(node)
+        if bucket is None:
+            continue
+        if bucket == "tests" and node["kind"] not in ("module", "file") and node.get("file"):
+            # a regression test reached through `guards` is listed as its file, the unit a suite runs
+            node = module_of_file.get(node["file"]) or by_id.get(f"file:{node['file']}") or node
+        if node["id"] in listed or hops.get(node["id"]) == 0:
+            continue
+        edge_type, from_id = reached_by[node_id]
+        entry = _node_brief(node, edge_type)
+        entry["hops"] = level
+        entry["from"] = from_id
+        listed[node["id"]] = entry
+        buckets[bucket].append(entry)
+    return {
+        "ok": True, "changed": resolved, "unresolved": unresolved, "depth": depth,
+        "seeds": sum(1 for level in hops.values() if level == 0), **buckets,
+    }
+
+
+def impact_summary(result: dict[str, Any]) -> str:
+    """One line for the gate: `impact: 2 requirement(s), 1 failure(s), 1 suite(s), 3 test file(s), 2 rule(s); 1 path unresolved`."""
+    labels = (
+        ("requirements", "requirement(s)"), ("changelog", "changelog entry(ies)"), ("failures", "failure(s)"), ("suites", "suite(s)"),
+        ("tests", "test file(s)"), ("rules", "rule(s)"), ("commits", "commit(s)"),
+    )
+    parts = [f"{len(result.get(key) or [])} {label}" for key, label in labels if result.get(key)]
+    line = "impact: " + (", ".join(parts) if parts else "nothing in the graph is tied to the changed path(s)")
+    unresolved = len(result.get("unresolved") or [])
+    if unresolved:
+        line += f"; {unresolved} path{'s' if unresolved != 1 else ''} unresolved"
+    return line
+
+
 _TIMELINE_EDGES = {
     t for t, layer in EDGE_LAYER.items() if t not in ("follows", "contains", "covers", "verifies", "prevented_by")
 }
-_KIND_ORDER = {"requirement": 0, "changelog": 1, "commit": 2, "failure": 3}
+_KIND_ORDER = {"requirement": 0, "changelog": 1, "commit": 2, "failure": 3, "finding": 4}
 
 
 def timeline(graph_path: Path, query: str, depth: int = 1) -> dict[str, Any]:
@@ -3840,6 +4541,7 @@ def describe_sources(root: Path) -> dict[str, Any]:
         "detected_suites": [{"id": s["id"], "framework": s["framework"], "files": len(s["files"]), "command": s["command"]} for s in suites["auto"]],
         "failure_ledger": {"path": cfg["failure_ledger"], "exists": (root / cfg["failure_ledger"]).is_file()},
         "ci_commands": len(_ci_commands(root)),
+        "findings": describe_findings_source(root, cfg),  # REQ-043
     }
     layers["workspace"] = {
         "rulepacks": len(list((root / cfg["rules_dir"]).glob("*.json"))) if (root / cfg["rules_dir"]).is_dir() else 0,
@@ -3864,6 +4566,8 @@ def describe_sources(root: Path) -> dict[str, Any]:
         hints.append("No tests found. If you have some, add a glob to test_globs in graph-config or register a suite with `omni test add`.")
     elif suites["auto"]:
         hints.append(f"{len(suites['auto'])} detected test suite(s) are not registered: `omni test detect --write`.")
+    if layers["assurance"]["findings"].get("note"):  # REQ-043
+        hints.append(layers["assurance"]["findings"]["note"])
     report["hints"] = hints
     return report
 
@@ -4203,6 +4907,7 @@ def build_view_html(
     focus: str | None = None,
     depth: int = 2,
     mode: str = "auto",
+    view: str | None = None,
 ) -> dict[str, Any]:
     missing = [name for name in VIEWER_ASSETS if _viewer_asset_path(name) is None]
     if missing:
@@ -4241,7 +4946,7 @@ def build_view_html(
             # (requirements, changelog entries, failures, suites, playbooks, checklists, rulepacks, and the rules that
             # failures produced) so every layer is visible without hunting. Commits and tests come in by connectivity.
             linked_rules = {e["target"] for e in edges if e["type"] == "prevented_by"}
-            anchor_kinds = ("failure", "requirement", "changelog", "suite", "playbook", "checklist", "rulepack")
+            anchor_kinds = ("failure", "requirement", "changelog", "suite", "playbook", "checklist", "rulepack", "finding")
             anchors = [n for n in candidates if all_nodes[n]["kind"] in anchor_kinds or n in linked_rules]
             initial_ids.update(anchors[:max_initial])
             note = f"top {max_initial} by connections plus every requirement, changelog entry, failure, suite and workspace anchor; use search or the kind filter to find the rest"
@@ -4281,6 +4986,11 @@ def build_view_html(
         "initial": sorted(initial_ids),
         "meta": {"root": root_label, "generated_at": generated, "note": note, "mode": mode if mode in ("2d", "3d") else "auto"},
     }
+    # REQ-043: the finding palette, the start view and the absolute root (for editor links) ride along with the data
+    payload["meta"]["finding_colors"] = dict(_FINDING_DIMENSION_COLORS)
+    payload["meta"]["root_path"] = _absolute_root(raw_root)
+    if view:
+        payload["meta"]["view"] = view
     data_json = (
         json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
         .replace("<", "\\u003c")
@@ -4326,7 +5036,7 @@ _LANGUAGE_COLORS = {
 _DEFAULT_NODE_COLOR = "#9a9a9a"
 _KIND_RADIUS = {
     "module": 14, "class": 10, "interface": 10, "table": 12, "function": 6, "method": 6, "external": 3,
-    "requirement": 12, "changelog": 8, "commit": 5, "failure": 12, "rule": 9, "file": 8, "suite": 13,
+    "requirement": 12, "changelog": 8, "commit": 5, "failure": 12, "rule": 9, "file": 8, "suite": 13, "finding": 7,
 }
 _SVG_BG = "#0f0f12"
 _SVG_TEXT = "#e8e8e8"
@@ -4341,10 +5051,25 @@ def _escape_svg_text(text: str) -> str:
 
 _KIND_COLORS = {
     "requirement": "#f2c14e", "changelog": "#8fbf6a", "commit": "#7d8590", "failure": "#ff5c5c", "rule": "#5fd0e0", "suite": "#b48ead",
+    "finding": "#ff8a3d",
 }
+# REQ-043: findings are coloured by Arbiter dimension (category), not by kind, so a glance separates security from quality.
+_FINDING_DIMENSION_COLORS = {
+    "security": "#ff5c5c", "quality": "#f2c14e", "drift": "#c792ea", "supply_chain": "#ff9f6b",
+    "assurance": "#5fd0e0", "resource_policy": "#8fbf6a", "judgement": "#b48ead", "other": "#9a9a9a",
+}
+_FINDING_SEVERITY_ORDER = ("critical", "high", "medium", "low", "info")
+_FINDING_SEVERITY_RADIUS = {"critical": 14, "high": 11, "medium": 9, "low": 7, "info": 5}
+
+
+def _finding_color(node: dict[str, Any]) -> str:
+    dimension = str((node.get("attrs") or {}).get("dimension") or "other")
+    return _FINDING_DIMENSION_COLORS.get(dimension, _FINDING_DIMENSION_COLORS["other"])
 
 
 def _node_color(node: dict[str, Any]) -> str:
+    if node.get("kind") == "finding":  # REQ-043
+        return _finding_color(node)
     if node.get("kind") in _KIND_COLORS:
         return _KIND_COLORS[node["kind"]]
     language = node.get("language")
@@ -4526,6 +5251,11 @@ def _render_svg(
         radius = _KIND_RADIUS.get(node["kind"], 6)
         color = _node_color(node)
         fill_opacity = "0.9" if node["kind"] in ("module", "class") else "0.75"
+        if node["kind"] == "finding":  # REQ-043: severity sets the size, a `new` finding wears a ring
+            attrs = node.get("attrs") or {}
+            radius = _FINDING_SEVERITY_RADIUS.get(str(attrs.get("severity") or ""), 6)
+            if attrs.get("status") == "new":
+                parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{radius + 3}" fill="none" stroke="{color}" stroke-width="1.2" opacity="0.8"/>')
         parts.append(
             f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{radius}" fill="{color}" '
             f'fill-opacity="{fill_opacity}" stroke="{_SVG_BG}" stroke-width="1"/>'
@@ -4548,7 +5278,8 @@ def _render_svg(
             f'font-weight="700" fill="{_SVG_TEXT}">{text}</text>'
         )
 
-    legend_rows = len(languages_present) + 2
+    finding_dimensions = sorted({str((n.get("attrs") or {}).get("dimension") or "other") for n in nodes if n["kind"] == "finding"})  # REQ-043
+    legend_rows = len(languages_present) + 2 + (len(finding_dimensions) + 1 if finding_dimensions else 0)
     legend_x, legend_y = width - 260, height - (30 + 22 * legend_rows)
     legend_h = 20 + 22 * legend_rows
     parts.append(
@@ -4564,6 +5295,21 @@ def _render_svg(
             f'fill="{_SVG_TEXT}">{_escape_svg_text(language)}</text>'
         )
         row += 22
+    if finding_dimensions:  # REQ-043: findings by category; size is severity, a ring marks a new finding
+        parts.append(
+            f'<text x="{legend_x+12}" y="{row+4}" font-family="{_SVG_FONT}" font-size="8.5" fill="{_SVG_DIM}" '
+            f'letter-spacing="0.8">FINDINGS BY CATEGORY (size: severity, ring: new)</text>'
+        )
+        row += 22
+        for dimension in finding_dimensions:
+            color = _FINDING_DIMENSION_COLORS.get(dimension, _FINDING_DIMENSION_COLORS["other"])
+            parts.append(f'<circle cx="{legend_x+18}" cy="{row}" r="5" fill="{color}"/>')
+            parts.append(f'<circle cx="{legend_x+18}" cy="{row}" r="8" fill="none" stroke="{color}" stroke-width="1" opacity="0.8"/>')
+            parts.append(
+                f'<text x="{legend_x+32}" y="{row+4}" font-family="{_SVG_FONT}" font-size="9.5" '
+                f'fill="{_SVG_TEXT}">{_escape_svg_text(dimension)}</text>'
+            )
+            row += 22
     parts.append(f'<line x1="{legend_x+12}" y1="{row}" x2="{legend_x+28}" y2="{row}" stroke="{_SVG_DIM}" stroke-width="1" opacity="0.7"/>')
     parts.append(
         f'<text x="{legend_x+34}" y="{row+4}" font-family="{_SVG_FONT}" font-size="8.5" '
@@ -4642,3 +5388,173 @@ def render(
         "edges_total": len(all_edges),
         "truncated": truncated,
     }
+
+
+
+# --------------------------------------------------------------------------
+# REQ-043: `omni graph findings` -- Arbiter findings grouped by directory, with
+# what each one is tied to, as JSON and as a text tree.
+# --------------------------------------------------------------------------
+
+
+def _absolute_root(raw_root: str) -> str:
+    """The graph's root as an absolute posix path for editor links, or "" when it cannot be resolved."""
+    try:
+        resolved = Path(raw_root or ".").resolve()
+    except (OSError, RuntimeError):
+        return ""
+    return resolved.as_posix() if resolved.is_dir() else ""
+
+
+_FINDING_TREE_LINKS = 6  # a file touched by every requirement would otherwise fill the line; --json has the full list
+
+
+def _finding_severity_rank(severity: str) -> int:
+    return _FINDING_SEVERITY_ORDER.index(severity) if severity in _FINDING_SEVERITY_ORDER else len(_FINDING_SEVERITY_ORDER)
+
+
+def findings(graph_path: Path, under: str | None = None, dimension: str | None = None, severity: str | None = None, depth: int = 2) -> dict[str, Any]:
+    """Finding nodes, filtered and grouped by directory, each with the requirements, failures and suites reachable within
+    `depth` hops over the non-code edges (the same links `lineage` follows)."""
+    graph_data = load_graph(graph_path)
+    by_id = {n["id"]: n for n in graph_data["nodes"]}
+    prefix = (under or "").strip().replace("\\", "/").rstrip("/")
+    if prefix.startswith("./"):
+        prefix = prefix[2:]
+    want_dimension = (dimension or "").strip().lower()
+    want_severity = (severity or "").strip().lower()
+    depth = max(0, int(depth))
+    walkable = set(LINEAGE_FLOW) | set(LINEAGE_SINGLE_HOP)
+    adjacency: dict[str, list[str]] = {}
+    for edge in graph_data["edges"]:
+        if edge["type"] in walkable:
+            adjacency.setdefault(edge["source"], []).append(edge["target"])
+            adjacency.setdefault(edge["target"], []).append(edge["source"])
+
+    def reach(origin: str) -> dict[str, list[str]]:
+        seen = {origin}
+        frontier = [origin]
+        found: dict[str, list[str]] = {"requirement": [], "failure": [], "suite": []}
+        for _ in range(depth):
+            following: list[str] = []
+            for current in frontier:
+                for other_id in adjacency.get(current, []):
+                    if other_id in seen:
+                        continue
+                    seen.add(other_id)
+                    other = by_id.get(other_id)
+                    if other is None:
+                        continue
+                    if other["kind"] in found:
+                        found[other["kind"]].append(other["name"])
+                    following.append(other_id)
+            frontier = following
+        return {kind: sorted(set(names)) for kind, names in found.items()}
+
+    out_edges: dict[str, list[dict[str, Any]]] = {}
+    for edge in graph_data["edges"]:
+        out_edges.setdefault(edge["source"], []).append(edge)
+
+    def introduced_by(node: dict[str, Any]) -> dict[str, Any] | None:  # REQ-051
+        commit = next((by_id[e["target"]] for e in out_edges.get(node["id"], []) if e["type"] == "introduced_by" and e["target"] in by_id), None)
+        if commit is None:
+            return {"commit": None, "state": "uncommitted"} if (node.get("attrs") or {}).get("introduced_by") == "uncommitted" else None
+        cattrs = commit.get("attrs") or {}
+        return {
+            "commit": commit["name"], "hash": cattrs.get("hash"), "date": cattrs.get("date"), "subject": commit.get("summary", ""),
+            "requirements": sorted(by_id[e["target"]]["name"] for e in out_edges.get(commit["id"], []) if e["type"] == "delivers" and e["target"] in by_id),
+        }
+
+    selected: list[dict[str, Any]] = []
+    report = ""
+    for node in graph_data["nodes"]:
+        if node["kind"] != "finding":
+            continue
+        attrs = node.get("attrs") or {}
+        file = str(node.get("file") or "")
+        if prefix and not (file == prefix or file.startswith(prefix + "/")):
+            continue
+        if want_dimension and str(attrs.get("dimension", "")).lower() != want_dimension:
+            continue
+        if want_severity and str(attrs.get("severity", "")).lower() != want_severity:
+            continue
+        report = report or str(attrs.get("report") or "")
+        symbol = next(
+            (by_id[e["target"]]["name"] for e in out_edges.get(node["id"], [])
+             if e["type"] == "flags" and by_id.get(e["target"], {}).get("kind") in _FINDING_SYMBOL_KINDS),
+            None,
+        )
+        linked = reach(node["id"])
+        selected.append({
+            "id": node["id"], "name": node["name"], "file": file, "line": attrs.get("line"), "directory": attrs.get("directory_path", ""),
+            "rule_id": attrs.get("rule_id", ""), "dimension": attrs.get("dimension", ""), "severity": attrs.get("severity", ""),
+            "status": attrs.get("status", ""), "title": node.get("summary", ""), "tags": list(attrs.get("tags") or []), "symbol": symbol,
+            "requirements": linked["requirement"], "failures": linked["failure"], "suites": linked["suite"],
+            "introduced_by": introduced_by(node),
+        })
+    selected.sort(key=lambda f: (f["directory"], _finding_severity_rank(f["severity"]), f["file"], f["line"] or 0, f["name"]))
+    directories: list[dict[str, Any]] = []
+    for item in selected:
+        if not directories or directories[-1]["directory"] != item["directory"]:
+            directories.append({"directory": item["directory"], "count": 0, "by_dimension": {}, "by_severity": {}, "findings": []})
+        group = directories[-1]
+        group["count"] += 1
+        group["by_dimension"][item["dimension"]] = group["by_dimension"].get(item["dimension"], 0) + 1
+        group["by_severity"][item["severity"]] = group["by_severity"].get(item["severity"], 0) + 1
+        group["findings"].append(item)
+    return {
+        "ok": True, "total": len(selected), "report": report, "depth": depth,
+        "filters": {"under": prefix or None, "dimension": want_dimension or None, "severity": want_severity or None},
+        "by_dimension": _count_by(selected, "dimension"), "by_severity": _count_by(selected, "severity"),
+        "directories": directories,
+    }
+
+
+def describe_introduced_by(intro: dict[str, Any] | None) -> str:
+    """`introduced by  <short> <subject> (<requirements>)`, or `introduced by  uncommitted change` (REQ-051)."""
+    if not intro:
+        return ""
+    if not intro.get("commit"):
+        return "introduced by  uncommitted change"
+    requirements = ", ".join(intro.get("requirements") or []) or "no requirement cited"
+    return f"introduced by  {intro['commit']} {_short(intro.get('subject'), 90)} ({requirements})"
+
+
+def render_findings_tree(result: dict[str, Any]) -> str:
+    """`findings()` as an indented text tree: one block per directory, one line per finding, its links beneath."""
+    def counts(mapping: dict[str, int], order: tuple[str, ...] = ()) -> str:
+        keys = sorted(mapping, key=lambda k: (order.index(k) if k in order else len(order), k))
+        return ", ".join(f"{k} {mapping[k]}" for k in keys)
+
+    lines = [
+        f"findings: {result['total']}"
+        + (f"  [{counts(result['by_severity'], _FINDING_SEVERITY_ORDER)}]" if result["by_severity"] else "")
+        + (f"  [{counts(result['by_dimension'])}]" if result["by_dimension"] else "")
+        + (f"  report {result['report']}" if result.get("report") else "")
+    ]
+    active = {k: v for k, v in result.get("filters", {}).items() if v}
+    if active:
+        lines.append("  filters: " + ", ".join(f"{k}={v}" for k, v in active.items()))
+    if not result["total"]:
+        lines.append("  (none" + (" match" if active else f"; {FINDINGS_NO_REPORT_NOTE.split(': ', 1)[1]}") + ")")
+        return "\n".join(lines)
+    for group in result["directories"]:
+        label = (group["directory"] + "/") if group["directory"] else "./"
+        lines.append(f"\n{label}  {group['count']}  [{counts(group['by_severity'], _FINDING_SEVERITY_ORDER)}]  [{counts(group['by_dimension'])}]")
+        for item in group["findings"]:
+            where = f"{item['file']}:{item['line']}" if item["line"] else item["file"]
+            flag = "" if item["status"] == "new" else f" ({item['status']})"
+            lines.append(f"  {item['name']}  {item['severity']:<8} {item['dimension']:<14} {where}" + (f" in {item['symbol']}" if item["symbol"] else "") + flag)
+            lines.append(f"      {item['rule_id']}  {item['title']}")
+            if item.get("introduced_by"):  # REQ-051
+                lines.append("      " + describe_introduced_by(item["introduced_by"]))
+            links = [
+                f"{label}: {', '.join(values[:_FINDING_TREE_LINKS])}" + (f" +{len(values) - _FINDING_TREE_LINKS} more" if len(values) > _FINDING_TREE_LINKS else "")
+                for label, values in (("requirements", item["requirements"]), ("failures", item["failures"]), ("suites", item["suites"])) if values
+            ]
+            tags = [t for t in item["tags"] if not t.startswith("req:")]
+            if tags:
+                links.append("tags: " + ", ".join(tags))
+            if links:
+                lines.append("      " + "   ".join(links))
+    return "\n".join(lines)

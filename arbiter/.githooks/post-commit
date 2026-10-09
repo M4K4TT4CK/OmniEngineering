@@ -1,0 +1,22 @@
+#!/bin/sh
+# Installed by `omni hook install-git --with-graph-rebuild` (OmniEngineering). Do not hand-edit; rerun that command to update it.
+# Rebuilds the five-layer graph in the background after each commit, so `omni graph why/lineage/timeline`
+# is never more than one commit stale. Backgrounded: a full rebuild can take well over a minute on a large
+# repo or a slow filesystem, and this must never slow down `git commit` itself. A lock directory (mkdir is
+# atomic even on Windows/NTFS) skips a rebuild that is already running instead of piling them up; output
+# goes to .ai/.graph-build.log, never to the terminal.
+root=$(git rev-parse --show-toplevel) || exit 0
+cd "$root"
+if command -v python3 >/dev/null 2>&1; then py=python3
+elif command -v python >/dev/null 2>&1; then py=python
+else exit 0
+fi
+lock="$root/.ai/.graph-build.lock"
+(
+  mkdir -p "$root/.ai"
+  if mkdir "$lock" 2>/dev/null; then
+    trap 'rmdir "$lock" 2>/dev/null' EXIT
+    "$py" "$root/omni" graph build >"$root/.ai/.graph-build.log" 2>&1
+  fi
+) &
+exit 0

@@ -1,0 +1,313 @@
+framework:
+  id: NIST-800-53r5
+  title: NIST SP 800-53 Revision 5 — Security and Privacy Controls
+  version: "5.1.1"
+  authority: https://csrc.nist.gov/pubs/sp/800/53/r5/upd1/final
+  baseline: Moderate
+  # The Moderate baseline, as allocated by FedRAMP Rev 5. This is the
+  # denominator for every coverage figure in this pack. It is deliberately the
+  # real number rather than the number of controls enumerated below, because a
+  # pack that reports only what it covers reports 100% coverage by
+  # construction.
+  declared_controls: 323
+  declared_source: >-
+    FedRAMP Rev 5 baseline allocation — Low 156, Moderate 323, High 410.
+  notes: >-
+    This pack enumerates only the controls a static analyzer can reach, plus a
+    representative set of the ones it provably cannot, so that the shape of the
+    gap is visible rather than implied. Every control not enumerated here
+    resolves to "not enumerated" in the coverage matrix and must be assessed by
+    other means. Mappings are direct from control to check; nothing is routed
+    through another framework.
+
+controls:
+  # ---- System and Communications Protection ------------------------------
+  - id: SC-28
+    title: Protection of Information at Rest
+    family: SC
+    automatable: partial
+    machine_scope: >-
+      Whether storage resources declared in infrastructure code request
+      encryption at rest.
+    residual: >-
+      Key custody, rotation policy, HSM use, and any storage outside the
+      scanned estate. Encryption being switched on says nothing about who
+      holds the key.
+    satisfied_by:
+      - arbiter/resource.unencrypted-database
+      - arbiter/resource.unencrypted-volume
+      - arbiter/resource.unencrypted-object-store
+      - arbiter/resource.unencrypted-queue
+
+  - id: SC-8
+    title: Transmission Confidentiality and Integrity
+    family: SC
+    automatable: partial
+    machine_scope: Listeners and endpoints declared without TLS.
+    residual: >-
+      Cipher suite policy, certificate validity and provenance, and traffic
+      between components not declared in infrastructure code.
+    satisfied_by:
+      - arbiter/resource.plaintext-listener
+
+  - id: SC-7
+    title: Boundary Protection
+    family: SC
+    automatable: partial
+    machine_scope: >-
+      Security group and network policy rules that admit traffic from any
+      address, and workloads sharing the host network namespace.
+    residual: >-
+      Whether the boundary is in the right place at all, and any control
+      enforced outside infrastructure code.
+    satisfied_by:
+      - arbiter/resource.unrestricted-ingress
+      - arbiter/resource.k8s-host-namespace
+      - arbiter/resource.host-network
+
+  - id: SC-6
+    title: Resource Availability
+    family: SC
+    automatable: partial
+    machine_scope: Workloads declared without CPU or memory limits.
+    residual: Capacity planning, quotas and priority outside the manifest.
+    satisfied_by:
+      - arbiter/resource.k8s-no-resource-limits
+
+  - id: SC-39
+    title: Process Isolation
+    family: SC
+    automatable: partial
+    machine_scope: >-
+      Containers declared privileged, running as root, sharing host
+      namespaces, or mounting host paths.
+    residual: Kernel hardening, runtime enforcement, admission control.
+    satisfied_by:
+      - arbiter/resource.privileged-container
+      - arbiter/resource.k8s-runs-as-root
+      - arbiter/resource.k8s-not-run-as-non-root
+      - arbiter/resource.k8s-host-path-volume
+
+  # ---- Access Control ----------------------------------------------------
+  - id: AC-3
+    title: Access Enforcement
+    family: AC
+    automatable: partial
+    machine_scope: >-
+      Storage and database resources declared publicly reachable.
+    residual: >-
+      Application-layer authorization, identity federation, and anything
+      enforced at runtime rather than declared.
+    satisfied_by:
+      - arbiter/resource.public-object-store
+      - arbiter/resource.database-publicly-accessible
+
+  - id: AC-6
+    title: Least Privilege
+    family: AC
+    automatable: partial
+    machine_scope: >-
+      Privilege escalation left enabled, capabilities not dropped, writable
+      root filesystems, and IAM permissions granted that no code in the system
+      uses.
+    residual: >-
+      Whether the privileges that ARE used are appropriate, role design, and
+      separation of duties.
+    satisfied_by:
+      - arbiter/resource.k8s-privilege-escalation
+      - arbiter/resource.k8s-privilege-escalation-not-disabled
+      - arbiter/resource.k8s-capabilities-not-dropped
+      - arbiter/resource.k8s-writable-root-filesystem
+      - arbiter/interface.permission-unused
+
+  - id: AC-17
+    title: Remote Access
+    family: AC
+    automatable: none
+    machine_scope: ""
+    residual: >-
+      Remote access is established, authorized and monitored by procedure and
+      by network equipment that is not declared in the scanned repositories.
+    satisfied_by: []
+
+  # ---- Identification and Authentication ---------------------------------
+  - id: IA-5
+    title: Authenticator Management
+    family: IA
+    automatable: partial
+    machine_scope: >-
+      Credentials, private keys, tokens and credentialed URLs committed to
+      version control.
+    residual: >-
+      Password policy, rotation cadence, multi-factor enrolment, and any
+      secret held outside the repository. Finding no secret in the source is
+      not evidence that secrets are managed well.
+    satisfied_by:
+      - arbiter/secrets.private-key
+      - arbiter/secrets.aws-access-key
+      - arbiter/secrets.gh-token
+      - arbiter/secrets.slack-token
+      - arbiter/secrets.pg-url
+      - arbiter/secrets.jwt
+      - arbiter/secrets.assigned-credential
+
+  - id: IA-2
+    title: Identification and Authentication (Organizational Users)
+    family: IA
+    automatable: none
+    residual: >-
+      Whether users are uniquely identified and multi-factor authenticated is
+      a property of the identity provider, not of the source tree.
+    satisfied_by: []
+
+  # ---- Audit and Accountability ------------------------------------------
+  - id: AU-2
+    title: Event Logging
+    family: AU
+    automatable: partial
+    machine_scope: Storage resources declared without access logging.
+    residual: >-
+      Whether the events selected are the right ones, and whether anyone reads
+      them.
+    satisfied_by:
+      - arbiter/resource.no-object-store-logging
+
+  - id: AU-11
+    title: Audit Record Retention
+    family: AU
+    automatable: partial
+    machine_scope: Log groups declared with no retention period.
+    residual: Whether the retention period set meets the organization's own policy.
+    satisfied_by:
+      - arbiter/resource.no-log-retention
+
+  - id: AU-6
+    title: Audit Record Review, Analysis, and Reporting
+    family: AU
+    automatable: none
+    residual: A human and organizational process. Nothing in a repository evidences it.
+    satisfied_by: []
+
+  # ---- Configuration Management ------------------------------------------
+  - id: CM-2
+    title: Baseline Configuration
+    family: CM
+    automatable: partial
+    machine_scope: >-
+      Dependencies and container images pinned to immutable references rather
+      than floating tags.
+    residual: >-
+      Whether the pinned baseline is approved, and configuration of anything
+      not declared as code.
+    satisfied_by:
+      - arbiter/supply.unpinned-python-dep
+      - arbiter/supply.unpinned-npm-dep
+      - arbiter/resource.k8s-mutable-image-tag
+
+  - id: CM-6
+    title: Configuration Settings
+    family: CM
+    automatable: partial
+    machine_scope: >-
+      Declared resource settings measured against the rules in this build.
+    residual: >-
+      The far larger set of settings no rule covers, and everything configured
+      outside infrastructure code.
+    satisfied_by:
+      - arbiter/resource.k8s-no-security-context
+
+  - id: CM-7
+    title: Least Functionality
+    family: CM
+    automatable: partial
+    machine_scope: >-
+      Workflow actions pinned to mutable references, and workflows triggering
+      on pull_request_target with a checkout of untrusted code.
+    residual: Whether the functionality present is needed at all.
+    satisfied_by:
+      - arbiter/supply.unpinned-action
+      - arbiter/supply.pull-request-target
+
+  # ---- Contingency Planning ----------------------------------------------
+  - id: CP-9
+    title: System Backup
+    family: CP
+    automatable: partial
+    machine_scope: Resources declared without deletion protection.
+    residual: >-
+      Whether backups are taken, tested, restorable, and stored separately.
+      Deletion protection is not a backup.
+    satisfied_by:
+      - arbiter/resource.no-deletion-protection
+
+  - id: CP-4
+    title: Contingency Plan Testing
+    family: CP
+    automatable: none
+    residual: An exercise, attended by people, recorded in a document.
+    satisfied_by: []
+
+  # ---- System and Services Acquisition -----------------------------------
+  - id: SA-11
+    title: Developer Testing and Evaluation
+    family: SA
+    automatable: partial
+    machine_scope: Whether the repository has any tests at all.
+    residual: >-
+      Whether the tests are meaningful. Test files existing is the weakest
+      possible evidence for this control and should be read that way.
+    satisfied_by:
+      - arbiter/quality.no-tests
+
+  - id: SA-15
+    title: Development Process, Standards, and Tools
+    family: SA
+    automatable: none
+    residual: >-
+      A documented process, assessed by reading the process and interviewing
+      the people who follow it.
+    satisfied_by: []
+
+  # ---- Risk Assessment ---------------------------------------------------
+  - id: RA-5
+    title: Vulnerability Monitoring and Scanning
+    family: RA
+    automatable: partial
+    machine_scope: >-
+      Whether static analysis ran, and what it found. Arbiter's own coverage
+      report is the evidence for this control.
+    residual: >-
+      Authenticated scanning, runtime scanning, penetration testing, and
+      remediation timelines.
+    satisfied_by:
+      - checkov/CKV_AWS_1
+      - bandit/B105
+
+  # ---- Personnel and Physical: provably outside any scanner --------------
+  - id: PS-3
+    title: Personnel Screening
+    family: PS
+    automatable: none
+    residual: Background investigation records held by human resources.
+    satisfied_by: []
+
+  - id: PE-3
+    title: Physical Access Control
+    family: PE
+    automatable: none
+    residual: Locks, badges, visitor logs and a site walk.
+    satisfied_by: []
+
+  - id: AT-2
+    title: Literacy Training and Awareness
+    family: AT
+    automatable: none
+    residual: Training completion records.
+    satisfied_by: []
+
+  - id: IR-3
+    title: Incident Response Testing
+    family: IR
+    automatable: none
+    residual: An exercise report.
+    satisfied_by: []

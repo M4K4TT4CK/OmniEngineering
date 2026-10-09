@@ -1,0 +1,49 @@
+# Ground truth for the fixture. Every defect below was planted deliberately.
+# `exhaustive: false` means extra findings are not counted as false positives —
+# a real analyzer will legitimately find things this list does not enumerate,
+# so only recall is scored unless a fixture claims to be complete.
+exhaustive: false
+
+expected:
+  - id: public-bucket
+    path: infra/main.tf
+    match: "public"
+  - id: db-public
+    path: infra/main.tf
+    match: "public"
+    dimension: security
+  - id: open-ssh-ingress
+    path: infra/main.tf
+    match: "ingress"
+  - id: unencrypted-db
+    path: infra/main.tf
+    match: "encrypt"
+  - id: no-log-retention
+    path: infra/main.tf
+    match: "retention"
+  - id: aws-key-in-source
+    path: app/config.py
+    match: "aws"
+  - id: hardcoded-password
+    path: app/config.py
+    match: "credential"
+  - id: unpinned-python-dep
+    path: requirements.txt
+    match: "unpinned"
+  - id: mutable-action-ref
+    path: .github/workflows/ci.yml
+    match: "mutable"
+  - id: pull-request-target
+    path: .github/workflows/ci.yml
+    match: "pull_request_target"
+  - id: broken-doc-link
+    path: docs/README.md
+    match: "design.md"
+  - id: doc-missing-file
+    path: docs/README.md
+    match: "settings.py"
+  - id: todo-cluster
+    path: app/utils.py
+    match: "todo"
+  - id: no-tests
+    match: "test"

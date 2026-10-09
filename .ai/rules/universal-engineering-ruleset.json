@@ -41,7 +41,12 @@
     "allow_destructive_data_changes": false,
     "require_user_confirmation_for_destructive_actions": true,
     "classification_banner": "",
-    "allowed_root_paths": []
+    "allowed_root_paths": [
+      "arbiter",
+      "arbiter-out",
+      "arbiter.yaml",
+      "docs"
+    ]
   },
   "global_operating_principles": {
     "targeted_access_only": {
@@ -322,7 +327,7 @@
   },
   "required_output_after_each_task": {
     "requirement_id": "REQ-###",
-    "status": "completed | pending | proposed | blocked | needs_review",
+    "status": "completed | pending | proposed | blocked | needs_review | withdrawn",
     "minimum_access_scope_used": [
       "<specific file/module/component/table/config/test/doc accessed>"
     ],

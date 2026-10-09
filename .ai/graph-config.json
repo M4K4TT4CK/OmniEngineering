@@ -1,4 +1,6 @@
 {
-  "_comment": "OmniEngineering is the project here, so its own scripts and tests are not tooling.",
-  "tooling_paths": []
+  "exclude_code_globs": [
+    "arbiter/"
+  ],
+  "_note": "arbiter/ is a vendored workspace with its own graph (cd arbiter && python omni graph build); this repository's graph covers the workspace only."
 }

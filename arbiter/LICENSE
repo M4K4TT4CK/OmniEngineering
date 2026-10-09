@@ -1,0 +1,59 @@
+Arbiter (arbiter-eval)
+
+Copyright (c) 2026 Nicholas J Pauken. All rights reserved.
+
+
+INTERIM NOTICE — THIS IS NOT THE OPERATIVE LICENCE
+
+This file asserts copyright ownership and reserves all rights. It is not the
+licence instrument this project will ship under. The operative grant — who may
+use Arbiter, for what purposes, on what terms and for how long — has not been
+drafted and requires review by qualified counsel. The requirements that grant
+must satisfy are recorded in docs/licensing.md as L-1 through L-8, tracked as
+REQ-005.
+
+Do not rely on this file as permission to do anything.
+
+
+1. COPYRIGHT
+
+   Arbiter, its source code and its documentation are Copyright (c) 2026
+   Nicholas J Pauken. All rights reserved.
+
+
+2. NO LICENCE GRANTED
+
+   No right to use, copy, modify, merge, publish, distribute, sublicense or
+   sell this software is granted by this file. Possession of a copy does not
+   confer a licence. Any such right must be granted separately, in writing, by
+   the copyright holder.
+
+
+3. OWNERSHIP OF SCAN OUTPUT
+
+   Reports, findings, baselines, knowledge files and any other artefact that
+   Arbiter generates from a user's own material belong to that user. The
+   copyright holder claims no right over them and places no restriction on
+   their publication or use, including their inclusion in accreditation
+   packages, audit evidence and pull request comments.
+
+   This clause grants rights away rather than reserving them, and is intended
+   to survive into the operative licence unchanged.
+
+
+4. THIRD-PARTY COMPONENTS
+
+   Arbiter depends on PyYAML at runtime and invokes external analyzers — ruff,
+   bandit, checkov, semgrep and gitleaks — without vendoring or redistributing
+   them. Nothing in this file grants any right over those components. Each is
+   governed by its own licence, inventoried in NOTICE.md.
+
+
+5. NO WARRANTY
+
+   This software is provided "as is", without warranty of any kind, express or
+   implied, including but not limited to the warranties of merchantability,
+   fitness for a particular purpose and non-infringement. In no event shall the
+   copyright holder be liable for any claim, damages or other liability,
+   whether in an action of contract, tort or otherwise, arising from, out of or
+   in connection with this software or its use.

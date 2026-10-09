@@ -1,0 +1,140 @@
+name = "bandit"
+dimensions = ["security"]
+checks = 35
+# Declared, not inherited. No measurement has established that this tool
+# returns the same findings from a file subset, so a partial scan records
+# it as not assessed rather than running it and believing the answer.
+scope = "repo"
+selects = { stacks = ["python"] }
+
+[requires]
+binaries = ["bandit"]
+network = false
+# The real fix for the timeout below is the -x exclusion in [invoke]: bandit
+# was walking a full vendored .venv (one real system measured 129,379 raw
+# findings, 669s of a 900s budget, almost all of it aws_cdk's own bundled
+# Python) because `-r {workdir}` is bandit's own traversal, separate from
+# inventory.SKIP_DIRS, which only governs Arbiter's native probes. This
+# timeout stays generous as a backstop for a repository that is legitimately
+# all first-party Python, not as the primary defense.
+timeout = 900
+
+[invoke]
+# The exclude list mirrors inventory.SKIP_DIRS. Bandit's own defaults
+# (.svn,CVS,.bzr,.hg,.git,__pycache__,.tox,.eggs,*.egg) do not cover
+# .venv/node_modules/site-packages, and -x is additive, not a replacement, so
+# repeating the ones it already covers costs nothing. Bare names do not
+# match a nested directory (`-x .venv` misses `sub/.venv`); glob patterns do,
+# confirmed against a synthetic tree with .venv nested at two depths.
+#
+# cdk.out* is excluded here even though inventory.SKIP_DIRS deliberately does
+# NOT skip it (the synthesized template is ground truth Arbiter's own probes
+# want) -- that reasoning does not carry over to bandit specifically. Bandit
+# only ever reads Python, a CDK template is JSON, and everything else under
+# cdk.out* is a Lambda asset bundle's vendored third-party dependencies,
+# never this repository's own code. `*` after `cdk.out` because CDK_OUTDIR
+# lets a project redirect synth output to a renamed directory (`cdk.out.chk`,
+# seen on a real system).
+argv = ["bandit", "-r", "{workdir}", "-f", "json", "-q", "-x", """\
+*/.git/*,*/.hg/*,*/.svn/*,*/node_modules/*,*/.venv/*,*/venv/*,\
+*/__pycache__/*,*/.mypy_cache/*,*/.pytest_cache/*,*/.ruff_cache/*,\
+*/.terraform/*,*/.tox/*,*/site-packages/*,*/.next/*,*/.nuxt/*,\
+*/.gradle/*,*/.idea/*,*/.vscode/*,*/vendor/*,*/target/*,*/.arbiter/*,\
+*/cdk.out*/*\
+"""]
+version_argv = ["bandit", "--version"]
+parse = "json"
+ok_exit = [0, 1]
+
+[map]
+findings = "$.results[*]"
+rule_id = "test_id"
+title = "issue_text"
+path = "filename"
+line = "line_number"
+severity = "issue_severity"
+severity_default = "medium"
+dimension = "security"
+remediation = "more_info"
+remediation_default = "Review Bandit check {rule_id}'s trigger at this line and apply the standard fix for that class of issue (bandit.readthedocs.io, plugin listing) -- no specific fix text is catalogued for this check id yet."
+
+[map.severity_table]
+high = "high"
+medium = "medium"
+low = "low"
+
+# A specific rule id has one well-known mitigation; a link to "go read the
+# docs" is not that. This is Bandit's fixed, documented plugin catalog, so
+# it does not drift the way a heuristic mapping would.
+[map.remediation_table]
+B101 = "Don't rely on `assert` for a runtime check -- `python -O` strips it. Raise an explicit exception (e.g. `ValueError`) instead."
+B102 = "Avoid `exec`; restructure the code to call a specific function instead of executing a string."
+B103 = "Use a stricter file mode (e.g. 0o600/0o640) instead of one that is world- or group-writable."
+B104 = "Bind to a specific interface/address instead of 0.0.0.0, or gate the bind address behind config so it defaults safely."
+B105 = "Move this credential to a secret manager or environment variable and load it at runtime; don't leave it as a literal."
+B106 = "Load this credential from a secret manager or environment variable instead of passing it as a literal argument."
+B107 = "Remove the hardcoded default; require the credential to be supplied via config or a secret manager, with no fallback value."
+B108 = "Use `tempfile.mkstemp()` or `tempfile.NamedTemporaryFile()` instead of a fixed path under /tmp, which another local user can pre-create or symlink."
+B110 = "Log or handle the exception instead of silently passing; a bare `except: pass` hides real failures."
+B112 = "Log the exception before continuing the loop, or narrow the except clause so it doesn't swallow unrelated errors."
+B113 = "Pass an explicit `timeout=` to this request so a hung remote host can't block the process indefinitely."
+B201 = "Set `debug=False` (or drive it from an environment variable that is False in production); Flask's debugger allows remote code execution."
+B202 = "Validate each member's path before extracting (or use `tarfile.data_filter`) to prevent path traversal on extract."
+B301 = "Don't unpickle untrusted data; use `json` or a schema-validated format instead."
+B302 = "Don't unmarshal untrusted data; use `json` instead."
+B303 = "Use `hashlib.sha256` or better (or add `usedforsecurity=False` if this hash is genuinely not security-relevant)."
+B304 = "Use an authenticated, modern cipher mode (e.g. AES-GCM) instead of this weak cipher."
+B305 = "Use an authenticated, modern cipher mode (e.g. AES-GCM) instead of ECB/CBC without a MAC."
+B306 = "Use `tempfile.mkstemp()` instead of the racy `tempfile.mktemp()`."
+B307 = "Avoid `eval`; use `ast.literal_eval` for data, or a proper parser for anything else."
+B308 = "Avoid `mark_safe` on untrusted input; let Django's autoescaping handle it, or sanitize first."
+B310 = "Validate the URL scheme (reject `file://`, etc.) before passing it to `urlopen`."
+B311 = "Use the `secrets` module (e.g. `secrets.token_hex`) instead of `random` for anything security-sensitive."
+B312 = "Use SSH instead of Telnet, which sends credentials and data in plaintext."
+B313 = "Use `defusedxml`'s equivalent parser instead of the stdlib XML module to avoid entity-expansion/XXE attacks."
+B314 = "Use `defusedxml`'s equivalent parser instead of the stdlib XML module to avoid entity-expansion/XXE attacks."
+B315 = "Use `defusedxml`'s equivalent parser instead of the stdlib XML module to avoid entity-expansion/XXE attacks."
+B316 = "Use `defusedxml`'s equivalent parser instead of the stdlib XML module to avoid entity-expansion/XXE attacks."
+B317 = "Use `defusedxml`'s equivalent parser instead of the stdlib XML module to avoid entity-expansion/XXE attacks."
+B318 = "Use `defusedxml`'s equivalent parser instead of the stdlib XML module to avoid entity-expansion/XXE attacks."
+B319 = "Use `defusedxml`'s equivalent parser instead of the stdlib XML module to avoid entity-expansion/XXE attacks."
+B320 = "Use `defusedxml`'s equivalent parser instead of the stdlib `lxml` usage to avoid entity-expansion/XXE attacks."
+B321 = "Use SFTP or FTPS instead of plaintext FTP."
+B323 = "Use `ssl.create_default_context()` (or pass a CA bundle) instead of disabling certificate verification."
+B324 = "Use `hashlib.sha256` or newer, or mark the call `usedforsecurity=False` if it is genuinely not security-relevant (e.g. a cache key)."
+B325 = "Use `tempfile.mkstemp()` instead of the racy `tempfile.mktemp()`."
+B401 = "This import alone is not the issue; make sure nothing here connects over plaintext Telnet -- use SSH instead."
+B402 = "This import alone is not the issue; make sure nothing here uses plaintext FTP -- use SFTP/FTPS instead."
+B403 = "This import alone is not the issue; make sure nothing here unpickles untrusted data -- use `json` if it might."
+B404 = "This import alone is not the issue; make sure every call passes a list of args with `shell=False` and never builds a shell string from untrusted input."
+B405 = "Switch the import to `defusedxml`'s equivalent module to avoid XXE if this parser ever sees untrusted input."
+B406 = "Switch the import to `defusedxml`'s equivalent module to avoid XXE if this parser ever sees untrusted input."
+B407 = "Switch the import to `defusedxml`'s equivalent module to avoid XXE if this parser ever sees untrusted input."
+B408 = "Switch the import to `defusedxml`'s equivalent module to avoid XXE if this parser ever sees untrusted input."
+B409 = "Switch the import to `defusedxml`'s equivalent module to avoid XXE if this parser ever sees untrusted input."
+B410 = "Switch the import to `defusedxml`'s equivalent module to avoid XXE if this parser ever sees untrusted input."
+B411 = "Switch the import to `defusedxml`'s equivalent module to avoid XXE if this parser ever sees untrusted input."
+B412 = "Replace this with a maintained HTTP client; the httpoxy-vulnerable pattern trusts a client-supplied Proxy header."
+B413 = "Replace PyCrypto (unmaintained, has known CVEs) with `cryptography` or `pycryptodome`."
+B501 = "Set `verify=True` (or point it at a CA bundle) instead of disabling TLS certificate verification."
+B502 = "Require TLS 1.2 or newer; drop SSLv2/SSLv3/TLSv1/TLSv1.1 from the allowed protocol list."
+B503 = "Require TLS 1.2 or newer and reject weak cipher suites instead of relying on insecure defaults."
+B504 = "Pass an explicit, modern context (e.g. `ssl.create_default_context()`) instead of relying on the default `ssl.wrap_socket` behaviour."
+B505 = "Use a key size that meets current guidance (RSA >= 2048 bits, EC >= 256 bits)."
+B506 = "Use `yaml.safe_load()` instead of `yaml.load()`, which can execute arbitrary Python objects."
+B507 = "Use a real host-key policy (load `known_hosts`) instead of `AutoAddPolicy`, which accepts any host key."
+B601 = "Pass a real host-key policy and avoid building shell commands from untrusted input."
+B602 = "Call subprocess with a list of args and `shell=False`; never build a shell string from untrusted input."
+B603 = "Confirm every argument is a trusted, fixed value -- `shell=False` avoids shell injection but not an attacker-controlled executable path or argument."
+B604 = "Avoid passing `shell=True` to this call; build the argument list instead of a shell string."
+B605 = "Use `subprocess.run([...], shell=False)` instead of a shell-invoking call."
+B606 = "Confirm the command and arguments are fixed, trusted values, not built from user input."
+B607 = "Use an absolute path (or resolve via `shutil.which()`) for the executable instead of relying on `$PATH`."
+B608 = "Use parameterized queries (`?`/`%s` placeholders) instead of building SQL with string formatting or concatenation."
+B609 = "Don't pass a shell wildcard/glob straight from input; expand and validate it yourself first."
+B610 = "Use the Django ORM's parameterized filtering instead of `.extra()` with raw SQL fragments."
+B611 = "Use parameterized queries via the ORM instead of `RawSQL`, or bind parameters explicitly."
+B612 = "Don't call `logging.config.listen()` without `verify=`; as written it accepts unauthenticated config over the network."
+B701 = "Set `autoescape=True` on the Jinja2 environment instead of disabling it."
+B702 = "Escape untrusted values passed into Mako templates explicitly; Mako does not autoescape by default."
+B703 = "Avoid `mark_safe` on untrusted input; let Django's autoescaping handle it, or sanitize first."

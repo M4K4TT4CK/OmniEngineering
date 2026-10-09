@@ -95,6 +95,15 @@ def _tool_graph_sources(arguments: dict[str, Any]) -> Any:
     return og.describe_sources(Path(str(arguments.get("root", "."))))
 
 
+def _tool_graph_findings(arguments: dict[str, Any]) -> Any:  # REQ-043
+    path = _graph_path(arguments)
+    _require_graph_file(path)
+    return og.findings(
+        path, under=arguments.get("under") or None, dimension=arguments.get("dimension") or None,
+        severity=arguments.get("severity") or None, depth=int(arguments.get("depth", 2)),
+    )
+
+
 def _tool_requirement_show(arguments: dict[str, Any]) -> Any:
     found = ma.find_requirement(str(arguments["id"]))
     if found is None:
@@ -153,6 +162,17 @@ def _tool_gate_status(arguments: dict[str, Any]) -> Any:
     rule_failures, waived = ma.gate_evaluate(set(changed), ma.gate_waivers(base), base)
     failures.extend(rule_failures)
     return {"pass": not failures, "changed_paths": changed, "failures": failures, "waived": waived}
+
+
+def _tool_graph_impact(arguments: dict[str, Any]) -> Any:
+    """What the pending change set reaches across the layers: the same walk `omni graph impact` prints, as data."""
+    path = _graph_path(arguments)
+    _require_graph_file(path)
+    base = str(arguments["base"]) if arguments.get("base") else ma.gate_base_commit()
+    changed = sorted(ma.gate_changed_paths(base))
+    result = og.impact(path, changed, depth=max(0, int(arguments.get("depth", 2))))
+    result["base"] = base
+    return result
 
 
 class ToolError(Exception):
@@ -221,6 +241,20 @@ TOOLS: list[MCPTool] = [
         {"type": "object", "properties": {"root": {"type": "string", "default": "."}}},
         _tool_graph_sources,
     ),
+    MCPTool(  # REQ-043
+        "graph_findings",
+        "Arbiter findings from the newest gate report as graph nodes, grouped by directory with counts by dimension and "
+        "severity, and for each finding the requirements, failures and test suites it is tied to. The same data as "
+        "`omni graph findings --json`.",
+        {"type": "object", "properties": {
+            "under": {"type": "string", "description": "Only findings in this directory or file."},
+            "dimension": {"type": "string", "description": "Only this Arbiter dimension: security, quality, drift, supply_chain, assurance, resource_policy, judgement."},
+            "severity": {"type": "string", "description": "Only this severity: critical, high, medium, low, info."},
+            "depth": {"type": "integer", "default": 2, "description": "Hops over non-code links to collect requirements, failures and suites."},
+            "graph": {"type": "string", "description": f"Graph file to read. Defaults to {ma.GRAPH_DEFAULT_OUTPUT}."},
+        }},
+        _tool_graph_findings,
+    ),
     MCPTool(
         "requirement_show",
         "One requirement's full record by ID (active or archived).",
@@ -257,6 +291,18 @@ TOOLS: list[MCPTool] = [
         "the completion gate -- the same check `omni gate` runs, read-only: nothing is written, nothing is blocked.",
         {"type": "object", "properties": {}},
         _tool_gate_status,
+    ),
+    MCPTool(
+        "graph_impact",
+        "What the pending change set (working tree plus commits since the merge-base) reaches across the layers: "
+        "requirements, changelog entries, failures, tests, suites, rules and commits, each with the hop count and "
+        "the edge it was reached by. Read-only; the same walk `omni graph impact` prints.",
+        {"type": "object", "properties": {
+            "base": {"type": "string", "description": "Base commit for the change set. Defaults to the merge-base `omni gate` uses."},
+            "depth": {"type": "integer", "default": 2, "description": "Cross-layer hops to follow from each changed path."},
+            "graph": {"type": "string", "description": f"Graph file to read. Defaults to {ma.GRAPH_DEFAULT_OUTPUT}."},
+        }},
+        _tool_graph_impact,
     ),
 ]
 TOOLS_BY_NAME: dict[str, MCPTool] = {tool.name: tool for tool in TOOLS}

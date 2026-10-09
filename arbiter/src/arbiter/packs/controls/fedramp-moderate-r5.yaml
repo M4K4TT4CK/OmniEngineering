@@ -1,0 +1,232 @@
+framework:
+  id: FedRAMP-Moderate-r5
+  title: FedRAMP Moderate Baseline (Rev 5)
+  version: "5"
+  authority: https://www.fedramp.gov/
+  baseline: Moderate
+  declared_controls: 323
+  declared_source: >-
+    FedRAMP Rev 5 baseline allocation — Low 156, Moderate 323, High 410.
+  notes: >-
+    An INDEPENDENT pack, even though FedRAMP Moderate is drawn from NIST
+    800-53 Rev 5 and shares its control identifiers. The reason is that
+    FedRAMP fixes parameters 800-53 leaves to the organization, and those
+    parameters are where a control stops being a yes-or-no question. 800-53
+    AU-11 says retain audit records for an organization-defined period;
+    FedRAMP Moderate says at least ninety days online and one year total. A
+    check that confirms *a* retention period is set satisfies the first and
+    tells you nothing about the second.
+
+    So every parameterized control below is marked "partial" no matter how
+    complete the technical check is, and the residual note names the parameter
+    the scanner cannot see. Reporting these as satisfied is the single most
+    common way an automated compliance report misleads an assessor.
+
+controls:
+  - id: SC-28
+    title: Protection of Information at Rest
+    family: SC
+    automatable: partial
+    machine_scope: Encryption at rest requested on declared storage resources.
+    residual: >-
+      FedRAMP requires FIPS 140-validated modules. A scanner sees that
+      encryption is on; it cannot see whether the module behind it is
+      validated, which is the part an assessor will ask about.
+    satisfied_by:
+      - arbiter/resource.unencrypted-database
+      - arbiter/resource.unencrypted-volume
+      - arbiter/resource.unencrypted-object-store
+      - arbiter/resource.unencrypted-queue
+
+  - id: SC-8
+    title: Transmission Confidentiality and Integrity
+    family: SC
+    automatable: partial
+    machine_scope: Listeners declared without TLS.
+    residual: >-
+      FIPS-validated cryptography and approved cipher suites. TLS being
+      enabled is necessary and nowhere near sufficient.
+    satisfied_by:
+      - arbiter/resource.plaintext-listener
+
+  - id: SC-7
+    title: Boundary Protection
+    family: SC
+    automatable: partial
+    machine_scope: Ingress from any address; host-namespace sharing.
+    residual: >-
+      FedRAMP requires a defined and monitored authorization boundary,
+      including managed interfaces and a deny-by-default posture across the
+      whole system, not only the parts declared as code.
+    satisfied_by:
+      - arbiter/resource.unrestricted-ingress
+      - arbiter/resource.k8s-host-namespace
+      - arbiter/resource.host-network
+
+  - id: AC-3
+    title: Access Enforcement
+    family: AC
+    automatable: partial
+    machine_scope: Storage and databases declared publicly reachable.
+    residual: Application authorization and identity federation.
+    satisfied_by:
+      - arbiter/resource.public-object-store
+      - arbiter/resource.database-publicly-accessible
+
+  - id: AC-6
+    title: Least Privilege
+    family: AC
+    automatable: partial
+    machine_scope: >-
+      Escalation enabled, capabilities retained, writable root filesystems,
+      and IAM grants nothing in the system uses.
+    residual: >-
+      FedRAMP requires periodic privilege review with a defined frequency. No
+      scan evidences a review cadence.
+    satisfied_by:
+      - arbiter/resource.k8s-privilege-escalation
+      - arbiter/resource.k8s-privilege-escalation-not-disabled
+      - arbiter/resource.k8s-capabilities-not-dropped
+      - arbiter/resource.k8s-writable-root-filesystem
+      - arbiter/interface.permission-unused
+
+  - id: IA-5
+    title: Authenticator Management
+    family: IA
+    automatable: partial
+    machine_scope: Credentials and keys committed to version control.
+    residual: >-
+      FedRAMP fixes password composition, rotation and multi-factor
+      requirements. Finding no secret in source evidences none of them.
+    satisfied_by:
+      - arbiter/secrets.private-key
+      - arbiter/secrets.aws-access-key
+      - arbiter/secrets.gh-token
+      - arbiter/secrets.slack-token
+      - arbiter/secrets.pg-url
+      - arbiter/secrets.assigned-credential
+
+  - id: AU-2
+    title: Event Logging
+    family: AU
+    automatable: partial
+    machine_scope: Access logging declared on resources.
+    residual: >-
+      FedRAMP specifies the event types that must be captured and requires
+      coordination with an incident response capability.
+    satisfied_by:
+      - arbiter/resource.no-object-store-logging
+
+  - id: AU-11
+    title: Audit Record Retention
+    family: AU
+    automatable: partial
+    machine_scope: Whether a retention period is set at all.
+    residual: >-
+      FedRAMP Moderate fixes the period — at least ninety days immediately
+      available and one year retained. A check that sees "a period is set"
+      cannot tell you whether it meets that, and must not be read as if it
+      could.
+    satisfied_by:
+      - arbiter/resource.no-log-retention
+
+  - id: CM-2
+    title: Baseline Configuration
+    family: CM
+    automatable: partial
+    machine_scope: Dependencies and images pinned to immutable references.
+    residual: Approved baselines, reviewed at a defined frequency.
+    satisfied_by:
+      - arbiter/supply.unpinned-python-dep
+      - arbiter/supply.unpinned-npm-dep
+      - arbiter/resource.k8s-mutable-image-tag
+
+  - id: CM-6
+    title: Configuration Settings
+    family: CM
+    automatable: partial
+    machine_scope: Declared settings measured against this build's rules.
+    residual: >-
+      FedRAMP requires settings to follow a named benchmark such as a DISA
+      STIG or CIS benchmark. Arbiter's rules are not that benchmark, and a
+      pass here is not a benchmark pass.
+    satisfied_by:
+      - arbiter/resource.k8s-no-security-context
+      - arbiter/resource.k8s-not-run-as-non-root
+
+  - id: CM-7
+    title: Least Functionality
+    family: CM
+    automatable: partial
+    machine_scope: Mutable CI action references; untrusted-code checkouts.
+    residual: Prohibited functions, ports, protocols and services lists.
+    satisfied_by:
+      - arbiter/supply.unpinned-action
+      - arbiter/supply.pull-request-target
+
+  - id: CP-9
+    title: System Backup
+    family: CP
+    automatable: partial
+    machine_scope: Deletion protection declared on resources.
+    residual: >-
+      FedRAMP fixes backup frequency and requires restoration testing.
+      Deletion protection is not a backup and does not evidence one.
+    satisfied_by:
+      - arbiter/resource.no-deletion-protection
+
+  - id: RA-5
+    title: Vulnerability Monitoring and Scanning
+    family: RA
+    automatable: partial
+    machine_scope: That static analysis ran, with its coverage recorded.
+    residual: >-
+      FedRAMP fixes scan frequency by severity and sets remediation deadlines
+      — high within thirty days, moderate within ninety. A scan evidences the
+      scan, not the cadence or the remediation.
+    satisfied_by:
+      - checkov/CKV_AWS_1
+      - bandit/B105
+
+  - id: SI-2
+    title: Flaw Remediation
+    family: SI
+    automatable: none
+    residual: >-
+      Evidence that identified flaws were fixed within the required window,
+      which lives in a ticketing system rather than a repository.
+    satisfied_by: []
+
+  - id: IR-4
+    title: Incident Handling
+    family: IR
+    automatable: none
+    residual: An incident response capability, exercised and documented.
+    satisfied_by: []
+
+  - id: PS-3
+    title: Personnel Screening
+    family: PS
+    automatable: none
+    residual: >-
+      FedRAMP requires screening at a level commensurate with the risk
+      designation. Human resources holds this evidence.
+    satisfied_by: []
+
+  - id: PE-3
+    title: Physical Access Control
+    family: PE
+    automatable: none
+    residual: >-
+      Usually inherited from the cloud provider's own authorization. A
+      customer scan cannot evidence it either way.
+    satisfied_by: []
+
+  - id: CA-7
+    title: Continuous Monitoring
+    family: CA
+    automatable: none
+    residual: >-
+      A programme with defined metrics and reporting cadence. Running a
+      scanner nightly is an input to it, not the control.
+    satisfied_by: []

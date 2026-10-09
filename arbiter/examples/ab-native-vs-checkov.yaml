@@ -1,0 +1,11 @@
+# Arbiter's native probes against Checkov on the same target.
+# Shows complementarity and severity-calibration differences.
+ab: native suite vs checkov
+targets: [../fixtures/legacy-platform]
+arms:
+  - name: native-all
+    label: "all native probes, no external tools"
+    skip: [checkov, semgrep, bandit, ruff, gitleaks]
+  - name: checkov
+    kind: tool
+    tool: checkov

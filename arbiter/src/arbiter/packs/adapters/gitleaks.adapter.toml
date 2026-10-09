@@ -1,0 +1,33 @@
+name = "gitleaks"
+dimensions = ["security"]
+checks = 150
+# Declared, not inherited. No measurement has established that this tool
+# returns the same findings from a file subset, so a partial scan records
+# it as not assessed rather than running it and believing the answer.
+scope = "repo"
+
+[requires]
+binaries = ["gitleaks"]
+network = false
+timeout = 300
+
+[invoke]
+# `--report-path` takes a real filename; gitleaks has no "write JSON to
+# stdout" mode, and passing it the conventional `-` does not ask for one --
+# it creates a file literally named `-`. `{report_file}` gives it a private
+# temp path instead, which `Adapter.invoke()` reads back after the process
+# exits and deletes afterward.
+argv = ["gitleaks", "detect", "--no-git", "--no-banner", "--report-format", "json", "--report-path", "{report_file}", "-s", "{workdir}"]
+version_argv = ["gitleaks", "version"]
+parse = "json"
+ok_exit = [0, 1]
+
+[map]
+findings = "$"
+rule_id = "RuleID"
+title = "Description"
+path = "File"
+line = "StartLine"
+severity_const = "critical"
+dimension = "security"
+remediation_default = "Remove the literal, rotate the credential, and load it from a secret store at runtime."

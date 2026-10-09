@@ -1,0 +1,200 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.9.5",
+  "planned_values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_db_instance.primary",
+          "mode": "managed",
+          "type": "aws_db_instance",
+          "name": "primary",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "values": {
+            "identifier": "acme-primary",
+            "engine": "postgres",
+            "storage_encrypted": false,
+            "publicly_accessible": true,
+            "deletion_protection": false
+          }
+        }
+      ],
+      "child_modules": [
+        {
+          "address": "module.storage",
+          "resources": [
+            {
+              "address": "module.storage.aws_s3_bucket.data[\"eu\"]",
+              "mode": "managed",
+              "type": "aws_s3_bucket",
+              "name": "data",
+              "index": "eu",
+              "provider_name": "registry.terraform.io/hashicorp/aws",
+              "values": { "bucket": "acme-data-eu", "acl": "private" }
+            },
+            {
+              "address": "module.storage.aws_s3_bucket.data[\"us\"]",
+              "mode": "managed",
+              "type": "aws_s3_bucket",
+              "name": "data",
+              "index": "us",
+              "provider_name": "registry.terraform.io/hashicorp/aws",
+              "values": { "bucket": "acme-data-us", "acl": "public-read" }
+            },
+            {
+              "address": "module.storage.aws_s3_bucket_server_side_encryption_configuration.data[\"eu\"]",
+              "mode": "managed",
+              "type": "aws_s3_bucket_server_side_encryption_configuration",
+              "name": "data",
+              "index": "eu",
+              "provider_name": "registry.terraform.io/hashicorp/aws",
+              "values": {
+                "rule": [{ "apply_server_side_encryption_by_default": [{ "sse_algorithm": "aws:kms" }] }]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "aws_db_instance.primary",
+      "mode": "managed",
+      "type": "aws_db_instance",
+      "name": "primary",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "identifier": "acme-primary",
+          "engine": "postgres",
+          "storage_encrypted": false,
+          "publicly_accessible": true,
+          "deletion_protection": false
+        },
+        "after_unknown": { "id": true, "arn": true, "endpoint": true }
+      }
+    },
+    {
+      "address": "module.storage.aws_s3_bucket.data[\"eu\"]",
+      "mode": "managed",
+      "type": "aws_s3_bucket",
+      "name": "data",
+      "index": "eu",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": { "bucket": "acme-data-eu", "acl": "private" },
+        "after_unknown": { "id": true, "arn": true, "logging": true }
+      }
+    },
+    {
+      "address": "module.storage.aws_s3_bucket.data[\"us\"]",
+      "mode": "managed",
+      "type": "aws_s3_bucket",
+      "name": "data",
+      "index": "us",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": { "bucket": "acme-data-us", "acl": "public-read" },
+        "after_unknown": { "id": true, "arn": true }
+      }
+    },
+    {
+      "address": "module.storage.aws_s3_bucket_server_side_encryption_configuration.data[\"eu\"]",
+      "mode": "managed",
+      "type": "aws_s3_bucket_server_side_encryption_configuration",
+      "name": "data",
+      "index": "eu",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "rule": [{ "apply_server_side_encryption_by_default": [{ "sse_algorithm": "aws:kms" }] }]
+        },
+        "after_unknown": { "id": true, "bucket": true }
+      }
+    },
+    {
+      "address": "aws_security_group.retired",
+      "mode": "managed",
+      "type": "aws_security_group",
+      "name": "retired",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["delete"],
+        "before": { "ingress": [{ "cidr_blocks": ["0.0.0.0/0"], "from_port": 22, "to_port": 22 }] },
+        "after": null,
+        "after_unknown": {}
+      }
+    },
+    {
+      "address": "aws_ebs_volume.scratch",
+      "mode": "managed",
+      "type": "aws_ebs_volume",
+      "name": "scratch",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": { "size": 100 },
+        "after_unknown": { "id": true, "arn": true, "encrypted": true, "kms_key_id": true }
+      }
+    }
+  ],
+  "configuration": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_db_instance.primary",
+          "mode": "managed",
+          "type": "aws_db_instance",
+          "name": "primary",
+          "expressions": { "engine": { "constant_value": "postgres" } }
+        },
+        {
+          "address": "aws_ebs_volume.scratch",
+          "mode": "managed",
+          "type": "aws_ebs_volume",
+          "name": "scratch",
+          "expressions": { "encrypted": { "references": ["var.encrypt_volumes"] } }
+        }
+      ],
+      "module_calls": {
+        "storage": {
+          "source": "./modules/storage",
+          "module": {
+            "resources": [
+              {
+                "address": "aws_s3_bucket.data",
+                "mode": "managed",
+                "type": "aws_s3_bucket",
+                "name": "data",
+                "for_each_expression": { "references": ["var.regions"] },
+                "expressions": { "bucket": { "references": ["each.value"] } }
+              },
+              {
+                "address": "aws_s3_bucket_server_side_encryption_configuration.data",
+                "mode": "managed",
+                "type": "aws_s3_bucket_server_side_encryption_configuration",
+                "name": "data",
+                "for_each_expression": { "references": ["aws_s3_bucket.data"] },
+                "expressions": {
+                  "bucket": {
+                    "references": ["aws_s3_bucket.data[each.key].id", "aws_s3_bucket.data", "each.key"]
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

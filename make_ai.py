@@ -4,10 +4,14 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
+import queue
 import tempfile
+import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -35,7 +39,17 @@ FAILURE_LEDGER_PATH = Path(".ai/failures/failure-ledger.json")
 TEST_SUITES_PATH = Path(".ai/test-suites.json")
 GATE_WAIVERS_PATH = Path(".ai/gate-waivers.jsonl")
 RULESET_PATH = Path(".ai/rules/universal-engineering-ruleset.json")
-REQUIREMENT_STATUSES = ["completed", "pending", "proposed", "blocked", "needs_review"]
+REQUIREMENT_STATUSES = ["completed", "pending", "proposed", "blocked", "needs_review", "withdrawn"]
+# Only these leave the live registry: a requirement that is still pending or blocked is live work, and
+# archiving it would hide it from every session that loads the registry.
+TERMINAL_REQUIREMENT_STATUSES = {"completed", "withdrawn"}
+MCP_REGISTRATION_PATH = Path(".mcp.json")
+MCP_PROBE_TIMEOUT_SECONDS = 30.0
+# REQ-050: a successful live probe is remembered in the git directory (beside the gate's own state, never
+# tracked) and reused for a day while .mcp.json, PATH and each server's executable are unchanged.
+MCP_PROBE_MEMO_FILE = "omni-mcp-probe.json"
+MCP_PROBE_MEMO_MAX_AGE_SECONDS = 24 * 60 * 60
+MCP_PROBE_NO_MEMO_ENV = "OMNI_DOCTOR_NO_MEMO"
 REQUIREMENT_PRIORITIES = ["critical", "high", "medium", "low"]
 REQUIREMENT_STRING_FIELDS = ("id", "category", "title", "description")
 REQUIREMENT_LIST_FIELDS = (
@@ -465,6 +479,7 @@ ALLOWED_ROOT_FILES = {
     "LICENSE",
     "LLM_CONTEXT.md",
     "NOTICE",
+    ".mcp.json",
     "README.md",
     "TRADEMARKS.md",
     "make_ai.py",
@@ -549,6 +564,46 @@ ADOPTION_PRESENTATION_FILES = [
 ]
 
 OMNI_VERSION_FILE = ".ai/omni-version.json"
+
+# Arbiter (github.com/paukennick/arbiter) is the repository evaluator this
+# workspace pairs with: `omni gate` can run `arbiter gate` through a
+# `command` rule, and `omni doctor` starts its MCP server. Adopting with
+# --with-arbiter installs the package and writes the wiring files.
+ARBITER_DEFAULT_SOURCE = "git+https://github.com/paukennick/arbiter"
+ARBITER_PIP_EXTRAS = "mcp"
+ARBITER_GATE_RULE_ID = "completion.arbiter_gate"
+ARBITER_STARTER_CONFIG = """# Arbiter policy for this repository. See docs/configuration.md in the
+# arbiter checkout for every key; this is the minimum `omni gate` relies on.
+version: 1
+profile: offline
+
+gate:
+  fail_on:
+    severity: critical
+    new: high
+  gate_on_inferred: false
+"""
+# The completion rule `omni arbiter install` writes. `--baseline` makes the
+# gate label findings new/existing against .arbiter/baseline.json (REQ-038);
+# json is what omni reads back, sarif feeds code-scanning upload, pr-comment
+# is the markdown a CI job posts. `omni arbiter update` rewrites an adopter's
+# copy of `validation` to this when asked; `omni update` only warns.
+ARBITER_GATE_RULE: dict[str, Any] = {
+    "id": ARBITER_GATE_RULE_ID,
+    "severity": "required",
+    "statement": "A change passes Arbiter's own gate (`arbiter gate . --changed <base>` under arbiter.yaml) before it is reported complete.",
+    "scope": ["completion", "validation"],
+    "validation": {
+        "type": "command",
+        "run": "arbiter gate . --changed {base} --profile offline --baseline .arbiter/baseline.json --out arbiter-out/omni-gate --format json,sarif,pr-comment",
+        "when_changed": ["**"],
+        "ignore": [".ai/**", "CHANGELOG.md", "*.md", "docs/**"],
+        "timeout": 600,
+    },
+}
+ARBITER_BASELINE_PATH = ".arbiter/baseline.json"
+ARBITER_GATE_OUT_DIR = "arbiter-out/omni-gate"
+ARBITER_CONFIG_FILE = "arbiter.yaml"
 
 # Files an adopter owns outright once copied -- omni update never touches
 # these, no matter what changes upstream.
@@ -662,6 +717,8 @@ class DoctorReport:
         self.errors: list[str] = []
         self.warnings: list[str] = []
         self.passed: list[str] = []
+        # Workspace posture (Arbiter report state, open failures, open requirements); see compute_posture().
+        self.posture: dict[str, Any] = {}
 
     def error(self, message: str) -> None:
         self.errors.append(message)
@@ -686,10 +743,26 @@ class DoctorReport:
             f"Result: {len(self.passed)} passed, "
             f"{len(self.warnings)} warnings, {len(self.errors)} errors"
         )
+        if self.posture:
+            print(format_posture(self.posture))
 
     @property
     def ok(self) -> bool:
         return not self.errors
+
+    def to_json(self) -> dict[str, Any]:
+        """The `--json` shape. `schema_version` 2 (REQ-046): `posture.arbiter` carries `wired`, `full` and `gate`;
+        keys are only ever added. The schema 1 top-level keys under `posture.arbiter` (`present`, `fresh`,
+        `reason`, `grade`, `coverage`, `new_high_or_above`, `gate_passed`, ...) are kept for one release,
+        populated from the gate block; readers should move to `posture.arbiter.gate` before they go."""
+        return {
+            "schema_version": 2,
+            "ok": self.ok,
+            "passed": list(self.passed),
+            "warnings": list(self.warnings),
+            "errors": list(self.errors),
+            "posture": dict(self.posture),
+        }
 
 
 def read_json(path: Path, report: DoctorReport) -> Any:
@@ -776,12 +849,23 @@ def three_way_merge(ours: str, base: str, theirs: str) -> tuple[str, bool]:
 
 
 def write_omni_version_file(source_root: Path, target_root: Path) -> None:
-    payload = {
+    """Record the template source and ref. Keys this function does not own (such as
+    the `arbiter` block `record_arbiter_version` writes) are read back and kept."""
+    path = target_root / OMNI_VERSION_FILE
+    payload: dict[str, Any] = {}
+    if path.is_file():
+        try:
+            existing = load_json(path)
+        except (OSError, json.JSONDecodeError):
+            existing = None
+        if isinstance(existing, dict):
+            payload = existing
+    payload.update({
         "source": str(source_root),
         "ref": git_current_ref(source_root),
         "last_synced_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-    }
-    write_json(target_root / OMNI_VERSION_FILE, payload)
+    })
+    write_json(path, payload)
 
 
 def read_omni_version_file(target_root: Path = Path(".")) -> dict[str, Any] | None:
@@ -981,6 +1065,7 @@ def validate_requirements(requirements: Any, report: DoctorReport) -> None:
         report.error("Requirements registry must contain a requirements array")
         return
 
+    errors_before = len(report.errors)
     seen_ids: set[str] = set()
     check_requirement_entries(items, "Requirement", report, seen_ids)
 
@@ -995,10 +1080,94 @@ def validate_requirements(requirements: Any, report: DoctorReport) -> None:
         elif archive is not None:
             report.error(f"{REQUIREMENTS_ARCHIVE_PATH} must contain a requirements array")
 
-    if not report.errors:
+    if len(report.errors) == errors_before:
         report.pass_check("Requirements registry is structurally valid (types and enums checked)")
     elif seen_ids:
         report.warning("Requirements registry was partially readable")
+
+
+# --- Requirement ids across registries (REQ-036) ---------------------------------------------------
+
+
+def validate_requirement_ids(report: DoctorReport) -> None:
+    """One id names one requirement, across the root registry, its archive and every vendored workspace's
+    registries. A pair inside the root registry or its archive is already reported by validate_requirements,
+    so only a clash that reaches into a vendored workspace (or spans two of them) is reported here."""
+    cwd = Path(".").resolve()
+    root_sources = [REQUIREMENTS_PATH, REQUIREMENTS_ARCHIVE_PATH]
+    sources: list[Path] = list(root_sources)
+    workspaces = vendored_workspace_dirs()
+    for workspace in workspaces:
+        sources.extend(sorted((workspace / ".ai" / "requirements").glob("requirements*.json")))
+
+    def display(path: Path) -> str:
+        try:
+            return path.resolve().relative_to(cwd).as_posix()
+        except ValueError:
+            return path.as_posix()
+
+    root_labels = {display(path) for path in root_sources}
+    locations: dict[str, list[str]] = {}
+    for path in sources:
+        if not path.is_file():
+            continue
+        try:
+            registry = load_json(path)
+        except (OSError, json.JSONDecodeError):
+            continue
+        label = display(path)
+        for item in registry.get("requirements", []) if isinstance(registry, dict) else []:
+            if isinstance(item, dict) and isinstance(item.get("id"), str):
+                seen = locations.setdefault(item["id"], [])
+                if label not in seen:
+                    seen.append(label)
+    duplicates = 0
+    for requirement_id, labels in sorted(locations.items()):
+        if len(labels) > 1 and not set(labels) <= root_labels:
+            duplicates += 1
+            report.error(f"Duplicate requirement id {requirement_id} in {' and '.join(labels)}")
+    if not duplicates and locations:
+        report.pass_check(
+            f"Requirement ids are unique across the registry, the archive and {len(workspaces)} vendored workspace(s)"
+        )
+
+
+# --- Requirement id aliases (REQ-044) --------------------------------------------------------------
+
+
+def validate_requirement_aliases(report: DoctorReport) -> None:
+    """Every `id_aliases` entry must point at a requirement that exists (registry or archive), and no alias key
+    may still be a live id: one id names one requirement, so it cannot be both an alias and an entry. Alias
+    keys are not requirement ids, so the duplicate check (`validate_requirement_ids`) never sees them."""
+    if not REQUIREMENTS_PATH.is_file():
+        return
+    try:
+        registry = load_json(REQUIREMENTS_PATH)
+    except (OSError, json.JSONDecodeError):
+        return  # already reported by the JSON checks
+    if not isinstance(registry, dict) or "id_aliases" not in registry:
+        return
+    aliases = registry["id_aliases"]
+    if not isinstance(aliases, dict):
+        report.error("Requirements registry: id_aliases must be an object of {old id: current id}")
+        return
+    live = all_requirement_ids()
+    errors_before = len(report.errors)
+    for old, new in sorted(aliases.items(), key=lambda pair: str(pair[0])):
+        if not isinstance(new, str) or not REQUIREMENT_ID_PATTERN.fullmatch(str(old)) or not REQUIREMENT_ID_PATTERN.fullmatch(new):
+            report.error(f"Requirements registry: id alias {old!r} -> {new!r} must map one PREFIX-### id to another")
+            continue
+        if new not in live:
+            report.error(
+                f"Requirements registry: id alias {old} -> {new} points at a requirement that is in neither the registry "
+                f"nor the archive"
+            )
+        if old in live:
+            report.error(
+                f"Requirements registry: {old} is both a live requirement id and an alias (for {new}); an id cannot be both"
+            )
+    if aliases and len(report.errors) == errors_before:
+        report.pass_check(f"Requirement id aliases resolve to registered ids ({len(aliases)} alias(es))")
 
 
 def validate_failure_ledger(ledger: Any, report: DoctorReport) -> None:
@@ -1454,6 +1623,64 @@ def validate_recent_commits_tracked(report: DoctorReport) -> None:
         report.pass_check("No commits postdating the last CHANGELOG.md update are missing changelog coverage")
 
 
+def _commit_identity_problem(email: str, configured: str) -> str | None:
+    """Why a commit's email is suspect (REQ-049): it is not the configured one, or its domain is a
+    machine-local placeholder (`.local`, `localhost`) that no forge can attribute. None when it is fine."""
+    normalised = email.strip().lower()
+    domain = normalised.rsplit("@", 1)[-1] if "@" in normalised else normalised
+    if domain == "localhost" or domain.endswith(".local"):
+        return f"has the machine-local domain `{domain}`"
+    if normalised != configured:
+        return f"differs from git config user.email ({configured})"
+    return None
+
+
+def validate_commit_identity(report: DoctorReport) -> None:
+    """Warn (never error) when a commit since the gate base, or one of the last 20 when there is no base,
+    carries an author or committer email other than `git config user.email`, or one ending in `.local`
+    or `localhost`: the identity an assistant or a fresh machine commits under is easy to get wrong and
+    is only noticed after the push. A repository with no configured email skips the check (REQ-049)."""
+    if not Path(".git").exists():
+        return
+    configured = (git_run("config", "user.email") or "").strip().lower()
+    if not configured:
+        return
+    head = (git_run("rev-parse", "--verify", "-q", "HEAD") or "").strip()
+    if not head:
+        return
+    base = gate_base_commit()
+    log_format = "--format=%h%x09%ae%x09%ce"
+    if base and base != head:
+        log = git_run("log", "--no-merges", log_format, f"{base}..HEAD")
+        span = "since the gate base"
+    else:
+        log = git_run("log", "--no-merges", "-20", log_format, "HEAD")
+        span = "among the last 20"
+    commits = [line.split("\t") for line in (log or "").splitlines() if line.count("\t") == 2]
+    if not commits:
+        return
+    problems: list[str] = []
+    for index, (short, author, committer) in enumerate(commits):
+        for role, email in (("author", author), ("committer", committer)):
+            problem = _commit_identity_problem(email, configured)
+            if problem is None:
+                continue
+            fix = (
+                "git commit --amend --reset-author" if index == 0
+                else f"git rebase -i {base[:12] if base and base != head else 'HEAD~' + str(len(commits))} and --reset-author it"
+            )
+            problems.append(f"{short} {role} {email} {problem}; fix: {fix}")
+    if problems:
+        preview = "; ".join(problems[:5])
+        suffix = "" if len(problems) <= 5 else f" (+{len(problems) - 5} more)"
+        report.warning(
+            f"Commit identity: {len(problems)} email(s) on commits {span} look wrong: {preview}{suffix}. "
+            "Set `git config user.email` to the address the forge knows and rewrite the commits before pushing."
+        )
+    else:
+        report.pass_check(f"{len(commits)} commit(s) {span} carry the configured identity ({configured})")
+
+
 def validate_cli_entrypoints(report: DoctorReport) -> None:
     omni_path = Path("omni")
     if not omni_path.is_file():
@@ -1477,6 +1704,28 @@ def validate_cli_entrypoints(report: DoctorReport) -> None:
         report.pass_check("Installable omni console script is configured")
 
 
+def validate_vendored_workspaces(report: DoctorReport) -> None:
+    """A vendored workspace (a subtree with its own `.ai/omni-version.json`) carries copies of the CLI.
+    When those copies differ from this checkout's, the two tools are running different code in one
+    repository and nobody can tell which is authoritative; the fix is the mechanism adoption already
+    has, `omni update`, run from inside the vendored directory against this root."""
+    for workspace in vendored_workspace_dirs():
+        rel = workspace.relative_to(Path(".").resolve()).as_posix()
+        drifted = [
+            name for name in ADOPTION_CLI_FILES
+            if (workspace / name).is_file() and Path(name).is_file()
+            and (workspace / name).read_bytes() != Path(name).read_bytes()
+        ]
+        if drifted:
+            report.warning(
+                f"Vendored workspace {rel}/ carries tooling that differs from this checkout's "
+                f"({', '.join(drifted[:3])}{' ...' if len(drifted) > 3 else ''}); "
+                f"run `cd {rel} && python omni update --source ..` to bring it level"
+            )
+        else:
+            report.pass_check(f"Vendored workspace {rel}/ runs the same tooling as this checkout")
+
+
 def validate_omni_version_present(report: DoctorReport) -> None:
     if read_omni_version_file() is None:
         report.warning(
@@ -1487,6 +1736,266 @@ def validate_omni_version_present(report: DoctorReport) -> None:
         )
     else:
         report.pass_check(f"{OMNI_VERSION_FILE} is present")
+
+
+def probe_mcp_server(
+    command: str,
+    args: list[str],
+    env: dict[str, str] | None,
+    cwd: Path,
+    timeout: float = MCP_PROBE_TIMEOUT_SECONDS,
+) -> tuple[list[str] | None, str]:
+    """Launch a stdio MCP server the way a client would and ask it for its tools.
+
+    Returns (tool names, server name) on success and (None, reason) on failure. The handshake is the real one
+    (initialize, notifications/initialized, tools/list over newline-delimited JSON-RPC 2.0), not a grep of the
+    registration file: a server whose SDK, entry point or import path has moved fails here, where a static check
+    would have passed. Stdin is only closed after the answers arrive, because SDK-based servers may treat EOF as a
+    shutdown and drop requests still in flight.
+    """
+    executable = shutil.which(command) or (command if Path(command).is_file() else None)
+    if executable is None:
+        return None, f"command not found on PATH: {command}"
+    try:
+        process = subprocess.Popen(
+            [executable, *args],
+            cwd=str(cwd),
+            env={**os.environ, **(env or {})},
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            encoding="utf-8",
+            bufsize=1,
+        )
+    except OSError as exc:
+        return None, f"could not start {executable}: {exc}"
+    assert process.stdin is not None and process.stdout is not None
+
+    lines: queue.Queue[str | None] = queue.Queue()
+
+    def pump() -> None:
+        for line in process.stdout:
+            lines.put(line)
+        lines.put(None)
+
+    threading.Thread(target=pump, daemon=True).start()
+    deadline = time.monotonic() + timeout
+
+    def send(message: dict[str, Any]) -> None:
+        process.stdin.write(json.dumps(message) + "\n")
+        process.stdin.flush()
+
+    def wait_for(request_id: int) -> dict[str, Any]:
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError
+            try:
+                line = lines.get(timeout=remaining)
+            except queue.Empty as exc:
+                raise TimeoutError from exc
+            if line is None:
+                raise EOFError
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                message = json.loads(line)
+            except json.JSONDecodeError:
+                continue  # a log line on stdout; not ours to judge
+            if isinstance(message, dict) and message.get("id") == request_id:
+                return message
+
+    try:
+        send({
+            "jsonrpc": "2.0", "id": 1, "method": "initialize",
+            "params": {"protocolVersion": "2024-11-05", "capabilities": {}, "clientInfo": {"name": "omni doctor", "version": "1"}},
+        })
+        initialized = wait_for(1)
+        if "error" in initialized:
+            return None, f"initialize was rejected: {initialized['error'].get('message', initialized['error'])}"
+        send({"jsonrpc": "2.0", "method": "notifications/initialized"})
+        send({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}})
+        listed = wait_for(2)
+        if "error" in listed:
+            return None, f"tools/list was rejected: {listed['error'].get('message', listed['error'])}"
+        tools = listed.get("result", {}).get("tools", []) if isinstance(listed.get("result"), dict) else []
+        names = [str(tool.get("name")) for tool in tools if isinstance(tool, dict) and tool.get("name")]
+        server_info = initialized.get("result", {}).get("serverInfo", {}) if isinstance(initialized.get("result"), dict) else {}
+        return names, str(server_info.get("name", "unnamed server"))
+    except TimeoutError:
+        return None, f"no answer within {timeout:.0f}s"
+    except (EOFError, BrokenPipeError, OSError):
+        return None, "exited before answering initialize and tools/list"
+    finally:
+        try:
+            process.stdin.close()
+        except OSError:
+            pass
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+        process.stdout.close()
+
+
+def mcp_probe_memo_file() -> Path | None:
+    """Where the live-probe memo lives: inside the git directory beside `omni-gate-last.json`, which git never
+    tracks; None outside a git checkout, where every probe is live."""
+    git_dir = git_run("rev-parse", "--git-dir")
+    return Path(git_dir.strip()) / MCP_PROBE_MEMO_FILE if git_dir else None
+
+
+def mcp_probe_memo_disabled() -> bool:
+    """`OMNI_DOCTOR_NO_MEMO=1` (CI may set it) turns the memo off: every probe is live and nothing is stored."""
+    return os.environ.get(MCP_PROBE_NO_MEMO_ENV, "").strip().lower() not in ("", "0", "false", "no")
+
+
+def mcp_executable_fingerprint(command: str) -> dict[str, Any] | None:
+    """What the memo keys a server on: the resolved executable's path, mtime and size, read through any
+    symlink so a retargeted `python` or a reinstalled console script invalidates it. None when the command
+    does not resolve, which the live probe then reports."""
+    executable = shutil.which(command) or (command if Path(command).is_file() else None)
+    if executable is None:
+        return None
+    try:
+        resolved = Path(executable).resolve()
+        stat = resolved.stat()
+    except OSError:
+        return None
+    return {"path": str(resolved), "mtime_ns": stat.st_mtime_ns, "size": stat.st_size}
+
+
+def mcp_probe_memo_key(registration_text: str) -> dict[str, str]:
+    """The part of the key shared by every server: the digest of `.mcp.json` as written and PATH as seen."""
+    return {
+        "registration_digest": hashlib.sha256(registration_text.encode("utf-8")).hexdigest(),
+        "path": os.environ.get("PATH", ""),
+    }
+
+
+def load_mcp_probe_memo(memo_file: Path | None, key: dict[str, str]) -> dict[str, dict[str, Any]]:
+    """The remembered servers by name, or {} when the memo is missing, unreadable, or was written for another
+    registration or PATH."""
+    if memo_file is None:
+        return {}
+    try:
+        memo = json.loads(memo_file.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(memo, dict) or any(memo.get(field) != value for field, value in key.items()):
+        return {}
+    servers = memo.get("servers")
+    return {name: record for name, record in servers.items() if isinstance(record, dict)} if isinstance(servers, dict) else {}
+
+
+def mcp_probe_memo_hit(record: dict[str, Any] | None, fingerprint: dict[str, Any] | None, now: float) -> str | None:
+    """The ISO time of the remembered probe when `record` still applies: the executable is the same file
+    (path, mtime, size), the probe is younger than a day and it listed tools. Otherwise None, and the server
+    is launched for real."""
+    if not record or fingerprint is None or record.get("executable") != fingerprint:
+        return None
+    probed_at = record.get("probed_at")
+    stamp = _arbiter_timestamp(probed_at)
+    if stamp is None or not 0 <= now - stamp < MCP_PROBE_MEMO_MAX_AGE_SECONDS:
+        return None
+    tools = record.get("tools")
+    if not isinstance(tools, list) or not tools or not isinstance(record.get("server_name"), str):
+        return None
+    return str(probed_at)
+
+
+def store_mcp_probe_memo(memo_file: Path | None, key: dict[str, str], servers: dict[str, dict[str, Any]]) -> None:
+    """Write the memo: the shared key plus one record per server that answered. A write that fails is not a
+    doctor finding; the next run simply probes live again."""
+    if memo_file is None:
+        return
+    try:
+        write_json(memo_file, {"schema_version": 1, **key, "servers": servers})
+    except OSError:
+        pass
+
+
+def validate_mcp_registrations(report: DoctorReport, force_probe: bool = False) -> None:
+    """`.mcp.json` tells assistants which MCP servers to start for this repo. A registration that looks right
+    but cannot start is worse than none, because the assistant silently falls back to shelling out, so every
+    stdio server listed is launched for real and must answer with at least one tool. Remote (`url`) servers
+    are not probed: reaching them is a network question, not a workspace one.
+
+    A successful probe is memoised (REQ-050): while `.mcp.json`, PATH and the server's resolved executable
+    (path, mtime, size) are unchanged and the probe is younger than a day, the next run reads the memo instead
+    of launching the server, and its line says when it was probed. `force_probe` (`omni doctor --probe`)
+    launches every server and refreshes the memo; a failed probe is never remembered; `OMNI_DOCTOR_NO_MEMO=1`
+    turns the memo off. `omni gate` runs the doctor with the memo, so a commit no longer starts the servers."""
+    if not MCP_REGISTRATION_PATH.is_file():
+        return
+    try:
+        registration_text = MCP_REGISTRATION_PATH.read_text(encoding="utf-8")
+        registration = json.loads(registration_text)
+    except OSError as exc:
+        report.error(f"Cannot read {MCP_REGISTRATION_PATH}: {exc}")
+        return
+    except json.JSONDecodeError as exc:
+        report.error(f"Invalid JSON in {MCP_REGISTRATION_PATH}: line {exc.lineno}, column {exc.colno}")
+        return
+    servers = registration.get("mcpServers") if isinstance(registration, dict) else None
+    if not isinstance(servers, dict) or not servers:
+        report.error(f"{MCP_REGISTRATION_PATH} must contain a non-empty mcpServers object")
+        return
+
+    memo_file = None if mcp_probe_memo_disabled() else mcp_probe_memo_file()
+    memo_key = mcp_probe_memo_key(registration_text)
+    memo = {} if force_probe else load_mcp_probe_memo(memo_file, memo_key)
+    remembered: dict[str, dict[str, Any]] = {}
+    now = time.time()
+
+    for name, config in servers.items():
+        if not isinstance(config, dict):
+            report.error(f"MCP server {name!r} in {MCP_REGISTRATION_PATH} must be an object")
+            continue
+        if config.get("url") and not config.get("command"):
+            report.pass_check(f"MCP server {name!r} is remote ({config['url']}); not probed")
+            continue
+        command = config.get("command")
+        args = config.get("args", [])
+        env = config.get("env", {})
+        if not isinstance(command, str) or not command.strip():
+            report.error(f"MCP server {name!r} has no command")
+            continue
+        if not isinstance(args, list) or not all(isinstance(item, str) for item in args):
+            report.error(f"MCP server {name!r} args must be an array of strings")
+            continue
+        if not isinstance(env, dict) or not all(isinstance(key, str) and isinstance(value, str) for key, value in env.items()):
+            report.error(f"MCP server {name!r} env must be an object of string values")
+            continue
+        fingerprint = mcp_executable_fingerprint(command)
+        record = memo.get(name)
+        probed_at = mcp_probe_memo_hit(record, fingerprint, now)
+        if probed_at is not None and record is not None:
+            remembered[name] = record
+            report.pass_check(
+                f"MCP server {name!r} ({record['server_name']}) answers initialize and lists "
+                f"{len(record['tools'])} tool(s) (probed {probed_at}, run omni doctor --probe to re-check)"
+            )
+            continue
+        tools, detail = probe_mcp_server(command, args, env, Path.cwd())
+        rendered = " ".join([command, *args])
+        if tools is None:
+            report.error(f"MCP server {name!r} (`{rendered}`) failed its live check: {detail}")
+        elif not tools:
+            report.error(f"MCP server {name!r} (`{rendered}`) started but lists no tools")
+        else:
+            report.pass_check(f"MCP server {name!r} ({detail}) answers initialize and lists {len(tools)} tool(s)")
+            if fingerprint is not None:
+                remembered[name] = {
+                    "executable": fingerprint,
+                    "probed_at": datetime.fromtimestamp(now, timezone.utc).isoformat(timespec="seconds"),
+                    "server_name": detail,
+                    "tools": list(tools),
+                }
+    store_mcp_probe_memo(memo_file, memo_key, remembered)
 
 
 def find_placeholders(value: Any) -> set[str]:
@@ -2170,6 +2679,11 @@ def run_graph_sources(args: argparse.Namespace) -> int:
           f"failure ledger {'present' if a['failure_ledger']['exists'] else 'absent'} ({a['failure_ledger']['path']}); {a['ci_commands']} CI test command(s) found")
     for s in a["detected_suites"]:
         print(f"      detected  {s['id']}  [{s['framework']}] {s['files']} file(s)  {s['command'] or '-'}")
+    fr = a.get("findings") or {}  # REQ-043
+    if fr.get("report"):
+        print(f"      findings  {fr['report']}: {fr['findings']} unsuppressed Arbiter finding(s)")
+    elif fr.get("note"):
+        print(f"      {fr['note']}")
     w = layers["workspace"]
     print(f"  workspace     {w['rulepacks']} rulepack file(s), {w['playbooks']} playbook(s), {w['checklists']} checklist(s)" + ("" if w["ai_dir"] else " (no .ai/ directory)"))
     print(f"  code          {layers['code']['source_files']} source file(s)")
@@ -2229,9 +2743,15 @@ def run_graph_why(args: argparse.Namespace) -> int:
         return 1
 
     node = result["node"]
-    print(f"{node['name']} ({node['kind']})" + (f"  {node['file']}" if node.get("file") else ""))
+    print(f"{node['name']} ({node['kind']})" + (f"  {node['file']}" if node.get("file") else "") + (f"  [workspace {node['workspace']}]" if node.get("workspace") else ""))
     if node.get("summary"):
         print(f"  {node['summary']}")
+    introduced = result["sections"].pop("introduced by", None)  # REQ-051: one line, right under the finding
+    if introduced:
+        item = introduced[0]
+        print("  " + omni_graph.describe_introduced_by(
+            {"commit": item["name"], "subject": item.get("summary"), "requirements": item.get("requirements")} if item.get("kind") == "commit" else {"commit": None}
+        ))
     if not result["sections"]:
         print("  Nothing in the governance or assurance layers touches this node.")
         print("  (If you expected something, rebuild with `omni graph build` and check `omni graph show --all --layer governance`.)")
@@ -2304,6 +2824,87 @@ def run_graph_lineage(args: argparse.Namespace) -> int:
                 print(f"    ... and {len(group) - args.limit} more (--limit or --json)")
     if any(result["truncated"].values()):
         print(f"\nStopped at {args.max_nodes} nodes per direction, nearest first. Narrow with --depth, or raise --max-nodes.")
+    return 0
+
+
+def run_graph_impact(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+
+    graph_path = Path(args.graph)
+    if not graph_path.is_file():
+        print(f"Graph file not found: {graph_path}; run ./omni graph build first", file=sys.stderr)
+        return 1
+
+    base = args.changed or gate_base_commit()
+    changed = sorted(gate_changed_paths(base))
+    result = omni_graph.impact(graph_path, changed, depth=max(0, args.depth))
+    result["base"] = base
+    if args.json:
+        print(json.dumps(result, indent=2))
+        return 0
+
+    print(f"{len(changed)} changed path(s) since {base or 'the index'}: {len(result['changed'])} in the graph, {len(result['unresolved'])} unresolved")
+    for path in result["unresolved"][: args.limit]:
+        print(f"  ? {path}")
+    for bucket in omni_graph.IMPACT_BUCKETS:
+        items = result[bucket]
+        if not items:
+            continue
+        print(f"\n{bucket} ({len(items)})")
+        for item in items[: args.limit]:
+            extras = [item.get(key) for key in ("status", "date", "severity") if item.get(key)]
+            line = f"  {item['hops']}  {item['name']}" + (f"  [{', '.join(str(e) for e in extras)}]" if extras else "")
+            if item.get("file") and item["kind"] in ("module", "file"):
+                line += f"  {item['file']}"
+            elif item.get("summary"):
+                line += f"  {item['summary'][:90]}"
+            print(line + f"  <{item['via']}>")
+        if len(items) > args.limit:
+            print(f"  ... and {len(items) - args.limit} more (--limit or --json)")
+    print()
+    print(omni_graph.impact_summary(result))
+    return 0
+
+
+# --------------------------------------------------------------------------
+# REQ-043: omni graph findings -- Arbiter findings by directory, as a tree, JSON or the viewer
+# --------------------------------------------------------------------------
+
+
+def run_graph_findings(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+
+    graph_path = Path(args.graph)
+    if not graph_path.is_file():
+        print(f"Graph file not found: {graph_path}; run ./omni graph build first", file=sys.stderr)
+        return 1
+
+    result = omni_graph.findings(graph_path, under=args.under, dimension=args.dimension, severity=args.severity, depth=max(0, args.depth))
+    if args.json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(omni_graph.render_findings_tree(result))
+        if not result["total"] and not any(result["filters"].values()):
+            print("  Run `./omni gate` (which runs `arbiter gate`) and then `./omni graph build` to add the findings to the graph.")
+    if not args.view:
+        return 0
+
+    view = omni_graph.build_view_html(graph_path, view="findings")  # the Findings tab seeds itself from the finding nodes
+    if not view.get("ok"):
+        print("The viewer assets are missing: " + ", ".join(f".ai/graph-viewer/{name}" for name in view.get("missing", [])) + ".", file=sys.stderr)
+        return 1
+    output = Path(args.output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(view["html"], encoding="utf-8")
+    print(f"\nWrote {output}: the viewer opens on the Findings tab ({result['total']} finding(s) listed above).")
+    posix_uri = output.resolve().as_uri()
+    windows_target = windows_view_target(output)
+    uri = windows_target[1] if windows_target else posix_uri
+    print(f"Open in a browser (works offline): {uri}")
+    if args.open and not open_in_browser(uri, windows_target[0] if windows_target else None):
+        print("  (no browser could be launched automatically; open the file by hand)")
     return 0
 
 
@@ -2513,12 +3114,13 @@ def run_failure_check(args: argparse.Namespace) -> int:
         problems.extend(omni_graph.check_failure_ledger(Path("."))["problems"])
     ledger = load_failure_ledger()
     ids = known_requirement_ids()
+    aliases = requirement_id_aliases()  # REQ-044: an entry recorded under a since-renumbered id still resolves
     known = {i.get("id") for i in ledger.get("failures", []) if isinstance(i, dict)}
     for item in ledger.get("failures", []):
         if not isinstance(item, dict):
             continue
         fid = item.get("id")
-        if item.get("requirement") and ids and item["requirement"] not in ids:
+        if item.get("requirement") and ids and resolve_requirement_id(str(item["requirement"]), aliases) not in ids:
             problems.append(f"{fid}: requirement {item['requirement']} is not in the registry")
         if item.get("recurrence_of") and item["recurrence_of"] not in known:
             problems.append(f"{fid}: recurrence_of {item['recurrence_of']} is not in the ledger")
@@ -2691,6 +3293,175 @@ def run_test_check(args: argparse.Namespace) -> int:
     return 0
 
 
+# --------------------------------------------------------------------------
+# omni test run: run registered suites -- all, by name, or only those the change set impacts
+# --------------------------------------------------------------------------
+
+TEST_RUN_DEFAULT_TIMEOUT = 900.0
+TEST_RUN_TAIL_LINES = 5
+
+
+def _suite_scope_touches(entries: list[str], impacted: set[str]) -> bool:
+    """Does any file, path or coverage entry of a suite overlap an impacted path? Directory prefixes count both ways."""
+    for raw in entries:
+        entry = str(raw).strip().replace("\\", "/")
+        if entry.startswith("./"):
+            entry = entry[2:]
+        entry = entry.rstrip("/")
+        if not entry:
+            continue
+        if any(char in entry for char in "*?["):
+            if any(fnmatch.fnmatch(path, entry) for path in impacted):
+                return True
+            continue
+        for path in impacted:
+            if path == entry or path.startswith(entry + "/") or entry.startswith(path + "/"):
+                return True
+    return False
+
+
+def select_suites(resolved: dict[str, Any], names: list[str], impacted: set[str] | None) -> list[dict[str, Any]]:
+    """Which suites to run: the named ones; else those whose files, paths or coverage meet an impacted path; else all."""
+    suites = [s for s in resolved.get("suites", []) if isinstance(s, dict) and s.get("id")]
+    if names:
+        wanted = {str(n).strip() for n in names if str(n).strip()}
+        return [s for s in suites if s["id"] in wanted or str(s.get("name") or "") in wanted]
+    if impacted is None:
+        return suites
+    paths = {str(p).strip().replace("\\", "/").rstrip("/") for p in impacted if str(p).strip()}
+    return [
+        s for s in suites
+        if _suite_scope_touches(list(s.get("files") or []) + list(s.get("paths") or []) + list(s.get("covers") or []), paths)
+    ]
+
+
+def _output_tail(*chunks: Any) -> list[str]:
+    lines: list[str] = []
+    for chunk in chunks:
+        if isinstance(chunk, bytes):
+            chunk = chunk.decode("utf-8", errors="replace")
+        lines.extend(line for line in str(chunk or "").splitlines() if line.strip())
+    return lines[-TEST_RUN_TAIL_LINES:]
+
+
+def _kill_process_tree(process: subprocess.Popen) -> None:
+    """Kill a suite command and everything it spawned: taskkill /T on Windows, the process group elsewhere."""
+    try:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(process.pid)], capture_output=True, check=False)
+        else:
+            import signal
+
+            os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+    except (OSError, ProcessLookupError, subprocess.SubprocessError):
+        pass
+    try:
+        process.kill()
+    except OSError:
+        pass
+
+
+def run_test_suite(suite: dict[str, Any], root: Path, timeout: float) -> dict[str, Any]:
+    """Run one suite's registered command through the shell from the project root and report PASS, FAIL, SKIP or TIMEOUT."""
+    name = str(suite.get("name") or suite.get("id") or "")
+    command = str(suite.get("command") or "").strip()
+    result: dict[str, Any] = {"name": name, "id": suite.get("id"), "command": command, "status": "SKIP", "exit": None, "duration_s": 0.0, "tail": []}
+    if not command:
+        result["tail"] = ["no run command registered; set one with `omni test add --command` or edit the suite registry"]
+        return result
+    started = time.monotonic()
+    # Start the command in its own process group (POSIX) or process group (Windows) so a timeout can
+    # kill the whole tree. `subprocess.run(timeout=...)` only kills the shell; on Windows the pipes then
+    # stay open until the grandchild exits, and a 0.5 s timeout waited the command's full run time.
+    popen_kwargs: dict[str, Any] = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True}
+    try:
+        process = subprocess.Popen(
+            command, shell=True, cwd=root, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace", **popen_kwargs,
+        )
+    except OSError as exc:
+        result.update(status="FAIL", duration_s=round(time.monotonic() - started, 2), tail=[f"could not start: {exc}"])
+        return result
+    try:
+        stdout, stderr = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        _kill_process_tree(process)
+        try:
+            stdout, stderr = process.communicate(timeout=10)
+        except subprocess.TimeoutExpired:
+            stdout, stderr = "", ""
+        result.update(status="TIMEOUT", duration_s=round(time.monotonic() - started, 2), tail=_output_tail(stdout, stderr) or [f"no output within {timeout:.0f}s"])
+        return result
+    completed = subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+    result.update(
+        status="PASS" if completed.returncode == 0 else "FAIL", exit=completed.returncode,
+        duration_s=round(time.monotonic() - started, 2), tail=_output_tail(completed.stdout, completed.stderr),
+    )
+    return result
+
+
+def run_test_run(args: argparse.Namespace) -> int:
+    if not require_omni_graph():
+        return 1
+    root = Path(".").resolve()
+    resolved = omni_graph.resolve_test_suites(root, project_source_files())
+    names = [str(n) for n in (getattr(args, "names", None) or [])]
+    notes: list[str] = []
+    impacted: set[str] | None = None
+    reached_suites: set[str] = set()
+    base = None
+    if args.impacted and not names:
+        base = args.changed or gate_base_commit()
+        changed = sorted(gate_changed_paths(base))
+        graph_path = Path(GRAPH_DEFAULT_OUTPUT)
+        if graph_path.is_file():
+            impact = omni_graph.impact(graph_path, changed)
+            impacted = set(changed) | {str(t["file"]) for t in impact["tests"] if t.get("file")}
+            reached_suites = {str(s["name"]) for s in impact["suites"]}
+        else:
+            notes.append(f"note: no graph at {graph_path} (run `omni graph build`), so the change set cannot be narrowed; running every suite")
+    selected = select_suites(resolved, names, impacted)
+    if reached_suites:
+        chosen = {s["id"] for s in selected}
+        selected += [s for s in resolved["suites"] if s["id"] in reached_suites and s["id"] not in chosen]
+    if names:
+        found = {s["id"] for s in selected} | {str(s.get("name") or "") for s in selected}
+        unknown = [n for n in names if n not in found]
+        if unknown:
+            print(f"Unknown test suite(s): {', '.join(unknown)}. Registered: {', '.join(s['id'] for s in resolved['suites']) or 'none'}", file=sys.stderr)
+            return 1
+
+    for note in notes:
+        print(note)
+    if not selected:
+        if args.json:
+            print(json.dumps({"base": base, "impacted": sorted(impacted) if impacted is not None else None, "results": [], "summary": {}, "ok": True}, indent=2))
+        elif impacted is not None:
+            print(f"No registered suite covers the {len(impacted)} impacted path(s); nothing to run.")
+        else:
+            print("No test suites registered or detected; run `omni test detect --write` first.")
+        return 0
+
+    results: list[dict[str, Any]] = []
+    for suite in selected:
+        outcome = run_test_suite(suite, root, max(1.0, float(args.timeout)))
+        results.append(outcome)
+        if not args.json:
+            print(f"{outcome['status']:<8} {suite['id']:<32} {outcome['duration_s']:>7.1f}s  {outcome['command'] or '-'}")
+            if outcome["status"] != "PASS":
+                for line in outcome["tail"]:
+                    print(f"    {line}")
+    summary = {status: sum(1 for r in results if r["status"] == status) for status in ("PASS", "FAIL", "SKIP", "TIMEOUT")}
+    ok = not (summary["FAIL"] or summary["TIMEOUT"])
+    if args.json:
+        print(json.dumps({
+            "base": base, "impacted": sorted(impacted) if impacted is not None else None,
+            "selected": [s["id"] for s in selected], "results": results, "summary": summary, "ok": ok,
+        }, indent=2))
+    else:
+        print(f"\n{len(results)} suite(s): {summary['PASS']} passed, {summary['FAIL']} failed, {summary['TIMEOUT']} timed out, {summary['SKIP']} skipped")
+    return 0 if ok else 1
+
+
 def run_graph_render(args: argparse.Namespace) -> int:
     if not require_omni_graph():
         return 1
@@ -2797,7 +3568,9 @@ def run_context(args: argparse.Namespace) -> int:
     return 0
 
 
-def build_doctor_report() -> DoctorReport:
+def build_doctor_report(probe: bool = False) -> DoctorReport:
+    """Every doctor check. `probe` forces the MCP servers to be launched (`omni doctor --probe`, REQ-050);
+    `omni gate` never passes it, so a commit reuses the day's memo."""
     report = DoctorReport()
     verify_required_ai_files(report)
     parsed = validate_json_files(report)
@@ -2805,6 +3578,8 @@ def build_doctor_report() -> DoctorReport:
     validate_ruleset(parsed.get(".ai/rules/universal-engineering-ruleset.json"), report)
     validate_rulepacks(parsed, report)
     validate_requirements(parsed.get(".ai/requirements/requirements.json"), report)
+    validate_requirement_ids(report)
+    validate_requirement_aliases(report)  # REQ-044
     validate_failure_ledger(parsed.get(".ai/failures/failure-ledger.json"), report)
     validate_test_suites(parsed.get(".ai/test-suites.json"), report)
     validate_graph_config(report)
@@ -2817,14 +3592,23 @@ def build_doctor_report() -> DoctorReport:
     validate_project_map_freshness(report)
     validate_project_graph(report)
     validate_recent_commits_tracked(report)
+    validate_commit_identity(report)  # REQ-049
     validate_cli_entrypoints(report)
+    validate_mcp_registrations(report, force_probe=probe)
+    validate_vendored_workspaces(report)
+    validate_arbiter_baseline(report)
+    validate_arbiter_version(report)
     validate_omni_version_present(report)
+    report.posture = compute_posture()
     return report
 
 
-def run_doctor() -> int:
-    report = build_doctor_report()
-    report.print()
+def run_doctor(args: argparse.Namespace | None = None) -> int:
+    report = build_doctor_report(probe=bool(getattr(args, "probe", False)))
+    if getattr(args, "json", False):
+        print(json.dumps(report.to_json(), indent=2))
+    else:
+        report.print()
     return 0 if report.ok else 1
 
 
@@ -2947,10 +3731,21 @@ def run_adopt(args: argparse.Namespace) -> int:
     print(f"Force: {str(args.force).lower()}")
     print("")
 
-    results = [
-        copy_adoption_path(source_root, target_root, relative_path, args.force, args.dry_run)
-        for relative_path in files
-    ]
+    # A path inside a directory this same run just copied whole (the graph-viewer files --include-cli
+    # lists live under `.ai`) is already in place: it is reported with its directory rather than as
+    # "skip existing", which used to make every --include-cli adoption into an empty target exit 1.
+    results: list[str] = []
+    copied_dirs: dict[str, str] = {}  # relative directory path -> the verb its own result line used
+    for relative_path in files:
+        parent = next((d for d in copied_dirs if relative_path.startswith(d + "/")), None)
+        if parent is not None:
+            results.append(f"{copied_dirs[parent]}: {relative_path} (with {parent})")
+            continue
+        result = copy_adoption_path(source_root, target_root, relative_path, args.force, args.dry_run)
+        results.append(result)
+        verb = result.split(":", 1)[0]
+        if verb in {"copied", "copy", "replace"} and (source_root / relative_path).is_dir():
+            copied_dirs[relative_path] = verb
     for result in results:
         print(f"- {result}")
 
@@ -2968,9 +3763,1109 @@ def run_adopt(args: argparse.Namespace) -> int:
             "-- future template improvements can be pulled in with `omni update`."
         )
 
+    with_arbiter = getattr(args, "with_arbiter", None)
+    if with_arbiter is not None:
+        print("")
+        print("Arbiter alongside the workspace:")
+        if arbiter_install(target_root, with_arbiter, skip_pip=getattr(args, "skip_pip", False), dry_run=args.dry_run) != 0:
+            return 1
+
     if missing:
         return 1
     return 1 if skipped and not args.dry_run else 0
+
+
+def _arbiter_pip_command(source: str) -> list[str]:
+    """`pip install` for a local checkout (editable, so a developer's fixes
+    land immediately) or for a git/PyPI spec, both with the extra the MCP
+    server needs."""
+    local = Path(source).expanduser()
+    if local.is_dir() and (local / "pyproject.toml").is_file():
+        return [sys.executable, "-m", "pip", "install", "-e", f"{local.resolve()}[{ARBITER_PIP_EXTRAS}]"]
+    if source.startswith(("git+", "http://", "https://")):
+        return [sys.executable, "-m", "pip", "install", f"arbiter-eval[{ARBITER_PIP_EXTRAS}] @ {source}"]
+    return [sys.executable, "-m", "pip", "install", f"{source}[{ARBITER_PIP_EXTRAS}]"]
+
+
+def arbiter_install(target_root: Path, source: str, skip_pip: bool = False, dry_run: bool = False) -> int:
+    """Install Arbiter beside the workspace and wire the two together.
+
+    Four things, each skipped when already present so the command is safe to
+    rerun: the package (pip), the `arbiter` entry in `.mcp.json`, the
+    `completion.arbiter_gate` command rule in the completion rulepack, and a
+    starter `arbiter.yaml`. Nothing is overwritten; a project that tuned any
+    of them keeps its version. The installed version is then recorded in
+    `.ai/omni-version.json` and, with `arbiter` on PATH, a baseline is cut
+    (`arbiter_write_baseline`), itself a no-op when one exists.
+    """
+    verb = "would " if dry_run else ""
+    status = 0
+
+    if skip_pip:
+        print("- pip: skipped (--skip-pip); make sure `arbiter` is on PATH before `omni gate` runs")
+    else:
+        command = _arbiter_pip_command(source)
+        print(f"- pip: {verb}run {' '.join(command)}")
+        if not dry_run:
+            completed = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace")
+            if completed.returncode != 0:
+                tail = "\n".join((completed.stdout + "\n" + completed.stderr).strip().splitlines()[-5:])
+                print(f"  pip failed (exit {completed.returncode}):\n{tail}", file=sys.stderr)
+                status = 1
+            elif shutil.which("arbiter") is None:
+                print("  installed, but `arbiter` is not on PATH in this shell; open a new one or check pip's script directory")
+
+    if dry_run:
+        print(f"- {OMNI_VERSION_FILE}: would record the installed Arbiter version and its source")
+    else:
+        record_arbiter_version(target_root, source)
+
+    mcp_path = target_root / MCP_REGISTRATION_PATH
+    registration: dict[str, Any] = {"mcpServers": {}}
+    if mcp_path.is_file():
+        try:
+            loaded = load_json(mcp_path)
+            if isinstance(loaded, dict):
+                registration = loaded
+        except json.JSONDecodeError:
+            print(f"- {MCP_REGISTRATION_PATH}: not valid JSON; fix it by hand, then rerun", file=sys.stderr)
+            return 1
+    servers = registration.setdefault("mcpServers", {})
+    if "arbiter" in servers:
+        print(f"- {MCP_REGISTRATION_PATH}: `arbiter` already registered")
+    else:
+        servers["arbiter"] = {"command": "arbiter", "args": ["mcp"]}
+        print(f"- {MCP_REGISTRATION_PATH}: {verb}register `arbiter mcp`")
+        if not dry_run:
+            write_json(mcp_path, registration)
+
+    rulepack_path = target_root / ".ai" / "rules" / "completion-workflow.json"
+    if not rulepack_path.is_file():
+        print(f"- {rulepack_path.relative_to(target_root)}: missing; adopt the workspace first, then rerun")
+        status = 1
+    else:
+        rulepack = load_json(rulepack_path)
+        rules = rulepack.setdefault("rules", [])
+        if any(isinstance(r, dict) and r.get("id") == ARBITER_GATE_RULE_ID for r in rules):
+            print(f"- completion rulepack: `{ARBITER_GATE_RULE_ID}` already present")
+        else:
+            rules.append(json.loads(json.dumps(ARBITER_GATE_RULE)))  # a deep copy; the constant stays pristine
+            print(f"- completion rulepack: {verb}add `{ARBITER_GATE_RULE_ID}` (type command)")
+            if not dry_run:
+                write_json(rulepack_path, rulepack)
+
+    config_path = target_root / "arbiter.yaml"
+    if config_path.is_file():
+        print("- arbiter.yaml: already present, left alone")
+    else:
+        print(f"- arbiter.yaml: {verb}write a starter policy (fail on critical, fail on new high)")
+        if not dry_run:
+            config_path.write_text(ARBITER_STARTER_CONFIG, encoding="utf-8")
+
+    # Only scan output and Arbiter's scan cache are ignored; .arbiter/baseline.json
+    # (and knowledge.json) are meant to be committed, so `.arbiter/` as a whole
+    # is never added here.
+    gitignore = target_root / ".gitignore"
+    ignored = gitignore.read_text(encoding="utf-8", errors="replace") if gitignore.is_file() else ""
+    if "arbiter-out" in ignored and ".arbiter/cache.json" in ignored:
+        print("- .gitignore: arbiter-out/ and .arbiter/cache.json already ignored")
+    else:
+        print(f"- .gitignore: {verb}ignore arbiter-out/ (scan output) and .arbiter/cache.json (scan cache)")
+        if not dry_run:
+            with gitignore.open("a", encoding="utf-8") as handle:
+                if "arbiter-out" not in ignored:
+                    handle.write("\n# Arbiter scan output\narbiter-out/\n")
+                if ".arbiter/cache.json" not in ignored:
+                    handle.write("# Arbiter scan cache (the baseline beside it is committed)\n.arbiter/cache.json\n")
+
+    if dry_run:
+        print(f"- {ARBITER_BASELINE_PATH}: would cut a baseline from a full offline scan (`omni arbiter baseline`)")
+    elif shutil.which("arbiter") is None:
+        print(f"- {ARBITER_BASELINE_PATH}: skipped, `arbiter` is not on PATH; run `omni arbiter baseline` once it is")
+    elif arbiter_write_baseline(target_root) != 0:
+        status = 1
+
+    print("")
+    print("Next: `omni doctor` starts the registered MCP server for real, and `omni gate` now runs")
+    print("`arbiter gate --changed` whenever source changes. For CI, see ci/github-action in the")
+    print("arbiter checkout, or run `arbiter gate .` after the test step.")
+    return status
+
+
+def run_arbiter_install(args: argparse.Namespace) -> int:
+    target_root = Path(args.target).resolve()
+    if not target_root.is_dir():
+        print(f"Target is not a directory: {target_root}", file=sys.stderr)
+        return 1
+    print(f"Arbiter alongside OmniEngineering in {target_root}")
+    print(f"Mode: {'dry-run' if args.dry_run else 'apply'}")
+    print("")
+    return arbiter_install(target_root, args.source, skip_pip=args.skip_pip, dry_run=args.dry_run)
+
+
+# --------------------------------------------------------------------------
+# Arbiter report helpers (REQ-036): the newest report under the gate rule's
+# --out directory, whether it still describes HEAD, and the posture that
+# `omni doctor` prints from it.
+# --------------------------------------------------------------------------
+
+ARBITER_DEFAULT_OUT_DIR = Path("arbiter-out")
+ARBITER_HIGH_OR_ABOVE = {"high", "critical"}
+# Arbiter writes `started_at` to the second; a file touched within that same second is not "after" the scan.
+ARBITER_FRESHNESS_TOLERANCE_S = 1.0
+
+
+def arbiter_gate_rule() -> dict[str, Any] | None:
+    """The `completion.arbiter_gate` rule from whichever rulepack carries it, or None when Arbiter is not wired."""
+    for file_path in RULEPACK_FILES:
+        try:
+            rulepack = load_json(Path(file_path))
+        except (OSError, json.JSONDecodeError):
+            continue
+        for rule in rulepack.get("rules", []) if isinstance(rulepack, dict) else []:
+            if isinstance(rule, dict) and rule.get("id") == ARBITER_GATE_RULE_ID:
+                return rule
+    return None
+
+
+def arbiter_out_dir(rule: dict[str, Any] | None) -> Path:
+    """Where the rule's `validation.run` tells Arbiter to write: the value after `--out`, else `arbiter-out`."""
+    validation = rule.get("validation") if isinstance(rule, dict) else None
+    run = str(validation.get("run", "")) if isinstance(validation, dict) else ""
+    try:
+        argv = shlex.split(run)
+    except ValueError:
+        argv = []
+    for index, token in enumerate(argv):
+        if token == "--out" and index + 1 < len(argv):
+            return Path(argv[index + 1])
+        if token.startswith("--out="):
+            return Path(token[len("--out="):])
+    return ARBITER_DEFAULT_OUT_DIR
+
+
+def arbiter_report_mode(path: Path) -> str | None:
+    """The `scan_scope.mode` of the report at `path`: "full" (a baseline or a plain scan) or "partial" (the
+    gate's `--changed` run, whose grade is withheld by design). A report without the key is full, which is how
+    Arbiter itself reads it; a report that cannot be parsed is None."""
+    try:
+        report = load_json(path)
+    except (OSError, ValueError):
+        return None
+    if not isinstance(report, dict):
+        return None
+    scope = report.get("scan_scope")
+    mode = scope.get("mode") if isinstance(scope, dict) else None
+    return mode.strip() if isinstance(mode, str) and mode.strip() else "full"
+
+
+def arbiter_reports_root(out_dir: Path) -> Path:
+    """The directory the posture reads reports from. The gate writes under its `--out` (`arbiter-out/omni-gate/`)
+    and `omni arbiter baseline` beside it (`arbiter-out/baseline/`), so the root is the `--out` directory's
+    parent when it has one, read together with everything one level below it; a top-level `--out` is read
+    as is."""
+    parent = out_dir.parent
+    return out_dir if parent in (Path("."), out_dir) else parent
+
+
+def newest_arbiter_report(out_dir: Path, mode: str | None = None) -> Path | None:
+    """The most recently written `report.json` directly in `out_dir` or one level below it (baseline/,
+    omni-gate/), by mtime. With `mode` ("full" or "partial"), the newest whose `scan_scope.mode` is that one;
+    a report that cannot be parsed matches either mode, so a corrupt newest report is shown, not skipped."""
+    candidates = [path for path in [out_dir / "report.json", *out_dir.glob("*/report.json")] if path.is_file()]
+    for path in sorted(candidates, key=lambda path: path.stat().st_mtime, reverse=True):
+        if mode is None or arbiter_report_mode(path) in (mode, None):
+            return path
+    return None
+
+
+def _arbiter_timestamp(value: Any) -> float | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    text = value.strip()
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.timestamp()
+
+
+def arbiter_report_freshness(report: dict[str, Any], head: str, changed: set[str]) -> tuple[bool, str]:
+    """A report is fresh when it scanned the commit HEAD is at and nothing in `changed` (the gate's changed
+    paths) was modified after it started. A path that no longer exists cannot be newer than the scan."""
+    repos = report.get("repos") if isinstance(report, dict) else None
+    first = repos[0] if isinstance(repos, list) and repos and isinstance(repos[0], dict) else {}
+    commit = str(first.get("commit") or "").strip()
+    if not commit:
+        return False, "report names no commit"
+    if not head or not head.startswith(commit):
+        return False, f"scanned {commit}, HEAD is {head[:7] or 'unknown'}"
+    started = _arbiter_timestamp(report.get("started_at"))
+    if started is None:
+        return False, "report has no readable started_at"
+    newest_path, newest_mtime = None, started + ARBITER_FRESHNESS_TOLERANCE_S
+    for path in sorted(changed):
+        try:
+            mtime = Path(path).stat().st_mtime
+        except OSError:
+            continue
+        if mtime > newest_mtime:
+            newest_path, newest_mtime = path, mtime
+    if newest_path is not None:
+        return False, f"{newest_path} changed after the scan started"
+    return True, "fresh"
+
+
+def arbiter_report_summary(report: dict[str, Any]) -> dict[str, Any]:
+    """The headline numbers of a report: Arbiter's scorecard carries `overall` (None when the grade was
+    withheld) and `coverage`; findings carry `severity`, `status` (new|existing) and `suppressed`."""
+    scorecard = report.get("scorecard") if isinstance(report.get("scorecard"), dict) else {}
+    gate = report.get("gate") if isinstance(report.get("gate"), dict) else {}
+    findings = [item for item in (report.get("findings") or []) if isinstance(item, dict)]
+    live = [
+        item for item in findings
+        if not item.get("suppressed") and str(item.get("severity", "")).lower() in ARBITER_HIGH_OR_ABOVE
+    ]
+    score = scorecard.get("overall")
+    withheld = bool(scorecard.get("withheld")) or not isinstance(score, (int, float))
+    passed = gate.get("passed")
+    return {
+        "grade": "withheld" if withheld else f"{float(score):g}",
+        "score": None if withheld else score,
+        "coverage": scorecard.get("coverage") if isinstance(scorecard.get("coverage"), (int, float)) else None,
+        "new_high_or_above": sum(1 for item in live if item.get("status") == "new"),
+        "existing_high_or_above": sum(1 for item in live if item.get("status") != "new"),
+        "gate_passed": passed if isinstance(passed, bool) else None,
+        "gate_reasons": [str(reason) for reason in (gate.get("reasons") or []) if isinstance(gate.get("reasons"), list)],
+    }
+
+
+def _path_under(path: str, directory: Path) -> bool:
+    parts = Path(path).parts
+    return parts[: len(directory.parts)] == directory.parts
+
+
+def arbiter_rule_scope(rule: dict[str, Any], changed: set[str]) -> set[str]:
+    """The changed paths the Arbiter rule would actually scan: those matching its `when_changed`
+    globs minus its `ignore` globs. Freshness is judged against these alone, so editing the
+    registry, the changelog or a document after the last gate run (which completing a requirement
+    always does) never marks a report stale; a newer source file still does."""
+    validation = rule.get("validation") if isinstance(rule, dict) else None
+    validation = validation if isinstance(validation, dict) else {}
+    when = [str(p) for p in validation.get("when_changed", ["**"])]
+    ignore = [str(p) for p in validation.get("ignore", [])]
+    return {p for p in changed if matches_any(p, when) and not matches_any(p, ignore)}
+
+
+def _arbiter_report_block(path: Path | None, out_dir: Path, head: str, changed: set[str]) -> dict[str, Any]:
+    """One report's share of the posture: whether it exists, where, when it started, its headline numbers and
+    whether it still describes HEAD (judged against `changed`, the rule's scope). A malformed report never
+    raises; it is recorded as present but not fresh, with the reason."""
+    block: dict[str, Any] = {
+        "present": False, "path": None, "started_at": None,
+        "fresh": False, "reason": f"no report under {out_dir.as_posix()}",
+        "grade": None, "score": None, "coverage": None,
+        "new_high_or_above": 0, "existing_high_or_above": 0,
+        "gate_passed": None, "gate_reasons": [],
+    }
+    if path is None:
+        return block
+    block["present"] = True
+    block["path"] = path.as_posix()
+    try:
+        report = load_json(path)
+        if not isinstance(report, dict):
+            raise ValueError("report is not a JSON object")
+        block.update(arbiter_report_summary(report))
+        started = report.get("started_at")
+        block["started_at"] = started if isinstance(started, str) and started.strip() else None
+        block["fresh"], block["reason"] = arbiter_report_freshness(report, head, changed)
+    except (OSError, ValueError, TypeError, AttributeError, KeyError, IndexError) as exc:
+        block["fresh"], block["reason"] = False, f"unreadable: {exc}"
+    return block
+
+
+def arbiter_report_state() -> dict[str, Any]:
+    """The Arbiter part of the posture (REQ-046). Two reports are read, not one: `full` is the newest report
+    whose `scan_scope.mode` is full (`omni arbiter baseline`, a plain `arbiter scan`), the only kind that
+    carries a grade, real coverage and the existing high+ count; `gate` is the newest partial report (the
+    gate's `--changed` run), which carries the verdict on the change, the new high+ count and the freshness
+    judged against the rule's scope. Each block is present/absent on its own, so a missing full scan never
+    hides a fresh gate and vice versa.
+
+    Compatibility: the schema_version 1 keys (`present`, `fresh`, `reason`, `grade`, `coverage`,
+    `new_high_or_above`, `gate_passed`, ...) stay at the top level for one release, filled from the gate
+    block, which is what they always described; `wired` is unchanged."""
+    rule = arbiter_gate_rule()
+    root = arbiter_reports_root(arbiter_out_dir(rule))
+    empty = _arbiter_report_block(None, root, "", set())
+    state: dict[str, Any] = {"wired": rule is not None, "full": dict(empty), "gate": dict(empty)}
+    if rule is None:
+        state.update(empty)
+        state["reason"] = "not wired"
+        return state
+    head = (git_run("rev-parse", "HEAD") or "").strip()
+    changed = arbiter_rule_scope(rule, {p for p in gate_changed_paths(gate_base_commit()) if not _path_under(p, root)})
+    state["full"] = _arbiter_report_block(newest_arbiter_report(root, "full"), root, head, changed)
+    state["gate"] = _arbiter_report_block(newest_arbiter_report(root, "partial"), root, head, changed)
+    state.update(state["gate"])  # schema_version 1 compatibility, one release (REQ-046)
+    return state
+
+
+def _failures_open_count() -> int:
+    try:
+        ledger = load_json(FAILURE_LEDGER_PATH)
+    except (OSError, json.JSONDecodeError):
+        return 0
+    items = ledger.get("failures", []) if isinstance(ledger, dict) else []
+    return sum(1 for item in items if isinstance(item, dict) and item.get("status") in ("open", "mitigated"))
+
+
+def _requirements_open_counts() -> dict[str, int]:
+    counts = {"pending": 0, "proposed": 0, "blocked": 0, "needs_review": 0}
+    try:
+        registry = load_json(REQUIREMENTS_PATH)
+    except (OSError, json.JSONDecodeError):
+        registry = {}
+    for item in registry.get("requirements", []) if isinstance(registry, dict) else []:
+        status = item.get("status") if isinstance(item, dict) else None
+        if status in counts:
+            counts[status] += 1
+    counts["total"] = sum(counts.values())
+    return counts
+
+
+def compute_posture() -> dict[str, Any]:
+    """What `omni doctor` prints on its Posture line and returns under `--json`."""
+    return {
+        "arbiter": arbiter_report_state(),
+        "failures_open": _failures_open_count(),
+        "requirements_open": _requirements_open_counts(),
+    }
+
+
+def _arbiter_scan_time_text(started_at: Any) -> str:
+    """A report's `started_at` as `YYYY-MM-DD HH:MM` in local time, or `?` when unreadable."""
+    stamp = _arbiter_timestamp(started_at)
+    if stamp is None:
+        return "?"
+    return datetime.fromtimestamp(stamp).strftime("%Y-%m-%d %H:%M")
+
+
+def _format_posture_full(full: dict[str, Any]) -> str:
+    """The full scan's share of the Posture line: its grade and coverage, and when it ran."""
+    if not full.get("present"):
+        return "arbiter no full scan (run ./omni arbiter baseline)"
+    reason = str(full.get("reason") or "")
+    if full.get("grade") is None and reason.startswith("unreadable:"):
+        return f"arbiter full scan {reason}"
+    coverage = full.get("coverage")
+    coverage_text = f"{round(float(coverage) * 100)}%" if isinstance(coverage, (int, float)) else "?"
+    grade = full.get("grade")
+    grade_text = "grade withheld" if grade in (None, "withheld") else f"score {grade}"
+    return f"arbiter {grade_text} (coverage {coverage_text}, full scan {_arbiter_scan_time_text(full.get('started_at'))})"
+
+
+def _format_posture_gate(gate: dict[str, Any]) -> str:
+    """The gate report's share of the Posture line: its verdict on the change and whether it is still fresh."""
+    if not gate.get("present"):
+        return "gate no report (run ./omni gate)"
+    if not gate.get("fresh"):
+        return f"gate stale: {gate.get('reason')}"
+    passed = gate.get("gate_passed")
+    verdict = "gate passed" if passed is True else ("gate failed" if passed is False else "gate unknown")
+    return f"{verdict} (new high+ {gate.get('new_high_or_above', 0)}, fresh)"
+
+
+def format_posture(posture: dict[str, Any]) -> str:
+    """One line: the full scan's grade, the gate report's verdict and freshness, open failures, open
+    requirements (REQ-046). Each missing report names the command that produces it."""
+    arbiter = posture.get("arbiter") if isinstance(posture.get("arbiter"), dict) else {}
+    if not arbiter.get("wired"):
+        part = "arbiter not wired"
+    else:
+        full = arbiter.get("full") if isinstance(arbiter.get("full"), dict) else {}
+        gate = arbiter.get("gate") if isinstance(arbiter.get("gate"), dict) else {}
+        part = f"{_format_posture_full(full)} \u00b7 {_format_posture_gate(gate)}"
+    open_requirements = posture.get("requirements_open") if isinstance(posture.get("requirements_open"), dict) else {}
+    buckets = ", ".join(
+        f"{status} {open_requirements[status]}"
+        for status in ("pending", "proposed", "blocked", "needs_review")
+        if open_requirements.get(status)
+    )
+    requirement_text = f"requirements open {open_requirements.get('total', 0)}" + (f" ({buckets})" if buckets else "")
+    return f"Posture: {part} \u00b7 failures open {posture.get('failures_open', 0)} \u00b7 {requirement_text}"
+
+
+# --- Completion needs a fresh, passing report (REQ-037) ------------------------------------------
+
+ARBITER_GATE_COMMAND = "./omni gate"
+
+
+def arbiter_executable() -> str | None:
+    return shutil.which("arbiter")
+
+
+def arbiter_completion_block() -> str | None:
+    """Why `omni requirement complete` must not proceed yet, or None when it may. Nothing blocks a workspace
+    without the Arbiter rule; with it, the first of: `arbiter` not installed, no report under the rule's
+    --out directory, a report that no longer describes HEAD, a report whose gate failed. Every message ends
+    with the command that produces a fresh report, because `omni gate` is what runs the rule.
+
+    The report judged is the gate's own (the newest partial scan, REQ-046); when there is none, the newest
+    full scan stands in, since a full scan at HEAD carries a gate verdict of its own."""
+    rule = arbiter_gate_rule()
+    if rule is None:
+        return None
+    if arbiter_executable() is None:
+        return f"arbiter is not installed; `omni arbiter install` puts it on PATH, then run {ARBITER_GATE_COMMAND}"
+    reports = arbiter_report_state()
+    state = reports["gate"] if reports["gate"]["present"] else reports["full"]
+    if not state["present"]:
+        return f"no Arbiter report under {arbiter_out_dir(rule).as_posix()}; run {ARBITER_GATE_COMMAND}"
+    if not state["fresh"]:
+        return f"the Arbiter report {state['path']} is stale ({state['reason']}); run {ARBITER_GATE_COMMAND}"
+    if state["gate_passed"] is None:
+        return f"the Arbiter report {state['path']} carries no gate result; run {ARBITER_GATE_COMMAND}"
+    if state["gate_passed"] is False:
+        reasons = "; ".join(state["gate_reasons"]) or "no reason recorded"
+        return f"the Arbiter gate failed in {state['path']}: {reasons}. Fix the findings, then run {ARBITER_GATE_COMMAND}"
+    return None
+
+
+
+
+# ---------------------------------------------------------------------------
+# REQ-038: the Arbiter baseline. `arbiter gate --baseline` labels every finding
+# new or existing against .arbiter/baseline.json; without the file the gate
+# treats everything as new. Adoption cuts one from a full offline scan, and
+# `omni arbiter baseline --refresh` re-cuts it once the gate is green.
+# ---------------------------------------------------------------------------
+
+
+def _arbiter_run(command: list[str], cwd: Path, timeout: int) -> tuple[int, str]:
+    """Run `command` (an argv list, never a shell) in `cwd`; the exit code and the last
+    lines of its combined output. A missing binary or a timeout reads as a failure."""
+    try:
+        completed = subprocess.run(
+            command, cwd=str(cwd), capture_output=True, text=True,
+            encoding="utf-8", errors="replace", timeout=timeout,
+        )
+    except OSError as exc:
+        return 1, str(exc)
+    except subprocess.TimeoutExpired:
+        return 1, f"timed out after {timeout}s"
+    output = (completed.stdout or "") + "\n" + (completed.stderr or "")
+    return completed.returncode, "\n".join(output.strip().splitlines()[-8:])
+
+
+def _git_short_head(repo_root: Path) -> str | None:
+    """`git rev-parse --short HEAD`, or None outside a git checkout."""
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "--short", "HEAD"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if completed.returncode != 0:
+        return None
+    return (completed.stdout or "").strip() or None
+
+
+def _git_ignored(repo_root: Path, relative_path: str) -> bool:
+    """True when git would ignore the path (exit 0 from `git check-ignore`)."""
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(repo_root), "check-ignore", "-q", relative_path],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return completed.returncode == 0
+
+
+def _arbiter_config_hash(target_root: Path) -> str | None:
+    """sha256 of arbiter.yaml's bytes, or None when the project has none."""
+    config = target_root / ARBITER_CONFIG_FILE
+    return hashlib.sha256(config.read_bytes()).hexdigest() if config.is_file() else None
+
+
+def _arbiter_gate_rule(root: Path) -> dict[str, Any] | None:
+    """The `completion.arbiter_gate` rule in root's completion rulepack, or None."""
+    path = root / ".ai" / "rules" / "completion-workflow.json"
+    if not path.is_file():
+        return None
+    try:
+        rulepack = load_json(path)
+    except (OSError, json.JSONDecodeError):
+        return None
+    rules = rulepack.get("rules", []) if isinstance(rulepack, dict) else []
+    for rule in rules if isinstance(rules, list) else []:
+        if isinstance(rule, dict) and rule.get("id") == ARBITER_GATE_RULE_ID:
+            return rule
+    return None
+
+
+def _newest_arbiter_gate_report(target_root: Path) -> Path | None:
+    """The newest report.json the gate rule wrote under arbiter-out/omni-gate."""
+    out_dir = target_root / ARBITER_GATE_OUT_DIR
+    if not out_dir.is_dir():
+        return None
+    reports = sorted(out_dir.rglob("report.json"), key=lambda p: p.stat().st_mtime)
+    return reports[-1] if reports else None
+
+
+def arbiter_write_baseline(
+    target_root: Path,
+    refresh: bool = False,
+    scan_out: str = "arbiter-out/baseline",
+    force: bool = False,
+    scan_args: tuple[str, ...] = (),
+) -> int:
+    """Cut `.arbiter/baseline.json` from a full offline scan of `target_root`.
+
+    The baseline is the set of finding ids the project has accepted as known; with
+    it, `arbiter gate --baseline` reports only what is new since. It must come from
+    a *full* scan (a `--changed` partial report would baseline a slice, so one is
+    refused) and is augmented with the commit it was cut at and a sha256 of
+    arbiter.yaml, so `omni doctor` can tell when either moved on. The file is meant
+    to be committed.
+
+    `refresh` re-cuts an existing baseline and prunes it: `arbiter baseline` writes
+    exactly the ids in the report it is given, so a baseline cut from a fresh full
+    scan holds only findings that still exist -- anything fixed since the last cut
+    drops out. Because a refresh also absorbs every finding currently open, it is
+    only allowed once the newest gate report under arbiter-out/omni-gate passed
+    (`force` overrides). `scan_args` are appended to the scan command (tests use
+    them to skip slow adapters).
+    """
+    baseline_path = target_root / ARBITER_BASELINE_PATH
+    if baseline_path.is_file() and not refresh:
+        print(f"- {ARBITER_BASELINE_PATH}: already present (pass --refresh to re-cut it after a green gate)")
+        return 0
+
+    if refresh:
+        report_path = _newest_arbiter_gate_report(target_root)
+        passed = None
+        if report_path is not None:
+            try:
+                gate = load_json(report_path).get("gate")
+                passed = gate.get("passed") if isinstance(gate, dict) else None
+            except (OSError, json.JSONDecodeError, AttributeError):
+                passed = None
+        if passed is not True:
+            where = report_path.relative_to(target_root).as_posix() if report_path else f"{ARBITER_GATE_OUT_DIR}/report.json"
+            state = "is missing" if report_path is None else ("did not pass" if passed is False else "has no gate verdict")
+            if not force:
+                print(
+                    f"- {ARBITER_BASELINE_PATH}: refusing to refresh, the last gate report ({where}) {state}. "
+                    "A refresh absorbs every open finding as known, so get the gate green first "
+                    "(`omni gate`), or pass --force to accept them anyway."
+                )
+                return 1
+            print(f"- {ARBITER_BASELINE_PATH}: the last gate report ({where}) {state}; refreshing anyway (--force)")
+
+    if shutil.which("arbiter") is None:
+        print(f"- {ARBITER_BASELINE_PATH}: `arbiter` is not on PATH; `omni arbiter install`, then rerun")
+        return 1
+
+    scan = ["arbiter", "scan", ".", "--profile", "offline", "--out", scan_out, "--format", "json", *scan_args]
+    print(f"- scan: {' '.join(scan)} (a full offline scan; this can take a while)")
+    code, tail = _arbiter_run(scan, target_root, 1800)
+    if code != 0:
+        print(f"  scan failed (exit {code}):\n{tail}", file=sys.stderr)
+        return 1
+    report_path = target_root / scan_out / "report.json"
+    if not report_path.is_file():
+        print(f"  scan wrote no {scan_out}/report.json", file=sys.stderr)
+        return 1
+    try:
+        report = load_json(report_path)
+    except json.JSONDecodeError as exc:
+        print(f"  {scan_out}/report.json is not valid JSON: {exc}", file=sys.stderr)
+        return 1
+    scope = report.get("scan_scope") if isinstance(report, dict) else None
+    mode = scope.get("mode") if isinstance(scope, dict) else None
+    if mode != "full":
+        print(
+            f"- {ARBITER_BASELINE_PATH}: refusing to baseline a report whose scan_scope.mode is "
+            f"{mode!r}; a baseline must come from a full scan, not a --changed slice",
+            file=sys.stderr,
+        )
+        return 1
+
+    write = ["arbiter", "baseline", f"{scan_out}/report.json", "--out", ARBITER_BASELINE_PATH]
+    print(f"- baseline: {' '.join(write)}")
+    code, tail = _arbiter_run(write, target_root, 120)
+    if code != 0 or not baseline_path.is_file():
+        print(f"  arbiter baseline failed (exit {code}):\n{tail}", file=sys.stderr)
+        return 1
+    try:
+        baseline = load_json(baseline_path)
+    except json.JSONDecodeError as exc:
+        print(f"  {ARBITER_BASELINE_PATH} is not valid JSON: {exc}", file=sys.stderr)
+        return 1
+    if not isinstance(baseline, dict):
+        print(f"  {ARBITER_BASELINE_PATH} is not a JSON object", file=sys.stderr)
+        return 1
+    commit = _git_short_head(target_root)
+    if commit:
+        baseline["commit"] = commit
+    config_hash = _arbiter_config_hash(target_root)
+    if config_hash:
+        baseline["config_hash"] = config_hash
+    write_json(baseline_path, baseline)
+
+    ids = baseline.get("ids") if isinstance(baseline.get("ids"), list) else []
+    pruned = " (refreshed: only ids the fresh full scan still reports)" if refresh else ""
+    print(f"- {ARBITER_BASELINE_PATH}: {len(ids)} known finding id(s) at {commit or 'no commit'}{pruned}")
+    if _git_ignored(target_root, ARBITER_BASELINE_PATH):
+        print(f"  warning: git ignores {ARBITER_BASELINE_PATH}; remove the `.arbiter/` ignore so it can be committed")
+    print(f"  commit {ARBITER_BASELINE_PATH} so the gate means new since this baseline")
+    return 0
+
+
+def run_arbiter_baseline(args: argparse.Namespace) -> int:
+    target_root = Path(args.target).resolve()
+    if not target_root.is_dir():
+        print(f"Target is not a directory: {target_root}", file=sys.stderr)
+        return 1
+    print(f"Arbiter baseline for {target_root}")
+    print(f"Mode: {'refresh' if args.refresh else 'initial'}{' (force)' if args.force else ''}")
+    print("")
+    return arbiter_write_baseline(target_root, refresh=args.refresh, force=args.force)
+
+
+def _newest_fixed_failure() -> tuple[str, str] | None:
+    """(id, date) of the most recently dated `fixed` entry in the failure ledger."""
+    if not failure_ledger_path().is_file():
+        return None
+    try:
+        ledger = load_failure_ledger()
+    except (OSError, json.JSONDecodeError):
+        return None
+    newest: tuple[str, str] | None = None
+    for entry in ledger.get("failures", []) if isinstance(ledger, dict) else []:
+        if not isinstance(entry, dict) or entry.get("status") != "fixed":
+            continue
+        date = entry.get("date")
+        if isinstance(date, str) and date and (newest is None or date > newest[1]):
+            newest = (str(entry.get("id") or "?"), date)
+    return newest
+
+
+def validate_arbiter_baseline(report: DoctorReport) -> None:
+    """Once the gate rule is wired, the baseline must exist and still describe this
+    project: cut before the newest fixed failure it may carry ids that no longer exist,
+    and cut under a different arbiter.yaml it assumed a different policy. Both are
+    warnings, since the gate still runs; a refresh on a green gate clears them."""
+    if _arbiter_gate_rule(Path(".")) is None:
+        return
+    baseline_path = Path(ARBITER_BASELINE_PATH)
+    if not baseline_path.is_file():
+        report.warning(
+            f"{ARBITER_BASELINE_PATH} is missing, so the gate treats every finding as new; "
+            "run `omni arbiter baseline` and commit the file"
+        )
+        return
+    try:
+        baseline = load_json(baseline_path)
+    except json.JSONDecodeError as exc:
+        report.warning(f"{ARBITER_BASELINE_PATH} is not valid JSON ({exc}); re-cut it with `omni arbiter baseline --refresh`")
+        return
+    if not isinstance(baseline, dict):
+        report.warning(f"{ARBITER_BASELINE_PATH} is not a JSON object; re-cut it with `omni arbiter baseline --refresh`")
+        return
+    problems = 0
+    created = str(baseline.get("created") or "")
+    newest = _newest_fixed_failure()
+    if created and newest and created[:10] < newest[1][:10]:
+        report.warning(
+            f"{ARBITER_BASELINE_PATH} was cut on {created[:10]}, before {newest[0]} was fixed on {newest[1]}; "
+            "it may still list findings that no longer exist. Refresh it on a green gate: "
+            "`omni arbiter baseline --refresh`"
+        )
+        problems += 1
+    recorded = baseline.get("config_hash")
+    current = _arbiter_config_hash(Path("."))
+    if isinstance(recorded, str) and current and recorded != current:
+        report.warning(
+            f"{ARBITER_CONFIG_FILE} changed since {ARBITER_BASELINE_PATH} was cut "
+            f"(config_hash {recorded[:12]} recorded, {current[:12]} now), so the baseline assumed a "
+            "different policy than the gate runs. Refresh it on a green gate: `omni arbiter baseline --refresh`"
+        )
+        problems += 1
+    if not problems:
+        ids = baseline.get("ids") if isinstance(baseline.get("ids"), list) else []
+        report.pass_check(f"{ARBITER_BASELINE_PATH} is present and current ({len(ids)} known finding ids)")
+
+
+# ---------------------------------------------------------------------------
+# REQ-042: Arbiter version tracking and `omni arbiter update`. The installed
+# version and its source are recorded beside the template ref in
+# .ai/omni-version.json; doctor warns when the installed package drifts from
+# the record, `omni update` warns when the adopter's gate rule drifts from the
+# template, and `omni arbiter update` brings all of it level in one go.
+# ---------------------------------------------------------------------------
+
+_VERSION_TOKEN = re.compile(r"\d+(?:\.\d+)+[0-9A-Za-z.+-]*")
+
+
+def installed_arbiter_version() -> str | None:
+    """The installed Arbiter's version: the last version-shaped token `arbiter --version`
+    prints, else the `arbiter-eval` distribution's metadata, else None."""
+    if shutil.which("arbiter") is not None:
+        try:
+            completed = subprocess.run(
+                ["arbiter", "--version"], capture_output=True, text=True,
+                encoding="utf-8", errors="replace", timeout=30,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            completed = None
+        if completed is not None and completed.returncode == 0:
+            for token in reversed(((completed.stdout or "") + " " + (completed.stderr or "")).split()):
+                if _VERSION_TOKEN.fullmatch(token):
+                    return token
+    # Imported here so the module's import block stays as it is; stdlib either way.
+    from importlib import metadata
+    try:
+        return metadata.version("arbiter-eval")
+    except metadata.PackageNotFoundError:
+        return None
+
+
+def record_arbiter_version(target_root: Path, source: str) -> None:
+    """Merge `{"arbiter": {source, version, recorded_at}}` into .ai/omni-version.json.
+    The file is only written when it exists: `omni update` refuses one without a
+    template `ref`, so creating it here would leave the adopter worse off."""
+    path = target_root / OMNI_VERSION_FILE
+    if not path.is_file():
+        print(f"- {OMNI_VERSION_FILE}: absent, Arbiter version not recorded (`omni adopt` writes the file)")
+        return
+    try:
+        payload = load_json(path)
+    except json.JSONDecodeError:
+        print(f"- {OMNI_VERSION_FILE}: not valid JSON, Arbiter version not recorded")
+        return
+    if not isinstance(payload, dict):
+        print(f"- {OMNI_VERSION_FILE}: not a JSON object, Arbiter version not recorded")
+        return
+    version = installed_arbiter_version() or "unknown"
+    payload["arbiter"] = {
+        "source": source,
+        "version": version,
+        "recorded_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
+    write_json(path, payload)
+    print(f"- {OMNI_VERSION_FILE}: recorded arbiter {version} from {source}")
+
+
+def validate_arbiter_version(report: DoctorReport) -> None:
+    """When the version file records an Arbiter and one is installed, the two must agree."""
+    info = read_omni_version_file()
+    recorded = info.get("arbiter") if isinstance(info, dict) else None
+    if not isinstance(recorded, dict) or shutil.which("arbiter") is None:
+        return
+    installed = installed_arbiter_version()
+    if installed is None:
+        return
+    wanted = str(recorded.get("version") or "unknown")
+    if wanted != installed:
+        report.warning(
+            f"Arbiter drift: {OMNI_VERSION_FILE} recorded {wanted}, installed {installed}: "
+            "run `omni arbiter sync` (levels the subtree or package, the record and the baseline) "
+            "or `omni arbiter update` (upgrades, refreshes the gate rule and re-records the version)"
+        )
+    else:
+        report.pass_check(f"Installed Arbiter {installed} matches {OMNI_VERSION_FILE}")
+
+
+def warn_arbiter_rule_drift(target_root: Path) -> bool:
+    """Print a note when the adopter's `completion.arbiter_gate` runs a different command
+    than the current template. Warn only: the rule is adopter-owned, `omni update` never
+    rewrites it; `omni arbiter update` does on request. Returns True when it warned."""
+    rule = _arbiter_gate_rule(target_root)
+    if rule is None:
+        return False
+    validation = rule.get("validation")
+    current = validation.get("run") if isinstance(validation, dict) else None
+    template = ARBITER_GATE_RULE["validation"]["run"]
+    if current == template:
+        return False
+    print("")
+    print(
+        f"Note: `{ARBITER_GATE_RULE_ID}` in .ai/rules/completion-workflow.json runs a different "
+        "command than the current template; the rule is yours, so it was left alone. "
+        "`omni arbiter update` rewrites it to the template (`--keep-rule` keeps yours):"
+    )
+    print(f"  yours:    {current}")
+    print(f"  template: {template}")
+    return True
+
+
+def _arbiter_git_source(source: str) -> str:
+    """What `git subtree pull` fetches from: a pip `git+URL` minus the prefix, a local
+    checkout as its absolute path, anything else as given."""
+    if source.startswith("git+"):
+        return source[4:]
+    local = Path(source).expanduser()
+    if local.is_dir():
+        return str(local.resolve())
+    return source
+
+
+def arbiter_subtree_mode(target_root: Path, prefix: str = "arbiter") -> str | None:
+    """How `<prefix>/` was brought in: "unsquashed", "squash", or None without a subtree.
+
+    `git subtree` (contrib/subtree/git-subtree.sh) marks commits with a
+    `git-subtree-dir: <prefix>` trailer in two shapes. An unsquashed `add` (and
+    `split --rejoin`) writes a merge commit carrying `git-subtree-mainline: <sha>`
+    beside `git-subtree-split: <sha>`; a later unsquashed `pull` is a plain
+    `git merge -Xsubtree` with no trailers at all, so the newest marker commit stays
+    that add. `--squash` instead writes a synthetic commit titled
+    "Squashed '<prefix>/' content from commit X" (add) or
+    "Squashed '<prefix>/' changes from X..Y" (pull) that carries `git-subtree-dir`
+    and `git-subtree-split` but never `git-subtree-mainline`. So the newest commit
+    whose message holds the exact `git-subtree-dir: <prefix>` line decides: with a
+    mainline trailer the history is unsquashed, without one it is squashed. Mixing
+    the two modes makes later pulls replay or conflict on the whole subtree history,
+    which is why `omni arbiter update` refuses a mismatch without --force.
+    """
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(target_root), "log", "-1", f"--grep=^git-subtree-dir: {prefix}$", "--format=%B"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if completed.returncode != 0:
+        return None
+    lines = [line.strip() for line in (completed.stdout or "").splitlines()]
+    if f"git-subtree-dir: {prefix}" not in lines:
+        return None
+    if any(line.startswith("git-subtree-mainline:") for line in lines):
+        return "unsquashed"
+    if any(line.startswith("git-subtree-split:") for line in lines):
+        return "squash"
+    return None
+
+
+def run_arbiter_update(args: argparse.Namespace) -> int:
+    """Bring an adopted workspace's Arbiter level: pip --upgrade from the recorded source,
+    the gate rule's `validation` to the template, a vendored arbiter/ subtree pulled in
+    the mode it was added with, and the version re-recorded. --dry-run prints every
+    command and writes nothing."""
+    target_root = Path(args.target).resolve()
+    if not target_root.is_dir():
+        print(f"Target is not a directory: {target_root}", file=sys.stderr)
+        return 1
+    info = read_omni_version_file(target_root)
+    recorded = info.get("arbiter") if isinstance(info, dict) else None
+    recorded = recorded if isinstance(recorded, dict) else {}
+    source = args.source or str(recorded.get("source") or "") or ARBITER_DEFAULT_SOURCE
+    dry_run = args.dry_run
+    verb = "would " if dry_run else ""
+    status = 0
+
+    print(f"Arbiter update in {target_root}")
+    print(f"Source: {source}{' (recorded at install)' if not args.source and recorded.get('source') else ''}")
+    print(f"Recorded version: {recorded.get('version') or 'none'}")
+    print(f"Mode: {'dry-run' if dry_run else 'apply'}")
+    print("")
+
+    if args.skip_pip:
+        print("- pip: skipped (--skip-pip)")
+    else:
+        command = _arbiter_pip_command(source) + ["--upgrade"]
+        print(f"- pip: {verb}run {' '.join(command)}")
+        if not dry_run:
+            code, tail = _arbiter_run(command, target_root, 1800)
+            if code != 0:
+                print(f"  pip failed (exit {code}):\n{tail}", file=sys.stderr)
+                status = 1
+
+    rulepack_path = target_root / ".ai" / "rules" / "completion-workflow.json"
+    if args.keep_rule:
+        print(f"- completion rulepack: `{ARBITER_GATE_RULE_ID}` kept as it is (--keep-rule)")
+    elif not rulepack_path.is_file():
+        print(f"- {rulepack_path.relative_to(target_root).as_posix()}: missing; adopt the workspace first")
+        status = 1
+    else:
+        rulepack = load_json(rulepack_path)
+        rules = rulepack.setdefault("rules", []) if isinstance(rulepack, dict) else []
+        rule = next((r for r in rules if isinstance(r, dict) and r.get("id") == ARBITER_GATE_RULE_ID), None)
+        if rule is None:
+            print(f"- completion rulepack: `{ARBITER_GATE_RULE_ID}` is not wired; run `omni arbiter install`")
+        elif rule.get("validation") == ARBITER_GATE_RULE["validation"]:
+            print(f"- completion rulepack: `{ARBITER_GATE_RULE_ID}` already runs the template command")
+        else:
+            rule["validation"] = json.loads(json.dumps(ARBITER_GATE_RULE["validation"]))
+            print(f"- completion rulepack: {verb}rewrite `{ARBITER_GATE_RULE_ID}` validation to the template (--keep-rule keeps yours)")
+            if not dry_run:
+                write_json(rulepack_path, rulepack)
+
+    vendored = target_root / "arbiter"
+    if (vendored / "pyproject.toml").is_file() and (vendored / ".ai" / "omni-version.json").is_file():
+        mode = arbiter_subtree_mode(target_root)
+        wanted = "squash" if args.squash else "unsquashed"
+        command = ["git", "subtree", "pull", "--prefix", "arbiter", _arbiter_git_source(source), "main"]
+        if args.squash:
+            command.append("--squash")
+        if mode is not None and mode != wanted and not args.force:
+            fix = "add --squash" if mode == "squash" else "drop --squash"
+            print(
+                f"- subtree arbiter/: refusing to pull, its history is {mode} but this run asks for {wanted}; "
+                f"mixing the two replays the whole subtree history. {fix[0].upper()}{fix[1:]}, or --force to run anyway:"
+            )
+            print(f"    {' '.join(command)}")
+            status = 1
+        else:
+            note = f" (history is {mode})" if mode else " (no subtree marker commit found)"
+            print(f"- subtree arbiter/: {verb}run {' '.join(command)}{note}")
+            if not dry_run:
+                code, tail = _arbiter_run(command, target_root, 600)
+                if code != 0:
+                    print(f"  git subtree pull failed (exit {code}):\n{tail}", file=sys.stderr)
+                    status = 1
+    else:
+        print("- subtree arbiter/: not vendored here, skipped")
+
+    if dry_run:
+        print(f"- {OMNI_VERSION_FILE}: would re-record the installed Arbiter version and its source")
+    else:
+        record_arbiter_version(target_root, source)
+
+    print("")
+    print("Next: run `omni arbiter baseline --refresh` after the gate is green, so the baseline")
+    print("matches what the upgraded Arbiter reports; `omni doctor` confirms the versions agree.")
+    return status
+
+
+def _omni_cli_argv() -> list[str]:
+    """How a subprocess runs this CLI: the `omni` script beside this module under the interpreter running
+    now (so an adopted repository, where `omni` is not on PATH, still works), else this module itself."""
+    here = Path(__file__).resolve().parent
+    script = here / "omni"
+    return [sys.executable, str(script if script.is_file() else Path(__file__).resolve())]
+
+
+def _arbiter_sync_git_source(target_root: Path, source: str) -> str:
+    """What `git subtree pull` fetches from: the pip source minus its `git+`, unless that is a local
+    path inside the target (the vendored subtree itself, which `adopt --with-arbiter ./arbiter` records)
+    or no directory at all; then Arbiter's upstream."""
+    git_source = _arbiter_git_source(source)
+    local = Path(git_source)
+    if local.is_dir():
+        resolved = local.resolve()
+        if resolved == target_root or target_root in resolved.parents:
+            return _arbiter_git_source(ARBITER_DEFAULT_SOURCE)
+    elif not source.startswith(("git+", "http://", "https://", "ssh://", "git@")):
+        return _arbiter_git_source(ARBITER_DEFAULT_SOURCE)
+    return git_source
+
+
+def run_arbiter_sync(args: argparse.Namespace) -> int:
+    """Level the vendored subtree, the installed package, the recorded version and the baseline in one
+    go (REQ-049). Subtree mode (arbiter/pyproject.toml present): git subtree pull, pip install -e
+    ./arbiter[mcp], the version record, `omni arbiter baseline` (--refresh when one exists) unless
+    --skip-baseline, then `omni doctor`. Pip mode: pip --upgrade from the recorded source, then the
+    same tail. Every step is printed before it runs; the first non-zero exit stops the sequence naming
+    the step and what to do; --dry-run prints the commands only."""
+    target_root = Path(args.target).resolve()
+    if not target_root.is_dir():
+        print(f"Target is not a directory: {target_root}", file=sys.stderr)
+        return 1
+    info = read_omni_version_file(target_root)
+    recorded = info.get("arbiter") if isinstance(info, dict) else None
+    recorded = recorded if isinstance(recorded, dict) else {}
+    recorded_source = str(recorded.get("source") or "")
+    source = args.source or recorded_source or ARBITER_DEFAULT_SOURCE
+    origin = "given" if args.source else ("recorded at install" if recorded_source else "default")
+    branch = str(getattr(args, "branch", None) or "main")
+    subtree = (target_root / "arbiter" / "pyproject.toml").is_file()
+    dry_run = bool(args.dry_run)
+    omni = _omni_cli_argv()
+
+    steps: list[dict[str, Any]] = []
+    if subtree:
+        git_source = _arbiter_sync_git_source(target_root, source)
+        pull = ["git", "subtree", "pull", "--prefix=arbiter", git_source, branch, "-m", f"Pull Arbiter {branch} into arbiter/"]
+        mode = arbiter_subtree_mode(target_root)
+        if mode == "squash":
+            pull.append("--squash")
+        steps.append({
+            "name": "subtree pull", "argv": pull, "timeout": 600,
+            "advice": "Resolve the conflict in arbiter/ (`git status` lists the files), commit the merge, and rerun `omni arbiter sync`.",
+        })
+        steps.append({
+            "name": "pip install", "argv": [sys.executable, "-m", "pip", "install", "-e", f"./arbiter[{ARBITER_PIP_EXTRAS}]"], "timeout": 1800,
+            "advice": "Fix the install error above (the interpreter running omni must be able to install into its environment), then rerun `omni arbiter sync`.",
+        })
+        # The record names the upstream, never the subtree path, so the next sync knows where to pull from.
+        record_source = source if source.startswith(("git+", "http://", "https://", "ssh://", "git@")) else ARBITER_DEFAULT_SOURCE
+    else:
+        steps.append({
+            "name": "pip upgrade", "argv": _arbiter_pip_command(source) + ["--upgrade"], "timeout": 1800,
+            "advice": "Fix the install error above, or pass --source with the checkout or URL to install from, then rerun `omni arbiter sync`.",
+        })
+        record_source = source
+    steps.append({"name": "record version", "call": lambda: record_arbiter_version(target_root, record_source) or 0,
+                  "describe": f"re-record the installed Arbiter version and its source in {OMNI_VERSION_FILE}"})
+    if getattr(args, "skip_baseline", False):
+        steps.append({"name": "baseline", "skipped": "--skip-baseline"})
+    else:
+        baseline = omni + ["arbiter", "baseline"] + (["--refresh"] if (target_root / ARBITER_BASELINE_PATH).is_file() else [])
+        steps.append({
+            "name": "baseline", "argv": baseline, "timeout": 2400,
+            "advice": "Get the gate green (`omni gate`), then `omni arbiter baseline --refresh` (`--force` accepts the open findings as known), then `omni doctor`.",
+        })
+    steps.append({
+        "name": "doctor", "argv": omni + ["doctor"], "timeout": 600,
+        "advice": "Fix the errors doctor lists above, then rerun `omni doctor`; the other steps are done and need not be repeated.",
+    })
+
+    print(f"Arbiter sync in {target_root} ({'subtree mode: arbiter/pyproject.toml present' if subtree else 'pip mode: no vendored arbiter/'})")
+    print(f"Source: {source} ({origin})" + (f"; subtree pulled from {steps[0]['argv'][4]}" if subtree else ""))
+    if subtree:
+        print(f"Branch: {branch}")
+    print(f"Mode: {'dry-run (commands printed, nothing run or written)' if dry_run else 'apply'}")
+    print("")
+    total = len(steps)
+    for number, step in enumerate(steps, 1):
+        label = f"[{number}/{total}] {step['name']}"
+        if step.get("skipped"):
+            print(f"{label}: skipped ({step['skipped']})")
+            continue
+        if "call" in step:
+            if dry_run:
+                print(f"{label}: would {step['describe']}")
+                continue
+            print(f"{label}: {step['describe']}")
+            step["call"]()
+            continue
+        command = " ".join(shlex.quote(part) for part in step["argv"])
+        if dry_run:
+            print(f"{label}: would run {command}")
+            continue
+        print(f"{label}: {command}")
+        started = time.monotonic()
+        code, tail = _arbiter_run(step["argv"], target_root, step["timeout"])
+        elapsed = time.monotonic() - started
+        if code != 0:
+            print(f"omni arbiter sync: step {number}/{total} ({step['name']}) failed with exit {code} after {elapsed:.1f}s:", file=sys.stderr)
+            for line in tail.splitlines():
+                print(f"    {line}", file=sys.stderr)
+            print(step["advice"], file=sys.stderr)
+            return 1
+        print(f"    done ({elapsed:.1f}s)")
+    print("")
+    print("Arbiter sync complete." if not dry_run else "Dry run complete; rerun without --dry-run to apply.")
+    return 0
 
 
 def run_update(args: argparse.Namespace) -> int:
@@ -3084,6 +4979,7 @@ def run_update(args: argparse.Namespace) -> int:
         return 1 if conflicts else 0
 
     write_omni_version_file(source_root, target_root)
+    warn_arbiter_rule_drift(target_root)
 
     make_ai_path = target_root / "make_ai.py"
     if make_ai_changed and make_ai_path.is_file():
@@ -3314,7 +5210,8 @@ def normalize_requirement_id(value: str) -> str:
             except (OSError, json.JSONDecodeError):
                 pass
         return f"{prefix}-{int(value):03d}"
-    return value
+    # REQ-044: an id the registry has since renumbered resolves to its current one (REQ-001 -> ARB-001).
+    return resolve_requirement_id(value)
 
 
 def all_requirement_ids() -> set[str]:
@@ -3330,6 +5227,84 @@ def all_requirement_ids() -> set[str]:
             if isinstance(item, dict) and isinstance(item.get("id"), str):
                 ids.add(item["id"])
     return ids
+
+
+def vendored_workspace_dirs(root: Path | None = None) -> list[Path]:
+    """Directories below the root that carry their own OmniEngineering workspace: a vendored subtree, a
+    monorepo package, an adopter checked in beside the template. Recognised by `.ai/omni-version.json`,
+    which `omni adopt` writes and nothing else does. The root itself is never listed."""
+    base = (root or Path(".")).resolve()
+    found: list[Path] = []
+    for marker in sorted(base.glob("*/.ai/omni-version.json")) + sorted(base.glob("*/*/.ai/omni-version.json")):
+        workspace = marker.parent.parent
+        if workspace != base and not any(part in DEFAULT_MAP_EXCLUDED_DIRS for part in workspace.relative_to(base).parts):
+            found.append(workspace)
+    return found
+
+
+def vendored_requirement_ids() -> set[str]:
+    """Requirement ids owned by vendored workspaces. Their commits cite their own registries, and a
+    subtree pull brings those messages here; the gate must not read them as typos in this registry."""
+    ids: set[str] = set()
+    for workspace in vendored_workspace_dirs():
+        for path in sorted((workspace / ".ai" / "requirements").glob("requirements*.json")):
+            try:
+                registry = load_json(path)
+            except (OSError, json.JSONDecodeError):
+                continue
+            for item in registry.get("requirements", []) if isinstance(registry, dict) else []:
+                if isinstance(item, dict) and isinstance(item.get("id"), str):
+                    ids.add(item["id"])
+    return ids
+
+
+# --- Requirement id aliases (REQ-044) --------------------------------------------------------------
+#
+# `omni requirement renumber` changes the prefix of every id (REQ-012 -> ARB-012) and records the old
+# ids under the registry's optional top-level `id_aliases` object, {"REQ-012": "ARB-012"}. Commit
+# messages, waivers and other history that cite the old id stay valid: every reader resolves an alias
+# before deciding an id is unknown. An alias is followed once (an alias never points at another alias;
+# renumber rewrites the targets of the aliases it inherits).
+
+REQUIREMENT_ID_PATTERN = re.compile(r"[A-Z]+-\d{3}")
+
+
+def requirement_id_aliases(registry: dict[str, Any] | None = None) -> dict[str, str]:
+    """`id_aliases` of the root registry (or of the registry object given): old id -> current id. Malformed
+    entries are skipped here and reported by `validate_requirement_aliases` in the doctor."""
+    if registry is None:
+        if not REQUIREMENTS_PATH.is_file():
+            return {}
+        try:
+            registry = load_json(REQUIREMENTS_PATH)
+        except (OSError, json.JSONDecodeError):
+            return {}
+    aliases = registry.get("id_aliases") if isinstance(registry, dict) else None
+    if not isinstance(aliases, dict):
+        return {}
+    return {old: new for old, new in aliases.items() if isinstance(old, str) and isinstance(new, str)}
+
+
+def vendored_requirement_id_aliases() -> dict[str, str]:
+    """The `id_aliases` of every vendored workspace's registries: a subtree's commits cite the ids its registry
+    carried at the time, and a renumber there must not turn that history into gate failures here."""
+    aliases: dict[str, str] = {}
+    for workspace in vendored_workspace_dirs():
+        for path in sorted((workspace / ".ai" / "requirements").glob("requirements*.json")):
+            try:
+                registry = load_json(path)
+            except (OSError, json.JSONDecodeError):
+                continue
+            aliases.update(requirement_id_aliases(registry))
+    return aliases
+
+
+def resolve_requirement_id(requirement_id: str, aliases: dict[str, str] | None = None) -> str:
+    """Follow an alias once (REQ-038 -> ARB-038). An id with no alias passes through unchanged, so callers
+    can resolve every cited id without first asking whether it was renamed."""
+    if aliases is None:
+        aliases = requirement_id_aliases()
+    return aliases.get(requirement_id, requirement_id)
 
 
 def find_requirement(requirement_id: str) -> tuple[Path, dict[str, Any], dict[str, Any]] | None:
@@ -3459,12 +5434,26 @@ def run_requirement_update(args: argparse.Namespace) -> int:
     return 0
 
 
-DEFECT_CATEGORY = re.compile(r"defect|bug|fix|regress|incident|failure", re.IGNORECASE)
+DEFAULT_DEFECT_CATEGORY_PATTERN = r"defect|bug|fix|regress|incident|failure"
+DEFECT_CATEGORY = re.compile(DEFAULT_DEFECT_CATEGORY_PATTERN, re.IGNORECASE)
+
+
+def defect_category_pattern() -> re.Pattern[str]:
+    """Which requirement categories count as defect work, and so need a failure-ledger entry to complete.
+    Projects name their categories as they like (`developer-tooling`, `Defect`, `incident`), so the ruleset's
+    `configuration.defect_category_pattern` overrides the default; an invalid pattern falls back to it."""
+    value = project_configuration().get("defect_category_pattern")
+    if isinstance(value, str) and value.strip():
+        try:
+            return re.compile(value, re.IGNORECASE)
+        except re.error:
+            pass
+    return DEFECT_CATEGORY
 
 
 def run_requirement_complete(args: argparse.Namespace) -> int:
     found = find_requirement(args.id)
-    if found is not None and DEFECT_CATEGORY.search(str(found[2].get("category", ""))):
+    if found is not None and defect_category_pattern().search(str(found[2].get("category", ""))):
         requirement_id = str(found[2].get("id"))
         reason = (getattr(args, "no_failure_entry", None) or "").strip()
         if not failures_referencing(requirement_id):
@@ -3479,6 +5468,18 @@ def run_requirement_complete(args: argparse.Namespace) -> int:
                 )
                 return 1
             args.note = f"No failure-ledger entry: {reason}" + (f" | {args.note}" if getattr(args, "note", None) else "")
+    # REQ-037: a fresh, passing Arbiter report is part of "complete" wherever the rule is wired.
+    block = arbiter_completion_block()
+    if block is not None:
+        skip_reason = (getattr(args, "no_arbiter_check", None) or "").strip()
+        if len(skip_reason) < 10:
+            print(
+                f"Refusing to complete {normalize_requirement_id(args.id)}: {block}\n"
+                f'If Arbiter genuinely cannot run here: --no-arbiter-check "<why, 10+ chars>" (recorded as a risk note).',
+                file=sys.stderr,
+            )
+            return 1
+        args.note = f"arbiter check skipped: {skip_reason}" + (f" | {args.note}" if getattr(args, "note", None) else "")
     args.status = "completed"
     args.title = None
     args.description = None
@@ -3486,23 +5487,58 @@ def run_requirement_complete(args: argparse.Namespace) -> int:
 
 
 def run_requirement_archive(args: argparse.Namespace) -> int:
+    """Sweep terminal requirements out of the live registry.
+
+    By default every `withdrawn` entry and every `completed` entry older than the `--keep-recent` most recent
+    ones moves to the archive. `--id` picks specific entries instead; a pending, blocked or proposed one is
+    refused rather than silently moved, because archiving live work hides it from every session.
+    """
     active = load_json(REQUIREMENTS_PATH)
     items = active.get("requirements", [])
-    completed_positions = [
-        index for index, item in enumerate(items) if isinstance(item, dict) and item.get("status") == "completed"
-    ]
-    keep_positions = set(completed_positions[-args.keep_recent:]) if args.keep_recent > 0 else set()
-    archive_positions = [index for index in completed_positions if index not in keep_positions]
+    if not isinstance(items, list):
+        print(f"{REQUIREMENTS_PATH} must contain a requirements array", file=sys.stderr)
+        return 1
+
+    # REQ-044: an old (aliased) id names the entry it was renumbered to.
+    wanted = {normalize_requirement_id(rid) for rid in split_csv(getattr(args, "id", None))}
+    if wanted:
+        by_id = {str(item.get("id")): item for item in items if isinstance(item, dict)}
+        unknown = sorted(wanted - set(by_id))
+        if unknown:
+            print(f"Not in the active registry: {', '.join(unknown)}", file=sys.stderr)
+            return 1
+        refused = sorted(rid for rid in wanted if by_id[rid].get("status") not in TERMINAL_REQUIREMENT_STATUSES)
+        if refused:
+            for rid in refused:
+                print(
+                    f"Refusing to archive {rid}: status is '{by_id[rid].get('status')}'. "
+                    f"Only {' or '.join(sorted(TERMINAL_REQUIREMENT_STATUSES))} requirements may be archived.",
+                    file=sys.stderr,
+                )
+            return 1
+        archive_positions = [
+            index for index, item in enumerate(items) if isinstance(item, dict) and str(item.get("id")) in wanted
+        ]
+        keep_note = ""
+    else:
+        completed_positions = [
+            index for index, item in enumerate(items) if isinstance(item, dict) and item.get("status") == "completed"
+        ]
+        keep_positions = set(completed_positions[-args.keep_recent:]) if args.keep_recent > 0 else set()
+        archive_positions = [index for index in completed_positions if index not in keep_positions] + [
+            index for index, item in enumerate(items) if isinstance(item, dict) and item.get("status") == "withdrawn"
+        ]
+        archive_positions.sort()
+        keep_note = f" (all non-terminal + the {args.keep_recent} most recent completed)"
     if not archive_positions:
         print("Nothing to archive.")
         return 0
 
     to_archive = [items[index] for index in archive_positions]
     remaining = [item for index, item in enumerate(items) if index not in set(archive_positions)]
-    print(
-        f"Archiving {len(to_archive)} completed requirement(s); "
-        f"{len(remaining)} stay active (all non-completed + the {args.keep_recent} most recent completed)."
-    )
+    print(f"Archiving {len(to_archive)} requirement(s); {len(remaining)} stay active{keep_note}.")
+    for item in to_archive:
+        print(f"  {item.get('id')}  [{item.get('status')}]  {item.get('title', '')}")
     if args.dry_run:
         print("Dry run: no files written.")
         return 0
@@ -3521,6 +5557,179 @@ def run_requirement_archive(args: argparse.Namespace) -> int:
     active["requirements"] = remaining
     write_json(REQUIREMENTS_PATH, active)
     print(f"Wrote {REQUIREMENTS_ARCHIVE_PATH} and {REQUIREMENTS_PATH}.")
+    return 0
+
+
+# --- omni requirement renumber (REQ-044) ----------------------------------------------------------
+#
+# Change the prefix of every requirement id, keeping the number (REQ-012 -> ARB-012), in the registry,
+# the archive, the failure ledger, the gate waivers and the governance text that cites them. Code,
+# tests, `.git`, vendored workspaces and Arbiter output are never touched: git history keeps the old
+# ids, and the `id_aliases` the command records keep that history valid for the gate and the CLI.
+
+RENUMBER_DEFAULT_PATHS = [
+    ".ai/**/*.md",
+    ".ai/**/*.json",
+    "*.md",
+    "docs/**/*.md",
+    ".claude/**/*.md",
+    ".claude/skills/**",
+]
+RENUMBER_EXCLUDED_DIRS = DEFAULT_MAP_EXCLUDED_DIRS | {"arbiter-out"}
+
+
+def _renumber_strings(value: Any, pattern: re.Pattern[str], replacement: str) -> tuple[Any, int]:
+    """The JSON value with every matching id inside its strings rewritten, and how many were. Object keys
+    are left alone: a key is never a requirement id a reader resolves (alias keys must stay the old ids)."""
+    if isinstance(value, str):
+        return pattern.subn(replacement, value)
+    if isinstance(value, list):
+        items: list[Any] = []
+        total = 0
+        for item in value:
+            rewritten, count = _renumber_strings(item, pattern, replacement)
+            items.append(rewritten)
+            total += count
+        return items, total
+    if isinstance(value, dict):
+        result: dict[str, Any] = {}
+        total = 0
+        for key, item in value.items():
+            rewritten, count = _renumber_strings(item, pattern, replacement)
+            result[key] = rewritten
+            total += count
+        return result, total
+    return value, 0
+
+
+def _renumber_text_files(
+    patterns: list[str], skip: set[Path], pattern: re.Pattern[str], replacement: str
+) -> list[tuple[Path, str, int]]:
+    """(path, rewritten text, change count) for every allow-listed text file the rewrite changes. Files the
+    command handles structurally (`skip`), anything under `.git`, a vendored workspace, `arbiter-out` or
+    another excluded directory, and files that are not UTF-8 text are left out whatever the globs say."""
+    root = Path(".")
+    vendored = [workspace.resolve() for workspace in vendored_workspace_dirs()]
+    seen: set[Path] = set()
+    results: list[tuple[Path, str, int]] = []
+    for glob_pattern in patterns:
+        try:
+            matches = sorted(root.glob(glob_pattern))
+        except (ValueError, NotImplementedError):
+            continue
+        for path in matches:
+            if not path.is_file() or any(part in RENUMBER_EXCLUDED_DIRS for part in path.parts):
+                continue
+            resolved = path.resolve()
+            if resolved in seen or resolved in skip or any(workspace in resolved.parents for workspace in vendored):
+                continue
+            seen.add(resolved)
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+            rewritten, count = pattern.subn(replacement, text)
+            if count:
+                results.append((path, rewritten, count))
+    return sorted(results, key=lambda entry: entry[0].as_posix())
+
+
+def run_requirement_renumber(args: argparse.Namespace) -> int:
+    new_prefix = str(getattr(args, "prefix", "") or "").strip()
+    if not re.fullmatch(r"[A-Z]+", new_prefix):
+        print(f"Refusing to renumber: the prefix must be upper-case letters only (got {new_prefix!r}).", file=sys.stderr)
+        return 1
+    if not REQUIREMENTS_PATH.is_file():
+        print(f"Missing {REQUIREMENTS_PATH}", file=sys.stderr)
+        return 1
+    registry = load_json(REQUIREMENTS_PATH)
+    if not isinstance(registry, dict) or not isinstance(registry.get("requirements"), list):
+        print(f"{REQUIREMENTS_PATH} must contain a requirements array", file=sys.stderr)
+        return 1
+    old_prefix = str(registry.get("requirement_id_prefix", "REQ"))
+    if new_prefix == old_prefix:
+        print(f"Requirement ids already use the prefix {new_prefix}; nothing to renumber.")
+        return 0
+    archive = load_json(REQUIREMENTS_ARCHIVE_PATH) if REQUIREMENTS_ARCHIVE_PATH.is_file() else None
+    if archive is not None and (not isinstance(archive, dict) or not isinstance(archive.get("requirements"), list)):
+        print(f"{REQUIREMENTS_ARCHIVE_PATH} must contain a requirements array", file=sys.stderr)
+        return 1
+
+    pattern = re.compile(rf"\b{re.escape(old_prefix)}-(\d{{3}})\b")
+    replacement = f"{new_prefix}-\\1"
+    mapping: dict[str, str] = {}
+    counts = {"active": 0, "archived": 0}
+    for label, source in (("active", registry), ("archived", archive)):
+        for item in source.get("requirements", []) if isinstance(source, dict) else []:
+            rid = item.get("id") if isinstance(item, dict) else None
+            if isinstance(rid, str) and pattern.fullmatch(rid):
+                mapping[rid] = pattern.sub(replacement, rid)
+                counts[label] += 1
+    # An alias this registry already carries keeps its key (the oldest id) and follows the rename.
+    aliases = {old: pattern.sub(replacement, new) for old, new in requirement_id_aliases(registry).items()}
+    aliases.update(mapping)
+
+    json_writes: list[tuple[Path, Any, int]] = []
+    body = {key: value for key, value in registry.items() if key != "id_aliases"}
+    rewritten, count = _renumber_strings(body, pattern, replacement)
+    new_registry: dict[str, Any] = {}
+    for key, value in rewritten.items():
+        new_registry[key] = new_prefix if key == "requirement_id_prefix" else value
+        if key == "requirement_id_prefix":
+            new_registry["id_aliases"] = dict(sorted(aliases.items()))
+    new_registry.setdefault("requirement_id_prefix", new_prefix)
+    new_registry.setdefault("id_aliases", dict(sorted(aliases.items())))
+    json_writes.append((REQUIREMENTS_PATH, new_registry, count + 1 + len(aliases)))
+    if archive is not None:
+        rewritten, count = _renumber_strings(archive, pattern, replacement)
+        rewritten["requirement_id_prefix"] = new_prefix
+        json_writes.append((REQUIREMENTS_ARCHIVE_PATH, rewritten, count + 1))
+    ledger_path = failure_ledger_path()
+    if ledger_path.is_file():
+        try:
+            rewritten, count = _renumber_strings(load_json(ledger_path), pattern, replacement)
+        except (OSError, json.JSONDecodeError):
+            count = 0
+        if count:
+            json_writes.append((ledger_path, rewritten, count))
+
+    text_writes: list[tuple[Path, str, int]] = []
+    if GATE_WAIVERS_PATH.is_file():
+        lines: list[str] = []
+        count = 0
+        for line in GATE_WAIVERS_PATH.read_text(encoding="utf-8").splitlines():
+            try:
+                entry = json.loads(line) if line.strip() else None
+            except json.JSONDecodeError:
+                entry = None
+            if isinstance(entry, dict):
+                rewritten, changed = _renumber_strings(entry, pattern, replacement)
+                lines.append(json.dumps(rewritten) if changed else line)
+            else:
+                rewritten, changed = pattern.subn(replacement, line)
+                lines.append(rewritten)
+            count += changed
+        if count:
+            text_writes.append((GATE_WAIVERS_PATH, "\n".join(lines) + "\n", count))
+    skip = {path.resolve() for path in (REQUIREMENTS_PATH, REQUIREMENTS_ARCHIVE_PATH, ledger_path, GATE_WAIVERS_PATH)}
+    text_writes.extend(_renumber_text_files(list(getattr(args, "paths", None) or RENUMBER_DEFAULT_PATHS), skip, pattern, replacement))
+
+    print(
+        f"Renumbering {old_prefix}-### -> {new_prefix}-###: {len(mapping)} requirement id(s) "
+        f"({counts['active']} active, {counts['archived']} archived); {len(aliases)} alias(es) recorded in {REQUIREMENTS_PATH}."
+    )
+    for path, _value, count in json_writes:
+        print(f"  {path.as_posix()}: {count} change(s)")
+    for path, _text, count in text_writes:
+        print(f"  {path.as_posix()}: {count} change(s)")
+    if getattr(args, "dry_run", False):
+        print("Dry run: no files written.")
+        return 0
+    for path, value, _count in json_writes:
+        write_json(path, value)
+    for path, text, _count in text_writes:
+        path.write_text(text, encoding="utf-8")
+    print(f"Wrote {len(json_writes) + len(text_writes)} file(s). Commit messages keep the old ids; the aliases keep them valid.")
     return 0
 
 
@@ -3599,7 +5808,7 @@ def gate_changed_paths(base: str | None) -> set[str]:
 # Kept in step with every validation type a check function below actually implements. A rule can declare a
 # validation the gate does not (yet) execute; gate_rules() silently skips those rather than crashing on them,
 # but "declared and silently never checked" is exactly the trap this set exists to avoid falling into by accident.
-EXECUTABLE_VALIDATION_TYPES = {"co_changed", "requirement_registry_entry", "content_forbidden"}
+EXECUTABLE_VALIDATION_TYPES = {"co_changed", "requirement_registry_entry", "content_forbidden", "command"}
 
 
 def gate_rules() -> list[dict[str, Any]]:
@@ -3643,10 +5852,15 @@ def _gate_check_requirement_registry_entry(rule: dict[str, Any], validation: dic
     shape; it cannot see a typo'd or invented REQ-### that some other file merely claims about it."""
     target = Path(str(validation.get("target", REQUIREMENTS_PATH)))
     try:
-        prefix = str(load_json(target).get("requirement_id_prefix", "REQ")) if target.is_file() else "REQ"
+        registry = load_json(target) if target.is_file() else {}
+        prefix = str(registry.get("requirement_id_prefix", "REQ")) if isinstance(registry, dict) else "REQ"
     except (OSError, json.JSONDecodeError):
         return None  # a malformed registry is already reported by doctor; do not double up here
-    pattern = re.compile(rf"\b{re.escape(prefix)}-\d+\b")
+    # REQ-044: history cites the prefix the registry carried at the time, so every alias prefix is matched
+    # too, and a cited id is resolved through the aliases (this registry's and the vendored ones') first.
+    aliases = {**vendored_requirement_id_aliases(), **requirement_id_aliases(registry)}
+    prefixes = sorted({prefix} | {old.split("-", 1)[0] for old in aliases if REQUIREMENT_ID_PATTERN.fullmatch(old)})
+    pattern = re.compile(rf"\b(?:{'|'.join(re.escape(p) for p in prefixes)})-\d+\b")
     cited: set[str] = set()
     if base:
         cited.update(pattern.findall(git_run("log", f"{base}..HEAD", "--format=%B") or ""))
@@ -3654,7 +5868,8 @@ def _gate_check_requirement_registry_entry(rule: dict[str, Any], validation: dic
         cited.update(pattern.findall(Path("CHANGELOG.md").read_text(encoding="utf-8", errors="replace")))
     if not cited:
         return None
-    unknown = sorted(cited - all_requirement_ids())
+    cited = {resolve_requirement_id(rid, aliases) for rid in cited}
+    unknown = sorted(cited - all_requirement_ids() - vendored_requirement_ids())
     if not unknown:
         return None
     rule_id = str(rule["id"])
@@ -3703,6 +5918,61 @@ def _gate_check_content_forbidden(rule: dict[str, Any], validation: dict[str, An
     return f"{rule_id}: {example}"
 
 
+def _gate_command_argv(argv: list[str]) -> list[str] | None:
+    """The argv a `command` rule actually runs. `omni` in a run text is this CLI: the `omni` script beside
+    this module, run by the interpreter running the gate, so a rule such as `omni test run --impacted`
+    works where `omni` is not on PATH (an adopted repository runs `python omni ...`) and never picks up
+    some other omni that happens to be installed. Anything else resolves through PATH; None when it
+    cannot (REQ-047)."""
+    if argv[0] == "omni":
+        sibling = Path(__file__).resolve().parent / "omni"
+        if sibling.is_file():
+            return [sys.executable, str(sibling), *argv[1:]]
+    executable = shutil.which(argv[0])
+    return None if executable is None else [executable, *argv[1:]]
+
+
+def _gate_check_command(rule: dict[str, Any], validation: dict[str, Any], changed: set[str], base: str | None) -> str | None:
+    """Run the project's own check -- a scanner, a test suite, a linter -- as a gate. The command runs only
+    when a changed path matches `when_changed` (minus `ignore`), `{base}` in `run` is the gate's base commit,
+    and a non-zero exit, a timeout, or an executable that is not on PATH all fail the rule: an unrunnable
+    check is not a pass. The last lines of its output ride along so the failure says why, not just that."""
+    if not arbiter_rule_scope(rule, changed):
+        return None
+    rule_id = str(rule["id"])
+    run = str(validation.get("run", "")).strip()
+    if not run:
+        return f"{rule_id}: command validation has no `run` to execute"
+    rendered = run.replace("{base}", base or "HEAD")
+    try:
+        argv = shlex.split(rendered)
+    except ValueError as exc:
+        return f"{rule_id}: cannot parse `{rendered}`: {exc}"
+    if not argv:
+        return f"{rule_id}: command validation has no `run` to execute"
+    command = _gate_command_argv(argv)
+    if command is None:
+        return f"{rule_id}: `{argv[0]}` is not on PATH, so `{rendered}` could not run (an unrunnable check is not a pass)"
+    try:
+        timeout = float(validation.get("timeout", 600))
+    except (TypeError, ValueError):
+        timeout = 600.0
+    try:
+        completed = subprocess.run(
+            command, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        return f"{rule_id}: `{rendered}` did not finish within {timeout:.0f}s"
+    except OSError as exc:
+        return f"{rule_id}: `{rendered}` could not start: {exc}"
+    if completed.returncode == 0:
+        return None
+    output = (completed.stdout or "") + "\n" + (completed.stderr or "")
+    tail = [line for line in output.strip().splitlines() if line.strip()][-5:]
+    detail = "".join(f"\n    {line}" for line in tail)
+    return f"{rule_id}: `{rendered}` exited {completed.returncode}{detail}"
+
+
 def gate_waivers(base: str | None) -> dict[str, str]:
     if not GATE_WAIVERS_PATH.is_file():
         return {}
@@ -3726,33 +5996,114 @@ def gate_waivers(base: str | None) -> dict[str, str]:
     return waivers
 
 
-def gate_evaluate(changed: set[str], waivers: dict[str, str], base: str | None = None) -> tuple[list[str], list[str]]:
+def gate_rule_memo_signature(rule: dict[str, Any], changed: set[str], base: str | None = None) -> str:
+    """What a passed `command` rule's memo is keyed on (REQ-047): the rule's run text (with `{base}`
+    rendered, so a moved base re-runs it) and, for every changed path the rule's own globs select
+    (`arbiter_rule_scope`), its mtime and size. Any edit to a scoped file changes the signature; an edit
+    to a file the rule ignores (the registry, the changelog, a document) does not."""
+    validation = rule.get("validation") if isinstance(rule, dict) else None
+    validation = validation if isinstance(validation, dict) else {}
+    parts = ["run=" + str(validation.get("run", "")).strip().replace("{base}", base or "HEAD")]
+    for path in sorted(arbiter_rule_scope(rule, changed)):
+        try:
+            stat = Path(path).stat()
+            parts.append(f"{path}:{stat.st_mtime_ns}:{stat.st_size}")
+        except OSError:
+            parts.append(f"{path}:gone")
+    return hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()
+
+
+def gate_evaluate(
+    changed: set[str],
+    waivers: dict[str, str],
+    base: str | None = None,
+    memo: dict[str, str] | None = None,
+    outcomes: list[dict[str, Any]] | None = None,
+) -> tuple[list[str], list[str]]:
+    """Every gated rule against the change set. `memo` (rule id -> memo signature, from the gate state
+    file) is consulted and updated in place for `command` rules: one whose stored signature matches the
+    current scoped change set is reported as passed (memo) and not re-run, a pass records its signature,
+    and a failure removes any record, so the memo never applies to a rule that failed (REQ-047). With
+    `memo=None` nothing is memoised. `outcomes`, when given, collects one record per rule."""
     failures: list[str] = []
     waived: list[str] = []
     for rule in gate_rules():
         validation = rule["validation"]
         vtype = validation.get("type")
+        rule_id = str(rule["id"])
+        outcome: dict[str, Any] = {"rule": rule_id, "type": vtype, "status": "pass", "duration_s": 0.0}
         if vtype == "co_changed":
             failure = _gate_check_co_changed(rule, validation, changed)
         elif vtype == "requirement_registry_entry":
             failure = _gate_check_requirement_registry_entry(rule, validation, changed, base)
         elif vtype == "content_forbidden":
             failure = _gate_check_content_forbidden(rule, validation, changed)
+        elif vtype == "command":
+            if not arbiter_rule_scope(rule, changed):
+                outcome["status"] = "skipped"
+                if outcomes is not None:
+                    outcomes.append(outcome)
+                continue
+            signature = gate_rule_memo_signature(rule, changed, base)
+            if memo is not None and memo.get(rule_id) == signature:
+                outcome["status"] = "memo"
+                if outcomes is not None:
+                    outcomes.append(outcome)
+                continue
+            started = time.monotonic()
+            failure = _gate_check_command(rule, validation, changed, base)
+            outcome["duration_s"] = round(time.monotonic() - started, 1)
+            if memo is not None:
+                if failure is None:
+                    memo[rule_id] = signature
+                else:
+                    memo.pop(rule_id, None)
         else:
             continue
         if failure is None:
+            if outcomes is not None:
+                outcomes.append(outcome)
             continue
-        rule_id = str(rule["id"])
         if rule_id in waivers:
             waived.append(f"{rule_id}: waived ({waivers[rule_id]})")
-            continue
-        failures.append(failure)
+            outcome["status"] = "waived"
+        else:
+            failures.append(failure)
+            outcome["status"] = "fail"
+        if outcomes is not None:
+            outcomes.append(outcome)
     return failures, waived
 
 
 def gate_state_file() -> Path | None:
     git_dir = git_run("rev-parse", "--git-dir")
     return Path(git_dir.strip()) / "omni-gate-last.json" if git_dir else None
+
+
+def gate_state_load() -> dict[str, Any]:
+    """The gate state file's contents (`{"signature": ..., "memo": {rule id: signature}}`), or {}."""
+    state_file = gate_state_file()
+    if state_file is None:
+        return {}
+    try:
+        state = json.loads(state_file.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return state if isinstance(state, dict) else {}
+
+
+def gate_state_save(update: dict[str, Any]) -> None:
+    """Merge `update` into the gate state file; the hook's failure signature and the per-rule memo share
+    the file, so neither write may drop the other's key. Best effort: a read-only .git is not an error."""
+    state_file = gate_state_file()
+    if state_file is None:
+        return
+    state = gate_state_load()
+    state.update(update)
+    try:
+        state_file.write_text(json.dumps(state), encoding="utf-8")
+    except OSError:
+        pass
 
 
 def gate_signature(failures: list[str], changed: set[str]) -> str:
@@ -3784,13 +6135,36 @@ def run_gate(args: argparse.Namespace) -> int:
 
     base = gate_base_commit()
     changed = gate_changed_paths(base)
+    if changed and not args.hook and omni_graph is not None:
+        try:
+            graph_file = Path(GRAPH_DEFAULT_OUTPUT)
+            if graph_file.is_file():
+                print(omni_graph.impact_summary(omni_graph.impact(graph_file, sorted(changed))))
+        except Exception:  # noqa: BLE001 -- the impact line is advice beside the gate; it never fails or delays it
+            pass
     failures: list[str] = []
     waived: list[str] = []
+    outcomes: list[dict[str, Any]] = []
     if changed:
         doctor = build_doctor_report()
         failures.extend(f"doctor: {message}" for message in doctor.errors)
-        rule_failures, waived = gate_evaluate(changed, gate_waivers(base), base)
+        # REQ-047: a command rule that passed on exactly this scoped change set is not re-run (hook or
+        # not) until a scoped file changes; --no-memo forces every rule, and still records the passes.
+        stored = gate_state_load().get("memo")
+        memo: dict[str, str] = {} if getattr(args, "no_memo", False) or not isinstance(stored, dict) else dict(stored)
+        rule_failures, waived = gate_evaluate(changed, gate_waivers(base), base, memo=memo, outcomes=outcomes)
         failures.extend(rule_failures)
+        gate_state_save({"memo": memo})
+
+    if not args.hook:
+        for outcome in outcomes:
+            if outcome["type"] != "command" or outcome["status"] == "skipped":
+                continue
+            if outcome["status"] == "memo":
+                print(f"  memo    {outcome['rule']} passed (memo)")
+            else:
+                verdict = {"pass": "PASS", "fail": "FAIL", "waived": "FAIL (waived)"}[outcome["status"]]
+                print(f"  ran     {outcome['rule']} {outcome['duration_s']:.1f}s {verdict}")
 
     if not failures:
         if not args.hook:
@@ -3808,18 +6182,11 @@ def run_gate(args: argparse.Namespace) -> int:
         print(message)
         return 1
 
-    state_file = gate_state_file()
     signature = gate_signature(failures, changed)
-    if state_file is not None:
-        try:
-            if json.loads(state_file.read_text(encoding="utf-8")).get("signature") == signature:
-                return 0
-        except (OSError, ValueError):
-            pass
-        try:
-            state_file.write_text(json.dumps({"signature": signature}), encoding="utf-8")
-        except OSError:
-            pass
+    if gate_state_file() is not None:
+        if gate_state_load().get("signature") == signature:
+            return 0
+        gate_state_save({"signature": signature})
     print(message, file=sys.stderr)
     return 2
 
@@ -4024,8 +6391,18 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Overwrite existing non-Omni assistant files instead of skipping them.",
     )
-    subparsers.add_parser("doctor", help="Check OmniEngineering workspace health.")
-    subparsers.add_parser("validate", help="Alias for doctor.")
+    doctor_parser = subparsers.add_parser("doctor", help="Check OmniEngineering workspace health.")
+    doctor_parser.add_argument("--json", action="store_true", help="Print the report as JSON (schema_version 2).")
+    doctor_parser.add_argument(
+        "--probe", action="store_true",
+        help="Launch every stdio MCP server in .mcp.json for real instead of trusting the day's memo.",
+    )
+    validate_parser = subparsers.add_parser("validate", help="Alias for doctor.")
+    validate_parser.add_argument("--json", action="store_true", help="Print the report as JSON (schema_version 2).")
+    validate_parser.add_argument(
+        "--probe", action="store_true",
+        help="Launch every stdio MCP server in .mcp.json for real instead of trusting the day's memo.",
+    )
 
     map_parser = subparsers.add_parser(
         "map",
@@ -4212,6 +6589,16 @@ def build_parser() -> argparse.ArgumentParser:
     graph_timeline.add_argument("--limit", type=int, default=40, help="Show the newest N events (0 for all; default 40).")
     graph_timeline.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
 
+    graph_impact = graph_subparsers.add_parser(
+        "impact",
+        help="What the pending change set reaches across the layers: requirements, failures, suites, tests, rules, commits.",
+    )
+    graph_impact.add_argument("--changed", metavar="BASE", help="Base commit for the change set (default: the merge-base `omni gate` uses).")
+    graph_impact.add_argument("--graph", default=GRAPH_DEFAULT_OUTPUT, help=f"Graph file to read. Defaults to {GRAPH_DEFAULT_OUTPUT}.")
+    graph_impact.add_argument("--depth", type=int, default=2, help="Cross-layer hops to follow from each changed path (default 2).")
+    graph_impact.add_argument("--limit", type=int, default=40, help="Show at most N entries per bucket (default 40).")
+    graph_impact.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+
     graph_view = graph_subparsers.add_parser(
         "view",
         help="Write an interactive, offline 3D viewer (rotate, pan, zoom, click to read, double-click to expand).",
@@ -4279,6 +6666,22 @@ def build_parser() -> argparse.ArgumentParser:
     )
     graph_render.add_argument("--json", action="store_true", help="Print a machine-readable summary instead of a human summary.")
 
+    # REQ-043: Arbiter findings in the graph
+    graph_findings = graph_subparsers.add_parser(
+        "findings",
+        help="Arbiter findings from the newest gate report, grouped by directory with the requirements, failures and suites each one is tied to.",
+    )
+    graph_findings.add_argument("--graph", default=GRAPH_DEFAULT_OUTPUT, help=f"Graph file to read. Defaults to {GRAPH_DEFAULT_OUTPUT}.")
+    graph_findings.add_argument("--under", help="Only findings in this directory (or file).")
+    graph_findings.add_argument("--dimension", help="Only this Arbiter dimension (security, quality, drift, supply_chain, ...).")
+    graph_findings.add_argument("--severity", help="Only this severity (critical, high, medium, low, info).")
+    graph_findings.add_argument("--depth", type=int, default=2, help="Hops over non-code links to collect requirements, failures and suites (default 2).")
+    graph_findings.add_argument("--tree", action="store_true", help="Print the text tree (the default).")
+    graph_findings.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+    graph_findings.add_argument("--view", action="store_true", help="Also write the interactive viewer, opened on the Findings tab.")
+    graph_findings.add_argument("--output", default=VIEW_DEFAULT_OUTPUT, help=f"With --view: HTML output path. Defaults to {VIEW_DEFAULT_OUTPUT}.")
+    graph_findings.add_argument("--open", action="store_true", help="With --view: open the result in the default browser.")
+
     context_parser = subparsers.add_parser(
         "context",
         help="Print the low-token file set for a context profile.",
@@ -4318,6 +6721,23 @@ def build_parser() -> argparse.ArgumentParser:
             f"{', '.join(sorted(ADOPTION_TOOL_FILES))}, all, none. "
             "Defaults to codex,cursor,universal."
         ),
+    )
+    adopt_parser.add_argument(
+        "--with-arbiter",
+        nargs="?",
+        const=ARBITER_DEFAULT_SOURCE,
+        default=None,
+        metavar="SOURCE",
+        help=(
+            "Also install Arbiter (a local checkout path, a git+https URL, or a pip spec; "
+            f"default {ARBITER_DEFAULT_SOURCE}) and wire it in: .mcp.json, the completion.arbiter_gate "
+            "command rule, a starter arbiter.yaml."
+        ),
+    )
+    adopt_parser.add_argument(
+        "--skip-pip",
+        action="store_true",
+        help="With --with-arbiter: write the wiring but do not pip install (arbiter is already installed).",
     )
     adopt_parser.add_argument(
         "--include-cli",
@@ -4460,6 +6880,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-failure-entry",
         help="For defect/bug/fix requirements only: why no failure-ledger entry is warranted (10+ characters, recorded as a risk note).",
     )
+    requirement_complete.add_argument(
+        "--no-arbiter-check",
+        help="Complete without a fresh, passing Arbiter report: why that is safe here (10+ characters, recorded as a risk note).",
+    )
 
     test_parser = subparsers.add_parser(
         "test",
@@ -4483,6 +6907,12 @@ def build_parser() -> argparse.ArgumentParser:
     test_remove.add_argument("id")
     test_subparsers.add_parser("list", help="Registered suites plus any detected but unregistered.")
     test_subparsers.add_parser("check", help="Verify every registered path matches files, and report unregistered tests.")
+    test_run = test_subparsers.add_parser("run", help="Run registered suites: all of them, the named ones, or only those the pending change set impacts.")
+    test_run.add_argument("names", nargs="*", help="Suite ids or names to run (default: every registered or detected suite).")
+    test_run.add_argument("--impacted", action="store_true", help="Only suites that `omni graph impact` ties to the change set; every suite when no graph exists.")
+    test_run.add_argument("--changed", metavar="BASE", help="Base commit for the change set (default: the merge-base `omni gate` uses).")
+    test_run.add_argument("--timeout", type=float, default=TEST_RUN_DEFAULT_TIMEOUT, help="Seconds each suite may run (default 900).")
+    test_run.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
 
     failure_parser = subparsers.add_parser(
         "failure",
@@ -4527,16 +6957,38 @@ def build_parser() -> argparse.ArgumentParser:
 
     requirement_archive = requirement_subparsers.add_parser(
         "archive",
-        help="Move older completed requirements into requirements-archive.json to keep the live registry small.",
+        help="Move older completed (and all withdrawn) requirements into requirements-archive.json to keep the live registry small.",
     )
+    requirement_archive.add_argument("--id", help="Comma-separated requirement IDs to archive instead of the default sweep; each must be completed or withdrawn.")
     requirement_archive.add_argument("--keep-recent", type=int, default=25, help="Completed requirements to keep active (default 25).")
     requirement_archive.add_argument("--dry-run", action="store_true", help="Report what would move without writing.")
+
+    # REQ-044
+    requirement_renumber = requirement_subparsers.add_parser(
+        "renumber",
+        help=(
+            "Change the id prefix of every requirement, keeping the number (REQ-012 -> ARB-012), in the registry, "
+            "the archive, the failure ledger, the gate waivers and the governance text that cites them; records "
+            "id_aliases so commits and waivers that cite the old ids stay valid. Code, tests, .git, vendored "
+            "workspaces and arbiter-out are never touched."
+        ),
+    )
+    requirement_renumber.add_argument("--prefix", required=True, help="New prefix: upper-case letters only, e.g. ARB.")
+    requirement_renumber.add_argument("--dry-run", action="store_true", help="Print the per-file change counts without writing.")
+    requirement_renumber.add_argument(
+        "--paths",
+        nargs="+",
+        metavar="GLOB",
+        help=f"Globs of text files to rewrite instead of the default list ({', '.join(RENUMBER_DEFAULT_PATHS)}).",
+    )
 
     gate_parser = subparsers.add_parser(
         "gate",
         help="Check that changed files carry the changelog/registry updates the completion rulepack requires.",
     )
     gate_parser.add_argument("--hook", action="store_true", help="Claude Code Stop-hook mode: read hook JSON on stdin, exit 2 to block.")
+    gate_parser.add_argument("--no-memo", action="store_true",
+                             help="Run every command rule, ignoring the per-rule pass memo in the gate state file (REQ-047).")
 
     waive_parser = subparsers.add_parser("waive", help="Record an explicit, auditable waiver for a gate rule.")
     waive_parser.add_argument("rule", help="Gate rule ID, e.g. completion.changelog_gate.")
@@ -4554,6 +7006,49 @@ def build_parser() -> argparse.ArgumentParser:
     )
     mcp_tools = mcp_subparsers.add_parser("tools", help="List the available tools without starting the server (for a quick check, or piping into a client's config).")
     mcp_tools.add_argument("--json", action="store_true", help="Print the full tool specs (name, description, input schema) as JSON.")
+
+    arbiter_parser = subparsers.add_parser("arbiter", help="Install and wire the Arbiter evaluator beside this workspace.")
+    arbiter_subparsers = arbiter_parser.add_subparsers(dest="arbiter_command")
+    arbiter_install_parser = arbiter_subparsers.add_parser(
+        "install",
+        help="pip install Arbiter and register it: .mcp.json, the completion.arbiter_gate command rule, a starter arbiter.yaml.",
+    )
+    arbiter_install_parser.add_argument("--source", default=ARBITER_DEFAULT_SOURCE,
+                                        help=f"Local checkout, git+https URL or pip spec (default {ARBITER_DEFAULT_SOURCE}).")
+    arbiter_install_parser.add_argument("--target", default=".", help="Project root (default: current directory).")
+    arbiter_install_parser.add_argument("--skip-pip", action="store_true", help="Write the wiring only; arbiter is already installed.")
+    arbiter_install_parser.add_argument("--dry-run", action="store_true", help="Show what would change without writing or installing.")
+    arbiter_baseline_parser = arbiter_subparsers.add_parser(
+        "baseline",
+        help="Cut .arbiter/baseline.json from a full offline scan so the gate reports only what is new since it; commit the file.",
+    )
+    arbiter_baseline_parser.add_argument("--target", default=".", help="Project root (default: current directory).")
+    arbiter_baseline_parser.add_argument("--refresh", action="store_true",
+                                         help="Re-cut an existing baseline (prunes ids the fresh scan no longer finds); needs the last gate report green.")
+    arbiter_baseline_parser.add_argument("--force", action="store_true", help="With --refresh: proceed even when the last gate report failed or is missing.")
+    arbiter_update_parser = arbiter_subparsers.add_parser(
+        "update",
+        help="Upgrade Arbiter: pip --upgrade, the completion.arbiter_gate rule to the current template, a vendored arbiter/ subtree pull, and re-record the version.",
+    )
+    arbiter_update_parser.add_argument("--target", default=".", help="Project root (default: current directory).")
+    arbiter_update_parser.add_argument("--source", default=None,
+                                       help=f"Local checkout, git+https URL or pip spec (default: the source recorded at install, else {ARBITER_DEFAULT_SOURCE}).")
+    arbiter_update_parser.add_argument("--keep-rule", action="store_true", help="Leave the completion.arbiter_gate rule as it is.")
+    arbiter_update_parser.add_argument("--squash", action="store_true", help="Pull the vendored arbiter/ subtree with --squash (only for a history that was squashed).")
+    arbiter_update_parser.add_argument("--force", action="store_true", help="Pull the subtree even when --squash disagrees with how arbiter/ was added.")
+    arbiter_update_parser.add_argument("--skip-pip", action="store_true", help="Do not pip install --upgrade.")
+    arbiter_update_parser.add_argument("--dry-run", action="store_true", help="Print every command without running or writing anything.")
+    arbiter_sync_parser = arbiter_subparsers.add_parser(
+        "sync",
+        help="Level everything in one go: pull the vendored arbiter/ subtree (or pip --upgrade), reinstall, re-record the version, "
+             "refresh the baseline and run doctor; stops at the first failing step.",
+    )
+    arbiter_sync_parser.add_argument("--target", default=".", help="Project root (default: current directory).")
+    arbiter_sync_parser.add_argument("--source", default=None,
+                                     help=f"Git URL or pip source (default: the source recorded at install, else {ARBITER_DEFAULT_SOURCE}).")
+    arbiter_sync_parser.add_argument("--branch", default="main", help="Branch to pull into arbiter/ in subtree mode (default main).")
+    arbiter_sync_parser.add_argument("--skip-baseline", action="store_true", help="Do not run `omni arbiter baseline` after the install.")
+    arbiter_sync_parser.add_argument("--dry-run", action="store_true", help="Print the steps and their commands without running anything.")
 
     hook_parser = subparsers.add_parser("hook", help="Install assistant hooks that enforce the gate.")
     hook_subparsers = hook_parser.add_subparsers(dest="hook_command")
@@ -4605,7 +7100,7 @@ def main(argv: list[str] | None = None) -> int:
     if command == "sync":
         return run_sync(args)
     if command in {"doctor", "validate"}:
-        return run_doctor()
+        return run_doctor(args)
     if command == "map":
         return run_map(args)
     if command == "graph":
@@ -4627,19 +7122,23 @@ def main(argv: list[str] | None = None) -> int:
             return run_graph_lineage(args)
         if args.graph_command == "timeline":
             return run_graph_timeline(args)
+        if args.graph_command == "impact":
+            return run_graph_impact(args)
         if args.graph_command == "sources":
             return run_graph_sources(args)
         if args.graph_command == "benchmark":
             return run_graph_benchmark(args)
-        parser.error("graph requires a subcommand (build, trace, show, why, lineage, timeline, sources, benchmark, render, view, schema)")
+        if args.graph_command == "findings":  # REQ-043
+            return run_graph_findings(args)
+        parser.error("graph requires a subcommand (build, trace, show, why, lineage, timeline, impact, sources, benchmark, render, view, schema, findings)")
     if command == "test":
         handlers = {
             "detect": run_test_detect, "add": run_test_add, "remove": run_test_remove,
-            "list": run_test_list, "check": run_test_check,
+            "list": run_test_list, "check": run_test_check, "run": run_test_run,
         }
         if args.test_command in handlers:
             return handlers[args.test_command](args)
-        parser.error("test requires a subcommand (detect, add, remove, list, check)")
+        parser.error("test requires a subcommand (detect, add, remove, list, check, run)")
     if command == "failure":
         handlers = {
             "add": run_failure_add, "update": run_failure_update, "show": run_failure_show,
@@ -4664,6 +7163,7 @@ def main(argv: list[str] | None = None) -> int:
             "update": run_requirement_update,
             "complete": run_requirement_complete,
             "archive": run_requirement_archive,
+            "renumber": run_requirement_renumber,  # REQ-044
         }
         if args.requirement_command in handlers:
             return handlers[args.requirement_command](args)
@@ -4672,6 +7172,16 @@ def main(argv: list[str] | None = None) -> int:
         return run_gate(args)
     if command == "waive":
         return run_waive(args)
+    if command == "arbiter":
+        if args.arbiter_command == "install":
+            return run_arbiter_install(args)
+        if args.arbiter_command == "baseline":
+            return run_arbiter_baseline(args)
+        if args.arbiter_command == "update":
+            return run_arbiter_update(args)
+        if args.arbiter_command == "sync":
+            return run_arbiter_sync(args)
+        parser.error("arbiter requires a subcommand (install, baseline, update, sync)")
     if command == "hook":
         if args.hook_command == "install":
             return run_hook_install(args)

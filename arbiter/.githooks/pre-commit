@@ -1,0 +1,16 @@
+#!/bin/sh
+# Installed by `omni hook install-git` (OmniEngineering). Do not hand-edit; rerun that command to update it.
+# Runs `omni gate` against what is about to be committed. Assistant-agnostic and OS-agnostic: Linux and macOS
+# invoke it directly, and Windows's Git for Windows always runs hooks through its own bundled sh, so this
+# runs there unchanged too. If neither python3 nor python is on PATH, it warns and lets the commit through
+# rather than blocking on a missing interpreter.
+set -e
+root=$(git rev-parse --show-toplevel) || exit 0
+cd "$root"
+if command -v python3 >/dev/null 2>&1; then py=python3
+elif command -v python >/dev/null 2>&1; then py=python
+else
+  echo "omni pre-commit: no python3/python on PATH; skipping the gate." >&2
+  exit 0
+fi
+"$py" "$root/omni" gate

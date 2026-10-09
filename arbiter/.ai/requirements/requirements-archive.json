@@ -1,0 +1,536 @@
+{
+  "version": "3.0.0",
+  "requirement_id_prefix": "ARB",
+  "requirements": [
+    {
+      "id": "ARB-001",
+      "category": "developer-tooling",
+      "title": "Adopt OmniEngineering workspace and Headroom context optimization",
+      "description": "Install the OmniEngineering .ai/ scaffold and ./omni CLI so assistant sessions share one loading order, ruleset and requirements registry; install Headroom's Claude Code integration at local scope so tool output is compressed through the local proxy.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        ".ai/",
+        "CLAUDE.md",
+        "CHANGELOG.md",
+        "make_ai.py",
+        "omni",
+        ".gitignore",
+        ".claude/settings.local.json"
+      ],
+      "do_not_access": [
+        "src/arbiter/",
+        "training/"
+      ],
+      "acceptance_criteria": [
+        ".ai/ contains no STEP-Migration project content",
+        "python omni doctor reports only the known upstream gaps listed in .ai/project-configuration.md",
+        "python omni map writes .ai/project-map.md",
+        ".claude/settings.local.json carries the Headroom env and hooks and is git-ignored"
+      ],
+      "validation_required": [
+        "python omni doctor",
+        "python -m pytest"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md",
+        ".ai/project-context.md",
+        ".ai/project-configuration.md"
+      ],
+      "risk_notes": [
+        "No pristine OmniEngineering upstream is available locally; the scaffold was assembled from STEP-Migration copies, so .ai/adapters/, .ai/checklists/public-release.md, fallback-llm-rules.json and hci-ui-rules.json are absent",
+        "With Headroom routing enabled, Claude Code sessions in this repo depend on the local proxy on port 8787 being reachable"
+      ]
+    },
+    {
+      "id": "ARB-002",
+      "category": "documentation",
+      "title": "Restructure product documentation into an overview plus category documents",
+      "description": "README.md had grown to 900 lines and served as the only product document. Split it into a professional overview covering capabilities and administration plus ten category documents under docs/ so granular material is found by type rather than by scrolling.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "README.md",
+        "SETUP.md",
+        "docs/",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "README.md is an overview rather than a full manual",
+        "docs/ holds one document per category",
+        "every internal documentation link resolves",
+        "no carried-forward claim is restated without checking it against source"
+      ],
+      "validation_required": [
+        "python -m pytest tests/ -q",
+        "python omni doctor"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md",
+        ".ai/project-context.md"
+      ],
+      "risk_notes": [
+        "Measured figures were carried forward from an earlier corpus run and are labelled as such until tools/corpus.py is rerun"
+      ]
+    },
+    {
+      "id": "ARB-003",
+      "category": "training-evidence",
+      "title": "Settle corpus composition figures and make them recomputable",
+      "description": "Documentation quoted 42 repositories in one place and 39 in another while the population table mixed a tuned-only count for the vulnerable population with full counts for the other two. tools/corpus.py is authoritative: 41 repositories of which 5 are held out leaving a tuning set of 36.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "tools/corpus.py",
+        "docs/evidence.md",
+        "README.md"
+      ],
+      "acceptance_criteria": [
+        "python tools/corpus.py --counts prints composition with nothing cloned",
+        "README.md and docs/evidence.md cite 41 total and 5 held out and 36 tuned",
+        "stack coverage gaps are reported directionally rather than as one merged list"
+      ],
+      "validation_required": [
+        "python tools/corpus.py --counts",
+        "python -m pytest tests/ -q"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md",
+        "docs/evidence.md"
+      ],
+      "risk_notes": [
+        "The measured lines and findings table predates the two Go repositories added later and stays labelled until a corpus run refreshes it"
+      ]
+    },
+    {
+      "id": "ARB-004",
+      "category": "developer-tooling",
+      "title": "Bound requirement registry growth with an archive lifecycle",
+      "description": "The active registry is loaded into every session by every context profile so unbounded growth is a permanent context tax rather than mere file bloat. Completed and withdrawn requirements are swept into an archive that no context profile loads while ids stay unique across both files.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        ".ai/requirements/",
+        ".ai/project-configuration.md"
+      ],
+      "acceptance_criteria": [
+        "omni requirement archive moves terminal requirements out of the active registry",
+        "next_requirement_id never reuses an archived id",
+        "omni doctor errors when active and archived ids collide",
+        "archiving a requirement that is not completed or withdrawn is refused"
+      ],
+      "validation_required": [
+        "python omni doctor",
+        "python -m py_compile make_ai.py"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md",
+        ".ai/project-configuration.md"
+      ],
+      "risk_notes": [
+        "make_ai.py is vendored OmniEngineering tooling so these changes must be reapplied if a pristine upstream is ever pulled"
+      ]
+    },
+    {
+      "id": "ARB-006",
+      "category": "developer-tooling",
+      "title": "Fix Windows-only crash in adapter timeout kill path",
+      "description": "Adapter._kill_group references signal.SIGKILL unconditionally, which does not exist on Windows, so any adapter timeout raises AttributeError from the cleanup path instead of stopping the analyzer. Windows also lacks os.setsid and os.killpg, so the process-group guarantee the timeout depends on has no implementation there.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/adapters.py",
+        "tests/test_arbiter.py"
+      ],
+      "acceptance_criteria": [
+        "an adapter timeout on Windows terminates the analyzer and its descendants instead of raising AttributeError",
+        "test_adapter_timeout_kills_the_whole_process_group passes on Windows",
+        "POSIX process-group behaviour is unchanged"
+      ],
+      "validation_required": [
+        "python -m pytest tests/ -q"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-007",
+      "category": "documentation",
+      "title": "Record the six landed bundle commits in CHANGELOG and project-context",
+      "description": "Commits 8775017 through 54f9a13 landed from an offline bundle and are on origin/main, but CHANGELOG.md has no entry for any of them and .ai/project-context.md has no section. They change probes, packs, gates, scoring and the CLI surface, which the changelog policy requires to be recorded. Entries must be written from the diffs rather than the commit messages, which were authored by a session with context not available here.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "CHANGELOG.md",
+        ".ai/project-context.md",
+        "src/arbiter",
+        "tools",
+        "docs",
+        "README.md",
+        "HANDOFF.md"
+      ],
+      "acceptance_criteria": [
+        "every one of the six commits is represented in CHANGELOG.md under a REQ id",
+        "rationale and residual gaps are recorded in .ai/project-context.md",
+        "each claim is verified against the diff rather than the commit message"
+      ],
+      "validation_required": [
+        "python -m pytest tests/ -q",
+        "python omni doctor"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md",
+        ".ai/project-context.md"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-008",
+      "category": "developer-tooling",
+      "title": "Correct path normalization in the doc-reference drift rule",
+      "description": "probes.py:1150 normalizes a backtick-quoted path with lstrip('./'), which strips a character set rather than a prefix, so '.ai/context-brief.md' becomes 'ai/context-brief.md' and neither membership test can match. Every dotted path in the repository is reported as missing. Measured over tracked markdown: 211 findings now, 28 with the sibling rule's _normalize_relative(). The rule is unusable for calibration until this is fixed, because adjudicating it would spend irreplaceable observations on artifacts of the defect.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/probes.py",
+        "tests/test_arbiter.py"
+      ],
+      "acceptance_criteria": [
+        "the backtick-path rule uses _normalize_relative() and skips paths that escape the repository root",
+        "a regression test covers a dotted path that exists on disk and is not reported",
+        "a regression test covers a genuinely missing file that is still reported",
+        "the suite is green"
+      ],
+      "validation_required": [
+        "PYTHONPATH=src python -m pytest -q"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md",
+        ".ai/project-context.md"
+      ],
+      "risk_notes": [
+        "the corrected rule yields 28 findings against MIN_OBSERVATIONS of 20",
+        "so the calibration queue fills with little margin"
+      ]
+    },
+    {
+      "id": "ARB-009",
+      "category": "developer-tooling",
+      "title": "Write and read arbiter's own artifacts as UTF-8",
+      "description": "Thirteen write_text() calls across cli.py, report.py, engine.py and learn.py omit encoding=, so on Windows every report, PR comment, review queue and the knowledge ledger are written in the console codepage. Observed: arbiter-out/self-scan/review-queue.md is undecodable as UTF-8 (byte 0x97, an em dash written as cp1252). Reports are meant for accreditation packages and PR comments, so they cross machines. Scope is arbiter's own artifacts, not the readers in graph.py that parse scanned target files, which is a separate question about input decoding.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/cli.py",
+        "src/arbiter/report.py",
+        "src/arbiter/engine.py",
+        "src/arbiter/learn.py",
+        "tests/test_arbiter.py"
+      ],
+      "acceptance_criteria": [
+        "every write of an arbiter-authored artifact specifies encoding='utf-8'",
+        "the matching reads of those artifacts specify encoding='utf-8'",
+        "a test writes and reads back a report containing non-ASCII text",
+        "the suite is green"
+      ],
+      "validation_required": [
+        "PYTHONPATH=src python -m pytest -q"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md",
+        ".ai/project-context.md"
+      ],
+      "risk_notes": [
+        "CI is ubuntu-latest with no matrix",
+        "so this class of defect is invisible there and must be checked on Windows by hand"
+      ]
+    },
+    {
+      "id": "ARB-010",
+      "category": "developer-tooling",
+      "title": "Expose Arbiter as an MCP server, for more than one user",
+      "description": "Wrap the service layer in a Model Context Protocol server so an agent can call scan, gate and review-queue generation as tools, instead of a human typing CLI commands. Amended 2026-09-13. The original rationale said MCP was chosen over a hosted API because hosting requires customer source to leave the customer's machine. ARB-018 reversed that decision and the hosted API is built, so that sentence is withdrawn rather than merely stale: both surfaces now exist and both call src/arbiter/service.py, which is where containment is written once. What the amendment adds is that the MCP surface must serve more than one user. It is stdio only today: serve() runs one process per client and dispatch() carries no caller identity at all, so it cannot tell two callers apart even in principle, and neither the rate limiter nor the audit line can apply to it. The fix is a streamable-HTTP transport authenticated by the same key store the API already uses -- api.verify_key, one user one key -- with the resolved caller threaded through dispatch so per-key limits and audit records apply exactly as they do over HTTP. Two surfaces, one identity model, one service layer. The stdio transport stays, because a single user on a machine holding source that must not leave it is still the case MCP serves best.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/mcp.py",
+        "src/arbiter/api.py",
+        "src/arbiter/cli.py",
+        "docs/mcp.md",
+        "pyproject.toml",
+        "tests/test_arbiter.py"
+      ],
+      "acceptance_criteria": [
+        "a tool for scan that takes a path and returns the report json",
+        "a tool for gate that returns pass or fail with the claim ledger",
+        "a tool that generates a review queue but cannot record a verdict",
+        "the offline profile is the default and network is never enabled implicitly",
+        "output is written only beneath a caller-specified directory",
+        "the server never executes the scanned repository",
+        "an HTTP transport authenticates every call against the same key store as the hosted API",
+        "the resolved caller reaches dispatch so the rate limiter and the audit line apply per key",
+        "the HTTP transport refuses plaintext on the same terms as the API",
+        "one caller cannot read another caller's workspace or result",
+        "the stdio transport keeps working unauthenticated for the single-user local case",
+        "docs/mcp.md documents the tool surface and which transport needs a key",
+        "tests cover the tool schemas, the refusal to mark verdicts, and per-caller isolation"
+      ],
+      "validation_required": [
+        "PYTHONPATH=src python -m pytest -q"
+      ],
+      "documentation_required": [
+        "docs/mcp.md",
+        "README.md",
+        "CHANGELOG.md",
+        ".ai/project-context.md"
+      ],
+      "risk_notes": [
+        "recording verdicts through an automated caller would destroy the calibration ledger's value as the one human-generated signal; the review tool must generate queues only",
+        "the mcp dependency stays an optional extra; the core install remains PyYAML alone",
+        "scanning through a server re-raises the arbiter-out self-contamination defect if callers point output inside the scanned tree",
+        "two transports with different authentication rules is a place for a mistake to hide; the stdio case must be unmistakably local-only in the documentation"
+      ]
+    },
+    {
+      "id": "ARB-011",
+      "category": "developer-tooling",
+      "title": "Exclude the scan's own output directory from the walk",
+      "description": "A scan reads the working tree, and the output directory defaults to the relative path arbiter-out inside that tree, so a second run reads the first run's report. Measured on this repository: 28 of 101 unsuppressed findings were located inside arbiter-out, 27.7 percent, of which 24 were assurance.blanket-suppression -- the rule then being adjudicated. Thread the resolved output directory through run_scan and build_inventory into walk_repo and skip it. Excluding rather than refusing, because the documented default is inside the tree.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "walk_repo skips the resolved output directory",
+        "Two consecutive scans into the default output path produce identical unsuppressed findings",
+        "No finding is ever located inside the output directory"
+      ],
+      "validation_required": [
+        "pytest",
+        "Two back-to-back self-scans compared"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-012",
+      "category": "developer-tooling",
+      "title": "Decode scanned files as UTF-8 rather than the platform default",
+      "description": "Ten call sites read files belonging to the scanned repository with read_text(errors='replace') and no encoding argument, so the codec is the platform default -- cp1252 on Windows. errors='replace' governs failure handling, not codec choice, and cp1252 decodes almost every byte without erroring, so it does not mis-decode loudly, it mis-decodes silently. A UTF-8 em dash in a scanned file reached a generated review queue as the mojibake sequence a-circumflex-euro-quotation. ARB-009 fixed arbiter's own artifacts and deliberately excluded these sites on the incorrect reasoning that errors='replace' was the design intent; the design intent is never crashing on a target file, which encoding='utf-8' preserves.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "All target-file reads pass encoding='utf-8' with errors='replace' retained",
+        "Evidence snippets from a UTF-8 source file are byte-correct",
+        "No target file causes a scan to raise UnicodeDecodeError"
+      ],
+      "validation_required": [
+        "pytest",
+        "Self-scan review queue inspected for mojibake"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-013",
+      "category": "developer-tooling",
+      "title": "Check documented paths against disk, not only the walked inventory",
+      "description": "The doc-reference drift rule tests a path named in prose against ctx.inventory.files. Directories in SKIP_DIRS are absent from that inventory, so tracked files there read as missing: .arbiter/knowledge.json, .arbiter/baseline.json and .arbiter/external-severity.json account for 9 of 31 doc-drift findings on this repository, all false. The question the rule asks is whether a documented file exists, which is a question about disk rather than about what the probes were shown. Confirm existence on disk before reporting. The remaining 22 findings are genuine and independently confirmed by omni doctor, so the rule keeps its yield.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "A documented path inside a SKIP_DIRS directory is not reported missing",
+        "A genuinely absent documented path is still reported",
+        "Paths escaping the repository root are still refused"
+      ],
+      "validation_required": [
+        "pytest",
+        "Self-scan doc-drift count compared before and after"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-014",
+      "category": "developer-tooling",
+      "title": "Attribute doc-drift findings to their repository in the Location",
+      "description": "The doc_drift probe sets repo_id on the Finding but not on the Location attached to it. Location.short() builds its repo:path prefix from the Location rather than the Finding, so every doc-drift finding renders as a bare path. Across a 36-repository corpus scan all 330 drift findings were unqualified - and cdk-examples and k8s-examples each contain a python/ tree, so a queue line naming python/stepfunctions/README.md identified no repository. An earlier version of this description claimed the three sibling probes already did this and doc_drift was the outlier. That was wrong and was written without checking. Measured on the same scan: assurance.py passes repo_id at every construction site and is the working model, while secrets attributed 0 of 377 findings, supply_chain 0 of 1817 and resource_policy 7 of 1040. doc_drift was not the outlier; assurance was. The same defect remains in the other probes, is not closed by this requirement, and is recorded separately. A review queue is read by a person, so an unattributable line is an unadjudicable one.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "All three doc_drift Finding sites pass repo_id into the Location",
+        "A doc-drift finding location.repo_id equals its Finding repo_id",
+        "Location.short() renders a repo-qualified path in the review queue"
+      ],
+      "validation_required": [
+        "pytest",
+        "Corpus scan of 36 repositories re-run and all 330 drift locations verified"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-015",
+      "category": "developer-tooling",
+      "title": "Name the repository on every review queue line",
+      "description": "The missing-repo_id defect was not confined to doc_drift. In a 36-repository corpus scan 3227 of 3564 findings carried a blank Location.repo_id: supply_chain 0 of 1817; secrets 0 of 377; resource_policy 7 of 1040. Only assurance sets it at every construction site. Because the Finding carries the id in all 3564 cases, the queue qualifies the path from the Finding through a shared review.where() used by both the markdown and HTML front ends, rather than blocking adjudication on roughly twenty construction sites across eight probes - several of which are repo-level or cross-repo and need judgement rather than a mechanical pass. Those sites remain wrong for SARIF, HTML report and console output, which is recorded as residual risk rather than closed here.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "review.where() qualifies a blank Location from the Finding repo_id",
+        "A Location that already carries a repo id is not double-prefixed",
+        "A repo-level finding renders the repository name rather than a bare dash",
+        "Both the markdown and HTML front ends use the shared helper"
+      ],
+      "validation_required": [
+        "pytest",
+        "All six generated queues verified repo-qualified against the real corpus directory names"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": [
+        "Probe construction sites still omit repo_id so SARIF and console output stay unqualified"
+      ]
+    },
+    {
+      "id": "ARB-016",
+      "category": "developer-tooling",
+      "title": "Name the repository at every probe construction site",
+      "description": "ARB-015 made the review queue qualify a path from the Finding because roughly twenty Location construction sites across eight probes never set repo_id. That left SARIF the HTML report and console output unqualified and was recorded as residual risk. This closes it at the source. Eighteen sites took the id already in scope on the enclosing Finding: secrets resource_policy quality ast_metrics supply_chain house_rules content rules and house_rules_ast. Two needed judgement rather than substitution. The interface permission-unused rule collected IAM service names into a set and discarded the grant site so it could point only at the string iam:svc and guessed the alphabetically first infrastructure repository; granted_services now records a Location the way the sibling collections do and the finding cites the file the grant is written in. The house_rules file_exists and file_absent rules matched against every path in the scan flattened into one set which made them the only probe sites in the tree that set no repo_id on the Finding at all; they now ask the question per repository.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "every Location built in probes.py carries the repo_id of its Finding",
+        "the interface permission-unused finding cites the file where the grant is written",
+        "house_rules file_exists is evaluated per repository rather than against a flattened path set",
+        "a corpus scan reports zero findings with a blank location repo_id"
+      ],
+      "validation_required": [
+        "PYTHONPATH=src python -m pytest -q",
+        "36-repository corpus re-scan reporting zero blank location repo_id"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": [
+        "file_absent now reports one finding per repository containing the path rather than one for the whole scan so a multi-repository scan can report more findings than before",
+        "file_exists is evaluated per repository so a rule previously satisfied by any one repository now reports against every repository lacking the path"
+      ]
+    },
+    {
+      "id": "ARB-017",
+      "category": "developer-tooling",
+      "title": "Spread the review sampler across repositories not only files",
+      "description": "Within a rule the sampler ordered findings so that distinct files came first which a single repository satisfies on its own. Measured on six queues drawn from the 36-repository corpus: resource.k8s-no-security-context took 19 of 20 from one repository and all 20 from teaching material which tools/corpus.py states is useless as a false-positive measure; resource.unencrypted-database 18 of 20 from one; secrets.private-key 16 of 20. Twenty findings from one repository are largely one author one generator and one set of conventions so they answer whether the rule is right about that repository while the ledger records the answer as though it were about the rule. Selection now round-robins across repositories and keeps file spread as the secondary axis inside each. Population is deliberately not an input because that label lives in the corpus tooling and a library that ranks findings must not import the test harness; repository spread is the proxy the library can compute honestly on its own. Re-measured on the same corpus the average distinct repositories per queue went from 6.0 to 12.2 and the largest single-repository share from 64.2 percent to 30.0 percent.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "select spreads across repositories before repeating one",
+        "file spread is preserved as the secondary axis within a repository",
+        "a repository with many findings does not crowd out repositories with few",
+        "the corpus queues show a lower single-repository share after the change"
+      ],
+      "validation_required": [
+        "PYTHONPATH=src python -m pytest -q",
+        "six corpus queues re-measured for repository and population spread"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": [
+        "population is not an input because that label lives in the corpus tooling and the library must not import the test harness",
+        "spread cannot exceed the pool so unencrypted-database still draws 18 of 20 from terragoat because only three repositories in the corpus produce that finding",
+        "the six queues generated before this change were drawn by the old sampler and are superseded"
+      ]
+    },
+    {
+      "id": "ARB-018",
+      "category": "developer-tooling",
+      "title": "Serve Arbiter as a hosted API",
+      "description": "Run Arbiter as a service the customer calls instead of installs. This reverses the 2026-09-12 decision recorded in .ai/project-context.md that chose MCP over hosting; MCP relocates the installation rather than removing it and the owner judges that restriction the binding one. Both surfaces call one transport-neutral service layer in src/arbiter/service.py so the containment rules are written once: output beneath a caller-named directory only; the scanned repository never executed; the network capability off during a scan whatever the caller asks for; and no operation that records an adjudication verdict. The licensing objection recorded against hosting was partly misstated -- LGPL-2.1 obligations attach to conveying a copy and running semgrep server-side conveys nothing -- so L-6 does not gate this. What gates it is custody of customer source.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/service.py",
+        "src/arbiter/mcp.py",
+        "src/arbiter/api.py",
+        "docs/hosted-api.md",
+        "pyproject.toml",
+        "tests/test_arbiter.py"
+      ],
+      "acceptance_criteria": [
+        "one service layer that both the MCP and HTTP surfaces call rather than duplicating containment;source is ingested into an isolated workspace outside the server tree and removed after the scan;archive ingest refuses absolute paths",
+        "parent traversal",
+        "links and oversized members;the scanned repository is never executed during ingest or scan;scans run with the network capability off regardless of caller input;no endpoint or tool records an adjudication verdict;a caller cannot read another caller's workspace or report;docs/hosted-api.md documents the surface and the data-custody position"
+      ],
+      "validation_required": [
+        "PYTHONPATH=src python -m pytest -q"
+      ],
+      "documentation_required": [
+        "docs/hosted-api.md",
+        "README.md",
+        "CHANGELOG.md",
+        ".ai/project-context.md"
+      ],
+      "risk_notes": [
+        "customer source leaving the customer's machine is a custody question rather than a copyright one and needs contractual terms before any external caller;a stored report names file paths and credential kinds so it is sensitive even though report.py already redacts secret values;an HTTP framework would be the first runtime dependency beyond PyYAML and needs an optional-extra decision;hosting concentrates many customers' source in one place which is a materially larger target than a local install"
+      ]
+    },
+    {
+      "id": "ARB-019",
+      "category": "developer-tooling",
+      "title": "Give a user a CLI that reaches a hosted Arbiter",
+      "description": "ARB-018 built the hosted API and nothing can conveniently call it. Every CLI command is either local (scan, gate, review) or server-side (api serve, api key add|list|revoke); docs/hosted-api.md tells a user to assemble multipart uploads with curl. That makes the hosted service real for a script and not for a person, which defeats the reason it was built -- a caller should be able to get an opinion about their repository without installing five analyzers, a grammar pack and a rule engine. This adds an arbiter remote command group that packages a target, sends it over TLS with a hand-issued key, and renders the answer through the same report.py functions a local scan uses, so the output is identical and --out, --format and --limit keep their meaning. The transport is urllib from the standard library rather than requests or httpx: pip install arbiter-eval must stay PyYAML-only, because a thin client that drags in a dependency tree is not a thin client.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/client.py",
+        "src/arbiter/cli.py",
+        "docs/hosted-api.md",
+        "tests/test_arbiter.py"
+      ],
+      "acceptance_criteria": [
+        "arbiter remote scan and gate send a target to a hosted instance and render the report locally",
+        "the client adds no runtime dependency beyond PyYAML",
+        "an http:// server address is refused by the client before the key is sent",
+        "certificate verification is on and there is no switch that disables it",
+        "the archive skips inventory.SKIP_DIRS so .git and node_modules never leave the caller's disk",
+        "an upload larger than the server's published limit is refused before it is sent",
+        "401, 413, 426 and 429 each produce a sentence saying what to do next",
+        "server address and key come from flags, then the environment, then a config file, in that order",
+        "no client call can record an adjudication verdict",
+        "docs/hosted-api.md documents the client as the way a person uses the service"
+      ],
+      "validation_required": [
+        "PYTHONPATH=src python -m pytest -q"
+      ],
+      "documentation_required": [
+        "docs/hosted-api.md",
+        "README.md",
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "an archive built from the caller's working tree can carry uncommitted secrets that a git-based upload would not; the skip list bounds this but does not remove it",
+        "a client that renders a server-produced report trusts the server's finding list; that is inherent to hosting and is a custody question rather than a code one",
+        "--cacert exists for the self-signed pilot and is a place a user could be talked into trusting the wrong certificate"
+      ]
+    }
+  ]
+}

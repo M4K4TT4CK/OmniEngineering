@@ -1,0 +1,23 @@
+system: platform
+
+repos:
+  - id: infra
+    path: ./infra
+    role: infrastructure
+  - id: app
+    path: ./app
+    role: application
+
+# Constants that must agree across repositories. Declaring one here raises the
+# severity of a disagreement from medium to high, because it is a stated
+# contract rather than a coincidence of naming.
+shared_constants:
+  - name: VECTOR_DIMENSION
+    note: "embedding width must match the index mapping and the model call"
+  - name: SEARCH_INDEX_NAME
+
+interfaces:
+  - id: IF-search
+    description: "App writes embeddings into the search domain the infra repo provisions"
+    producer: { repo: infra, resource: "aws_opensearch_domain.vectors" }
+    consumer: { repo: app, symbol: "src.embeddings" }

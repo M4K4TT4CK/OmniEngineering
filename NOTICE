@@ -19,3 +19,10 @@ Asturiano) together with the packages it bundles, including three.js (MIT
 License). Their copyright notices and license texts are reproduced in
 .ai/graph-viewer/THIRD_PARTY_NOTICES.md and are embedded in every generated
 viewer page.
+
+Vendored Arbiter (on `main` since 2026-10-09): the directory arbiter/ holds
+the Arbiter repository evaluator, copyright Nicholas J Pauken, under its own
+terms in arbiter/LICENSE (all rights reserved; see arbiter/NOTICE.md for its
+third-party components). The Apache License, Version 2.0 that covers this
+workspace does NOT extend to anything under arbiter/.
+

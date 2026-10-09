@@ -1,5 +1,289 @@
 # Changelog
 
+## 2026-10-09
+
+### Completed
+
+- `REQ-041` | CI / repo hygiene | What the upstream's first CI run on the pull request reported, fixed:
+  every action in `.github/workflows/ci.yml` names its tag's commit SHA with the tag in a trailing
+  comment (`actions/checkout` fbc6f399 v5, `actions/setup-python` a26af69b v5, `actions/cache` 0057852b
+  v4, `github/codeql-action/upload-sarif` 9f759ee6 v3), so the workflow runs what was reviewed
+  (FAIL-016). The planted defect's suppressions are the sub-bullet under REQ-045 below.
+  Found on the way: the history-layer tests' teardown raced git's detached auto-gc on macOS CI
+  (FAIL-017); every temporary repository they create now sets `gc.auto 0`.
+  With Arbiter's own fix for that false positive (FAIL-050) pulled into the subtree, the
+  `omni_graph.py` credential suppression is retired and the baseline re-cut (230 ids).
+
+- `REQ-051` | Code understanding | A finding traces to the requirement that introduced its line. `omni graph
+  build` blames every finding's line (`git blame --porcelain -L`, one call per distinct file with all of its
+  flagged lines, at the commit the report scanned, falling back to HEAD and then the working tree), records
+  `attrs.introduced_by_commit` and an `introduced_by` edge to the commit node (created with its `delivers`
+  edges when the history layer did not reach it), so the requirement is one hop on. `omni graph why f:<id>`
+  prints `introduced by  <commit> <subject> (<requirement>)` under the finding and `omni graph findings`
+  prints the same line per finding; a line with no blame (an uncommitted edit, an untracked file, a path
+  outside git) reads `introduced by  uncommitted change` and is never an error. The `cites` edges from the
+  `req:` tags stay and are labelled as context (being worked when the scan ran), in `why`, the handbook and
+  the viewer. The viewer's finding panel gains an "Introduced by" row (commit, subject, the requirements it
+  delivers), a "context" row and "Trace to introducing requirement", which draws finding, commit,
+  requirement whatever shorter route exists. The browser test builds a real git repository with one commit
+  per requirement, the second writing the flagged line, and asserts the row and the three-step trace;
+  `tests/test_graph_vendored_and_blame.py` covers blame at the scanned commit, one blame per file, the
+  uncommitted and outside-git cases and the printed output. On this repository all 33 findings resolve: the
+  stub finding `f:3780e4a24676`, tagged with five requirements, is introduced by b49f2eb (REQ-050).
+
+- `REQ-052` | Code understanding | Vendored workspaces' ledgers and registries join the graph, namespaced.
+  Every directory with its own `.ai/omni-version.json` (the `arbiter/` subtree) contributes its
+  `requirements.json` and `failure-ledger.json` with the directory as a prefix (`arbiter/ARB-048`,
+  `arbiter/FAIL-042`, `attrs.workspace`), hung under the workspace's directory node (root, arbiter,
+  failure-ledger.json, arbiter/FAIL-042); the root's ids stay bare, so the two ledgers numbered from FAIL-001
+  never collide. `recorded_as` resolves across workspaces by the finding id in `how_detected` (or
+  `symptom`); `affected` and `regression_tests` resolve relative to the workspace; an entry's `requirement`
+  resolves through the workspace's own registry and `id_aliases`; a commit or `req:` tag that cites a
+  vendored id reaches the prefixed node, the root's ids first. `omni graph why arbiter/FAIL-042` and `omni
+  graph findings` print the prefixed ids; the viewer shows the workspace on the node, in the tooltip, the
+  panel and the breadcrumb, and a search for `FAIL-042` or `arbiter/FAIL-042` finds it. Only the ledger and
+  the registry are read, never the workspace's code; doctor stays at 0 errors. The handbook states the
+  convention: a ledger entry names the finding id (`f:...`) in `how_detected`. On this repository 26
+  requirements and 41 failures of `arbiter/` joined the graph and 8 subtree commits now deliver their
+  `arbiter/ARB-###`.
+
+- `REQ-047` | Developer tooling | `completion.tests` is `required`: `omni gate` runs `omni test run --impacted`,
+  so the registered suites the change reaches must pass (nothing to run, and a pass, when no suite is
+  registered). Each `command` rule that passed is memoised in the gate state file (`.git/omni-gate-last.json`)
+  on its scoped change set (the changed paths its own globs select via `arbiter_rule_scope`, their mtimes and
+  sizes, and the rendered run text); the next `omni gate`, hook or not, reports it as `passed (memo)` and does
+  not re-run it until a scoped file changes. A failed or waived rule is never memoised; `omni gate --no-memo`
+  forces every rule; the non-hook output prints each command rule's duration (`ran     completion.tests
+  144.1s PASS`). `omni` in a rule's run text resolves to the CLI beside `make_ai.py`, so the rule works where
+  `omni` is not on PATH (an adopted repository, CI). The adopt loop (CI and `tests/test_adopt_loop.py`) asserts
+  the tests rule runs and passes with no suites while `completion.arbiter_gate` still fails alone, and runs
+  again after the fix. On a change touching `make_ai.py` the gate took 175.6 s cold and 6.4 s warm.
+
+- `REQ-049` | CLI / template maintainability | `omni arbiter sync [--source URL] [--branch main]
+  [--skip-baseline] [--dry-run]` levels the vendored subtree, the installed package, the recorded version and
+  the baseline in one command: in subtree mode `git subtree pull --prefix=arbiter <source> <branch>` (`--squash`
+  when the history was pulled that way), `pip install -e ./arbiter[mcp]`, the version record, `omni arbiter
+  baseline` (`--refresh` when one exists) and `omni doctor`; in pip mode `pip --upgrade` from the recorded
+  source, then the same tail. Each step is printed before it runs, the first non-zero exit stops the sequence
+  naming the step and what to do (a subtree conflict: resolve, commit, rerun), `--dry-run` prints the commands
+  only; a recorded local path inside the repository falls back to the upstream URL. Doctor warns, never errors,
+  when a commit since the gate base (the last 20 without one, merges skipped) carries an author or committer
+  email other than `git config user.email` or a `.local`/`localhost` domain, naming the commit, the email and
+  the fix (`git commit --amend --reset-author`, or a rebase); a repository with no configured email skips the
+  check, so the adopt loop stays quiet.
+
+- `REQ-046` | Developer tooling | The Posture line reads two Arbiter reports, not one. The gate's `--changed`
+  run is a partial scan whose grade is withheld by design, so the line read "grade withheld (coverage 15%)".
+  `arbiter_report_state` now returns `full` (the newest report with `scan_scope.mode: full`: grade, coverage,
+  existing high+, when it ran) and `gate` (the newest partial one: verdict, new high+, freshness judged against
+  the rule's scope) beside `wired`; `newest_arbiter_report` takes a mode filter and reads the `--out`
+  directory's parent and one level below it, so `arbiter-out/baseline/` and `arbiter-out/omni-gate/` are read
+  together. The line says which is which (`arbiter score 86.5 (coverage 99%, full scan 2026-10-09 08:51) ·
+  gate passed (new high+ 0, fresh)`) and names the command that makes a missing report (`run ./omni arbiter
+  baseline`, `run ./omni gate`). `omni doctor --json` is `schema_version` 2 with `posture.arbiter.full` and
+  `.gate`; the schema 1 keys stay at the top of `posture.arbiter` for one release, filled from the gate block.
+  `omni requirement complete` keeps judging the gate report and falls back to the full scan when there is none.
+
+- `REQ-050` | Developer tooling | Doctor's live MCP probe is memoised and `omni gate` uses the memo. `omni
+  gate` ran both MCP servers for real on every commit (2 s of the doctor's 2.5 s). A successful probe of a
+  stdio server is now stored in the git directory beside the gate's own state (`omni-mcp-probe.json`, never
+  tracked), keyed on the sha256 of `.mcp.json`, `PATH` and the server's resolved executable (path, mtime,
+  size), with the probe time, server name and tool names; a matching record younger than 24 hours stands in
+  for the launch and the doctor line reads `(probed <time>, run omni doctor --probe to re-check)`. `omni doctor
+  --probe` forces a live probe and refreshes the memo, `omni gate` never forces one, a failed probe is never
+  remembered, remote (`url`) servers are unchanged, and `OMNI_DOCTOR_NO_MEMO=1` turns the memo off. A warm
+  `omni doctor` takes 0.35 s instead of 2.2 s.
+
+- `REQ-048` | CI / repo hygiene | The viewer is exercised in a browser. `tests/test_viewer_browser.py` builds a
+  graph from a fixture repository plus a synthetic Arbiter report, renders the viewer with `omni graph view
+  --all --mode 2d`, opens it in headless Chromium through Playwright, switches to the Findings tab, lists both
+  findings through the search, selects one and asserts the `path:line` source row and the breadcrumb
+  (directory, file, symbol, finding), traces it to its requirement and the other to its failure-ledger entry,
+  switches the colour mode to severity against the exported `meta.finding_colors`, and fails on any console
+  error; the viewer's window API gains `colorMode` and `nodeColor(id)` so canvas colours can be read back. The
+  test skips without Playwright, a launchable Chromium or the `[graph]` extra; a new `viewer-browser` CI job
+  (ubuntu, Python 3.12, `playwright==1.63.0`, Chromium cached by Playwright version, install retried once)
+  runs it for real. The handbook says the trace is proven in a browser.
+
+- `REQ-045` | Documentation | The integration handbook `docs/arbiter-integration.md` (division of
+  labour, the three topologies, the wiring written at install, the edit-to-adjudication loop, findings in
+  the graph and the four tracing axes, impact and test selection, PR output, what each CI job proves,
+  keeping both level, requirement ids across the two, the off switches) and the dated release notes
+  `docs/release-notes-2026-10-09.md`, linked from the README (a new Arbiter section after Quick Start
+  and the design list), the Arbiter section and `.ai/context-brief.md`; `docs/` is an allowed root path.
+  - The documents now say in full what the integration put into the tree. The release notes list
+    REQ-035 (the subtree itself) and REQ-045, which they had left out, give ARB-044 its own row, count
+    FAIL-015 among the defects, and end with a table of every path the integration added with the
+    requirement each came by, plus the commands that did not exist before. The README's Arbiter section
+    carries the same inventory in one list, and its License section states the `arbiter/` exclusion that
+    `NOTICE` and `LICENSES/README.md` already did.
+
+- `REQ-041` | CI / repo hygiene | The adopt loop is proven end to end. A CI job and
+  `tests/test_adopt_loop.py` adopt the workspace with Arbiter into an empty directory, commit, plant
+  `requests.get(url, verify=False)`, prove `omni gate` exits 1 with `completion.arbiter_gate` as the
+  only failing rule, fix it, and prove the gate passes; the test skips without `arbiter` and prints
+  every transcript on an unexpected result. CI uploads the gate's SARIF to code scanning
+  (`continue-on-error`; the gate's exit code stays the verdict) and reads Arbiter's Python floor from
+  `arbiter/pyproject.toml` instead of hard-coding 3.11. Found and fixed on the way: `omni adopt
+  --include-cli` into an empty target always exited 1 because the graph-viewer files were counted as
+  already present once `.ai` had been copied in the same run (FAIL-015).
+  - The first upstream pull request (M4K4TT4CK/OmniEngineering#3) was green on every job and red on
+    code scanning's own `arbiter` check: it does not read the baseline, so on a branch whose base has
+    no earlier analysis every uploaded finding counts as new, and it fails on one error-level alert.
+    That alert was the planted defect itself, as text in the adopt-loop job (and its test), and the
+    warning beside it was a constant holding an environment variable's name. Both are now suppressed in
+    `arbiter.yaml` with the reason written out, the baseline is re-cut without them, and the handbook
+    says which findings belong in a suppression rather than the baseline. The four unpinned-action
+    notes stay active: real low-severity debt, visible in the Security tab, not a check failure.
+  - The FAIL-017 teardown race came back on macOS in `test_lineage` (FAIL-018): that test inherits the
+    shared `Fixture` and commits through its `git` helper, which the FAIL-017 fix did not cover. The
+    helper now runs every git call with `-c gc.auto=0`, so every fixture subclass is covered at once.
+
+- `REQ-044` | CLI / template maintainability | Requirement id aliases and `omni requirement renumber
+  --prefix NEW`. Two workspaces on the `REQ` prefix collide the moment one is vendored into the other
+  (each registry had reached number 035 with a different requirement). The registry gains an optional `id_aliases` map (old id to new id) that the
+  gate's requirement-id check, `requirement show/update/complete/archive`, `failure add/update/check`
+  and doctor resolve; doctor errors on an alias that points nowhere or that is still a live id.
+  `renumber` changes the prefix, renumbers the registry and archive keeping the numbers, writes the
+  aliases, rewrites `requirement` fields in the ledger and the waiver file, and rewrites references in
+  governance text only (`.ai`, root and docs markdown, `.claude`), never in code, tests, vendored
+  workspaces or git history; `--dry-run` previews, a second run is a no-op.
+
+- `REQ-043` | Code understanding | Arbiter findings are graph nodes. `omni graph build` reads the newest
+  report under the `completion.arbiter_gate` rule's output directory (or `findings_report` in
+  `graph-config.json`; `null` disables) and adds one `finding` node per unsuppressed finding with
+  `flags` edges to the file and the symbol whose span covers the line, `cites` edges to the requirements
+  its `req:` tags name, `recorded_as` edges to the ledger entry whose `how_detected` carries its id, and
+  directory `contains` edges so the tree reads root to finding. Only id, location, rule, dimension,
+  severity, status, tags and title are copied; evidence never reaches the graph. `omni graph why f:<id>`,
+  `omni graph findings [--under DIR] [--dimension D] [--severity S] [--depth N] [--tree|--json] [--view]`,
+  the `graph_findings` MCP tool and `graph view --focus f:<id>` trace a finding by id, category, severity,
+  depth and directory. The viewer gains a Findings tab (tree layout, coloured by category), `dimension`
+  and `severity` colour modes, a findings filter, `severity:` / `dim:` / `rule:` search terms, and a
+  finding detail panel with the source `path:line`, a copy button, an editor link, one-click traces to
+  the requirement or failure, and the `arbiter review` command to adjudicate it.
+
+- `REQ-042` | CLI / template maintainability | `arbiter_install` records the installed Arbiter under
+  `arbiter` in `.ai/omni-version.json` (`write_omni_version_file` now preserves keys it does not own);
+  doctor warns when the installed version differs; `omni update` warns when the installed
+  `completion.arbiter_gate` rule drifted from the template; `omni arbiter update [--source] [--keep-rule]
+  [--squash] [--force] [--skip-pip] [--dry-run]` upgrades the package, rewrites the rule, pulls a
+  vendored subtree (refusing to mix squash modes unless forced, detected from the last
+  `git-subtree-dir` commit), re-records the version and suggests a baseline refresh.
+
+- `REQ-040` | Executable validation | `omni test run [NAMES] [--impacted] [--changed BASE] [--json]
+  [--timeout]` runs registered suites at the root and reports PASS, FAIL, SKIP or TIMEOUT with the last
+  lines; `--impacted` selects the suites whose paths intersect the change's impact set and runs all
+  suites, with a note, when no graph exists; names override `--impacted`. The completion rulepack gains
+  a recommended `completion.tests` example rule that adopters promote to required.
+
+- `REQ-039` | Code understanding | `omni graph impact [--changed BASE] [--depth N] [--json]` resolves
+  the changed set like the gate, walks the governance, history, assurance and workspace edges (never
+  code edges, never `follows`) and buckets what it reaches: requirements, changelog entries, failures,
+  test files, suites, rules and commits, each with the hop count and the edge it came by. `omni gate`
+  prints the one-line summary when the graph exists; the `omni` MCP server exposes `graph_impact`.
+
+- `REQ-038` | Feature | A committed Arbiter baseline. `arbiter_install` cuts `.arbiter/baseline.json`
+  from a full offline scan when `arbiter` is on PATH and says to commit it; the generated
+  `completion.arbiter_gate` rule now passes `--baseline .arbiter/baseline.json` and asks for
+  `json,sarif,pr-comment` output, so `new: high` means new since the baseline; `omni arbiter baseline
+  [--refresh] [--force]` re-baselines only when the last gate passed, refuses partial-scan reports and
+  prunes ids that vanished; doctor warns when the rule exists without a baseline, when the baseline
+  predates the newest fixed ledger entry, or when its config hash no longer matches `arbiter.yaml`.
+
+- `REQ-037` | Enforcement | `omni requirement complete` refuses, naming `./omni gate`, while the
+  completion rulepack carries `completion.arbiter_gate` and the newest report under its output directory
+  is missing, was not scanned at HEAD, is older than the newest changed file, or failed; `arbiter` not
+  installed refuses first. `--no-arbiter-check REASON` (ten characters or more) records the reason in
+  the note.
+
+- `REQ-036` | Doctor / drift detection | `omni doctor` ends with a `Posture:` line after the unchanged
+  `Result:` line: the newest Arbiter report (score or withheld, coverage, new high-or-above, gate
+  result, fresh or stale with the reason), open or mitigated failures, and open requirements by status.
+  `omni doctor --json` (also `validate --json`) emits the whole report with `schema_version: 1` as the
+  stable contract. Doctor errors on a requirement id shared between the root registry, its archive and
+  a vendored workspace registry, naming both files.
+
+- `REQ-034` | Process | A vendored workspace is recognised, not fought. A directory below the root that
+  carries its own `.ai/omni-version.json` (the `arbiter` subtree on the `arbiter` branch, a monorepo
+  package, an adopter checked in beside the template) is a workspace of its own: the requirement-id gate
+  accepts ids from its registry, so a `git subtree pull` whose commits cite `REQ-0xx` no longer needs a
+  waiver here; `omni doctor` warns when its copies of the CLI differ from this checkout's and names the
+  `omni update` command that brings them level; and CI gains a job that runs a vendored Arbiter's own
+  suite, claim-integrity and mutation checks whenever `arbiter/pyproject.toml` exists, so the copy
+  cannot rot unnoticed. Dependency folders (`vendor/`, `node_modules/`) are never read as workspaces.
+  - Also restored `withdrawn` in the requirements schema enum. REQ-031 added it to the CLI vocabulary and
+    meant to add it to the schema, but that edit was overwritten before the commit and the test guarding
+    the two (`test_schema_enum_matches_the_cli_vocabulary`) was misread as the known environment failure
+    in the hook test. Recorded as FAIL-011: from now on a failing suite is read by test name, never by
+    count.
+  - CI also runs on pushes to the `arbiter` branch, so the vendored-Arbiter job exercises the subtree
+    there without a pull request.
+  - The main matrix installs a vendored Arbiter when `arbiter/pyproject.toml` exists, because doctor
+    starts the `arbiter mcp` server the branch registers and the gate runs `arbiter gate`; the first run
+    on the `arbiter` branch failed all six matrix jobs on exactly that live check.
+  - That install only happens on Python 3.11+, which Arbiter requires: on 3.10 the unit tests still run
+    and the doctor and gate steps are skipped with a note (both run on every 3.12 cell). The second run
+    on the `arbiter` branch had failed the 3.10 cells on the install itself and the 3.12 cells on
+    `arbiter gate` reading two of its own earlier reports that had been committed before `arbiter-out/`
+    was ignored: those are untracked there now and the lesson is FAIL-012.
+
+- `REQ-035` | Process | Arbiter published into this repository on the `arbiter` branch, as a git subtree
+  under `arbiter/` with its full history (`git subtree pull --prefix=arbiter ... main` takes later
+  changes). The branch allows `arbiter` as a root path, exempts `arbiter/**` from the `data.privacy`
+  content check (Arbiter's fixture corpus is planted secrets by design), keeps `arbiter/` out of this
+  repository's code graph (the subtree has its own), states at the root that the Apache-2.0 grant does not
+  extend to `arbiter/`, and wires Arbiter to gate this repository too: `arbiter gate . --changed` runs
+  inside `omni gate`, and the `arbiter` MCP server is registered beside `omni`. Merged into `main` on
+  2026-10-09 (pull request #3) once the whole loop was green on both sides.
+
+- `REQ-033` | Feature | Arbiter installs alongside the workspace.
+  - `omni adopt --with-arbiter [SOURCE]` and, for a repository adopted earlier, `omni arbiter install
+    --source SOURCE` pip-install `arbiter-eval[mcp]` (editable from a local checkout, or from the GitHub
+    URL by default) and write the wiring the two tools need to meet: the `arbiter` server in `.mcp.json`,
+    a `completion.arbiter_gate` rule of type `command` in the completion rulepack so `omni gate` runs
+    `arbiter gate --changed <base>`, a starter `arbiter.yaml`, and `arbiter-out/` in `.gitignore`. Each
+    step is skipped when already present and nothing is overwritten, so the command is safe to rerun;
+    `--skip-pip` writes the wiring only and `--dry-run` reports it. The arbiter repository itself was the
+    first consumer, by hand, in its REQ-031 and REQ-032; this makes the same wiring one command for every
+    other adopter.
+
+- `REQ-032` | Feature | The gate can run the project's own check, and defect work is recognised by a
+  configurable pattern.
+  - A fourth validation type, `command`: `{"type": "command", "run": "arbiter gate --changed {base}",
+    "when_changed": ["src/**"], "timeout": 600}` runs a scanner, a test suite or a linter as part of
+    `omni gate` whenever a changed path matches. `run` is split like a shell line, `{base}` is the gate's
+    base commit, and a non-zero exit, a timeout, or an executable missing from `PATH` all fail the rule with
+    the last lines of output attached -- an unrunnable check is not a pass. The first consumer is the arbiter
+    adopter, whose `arbiter gate` now runs inside `omni gate`, so the workspace enforces the product's own
+    standard instead of only the changelog and registry co-change.
+  - `omni requirement complete` decided whether a requirement was defect work (and so needs a failure-ledger
+    entry) with a hardcoded regex over the category name. A project whose categories are `developer-tooling`
+    or `compliance` never triggered it. `configuration.defect_category_pattern` in the ruleset now overrides
+    that regex; the default is unchanged and an invalid pattern falls back to it.
+
+- `REQ-031` | Feature | Two improvements ported back from the arbiter adopter's fork of `make_ai.py`.
+  - A requirement can now be `withdrawn`: a terminal status like `completed`, for work that was decided
+    against rather than finished. `omni requirement archive` moves every withdrawn entry along with the
+    completed ones older than `--keep-recent`, and `--id REQ-001,REQ-002` archives exactly the named entries,
+    refusing a pending, blocked or proposed one outright (exit 1, nothing written) instead of silently hiding
+    live work from every session that loads the registry. The schema enum and the ruleset's requirement
+    template name the new status.
+  - `omni doctor` checks `.mcp.json` by starting the servers it registers, not by reading the file: each stdio
+    server is launched with its configured command, args and env, taken through the real `initialize` and
+    `tools/list` handshake over newline-delimited JSON-RPC, and must answer with at least one tool within 30s.
+    A registration that looks right but no longer starts (an SDK whose shape moved, an entry point renamed, a
+    command not on PATH) is exactly the failure a static check cannot see, and the assistant would otherwise
+    fall back to shelling out without saying so. Remote `url` servers are reported as not probed. `.mcp.json`
+    is now an allowed root file. Tests exercise the probe against `omni mcp serve` itself, so the server and
+    the check are verified against each other.
+  - Two graph fixes found while re-syncing the arbiter adopter: `exclude_code_globs` in `.ai/graph-config.json`
+    keeps named directories (test corpora with planted defects, vendored examples, generated output) out of
+    the code layer while they stay tracked and readable, so their symbols are never attributed to the project;
+    and a changelog that keeps dated `###` sections under one `## [Unreleased]` heading now yields one dated
+    entry per section instead of a single undated block. `omni doctor` also stopped reporting the requirements
+    registry as "partially readable" whenever an unrelated earlier check had failed.
+
 ## 2026-09-22
 
 ### Completed

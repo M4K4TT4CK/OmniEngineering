@@ -1,0 +1,437 @@
+framework:
+  id: HIPAA-Security-Rule
+  title: HIPAA Security Rule — 45 CFR Part 164, Subpart C
+  version: "45 CFR 164.302–164.318 (as amended by the 2013 Omnibus Rule)"
+  authority: https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C
+  baseline: §§164.308, 164.310, 164.312, 164.316
+  # The unit is a standard, or an implementation specification where the
+  # standard has them. Standards: §164.308 has 9 ((a)(1)–(a)(8) and (b)),
+  # §164.310 has 4, §164.312 has 5, §164.316 has 2 — 20. Implementation
+  # specifications: §164.308 has 21, §164.310 has 8, §164.312 has 7, §164.316
+  # has 3 — 39. Both are counted because both are things a covered entity
+  # must address, and a scanner reaches a specification far more often than
+  # it reaches a whole standard. Following the convention of the government
+  # packs, the denominator is the Rule's real size, not the number of
+  # controls listed below.
+  declared_controls: 59
+  declared_source: >-
+    45 CFR Part 164 Subpart C — 20 standards plus 39 implementation
+    specifications across §164.308 (administrative), §164.310 (physical),
+    §164.312 (technical) and §164.316 (policies, procedures and
+    documentation). §164.314 (organizational requirements) is excluded; it
+    is contract language, not a safeguard. This pack enumerates the
+    scanner-relevant subset and a representative set of the rest; everything
+    not listed resolves to "not enumerated".
+  notes: >-
+    An INDEPENDENT pack. The Security Rule is enforced by OCR against a
+    covered entity or business associate as a whole, on the basis of a risk
+    analysis, documented decisions, and policies that are actually followed.
+    A clean scan of a repository is not compliance with any standard in this
+    pack. It is one input to a risk analysis, and for most of the Rule it is
+    not even that.
+
+    "Addressable" does not mean "optional". An addressable specification
+    requires the entity to implement it, or to document why it is not
+    reasonable and appropriate and implement an equivalent alternative. A
+    scanner can sometimes see the implementation; it can never see the
+    documented decision, and the decision is what OCR asks for. Every
+    addressable specification below is marked "partial" at best, and the
+    residual says so.
+
+    Physical safeguards are almost entirely "none" here, and that is correct:
+    locks, badges, workstation placement and media destruction are not
+    expressed in source code. Treating them as failures because a scanner
+    found no evidence would be as dishonest as treating them as passes.
+
+    Identifiers and titles were transcribed from the public eCFR text.
+    Paragraph numbering in §164.308(b) has shifted across amendments;
+    verify every citation against the current eCFR before any of this
+    appears in a risk analysis, a policy set, or a response to OCR.
+
+controls:
+  # ---- §164.308 Administrative safeguards -------------------------------
+  - id: 164.308(a)(1)(ii)(A)
+    title: Risk analysis (Required)
+    family: "Administrative safeguards (§164.308)"
+    automatable: none
+    residual: >-
+      An accurate and thorough assessment of risks to ePHI across the whole
+      entity. A scan is one input to it. It is not the analysis, and OCR's
+      enforcement history says the missing analysis is the most common
+      finding.
+    satisfied_by: []
+
+  - id: 164.308(a)(1)(ii)(B)
+    title: Risk management (Required)
+    family: "Administrative safeguards (§164.308)"
+    automatable: none
+    residual: >-
+      Security measures sufficient to reduce the risks found, decided and
+      recorded by people. Arbiter's adjudication ledger records decisions
+      about findings; it does not make them.
+    satisfied_by: []
+
+  - id: 164.308(a)(1)(ii)(D)
+    title: Information system activity review (Required)
+    family: "Administrative safeguards (§164.308)"
+    automatable: partial
+    machine_scope: >-
+      Whether audit logging and a retention period are declared on resources
+      at all, so there is something to review.
+    residual: >-
+      The review itself — regular examination of audit logs, access reports
+      and incident tracking — and its record. Logs existing is the
+      precondition, not the procedure.
+    satisfied_by:
+      - arbiter/resource.no-object-store-logging
+      - arbiter/resource.no-log-retention
+      - checkov/CKV_AWS_18
+      - checkov/CKV_AWS_67
+
+  - id: 164.308(a)(2)
+    title: Assigned security responsibility
+    family: "Administrative safeguards (§164.308)"
+    automatable: none
+    residual: A named security official, in writing.
+    satisfied_by: []
+
+  - id: 164.308(a)(3)(ii)(C)
+    title: Termination procedures (Addressable)
+    family: "Administrative safeguards (§164.308)"
+    automatable: none
+    residual: >-
+      Access removed when employment ends, evidenced by the leavers process
+      and the identity provider, neither of which a repository declares.
+    satisfied_by: []
+
+  - id: 164.308(a)(4)(ii)(B)
+    title: Access authorization (Addressable)
+    family: "Administrative safeguards (§164.308)"
+    automatable: partial
+    machine_scope: >-
+      Storage and databases declared publicly reachable, IAM grants nothing
+      in the system uses, and policies attached directly to users.
+    residual: >-
+      The policy for granting access, the record of each grant, and the
+      documented addressability decision. A tidy IAM policy is not an
+      authorization record.
+    satisfied_by:
+      - arbiter/resource.public-object-store
+      - arbiter/resource.database-publicly-accessible
+      - arbiter/interface.permission-unused
+      - checkov/CKV_AWS_1
+
+  - id: 164.308(a)(5)(ii)(B)
+    title: Protection from malicious software (Addressable)
+    family: "Administrative safeguards (§164.308)"
+    automatable: none
+    residual: >-
+      Procedures for guarding against, detecting and reporting malware. A
+      repository scanner is not anti-malware and should not be presented as
+      such.
+    satisfied_by: []
+
+  - id: 164.308(a)(5)(ii)(D)
+    title: Password management (Addressable)
+    family: "Administrative safeguards (§164.308)"
+    automatable: partial
+    machine_scope: >-
+      Passwords, keys and credentialed URLs committed to version control,
+      which is a failure of "safeguarding" no procedure can excuse.
+    residual: >-
+      Procedures for creating and changing passwords, the workforce training
+      behind them, and the handling of every credential that lives outside
+      the repository. Finding no secret in source evidences none of these.
+    satisfied_by:
+      - arbiter/secrets.assigned-credential
+      - arbiter/secrets.pg-url
+      - arbiter/secrets.private-key
+      - arbiter/secrets.aws-access-key
+      - arbiter/secrets.gh-token
+      - bandit/B105
+
+  - id: 164.308(a)(6)(ii)
+    title: Response and reporting (Required)
+    family: "Administrative safeguards (§164.308)"
+    automatable: none
+    residual: >-
+      Incidents identified, responded to, mitigated and documented — and,
+      under the Breach Notification Rule, reported. A capability, exercised.
+    satisfied_by: []
+
+  - id: 164.308(a)(7)(ii)(A)
+    title: Data backup plan (Required)
+    family: "Administrative safeguards (§164.308)"
+    automatable: partial
+    machine_scope: >-
+      Deletion protection and versioning declared on storage and database
+      resources.
+    residual: >-
+      Retrievable exact copies of ePHI, taken on a schedule, stored
+      separately, and restorable. Deletion protection is not a backup and
+      does not evidence one.
+    satisfied_by:
+      - arbiter/resource.no-deletion-protection
+      - checkov/CKV_AWS_21
+      - checkov/CKV_AWS_293
+
+  - id: 164.308(a)(7)(ii)(B)
+    title: Disaster recovery plan (Required)
+    family: "Administrative safeguards (§164.308)"
+    automatable: none
+    residual: A plan to restore any loss of data, written and tested.
+    satisfied_by: []
+
+  - id: 164.308(a)(8)
+    title: Evaluation
+    family: "Administrative safeguards (§164.308)"
+    automatable: partial
+    machine_scope: >-
+      That static analysis ran, with its coverage recorded. A scan is a
+      technical evaluation of the part of the environment that is declared
+      as code.
+    residual: >-
+      The nontechnical half of the evaluation, the periodic cadence, the
+      re-evaluation after environmental or operational change, and every
+      system the scan did not reach.
+    satisfied_by:
+      - checkov/CKV_AWS_1
+      - bandit/B105
+
+  - id: 164.308(b)(1)
+    title: Business associate contracts and other arrangements
+    family: "Administrative safeguards (§164.308)"
+    automatable: none
+    residual: >-
+      A written contract or other arrangement with every business associate,
+      meeting §164.314(a). Contract language, held by legal.
+    satisfied_by: []
+
+  # ---- §164.310 Physical safeguards --------------------------------------
+  - id: 164.310(a)(1)
+    title: Facility access controls
+    family: "Physical safeguards (§164.310)"
+    automatable: none
+    residual: >-
+      Locks, badges, visitor logs and a site walk. For a hosted system,
+      usually inherited from the hosting provider's own attestation, which
+      a person reads; a customer scan cannot evidence it either way.
+    satisfied_by: []
+
+  - id: 164.310(b)
+    title: Workstation use
+    family: "Physical safeguards (§164.310)"
+    automatable: none
+    residual: >-
+      Policies on the functions performed and the physical surroundings of
+      workstations that reach ePHI.
+    satisfied_by: []
+
+  - id: 164.310(c)
+    title: Workstation security
+    family: "Physical safeguards (§164.310)"
+    automatable: none
+    residual: Physical safeguards on the workstations themselves.
+    satisfied_by: []
+
+  - id: 164.310(d)(2)(i)
+    title: Disposal (Required)
+    family: "Physical safeguards (§164.310)"
+    automatable: none
+    residual: Destruction certificates for media and hardware holding ePHI.
+    satisfied_by: []
+
+  - id: 164.310(d)(2)(ii)
+    title: Media re-use (Required)
+    family: "Physical safeguards (§164.310)"
+    automatable: none
+    residual: Sanitization records before media is reused.
+    satisfied_by: []
+
+  - id: 164.310(d)(2)(iv)
+    title: Data backup and storage (Addressable)
+    family: "Physical safeguards (§164.310)"
+    automatable: none
+    residual: >-
+      A retrievable exact copy of ePHI before equipment is moved. A
+      procedure tied to physical events a repository never sees.
+    satisfied_by: []
+
+  # ---- §164.312 Technical safeguards -------------------------------------
+  - id: 164.312(a)(1)
+    title: Access control
+    family: "Technical safeguards (§164.312)"
+    automatable: partial
+    machine_scope: >-
+      Storage and databases declared publicly reachable, and ingress rules
+      admitting any address — access allowed to everyone rather than only to
+      those granted rights.
+    residual: >-
+      Whether access is in fact limited to persons and programs granted
+      rights, which is enforced at the application and identity layers, and
+      the four implementation specifications beneath this standard.
+    satisfied_by:
+      - arbiter/resource.public-object-store
+      - arbiter/resource.database-publicly-accessible
+      - arbiter/resource.unrestricted-ingress
+      - checkov/CKV_AWS_17
+      - checkov/CKV_AWS_20
+
+  - id: 164.312(a)(2)(i)
+    title: Unique user identification (Required)
+    family: "Technical safeguards (§164.312)"
+    automatable: none
+    residual: >-
+      A unique name or number for every user, which is a property of the
+      identity provider, not of the source tree.
+    satisfied_by: []
+
+  - id: 164.312(a)(2)(ii)
+    title: Emergency access procedure (Required)
+    family: "Technical safeguards (§164.312)"
+    automatable: none
+    residual: A documented, tested break-glass procedure.
+    satisfied_by: []
+
+  - id: 164.312(a)(2)(iii)
+    title: Automatic logoff (Addressable)
+    family: "Technical safeguards (§164.312)"
+    automatable: none
+    residual: Session termination after inactivity, configured at runtime.
+    satisfied_by: []
+
+  - id: 164.312(a)(2)(iv)
+    title: Encryption and decryption (Addressable)
+    family: "Technical safeguards (§164.312)"
+    automatable: partial
+    machine_scope: Encryption at rest requested on declared storage resources.
+    residual: >-
+      The documented addressability decision; key custody and rotation; and
+      whether the encryption meets the HHS guidance that makes ePHI
+      "unsecured" or not for breach-notification safe harbor. Encryption
+      switched on says nothing about who holds the key, and this is the
+      specification most often over-claimed from a scan result.
+    satisfied_by:
+      - arbiter/resource.unencrypted-database
+      - arbiter/resource.unencrypted-object-store
+      - arbiter/resource.unencrypted-volume
+      - arbiter/resource.unencrypted-queue
+      - checkov/CKV_AWS_16
+      - checkov/CKV_AWS_19
+
+  - id: 164.312(b)
+    title: Audit controls
+    family: "Technical safeguards (§164.312)"
+    automatable: partial
+    machine_scope: >-
+      Access logging declared on object stores, cloud control-plane trails,
+      cluster control planes and database engines.
+    residual: >-
+      Whether the mechanisms record activity in the systems that actually
+      hold ePHI, and whether what is recorded is examined. Logging being on
+      is not logging the right things.
+    satisfied_by:
+      - arbiter/resource.no-object-store-logging
+      - checkov/CKV_AWS_18
+      - checkov/CKV_AWS_35
+      - checkov/CKV_AWS_58
+      - checkov/CKV_AWS_129
+
+  - id: 164.312(c)(1)
+    title: Integrity
+    family: "Technical safeguards (§164.312)"
+    automatable: partial
+    machine_scope: >-
+      Versioning, deletion protection and log-file integrity validation
+      declared on resources — protection against improper destruction.
+    residual: >-
+      Protection against improper alteration, which is application-level,
+      and the mechanism to authenticate ePHI beneath this standard.
+    satisfied_by:
+      - checkov/CKV_AWS_36
+      - checkov/CKV_AWS_21
+      - arbiter/resource.no-deletion-protection
+
+  - id: 164.312(c)(2)
+    title: Mechanism to authenticate electronic protected health information (Addressable)
+    family: "Technical safeguards (§164.312)"
+    automatable: none
+    residual: >-
+      Checksums, digital signatures or equivalent applied to ePHI at the
+      application layer, and the documented addressability decision.
+    satisfied_by: []
+
+  - id: 164.312(d)
+    title: Person or entity authentication
+    family: "Technical safeguards (§164.312)"
+    automatable: partial
+    machine_scope: >-
+      Credentials and keys committed to version control. A hardcoded
+      credential lets anyone with the repository authenticate as the system
+      account, which is the opposite of verifying that the entity is the one
+      claimed.
+    residual: >-
+      Multi-factor authentication, identity proofing and the authentication
+      design of every system the repository does not describe. No secret
+      found in source is not evidence that authentication works.
+    satisfied_by:
+      - arbiter/secrets.private-key
+      - arbiter/secrets.aws-access-key
+      - arbiter/secrets.gh-token
+      - arbiter/secrets.pg-url
+      - arbiter/secrets.jwt
+      - arbiter/secrets.assigned-credential
+
+  - id: 164.312(e)(1)
+    title: Transmission security
+    family: "Technical safeguards (§164.312)"
+    automatable: partial
+    machine_scope: >-
+      Listeners declared without TLS, databases that accept plaintext
+      connections, and HTTP endpoints that do not redirect to HTTPS.
+    residual: >-
+      Which transmissions carry ePHI at all, and every network path not
+      declared in infrastructure code.
+    satisfied_by:
+      - arbiter/resource.plaintext-listener
+      - arbiter/resource.database-allows-plaintext-connections
+      - arbiter/resource.no-https-redirect
+
+  - id: 164.312(e)(2)(ii)
+    title: Encryption (Addressable)
+    family: "Technical safeguards (§164.312)"
+    automatable: partial
+    machine_scope: >-
+      TLS policies that admit 1.0 or 1.1, load balancer listeners without a
+      modern policy, and code that disables certificate verification or pins
+      withdrawn protocol versions.
+    residual: >-
+      Cipher policy, certificate provenance, and the documented
+      addressability decision. TLS on is necessary; it is not the
+      specification met until the policy has been read.
+    satisfied_by:
+      - arbiter/resource.weak-tls-version
+      - checkov/CKV_AWS_2
+      - checkov/CKV_AWS_103
+      - bandit/B501
+      - bandit/B502
+      - bandit/B503
+
+  # ---- §164.316 Policies, procedures and documentation ------------------
+  - id: 164.316(a)
+    title: Policies and procedures
+    family: "Policies, procedures and documentation (§164.316)"
+    automatable: none
+    residual: >-
+      Reasonable and appropriate policies and procedures, written, and
+      changed as needed. Paper, by design.
+    satisfied_by: []
+
+  - id: 164.316(b)(2)(i)
+    title: Time limit (Required)
+    family: "Policies, procedures and documentation (§164.316)"
+    automatable: none
+    residual: >-
+      Documentation retained six years from creation or last effective date.
+      A records-management obligation a scanner cannot see.
+    satisfied_by: []

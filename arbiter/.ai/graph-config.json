@@ -1,0 +1,16 @@
+{
+  "exclude_code_globs": [
+    "fixtures/",
+    "examples/",
+    "training/",
+    ".arbiter/",
+    "arbiter-out/",
+    "arbiter-ab/",
+    "deploy/",
+    "ci/"
+  ],
+  "ci_files": [
+    ".github/workflows/pr-check.yml",
+    ".github/workflows/train.yml"
+  ]
+}

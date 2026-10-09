@@ -413,5 +413,44 @@ class TestTestCli(Project):
         self.assertFalse((self.root / ".ai/test-suites.json").exists())
 
 
+class TestChangelogLevelChoice(unittest.TestCase):
+    def test_dated_subsections_under_unreleased_are_the_entries(self) -> None:
+        """A Keep-a-Changelog file whose dated sections live under one `## [Unreleased]` heading has its entries at
+        level 3; before this fix the whole Unreleased block was one undated entry."""
+        text = "# Changelog\n\n## [Unreleased]\n\n### 2026-09-17\n\n- a (REQ-030)\n\n### 2026-09-16\n\n- b (REQ-026)\n"
+        entries = og.parse_changelog(text)
+        self.assertEqual([e["date"] for e in entries], ["2026-09-17", "2026-09-16"])
+        self.assertIn("- a (REQ-030)", entries[0]["body"])
+
+    def test_unreleased_beside_dated_releases_stays_one_level(self) -> None:
+        entries = og.parse_changelog("# Changelog\n\n## [Unreleased]\n\n- wip\n\n## [1.0.0] - 2020-01-02\n\nx\n")
+        self.assertEqual([e["heading"] for e in entries], ["[Unreleased]", "[1.0.0] - 2020-01-02"])
+
+    def test_unreleased_only_is_still_one_entry(self) -> None:
+        entries = og.parse_changelog("# Changelog\n\n## [Unreleased]\n\n- wip\n")
+        self.assertEqual(len(entries), 1)
+
+
+class TestExcludeCodeGlobs(unittest.TestCase):
+    def test_excluded_directories_never_reach_the_code_layer(self) -> None:
+        import json
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "src").mkdir()
+            (root / "src" / "app.py").write_text("x = 1\n", encoding="utf-8")
+            (root / "fixtures" / "corpus").mkdir(parents=True)
+            (root / "fixtures" / "corpus" / "planted.py").write_text("y = 2\n", encoding="utf-8")
+            (root / "examples").mkdir()
+            (root / "examples" / "demo.py").write_text("z = 3\n", encoding="utf-8")
+            (root / ".ai").mkdir()
+            (root / ".ai" / "graph-config.json").write_text(json.dumps({"exclude_code_globs": ["fixtures/", "examples/**"]}), encoding="utf-8")
+            og._CONFIG_CACHE.clear()
+            found = [p.relative_to(root).as_posix() for p, _ in og.discover_source_files(root, ["python"])]
+            self.assertEqual(found, ["src/app.py"])
+            og._CONFIG_CACHE.clear()
+
+
 if __name__ == "__main__":
     unittest.main()

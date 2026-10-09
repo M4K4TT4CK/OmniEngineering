@@ -1,0 +1,3 @@
+# What a checkout never commits. The drift probe reads this file (ARB-048).
+build/
+*.log

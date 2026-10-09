@@ -1,0 +1,18 @@
+# include:
+#   - local: ci/gitlab/arbiter.gitlab-ci.yml
+arbiter:
+  stage: test
+  image: python:3.11-slim
+  variables:
+    ARBITER_PROFILE: ci
+  before_script:
+    - pip install --quiet .
+  script:
+    - arbiter gate . --profile "$ARBITER_PROFILE" --out arbiter-out --format json,sarif,markdown
+  artifacts:
+    when: always
+    paths:
+      - arbiter-out/
+    reports:
+      sast: arbiter-out/report.sarif
+  allow_failure: false

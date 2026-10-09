@@ -1,0 +1,94 @@
+# The pilot deployment: Caddy terminates TLS, Arbiter never sees the network.
+#
+#   docker compose -f deploy/compose.yaml up -d --build
+#
+# Edit deploy/Caddyfile first -- it holds the hostname and the ACME contact
+# address, and neither has a sensible default.
+
+services:
+  # Arbiter serves TLS on every socket it opens, including the one Caddy dials,
+  # so the backend needs a certificate of its own. It is never seen by a caller
+  # and never leaves this machine -- Caddy is the only thing that dials it, and
+  # Caddy is told to trust exactly this certificate and nothing else. Runs once,
+  # does nothing if the files are already there, and exits.
+  certs:
+    image: alpine/openssl:latest
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        test -f /certs/backend.pem ||
+        openssl req -x509 -newkey rsa:4096 -sha256 -days 825 -nodes
+        -keyout /certs/backend.key -out /certs/backend.pem
+        -subj "/CN=arbiter.internal"
+        -addext "subjectAltName=DNS:arbiter.internal,IP:127.0.0.1";
+        chown 10001:10001 /certs/backend.key /certs/backend.pem;
+        chmod 600 /certs/backend.key
+    volumes:
+      - arbiter-certs:/certs
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"     # ACME's HTTP challenge, and the redirect to HTTPS
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data      # certificates and their renewals live here
+      - caddy-config:/config
+      - arbiter-certs:/certs:ro   # the backend's certificate, to verify against
+    depends_on:
+      certs:
+        condition: service_completed_successfully
+    mem_limit: 256m
+    pids_limit: 128
+    security_opt:
+      - no-new-privileges:true
+
+  arbiter:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: arbiter-eval:pilot   # keep private; see the note in the Dockerfile
+    restart: unless-stopped
+
+    # Arbiter shares Caddy's network namespace rather than sitting on a bridge
+    # network of its own, so the only thing that can reach port 8443 is Caddy.
+    # That is defence in depth rather than the thing keeping the hop private:
+    # the hop is TLS, so it would still be encrypted on a shared bridge. No
+    # header decides that -- there is no plaintext listener to be talked into.
+    network_mode: "service:caddy"
+    depends_on:
+      caddy:
+        condition: service_started
+      certs:
+        condition: service_completed_successfully
+
+    command: ["api", "serve", "--port", "8443",
+              "--cert", "/certs/backend.pem", "--key", "/certs/backend.key"]
+
+    volumes:
+      - arbiter-data:/data   # keys.json and audit.log; the only state that survives
+      - arbiter-work:/work   # scan workspaces, deleted as each request ends
+      - arbiter-certs:/certs:ro   # its own certificate, for the hop from Caddy
+
+    # The analyzers parse attacker-chosen files. Nothing from an upload is ever
+    # executed, but a parser bug on a pathological file is the plausible way to
+    # lose the machine, so the blast radius is bounded here rather than hoped
+    # away: no writable root, no new privileges, no capabilities, a memory cap
+    # above the four concurrent scans the service allows, and a process cap.
+    read_only: true
+    mem_limit: 3g
+    cpus: 2
+    pids_limit: 512
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  caddy-data:
+  caddy-config:
+  arbiter-data:
+  arbiter-work:
+  arbiter-certs:

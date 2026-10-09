@@ -1,0 +1,12 @@
+# Two builds of Arbiter against the same target. Each arm is any command that
+# writes {out}/report.json, so the arms can be different checkouts, different
+# virtualenvs, or a released version against a working copy.
+ab: v0.1.0 vs working copy
+targets: [../fixtures/legacy-platform]
+arms:
+  - name: released
+    kind: command
+    command: "arbiter scan {target} --out {out} --format json"
+  - name: working-copy
+    kind: command
+    command: "python -m arbiter.cli scan {target} --out {out} --format json"

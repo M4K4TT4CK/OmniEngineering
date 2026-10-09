@@ -241,6 +241,200 @@
       "prevention_rules": [],
       "prevention_notes": "Any GitHub Actions step name or other string value containing a colon needs quoting; run yaml.safe_load locally before pushing a workflow edit.",
       "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-011",
+      "date": "2026-10-09",
+      "title": "The withdrawn status reached the CLI but not the schema; the failing test was misread as the known failure",
+      "status": "fixed",
+      "severity": "low",
+      "symptom": "test_schema_enum_matches_the_cli_vocabulary failed on main since REQ-031: the schema enum lacked 'withdrawn' while REQUIREMENT_STATUSES had it.",
+      "how_detected": "full suite run before REQ-034, read by test name",
+      "root_cause": "The schema edit was overwritten in the working tree by a shell command that ran in the wrong directory before the REQ-031 commit, and every later suite run reported one failure, which was assumed to be the pre-existing hook test without checking the name.",
+      "requirement": "REQ-031",
+      "affected": [
+        ".ai/schemas/requirements.schema.json"
+      ],
+      "fix_summary": "withdrawn restored in the enum; the existing test now passes.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_requirement_archive.py::TestStatusVocabulary::test_schema_enum_matches_the_cli_vocabulary"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "completion.validation"
+      ],
+      "prevention_notes": "Read a failing suite by test name, never by failure count; a known failure does not license ignoring the next one.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-012",
+      "date": "2026-10-09",
+      "title": "Arbiter's own reports were committed and then gated: the output directory was not ignored before the first run",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "On the arbiter branch every Python 3.12 CI cell failed omni gate: the completion.arbiter_gate command exited 1 with 10 new high findings, all authored.security-check-disabled, located in arbiter-out/check/report.json and arbiter-out/omni-gate/report.json.",
+      "how_detected": "CI run on the arbiter branch, reproduced locally with the analyzers removed from PATH",
+      "root_cause": "The branch wired Arbiter by hand before arbiter_install existed, ran arbiter check and arbiter gate, then committed with git add -A while .gitignore did not yet list arbiter-out/. Arbiter's --changed scan reads everything the diff touches, so the previous reports (whose finding titles quote the TLS-off patterns) became scan input and matched as new high findings. --out only excludes its own directory, not sibling runs under arbiter-out/.",
+      "requirement": "REQ-034",
+      "affected": [
+        ".github/workflows/ci.yml",
+        ".gitignore"
+      ],
+      "fix_summary": "The two reports are untracked on the arbiter branch (git rm --cached); arbiter-out/ stays in .gitignore and in allowed_root_paths. arbiter_install already writes the ignore entry; the README now says a hand-wired workspace must do the same before its first run.",
+      "fix_commits": [],
+      "regression_tests": [],
+      "no_test_reason": "A repository-state defect (a committed output directory), not a code path: the fix is the untracking and the ignore entry, which git enforces from now on.",
+      "prevention_rules": [
+        "completion.validation"
+      ],
+      "prevention_notes": "Ignore a tool's output directory before its first run, and review git add -A output for generated files; Arbiter reads its own reports as source if they are tracked.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-013",
+      "date": "2026-10-09",
+      "title": "omni test run's timeout waited for the whole command on Windows",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "tests/test_test_run.py::TestRunOneSuite::test_a_command_that_overruns_the_timeout_is_timeout_not_a_hang failed on both Windows CI cells: a 0.5 s timeout returned TIMEOUT after 30.03 s, the full sleep of the command.",
+      "how_detected": "CI on PR #2 (windows-latest, Python 3.10 and 3.12), read by test name",
+      "root_cause": "subprocess.run(shell=True, timeout=...) kills only the shell it started; on Windows the child python process kept the inherited stdout and stderr pipes open, so communicate() blocked until the grandchild exited. The timeout therefore bounded nothing.",
+      "requirement": "REQ-040",
+      "affected": [
+        "make_ai.py"
+      ],
+      "fix_summary": "run_test_suite starts the command in its own process group (CREATE_NEW_PROCESS_GROUP on Windows, start_new_session elsewhere) and on timeout kills the whole tree (taskkill /F /T on Windows, killpg elsewhere) before collecting output.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_test_run.py::TestRunOneSuite::test_a_command_that_overruns_the_timeout_is_timeout_not_a_hang"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "completion.validation"
+      ],
+      "prevention_notes": "A subprocess timeout must kill the process tree, not the shell; the test bounds the measured duration so a regression shows on every platform.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-014",
+      "date": "2026-10-09",
+      "title": "A version-file test compared a POSIX path string on Windows",
+      "status": "fixed",
+      "severity": "low",
+      "symptom": "tests/test_arbiter_install.py::TestRecordVersion::test_write_omni_version_file_preserves_the_arbiter_key failed on Windows: '\\\\src\\\\Omni' != '/src/Omni'.",
+      "how_detected": "CI on PR #2 (windows-latest), read by test name",
+      "root_cause": "write_omni_version_file stores str(Path(source)), which Windows renders with backslashes; the test asserted the POSIX literal.",
+      "requirement": "REQ-042",
+      "affected": [
+        "tests/test_arbiter_install.py"
+      ],
+      "fix_summary": "The assertion compares against str(Path('/src/Omni')).",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_arbiter_install.py::TestRecordVersion::test_write_omni_version_file_preserves_the_arbiter_key"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "completion.validation"
+      ],
+      "prevention_notes": "Compare paths through pathlib in tests; CI runs three operating systems for exactly this.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-015",
+      "date": "2026-10-09",
+      "title": "omni adopt --include-cli into an empty target always exited 1",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "The adopt-loop CI script died at the adopt step: omni adopt --target <empty dir> --include-cli reported the three .ai/graph-viewer files as 'skip existing' and returned 1, although the adoption had copied everything.",
+      "how_detected": "the adopt-loop CI script and test (REQ-041), by exit code",
+      "root_cause": "ADOPTION_CLI_FILES lists .ai/graph-viewer/viewer.html, 3d-force-graph.min.js and THIRD_PARTY_NOTICES.md, which are already present once .ai is copied whole in the same run; copy_adoption_path then saw them as pre-existing and the skip was counted as a failure. Present since REQ-021; never seen because adopt had only been run into targets that already carried .ai.",
+      "requirement": "REQ-041",
+      "affected": [
+        "make_ai.py"
+      ],
+      "fix_summary": "run_adopt tracks the directories it copied in the same run and reports a nested path as copied with its directory; targets that already had .ai keep the previous behaviour.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_adopt_loop.py::TestAdoptCopiesNestedCliFilesWithTheirDirectory"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        "completion.validation"
+      ],
+      "prevention_notes": "The adopt loop now runs end to end in CI and in a test from an empty directory, so a regression in adopt itself fails the build.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-016",
+      "date": "2026-10-09",
+      "title": "Every action in ci.yml was pinned by a mutable major tag",
+      "status": "fixed",
+      "severity": "low",
+      "symptom": "Code scanning on upstream OmniEngineering PR #3 raised four 'Action actions/checkout pinned to a mutable ref (v5)' notes (arbiter/supply.unpinned-action) on .github/workflows/ci.yml; the same finding was an open entry (FAIL-046) in the vendored Arbiter's ledger.",
+      "how_detected": "code scanning on upstream OmniEngineering PR #3 (Arbiter SARIF)",
+      "root_cause": "The workflow referenced actions/checkout@v5, actions/setup-python@v5, actions/cache@v4 and github/codeql-action/upload-sarif@v3 by major tag; a tag can be moved, so the workflow ran whatever the tag pointed at on the day.",
+      "requirement": "REQ-041",
+      "affected": [
+        ".github/workflows/ci.yml"
+      ],
+      "fix_summary": "Every uses: line names the tag's commit SHA with the tag in a trailing comment (checkout fbc6f399, setup-python a26af69b, cache 0057852b, upload-sarif 9f759ee6, resolved with git ls-remote --tags).",
+      "fix_commits": [],
+      "regression_tests": [],
+      "no_test_reason": "A workflow file has no unit test; Arbiter's supply.unpinned-action rule in the self-gate is the check that catches a return to tags.",
+      "prevention_rules": [
+        "completion.arbiter_gate"
+      ],
+      "prevention_notes": "Arbiter's supply-chain probe reports a mutable action ref on every gate run; the SARIF upload makes it a code-scanning alert.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-017",
+      "date": "2026-10-09",
+      "title": "History-layer test teardown raced git's detached auto-gc on macOS CI",
+      "status": "fixed",
+      "severity": "low",
+      "symptom": "CI (macos-latest, Python 3.10) on pull request #6: ERROR in test_graph_layers.TestHistoryLayer.test_a_squash_commit_without_an_id_is_tied_to_the_requirement_its_changelog_entry_records: TemporaryDirectory cleanup raised OSError Errno 66 Directory not empty: 'pack'. The same test passed on the previous head and on every other cell.",
+      "how_detected": "CI on pull request #6, read by test name",
+      "root_cause": "The test commits several times into a temporary repository; git may detach an automatic gc that writes into .git/objects/pack after the commit returns, so shutil.rmtree listed the pack directory, git added a file, and rmdir failed.",
+      "requirement": "REQ-041",
+      "affected": [
+        "tests/test_graph_layers.py"
+      ],
+      "fix_summary": "Every temporary repository in the history-layer tests sets gc.auto 0 right after git init, so no background process writes into the directory the test removes.",
+      "fix_commits": [],
+      "regression_tests": [],
+      "no_test_reason": "The defect is a timing race in test teardown; the fix removes the background process rather than asserting on it.",
+      "prevention_rules": [
+        "completion.verify_target_environment"
+      ],
+      "prevention_notes": "A test that creates a git repository and removes it disables auto-gc; the macOS cell is the control that showed the race.",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-018",
+      "date": "2026-10-09",
+      "title": "Lineage test teardown raced git's detached auto-gc on macOS CI (recurrence of FAIL-017 in a fixture subclass)",
+      "status": "fixed",
+      "severity": "low",
+      "symptom": "CI (macos-latest, Python 3.10) on the push run for upstream OmniEngineering branch arbiter at 3d1a17d: ERROR in test_lineage.TestLineage.test_a_walk_terminates_on_a_cycle: TemporaryDirectory cleanup raised OSError Errno 66 Directory not empty: 'objects'. The same cell passed on the pull-request run of the same commit.",
+      "how_detected": "CI on the upstream branch, read by test name; the twin job on the pull-request run passed",
+      "root_cause": "FAIL-017 disabled auto-gc in the three history-layer tests that call git init themselves, but TestLineage (and every other subclass of the shared Fixture in tests/test_graph_layers.py) commits into its own temporary repository through Fixture.git without that setting, so git could still detach a gc that writes under .git/objects after the commit returns, racing shutil.rmtree in teardown.",
+      "requirement": "REQ-041",
+      "affected": [
+        "tests/test_graph_layers.py",
+        "tests/test_lineage.py"
+      ],
+      "fix_summary": "Fixture.git passes -c gc.auto=0 on every git invocation, so every fixture repository (layers, lineage, findings, benchmark, vendored-and-blame) runs without a background gc; the fix lives in the one helper every subclass uses instead of in each test.",
+      "fix_commits": [],
+      "regression_tests": [],
+      "no_test_reason": "A timing race in test teardown; the fix removes the background process rather than asserting on it, as for FAIL-017.",
+      "prevention_rules": [
+        "completion.verify_target_environment"
+      ],
+      "prevention_notes": "A test that creates and removes a git repository runs git with auto-gc off; doing it in the shared helper means a new subclass cannot forget it.",
+      "recurrence_of": "FAIL-017"
     }
   ]
 }

@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omni-context.local/schemas/rulepack.schema.json",
+  "title": "OmniContext Rulepack",
+  "type": "object",
+  "required": [
+    "rulepack_id",
+    "version",
+    "title",
+    "purpose",
+    "applies_to",
+    "rules"
+  ],
+  "properties": {
+    "rulepack_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_\\.]*$"
+    },
+    "version": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "purpose": {
+      "type": "string"
+    },
+    "applies_to": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "severity",
+          "statement"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_\\.]*$"
+          },
+          "severity": {
+            "enum": [
+              "required",
+              "recommended",
+              "advisory"
+            ]
+          },
+          "statement": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "validation": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,57 @@
+{
+  "rulepack_id": "hci_ui",
+  "version": "1.0.0",
+  "title": "Human-Computer Interaction and UI Rules",
+  "purpose": "Keep interactive surfaces trustworthy for the person using them. Written against arbiter's own two review front ends (src/arbiter/review_ui.py: an offline single-file HTML page and a terminal front end, both adjudicating one finding at a time over the same ledger) rather than a generic UI checklist; apply it to any future interactive surface in this repo the same way.",
+  "applies_to": ["cli_output", "terminal_ui", "html_ui", "review_interfaces"],
+  "rules": [
+    {
+      "id": "hci.one_decision_at_a_time",
+      "severity": "required",
+      "statement": "Where a decision writes durable data (a verdict, a mark, a record that cannot be re-made), present it one item at a time with its context, not as a list to be batch-approved. A list invites skimming, and a skimmed verdict is worse than no verdict when the record it produces cannot be corrected later.",
+      "scope": ["review_interfaces", "interaction"]
+    },
+    {
+      "id": "hci.no_unrecoverable_silent_loss",
+      "severity": "required",
+      "statement": "An interactive surface that can lose in-progress input to an accidental close, refresh, or disconnect must guard against it (e.g. local/session storage) and must degrade to still working, not failing outright, if that guard is unavailable.",
+      "scope": ["interaction", "reliability"]
+    },
+    {
+      "id": "hci.no_hidden_network_dependency",
+      "severity": "recommended",
+      "statement": "An offline-capable review or input surface should not silently require network access to function; if it can be a single self-contained file with no server, prefer that over adding a dependency that isn't needed for the core interaction.",
+      "scope": ["architecture"]
+    },
+    {
+      "id": "hci.explicit_write_path",
+      "severity": "required",
+      "statement": "The format an interactive surface writes must match exactly what the code that consumes it (e.g. an --apply step) expects. Do not let two front ends for the same decision drift into different output formats.",
+      "scope": ["review_interfaces", "consistency"]
+    },
+    {
+      "id": "hci.actionable_output",
+      "severity": "required",
+      "statement": "CLI and terminal output that reports a problem states what to do about it, not only that it occurred. A bare stack trace or a bare FAIL line without the next action is not sufficient for a user-facing failure path.",
+      "scope": ["cli_output"]
+    },
+    {
+      "id": "hci.consistent_terminology",
+      "severity": "recommended",
+      "statement": "Use the same term for the same concept across every interactive surface and its documentation (e.g. one name for a review decision, one name for a finding) rather than synonyms that force the user to infer they mean the same thing.",
+      "scope": ["consistency"]
+    },
+    {
+      "id": "hci.confirm_destructive_action",
+      "severity": "required",
+      "statement": "An action that cannot be undone (recording a verdict, deleting a record, overwriting a ledger) requires a deliberate, low-accident-rate confirmation appropriate to how fast the interface otherwise moves — a single keypress is acceptable only where the surrounding flow already makes it a considered choice.",
+      "scope": ["interaction", "safety"]
+    },
+    {
+      "id": "hci.low_signal_to_noise",
+      "severity": "recommended",
+      "statement": "Do not surface information the user cannot act on next to information they can. Where volume is unavoidable, sort or group so the actionable items are not buried.",
+      "scope": ["cli_output", "review_interfaces"]
+    }
+  ]
+}

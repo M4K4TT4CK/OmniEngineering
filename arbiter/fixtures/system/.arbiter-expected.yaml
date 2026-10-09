@@ -1,0 +1,14 @@
+exhaustive: false
+expected:
+  - id: vector-dimension-disagreement
+    match: "VECTOR_DIMENSION"
+  - id: endpoint-never-provided
+    match: "OPENSEARCH_ENDPOINT"
+  - id: unused-provisioned-env
+    match: "LEGACY_FEATURE_FLAG"
+  - id: bedrock-not-granted
+    match: "bedrock"
+  - id: port-not-exposed
+    match: "9200"
+  - id: unused-dynamodb-grant
+    match: "dynamodb"

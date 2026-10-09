@@ -1,0 +1,35 @@
+name = "ruff"
+dimensions = ["quality"]
+checks = 40
+# Declared, not inherited. No measurement has established that this tool
+# returns the same findings from a file subset, so a partial scan records
+# it as not assessed rather than running it and believing the answer.
+scope = "repo"
+selects = { stacks = ["python"] }
+
+[requires]
+binaries = ["ruff"]
+network = false
+timeout = 240
+
+[invoke]
+argv = ["ruff", "check", "--output-format", "json", "--no-cache", "--exit-zero", "{workdir}"]
+version_argv = ["ruff", "--version"]
+parse = "json"
+ok_exit = [0, 1]
+
+[map]
+findings = "$"
+rule_id = "code"
+title = "message"
+path = "filename"
+line = "location.row"
+severity_const = "low"
+dimension = "quality"
+# Ruff's own fix.message is an actual action ("Remove unused import: `os`"),
+# not a link -- prefer it over the per-rule docs URL, which is only a
+# fallback for rules with no safe autofix.
+remediation = "fix.message"
+remediation_format = "Ruff can autofix this (`ruff check --fix`): {value}"
+remediation_secondary = "url"
+remediation_default = "See Ruff's rule docs for {rule_id} (https://docs.astral.sh/ruff/rules/)."

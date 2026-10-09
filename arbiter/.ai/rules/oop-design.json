@@ -1,0 +1,84 @@
+{
+  "rulepack_id": "oop_design",
+  "version": "1.0.0",
+  "title": "Object-Oriented and Modular Design Rules",
+  "purpose": "Keep domain modeling, module boundaries, interfaces, and dependency direction maintainable.",
+  "applies_to": [
+    "domain_models",
+    "modules",
+    "classes",
+    "services",
+    "components",
+    "public_interfaces"
+  ],
+  "rules": [
+    {
+      "id": "design.clear_responsibility",
+      "severity": "required",
+      "statement": "Model domain concepts with clear responsibilities and stable boundaries.",
+      "scope": [
+        "modeling",
+        "architecture"
+      ]
+    },
+    {
+      "id": "design.inheritance_substitutability",
+      "severity": "required",
+      "statement": "Use inheritance only when the relationship is truly substitutable.",
+      "scope": [
+        "modeling"
+      ]
+    },
+    {
+      "id": "design.prefer_composition",
+      "severity": "recommended",
+      "statement": "Prefer composition for shared behavior when it keeps dependencies simpler.",
+      "scope": [
+        "modeling",
+        "dependencies"
+      ]
+    },
+    {
+      "id": "design.encapsulation",
+      "severity": "required",
+      "statement": "Encapsulate mutable state and expose intentional methods or properties.",
+      "scope": [
+        "state",
+        "interfaces"
+      ]
+    },
+    {
+      "id": "design.separation_of_concerns",
+      "severity": "required",
+      "statement": "Preserve separation of concerns between domain logic, application workflow, interface code, infrastructure, persistence, and external integrations.",
+      "scope": [
+        "architecture"
+      ]
+    },
+    {
+      "id": "design.small_public_interfaces",
+      "severity": "required",
+      "statement": "Keep public interfaces small, explicit, and consistent with existing project conventions.",
+      "scope": [
+        "interfaces"
+      ]
+    },
+    {
+      "id": "design.visible_dependencies",
+      "severity": "required",
+      "statement": "Make dependencies visible through constructors, function arguments, or project conventions rather than hidden global state.",
+      "scope": [
+        "dependencies"
+      ]
+    },
+    {
+      "id": "design.no_unneeded_abstractions",
+      "severity": "required",
+      "statement": "Do not introduce new abstractions unless they reduce real complexity, protect a stable boundary, or match an established project pattern.",
+      "scope": [
+        "architecture",
+        "implementation"
+      ]
+    }
+  ]
+}

@@ -17,6 +17,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "tests"))
 
 import omni_graph as og  # noqa: E402
 
@@ -78,6 +79,23 @@ class TestTemplate(unittest.TestCase):
     def test_markup_has_no_literal_escapes(self) -> None:
         self.assertIsNone(re.search(r"\\u[0-9a-fA-F]{4}", TEMPLATE.split("<script", 1)[0]))
 
+    # REQ-043: Arbiter findings in the viewer
+    def test_findings_tab_colour_modes_and_filter_section_exist(self) -> None:
+        self.assertIn("id: 'findings'", TEMPLATE)
+        self.assertIn("if (v.id === 'findings') return nodes.some", TEMPLATE)   # the tab is guarded: shown only when finding nodes exist
+        self.assertIn('<option value="dimension">', TEMPLATE)
+        self.assertIn('<option value="severity">', TEMPLATE)
+        self.assertIn('id="sec-findings"', TEMPLATE)
+        self.assertIn('id="fsev"', TEMPLATE)
+        self.assertIn('id="fdim"', TEMPLATE)
+        self.assertIn("meta.finding_colors", TEMPLATE)
+        for name in ("renderFinding", "startView", "findingLinks", "copyText"):
+            self.assertIn(f"function {name}", TEMPLATE)
+        self.assertIn("vscode://file/", TEMPLATE)
+        self.assertIn("arbiter review ", TEMPLATE)
+        self.assertIn("e.type === 'flags'", TEMPLATE)   # a finding hangs under its symbol or file in the tree
+        self.assertIn("(kind|layer|lang|file|severity|dim|rule)", TEMPLATE)
+
 
 class TestGeneratedPage(unittest.TestCase):
     def test_mode_is_passed_to_the_page(self) -> None:
@@ -97,6 +115,35 @@ class TestGeneratedPage(unittest.TestCase):
             path.write_text(main, encoding="utf-8")
             result = subprocess.run(["node", "--check", str(path)], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
+
+
+class TestFindingsPage(unittest.TestCase):
+    """REQ-043: the page built from a graph that holds findings, and from one that does not."""
+
+    def test_the_page_carries_the_finding_palette_nodes_and_start_view(self) -> None:
+        from test_graph_findings import FindingsFixture
+        fixture = FindingsFixture("setUp")
+        fixture.setUp()
+        try:
+            path = fixture.build()
+            page = og.build_view_html(path, view="findings")
+            self.assertTrue(page["ok"], page)
+            self.assertIn('"finding_colors":{', page["html"])
+            self.assertIn('"finding:f:aaa111"', page["html"])
+            self.assertIn('"view":"findings"', page["html"])
+            self.assertIn('"root_path":"', page["html"])
+            focused = og.build_view_html(path, focus="f:aaa111", depth=1)
+            self.assertTrue(focused["ok"])
+            self.assertIn('"finding:f:aaa111"', json.dumps(json.loads(re.search(r'id="omni-data" type="application/json">(.*?)</script>', focused["html"], re.S).group(1))["initial"]))
+            self.assertTrue(og.build_view_html(path, focus="src")["ok"])   # a directory resolves too
+        finally:
+            fixture.doCleanups()
+
+    def test_a_graph_without_findings_still_builds_with_no_start_view(self) -> None:
+        page = build_page()
+        self.assertIn('"finding_colors":{', page)
+        self.assertNotIn('"view":', page)
+        self.assertNotIn('"kind":"finding"', page)
 
 
 if __name__ == "__main__":

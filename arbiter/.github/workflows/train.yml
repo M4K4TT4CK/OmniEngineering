@@ -1,0 +1,141 @@
+# Nightly training.
+#
+# Training has two halves, and only one of them needs a person.
+#
+# The mechanical half is this file: download the practice repositories, run
+# every rule against them, measure whether each rule tells good code from
+# broken code, plant known faults and check they are caught, verify the tool
+# never claims to have checked something it skipped, run the tests, and write
+# all of it back to the repository. No judgement required, so it runs on a
+# schedule and needs nobody awake.
+#
+# The judgement half is deciding what the results mean -- whether a finding on
+# a well-maintained repository is the rule's fault, whether a ratio is real or
+# an artefact of how it was measured. That needs a session with the repository
+# open. `training/WORKLIST.md`, which this job regenerates every night, is the
+# handoff: it says what to look at first and why, so that session starts from
+# a question instead of a pile of tables.
+#
+# Nothing here writes to a rule. The job only measures and records.
+
+name: train
+
+on:
+  schedule:
+    - cron: "0 8 * * *"    # 08:00 UTC daily — about midnight Pacific
+  workflow_dispatch:
+    inputs:
+      trials:
+        description: "Injection trials"
+        default: "20000"
+
+permissions:
+  contents: write          # needed to commit the results back
+
+concurrency:
+  group: train
+  cancel-in-progress: false
+
+jobs:
+  cycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 480
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.11"
+
+      # The practice repositories do not change often, and caching them is the
+      # difference between a four-minute job and a twenty-minute one. The key
+      # includes a hash of fetch_corpus.sh, so changing the list -- or the clone
+      # depth -- abandons the old cache and re-clones rather than inheriting
+      # repositories fetched under the old rules.
+      #
+      # History is what the fix-pair miner reads, and it is the only ground truth
+      # in the system Arbiter did not generate itself. The clones are 300 commits
+      # deep for that reason alone; scanning needs one. That costs cache size, so
+      # if this starts evicting, lower DEPTH in fetch_corpus.sh rather than
+      # removing the cache.
+      - name: Cache practice repositories
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: /tmp/corpus
+          key: corpus-${{ hashFiles('tools/fetch_corpus.sh') }}-${{ github.run_number }}
+          restore-keys: |
+            corpus-${{ hashFiles('tools/fetch_corpus.sh') }}-
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pytest tree-sitter tree-sitter-language-pack || true
+
+      # Pinned, and in a script rather than inline, so the same five analyzers
+      # install the same way here, on a laptop, and in the sandbox. An
+      # analyzer that changes underneath you changes your findings.
+      - name: External analyzers
+        run: ./tools/install_tools.sh
+
+      # Before the expensive part, not after it. Run 1 measured everything and
+      # committed nothing: `training/` matched a gitignore entry, `git add -A`
+      # exited 1, and the job failed two seconds after fifty-five minutes of
+      # work. The cycle runs this itself too; having it as its own step means
+      # the log says plainly which thing broke.
+      - name: Check the results can be saved
+        run: ./tools/check_writeback.sh
+
+      - name: Run a training cycle
+        env:
+          TRIALS: ${{ github.event.inputs.trials || '20000' }}
+        run: ./tools/train_cycle.sh "$TRIALS"
+
+      # The cycle writes WORKLIST.md itself at step 7/9. This is the safety net
+      # for a run that died before reaching it, so it has to read the same files
+      # the cycle produces -- stamped, under training/. It used to read
+      # /tmp/corpus-out/summary.json and /tmp/discriminate.json, which nothing
+      # writes, so every night it replaced the real handoff with one whose first
+      # line said "Incomplete: no results found for corpus, discrimination".
+      - name: Work out what to do next
+        if: always()
+        run: |
+          summary="$(ls -1d training/corpus-*/summary.json 2>/dev/null | tail -1 || true)"
+          discrimination="$(ls -1 training/discriminate-*.json 2>/dev/null | tail -1 || true)"
+          python tools/worklist.py \
+            ${summary:+--corpus-summary "$summary"} \
+            ${discrimination:+--discrimination "$discrimination"} \
+            --out training/WORKLIST.md
+
+      # Uploaded as well as committed, so a failed run still leaves the
+      # measurements somewhere readable.
+      - name: Keep the results even if something failed
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: training-${{ github.run_number }}
+          path: |
+            training/
+            .arbiter/knowledge.json
+          retention-days: 30
+
+      - name: Save what was learned
+        if: always()
+        run: |
+          git config user.name  "arbiter-training"
+          git config user.email "arbiter-training@users.noreply.github.com"
+          git add -A .arbiter training
+          if git diff --cached --quiet; then
+            echo "nothing changed"
+          else
+            git commit -m "training run ${{ github.run_number }}
+
+          Measurements only — no rule was changed by this job.
+          See training/WORKLIST.md for what the results raise."
+            # A push that loses a race is the same lost night's work as a
+            # gitignore mistake, arriving by a different route. Rebase onto
+            # whatever landed while the cycle ran, then push; if that still
+            # fails, fail the step rather than exiting 0 with nothing saved.
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi

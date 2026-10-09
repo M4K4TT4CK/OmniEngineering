@@ -1,0 +1,20 @@
+# The build needs pyproject.toml, README.md, LICENSE and src/. Everything else
+# only makes the context bigger, and some of it should not be near an image at
+# all -- .arbiter/ holds the adjudication ledger, and .claude/ holds local
+# assistant state.
+.git
+.github
+.claude
+.arbiter
+.ai
+tests
+docs
+tools
+out
+*.egg-info
+__pycache__
+**/__pycache__
+*.pyc
+.pytest_cache
+.venv
+venv

@@ -1,0 +1,109 @@
+name = "semgrep"
+dimensions = ["security", "quality"]
+checks = 60
+# Declared, not inherited. No measurement has established that this tool
+# returns the same findings from a file subset, so a partial scan records
+# it as not assessed rather than running it and believing the answer.
+scope = "repo"
+
+[requires]
+binaries = ["semgrep"]
+# `--config auto` fetched the ruleset from semgrep.dev on every scan and used
+# the target's own project URL to do it -- fine for a one-off, wrong for an
+# unattended nightly job and unusable wherever that registry can't be
+# reached. `tools/install_tools.sh` now fetches a pinned commit of
+# semgrep/semgrep-rules once, into {cache}/semgrep-rules, the same way it
+# already fetches the semgrep binary itself. Scanning needs no network at
+# all now; only the install step does.
+network = false
+timeout = 600
+
+[invoke]
+# Named subdirectories, not the checkout root: semgrep-rules carries
+# repository files at its root (.pre-commit-config.yaml, template.yaml) that
+# are themselves `.yaml` and not valid rule files, and `--config <dir>` loads
+# every `.yaml` under it. One bad file there fails the whole run --
+# `InvalidRuleSchemaError`, zero results -- rather than skipping just that
+# file. Naming directories also scopes this to what Arbiter's corpus actually
+# covers; semgrep only applies a rule where its target language is present,
+# so listing a directory a given repo has no matching files for is harmless.
+#
+# `--config` is given RELATIVE to `cwd` below, not as an absolute path under
+# {cache}. Semgrep's default rule-id rewriting (folds a rule's location into
+# its id so `dockerfile-source-not-pinned` in a subdirectory becomes
+# `dockerfile.audit.dockerfile-source-not-pinned`, which is what disambiguates
+# two rules that share a short name) uses whatever string was passed to
+# --config as that prefix. An absolute path there put this machine's home
+# directory into every check id Arbiter records -- calibrated severities
+# would have matched nothing on any other machine, or even this one under a
+# different ARBITER_CACHE_DIR. Relative to a fixed `cwd`, the prefix is just
+# "semgrep-rules", identical everywhere. The scan target stays a real
+# absolute path regardless of cwd, so this changes nothing about what gets
+# scanned or how results map back to files.
+cwd = "{cache}"
+# `--exclude` mirrors inventory.SKIP_DIRS, the same list bandit's `-x` and
+# checkov's `--skip-path` already carry (see those adapters' comments):
+# semgrep walks `{workdir}` with its own traversal, separate from Arbiter's
+# native inventory, so nothing above stopped it reading a vendored `.venv`
+# or `node_modules` tree and reporting on someone else's code as first-party.
+# `--exclude` takes a gitignore-style pattern, so a bare name (unlike
+# bandit's `-x`, which needs a `*/name/*` glob) already matches at any depth.
+# `cdk.out*` is excluded for the same reason bandit excludes it and checkov
+# does not: none of the rulesets below understand CloudFormation templates,
+# so the only thing semgrep would find inside a synthesized output tree is
+# noise from the Lambda asset bundles' vendored third-party dependencies.
+argv = ["semgrep", "scan", "--json", "--quiet",
+        "--exclude", ".git", "--exclude", ".hg", "--exclude", ".svn",
+        "--exclude", "node_modules", "--exclude", ".venv", "--exclude", "venv",
+        "--exclude", "__pycache__", "--exclude", ".mypy_cache",
+        "--exclude", ".pytest_cache", "--exclude", ".ruff_cache",
+        "--exclude", ".terraform", "--exclude", ".tox",
+        "--exclude", "site-packages", "--exclude", ".next", "--exclude", ".nuxt",
+        "--exclude", ".gradle", "--exclude", ".idea", "--exclude", ".vscode",
+        "--exclude", "vendor", "--exclude", "target", "--exclude", ".arbiter",
+        "--exclude", "cdk.out*",
+        "--config", "semgrep-rules/terraform",
+        "--config", "semgrep-rules/yaml/kubernetes",
+        "--config", "semgrep-rules/yaml/docker-compose",
+        "--config", "semgrep-rules/yaml/github-actions",
+        "--config", "semgrep-rules/generic/secrets",
+        "--config", "semgrep-rules/generic/dockerfile",
+        "--config", "semgrep-rules/dockerfile",
+        "--config", "semgrep-rules/python",
+        "--config", "semgrep-rules/javascript",
+        "--config", "semgrep-rules/typescript",
+        "--config", "semgrep-rules/go",
+        "--config", "semgrep-rules/ruby",
+        "--config", "semgrep-rules/java",
+        "--config", "semgrep-rules/php",
+        "--config", "semgrep-rules/rust",
+        "--config", "semgrep-rules/bash",
+        "--config", "semgrep-rules/c",
+        "{workdir}"]
+version_argv = ["semgrep", "--version"]
+parse = "json"
+ok_exit = [0, 1]
+
+[map]
+findings = "$.results[*]"
+rule_id = "check_id"
+title = "extra.message"
+path = "path"
+line = "start.line"
+severity = "extra.severity"
+severity_default = "medium"
+dimension = "security"
+# extra.fix is an actual code-level fix when the rule offers one. Most
+# security-audit rules don't (the fix is context-dependent), so fall back to
+# the rule's own first reference (a specific CWE/OWASP/advisory page, not a
+# generic "go read the docs" pointer) before the last-resort default.
+remediation = "extra.fix"
+remediation_format = "Suggested fix: `{value}`"
+remediation_secondary = "extra.metadata.references.0"
+remediation_secondary_format = "No autofix offered; see this rule's reference: {value}"
+remediation_default = "See Semgrep's rule metadata for {rule_id} (no autofix or reference offered for this rule)."
+
+[map.severity_table]
+error = "high"
+warning = "medium"
+info = "low"

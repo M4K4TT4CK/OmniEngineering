@@ -1,0 +1,50 @@
+# Two things to change before this works: the hostname on the site line, and the
+# address in the email directive. Caddy uses the address only for expiry
+# warnings from Let's Encrypt, and getting one is how you find out renewal
+# broke, so use one somebody reads.
+
+{
+	email you@example.com
+}
+
+arbiter.example.com {
+	# The hop to Arbiter is HTTPS as well. Nothing in this arrangement speaks
+	# plaintext, not even inside the shared network namespace: Arbiter holds its
+	# own certificate, and Caddy verifies it against that certificate rather than
+	# skipping the check. `tls_server_name` names what the certificate says,
+	# since the address dialled is the loopback one.
+	reverse_proxy https://127.0.0.1:8443 {
+		transport http {
+			tls_trusted_ca_certs /certs/backend.pem
+			tls_server_name arbiter.internal
+		}
+	}
+
+	# Arbiter refuses an upload over 100 MB itself. The ceiling here is a little
+	# higher because multipart framing adds to the body, and a request rejected
+	# at the proxy for being 100.2 MB would look like a service fault rather
+	# than the caller's oversized archive.
+	#
+	# The point of having it at all: FastAPI reads the body before the API key
+	# is checked, so without a limit here an unauthenticated stranger can make
+	# the server swallow 100 MB before answering 401.
+	request_body {
+		max_size 110MB
+	}
+
+	# Arbiter sets this too. Setting it here as well means it survives even a
+	# response Caddy generates on its own, such as the 413 above.
+	header Strict-Transport-Security "max-age=63072000; includeSubDomains"
+	header -Server
+
+	# Caddy's own log: method, path, status, size, and the caller's IP. No
+	# request body, so no uploaded code passes through it. Arbiter's separate
+	# audit log is the one that names which key and which user called.
+	log {
+		output file /data/access.log {
+			roll_size 10MB
+			roll_keep 5
+		}
+		format json
+	}
+}

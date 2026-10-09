@@ -1,0 +1,39 @@
+# Pull-request gate configuration.
+#
+# Copy this to `arbiter.yaml` at the root of the repository you want gated,
+# alongside `.github/workflows/arbiter-pr.yml` from this directory.
+#
+# The gate here is deliberately narrow. A pull-request check that blocks on
+# everything wrong with a repository blocks the first pull request after you
+# install it, and then somebody switches it off. This one blocks on what THIS
+# change introduced, and reports the rest.
+version: 1
+profile: offline
+
+gate:
+  fail_on:
+    # Anything critical, whether or not this change introduced it. A live
+    # credential in the diff is not a matter of taste.
+    severity: critical
+    # Anything NEW at high or worse. "New" is measured against the baseline
+    # file, which is why the workflow refreshes it on the default branch:
+    # without one, every pre-existing finding is new and the gate is noise.
+    new: high
+
+  # Deliberately NOT set. A partial scan runs fewer checks by design, so
+  # coverage is legitimately lower on a pull request than on a nightly run.
+  # Gating on it here would fail every pull request for doing the right thing.
+  #   coverage_below: 0.8
+
+  # Model-inferred findings are advisory. They appear in the report and they
+  # do not block a merge, because a human has not adjudicated them yet.
+  gate_on_inferred: false
+
+  # A probe that crashed is a bug in Arbiter, not a defect in your code.
+  # It shows as not-assessed either way.
+  fail_on_probe_error: false
+
+quality:
+  adaptive: true        # thresholds drawn from this repository's own profile
+
+suppress: []

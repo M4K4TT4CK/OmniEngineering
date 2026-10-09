@@ -1,0 +1,191 @@
+framework:
+  id: NIST-800-218
+  title: NIST SP 800-218 — Secure Software Development Framework (SSDF) v1.1
+  version: "1.1"
+  authority: https://csrc.nist.gov/pubs/sp/800/218/final
+  baseline: All practices
+  # 4 practice groups (PO, PS, PW, RV), 19 practices, 42 tasks. The practice
+  # is the unit here; tasks are finer than anything a scanner can resolve.
+  declared_controls: 19
+  declared_source: >-
+    NIST SP 800-218 v1.1 — 4 groups (PO, PS, PW, RV), 19 practices, 42 tasks.
+  notes: >-
+    SSDF is the framework a repository scanner speaks to most directly,
+    because it is about how software is built rather than how a system is
+    operated. It is also the one where "the tool ran" is most often mistaken
+    for "the practice is followed" — PW.7 and PW.8 are satisfied by reviewing
+    and testing code, not by owning a scanner. The residual notes say so
+    control by control.
+
+controls:
+  # ---- PO — Prepare the Organization -------------------------------------
+  - id: PO.1
+    title: Define security requirements for software development
+    family: PO
+    automatable: none
+    residual: A documented set of requirements, agreed by people.
+    satisfied_by: []
+
+  - id: PO.3
+    title: Implement supporting toolchains
+    family: PO
+    automatable: partial
+    machine_scope: >-
+      Which analyzers are installed and actually ran, recorded with a version
+      and a reason for every one that did not.
+    residual: >-
+      Whether the toolchain is the right one, and whether its output is acted
+      on. Arbiter's coverage report is evidence for this practice in a way it
+      is not for any other.
+    satisfied_by:
+      - checkov/CKV_AWS_1
+      - bandit/B105
+
+  - id: PO.5
+    title: Implement and maintain secure environments for development
+    family: PO
+    automatable: partial
+    machine_scope: >-
+      CI workflows that execute untrusted code with access to secrets, and
+      actions pinned to mutable references.
+    residual: Build-host hardening, network segmentation, developer endpoints.
+    satisfied_by:
+      - arbiter/supply.pull-request-target
+      - arbiter/supply.unpinned-action
+
+  # ---- PS — Protect the Software -----------------------------------------
+  - id: PS.1
+    title: Protect all forms of code from unauthorized access and tampering
+    family: PS
+    automatable: partial
+    machine_scope: >-
+      Credentials and keys committed to version control, which are the most
+      common way repository access is lost.
+    residual: Branch protection, signing, access reviews on the forge itself.
+    satisfied_by:
+      - arbiter/secrets.private-key
+      - arbiter/secrets.aws-access-key
+      - arbiter/secrets.gh-token
+      - arbiter/secrets.slack-token
+      - arbiter/secrets.assigned-credential
+
+  - id: PS.2
+    title: Provide a mechanism for verifying software release integrity
+    family: PS
+    automatable: none
+    residual: Signing and verification infrastructure, outside the source tree.
+    satisfied_by: []
+
+  - id: PS.3
+    title: Archive and protect each software release
+    family: PS
+    automatable: none
+    residual: Artifact retention, outside the source tree.
+    satisfied_by: []
+
+  # ---- PW — Produce Well-Secured Software --------------------------------
+  - id: PW.4
+    title: Reuse existing, well-secured software rather than duplicating it
+    family: PW
+    automatable: partial
+    machine_scope: >-
+      Whether third-party dependencies and actions are pinned to immutable
+      versions, so what was reviewed is what gets built.
+    residual: >-
+      Whether the components chosen are well-secured at all. Pinning says the
+      build is reproducible, not that the dependency is any good.
+    satisfied_by:
+      - arbiter/supply.unpinned-python-dep
+      - arbiter/supply.unpinned-npm-dep
+      - arbiter/supply.unpinned-action
+      - arbiter/resource.k8s-mutable-image-tag
+
+  - id: PW.5
+    title: Create source code adhering to secure coding practices
+    family: PW
+    automatable: partial
+    machine_scope: >-
+      Patterns a static analyzer recognizes — hardcoded credentials, unsafe
+      calls flagged by bandit and semgrep.
+    residual: >-
+      Every insecure pattern no rule covers, which is most of them. A clean
+      result here is weak evidence and should not be reported as strong.
+    satisfied_by:
+      - arbiter/secrets.assigned-credential
+      - arbiter/secrets.pg-url
+      - arbiter/secrets.jwt
+      - bandit/B105
+      - semgrep/rules
+
+  - id: PW.7
+    title: Review and/or analyze human-readable code
+    family: PW
+    automatable: partial
+    machine_scope: That automated analysis ran, and over how much of the tree.
+    residual: >-
+      Human review, which this practice names first and which no scanner
+      substitutes for. Reading this as satisfied because a linter ran is the
+      central misuse of SSDF.
+    satisfied_by:
+      - bandit/B105
+      - checkov/CKV_AWS_1
+
+  - id: PW.8
+    title: Test executable code to identify vulnerabilities
+    family: PW
+    automatable: partial
+    machine_scope: Whether the repository contains tests at all.
+    residual: >-
+      Dynamic testing, fuzzing, and whether the tests exercise anything
+      security-relevant. Test files existing is close to the weakest evidence
+      available for this practice.
+    satisfied_by:
+      - arbiter/quality.no-tests
+
+  - id: PW.9
+    title: Configure software to have secure settings by default
+    family: PW
+    automatable: partial
+    machine_scope: >-
+      Declared defaults in infrastructure and manifests — encryption on,
+      privilege escalation off, capabilities dropped, non-root, no open
+      ingress.
+    residual: Application-level defaults not expressed in configuration.
+    satisfied_by:
+      - arbiter/resource.k8s-no-security-context
+      - arbiter/resource.k8s-privilege-escalation-not-disabled
+      - arbiter/resource.k8s-capabilities-not-dropped
+      - arbiter/resource.k8s-not-run-as-non-root
+      - arbiter/resource.k8s-writable-root-filesystem
+      - arbiter/resource.unencrypted-database
+      - arbiter/resource.unencrypted-volume
+      - arbiter/resource.unrestricted-ingress
+      - arbiter/resource.plaintext-listener
+
+  # ---- RV — Respond to Vulnerabilities -----------------------------------
+  - id: RV.1
+    title: Identify and confirm vulnerabilities on an ongoing basis
+    family: RV
+    automatable: partial
+    machine_scope: >-
+      That scanning runs repeatably, and that findings carry stable
+      fingerprints so the same issue is recognisable across runs.
+    residual: Triage, confirmation and disclosure handling by people.
+    satisfied_by:
+      - checkov/CKV_AWS_1
+
+  - id: RV.2
+    title: Assess, prioritize and remediate vulnerabilities
+    family: RV
+    automatable: none
+    residual: >-
+      A decision process. Arbiter's adjudication ledger records the outcome of
+      that process but does not perform it.
+    satisfied_by: []
+
+  - id: RV.3
+    title: Analyze vulnerabilities to identify root causes
+    family: RV
+    automatable: none
+    residual: Analysis by people, recorded somewhere other than the source tree.
+    satisfied_by: []

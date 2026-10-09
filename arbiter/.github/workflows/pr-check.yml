@@ -1,0 +1,197 @@
+# Pull request check.
+#
+# Runs the fast, deterministic half of verification from HANDOFF.md on every
+# pull request: the test suite, the claim-integrity check, the mutation check
+# and the workspace gate. The slow, corpus-driven half (injection trials,
+# discrimination, external-tool calibration) already runs nightly in
+# train.yml and has no business gating a PR.
+#
+# The suite itself is in two tiers (ARB-046). `-m "not slow"` is everything
+# that measures Arbiter's own rules against the fixtures, and it runs on
+# every cell of the matrix. `-m slow` is the tests that run a real analyzer
+# through the adapters or scan more than the fixtures; they are the bulk of
+# the suite's wall clock and prove nothing about the platform, so they run
+# once, on Linux, in the slow-tier job alongside the matrix.
+#
+# Two platforms, because one was not enough. REQ-006 was a crash on every
+# adapter timeout on Windows -- `os.killpg` does not exist there, so the
+# process-group path raised AttributeError and the analyzer outlived its own
+# timeout. It survived to be found by hand because no automation had ever run
+# on Windows. The kill path, UTF-8 decoding and path handling are all
+# platform-sensitive, and a developer's machine is not a control.
+#
+# The matrix lives here rather than in train.yml on purpose: this job takes
+# about a minute, and a matrix over a two-hour nightly cycle would cost four
+# hours to learn the same thing.
+
+name: pr-check
+
+on:
+  pull_request:
+
+# The self-gate uploads its SARIF to code scanning (REQ-039); everything else
+# only reads the checkout.
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: pr-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    strategy:
+      # Both platforms report. Cancelling Windows because Linux failed hides
+      # exactly the class of defect this matrix was added to find.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11"]
+        # The floor is 3.10 (REQ-040): tomllib arrived in 3.11 and the one
+        # import site falls back to tomli below it. One Linux cell runs on the
+        # floor so a 3.11-only construct cannot creep back in unnoticed.
+        include:
+          - os: ubuntu-latest
+            python-version: "3.10"
+    runs-on: ${{ matrix.os }}
+    # Linux installs the five analyzers and runs the self-gate, and semgrep
+    # alone takes about six minutes over this tree; the adapter tests that
+    # used to run the real tools here are in the slow tier now, so the Linux
+    # cell should settle well inside fifteen minutes (measure it on the first
+    # run rather than trusting this comment). Windows stays near two. The
+    # limit is for the slower one.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # omni gate diffs the PR against its base and omni doctor checks
+          # that recent commits are recorded; both need more than one commit.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          # mcp: omni doctor starts the `arbiter mcp` server .mcp.json
+          # registers and asks it for its tools, so the SDK has to be there.
+          pip install -e .[dev,mcp]
+
+      # Linux only: the five external analyzers and the hosted-API extra.
+      # Without them the adapter code paths ran only in the nightly job and
+      # the sixteen API tests skipped on every pull request (REQ-034). The
+      # installer never fails the build; a tool it could not fetch shows up
+      # in the self-gate below as not assessed. Windows keeps the fast core
+      # run: the analyzers are not all available there and the matrix exists
+      # for the platform-sensitive paths, not for the adapters.
+      - name: Install analyzers and the api extra
+        if: runner.os == 'Linux'
+        run: |
+          pip install -e .[api]
+          ./tools/install_tools.sh
+
+      # -rs prints the reason for every skip. Windows runners legitimately skip
+      # things Linux does not, and a skip that is silently absent from the log
+      # is indistinguishable from a test that was never collected.
+      # The fast tier only; the slow tier runs once in the slow-tier job.
+      - name: Tests
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python -m pytest -q -rs -m "not slow"
+
+      - name: Claim invariants
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python tools/integrity.py
+
+      # The step above proves the claim invariants are enforced by breaking
+      # them. This does the same for the regression tests: it puts each known
+      # defect back and requires the test named after it to fail. A suite that
+      # passes whether the code is right or not is worse than no suite, because
+      # it is believed.
+      - name: Mutation check
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python tools/mutate_tests.py
+
+      # The OmniEngineering workspace is checked the same way the code is.
+      # doctor starts both registered MCP servers for real and verifies the
+      # registries; gate requires the changed files to carry their CHANGELOG
+      # and requirement updates (training output is exempt in the rulepack).
+      # `python omni` rather than `./omni` so the step is identical on Windows.
+      - name: Workspace doctor
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python omni doctor
+
+      - name: Completion gate
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python omni gate
+
+      # Arbiter evaluates itself (REQ-032). arbiter.yaml is the policy: the
+      # gate fails on any critical and on any new high, and with no baseline
+      # every finding is new, so this is the standard the repository holds
+      # its own code to. Linux only, because that is where the analyzers are
+      # installed and a self-gate that could not run half its probes would
+      # pass for the wrong reason.
+      # --github (REQ-039) prints every finding as a workflow-command
+      # annotation, so it lands inline on the diff, and appends the
+      # pull-request comment to the job summary.
+      - name: Arbiter self-gate
+        if: runner.os == 'Linux'
+        env:
+          PYTHONIOENCODING: utf-8
+        run: arbiter gate . --out arbiter-out --format json,sarif,markdown,pr-comment --github --no-cache --sarif-min-severity medium
+
+      # The same findings under the Security tab. always(): the upload is
+      # most useful on the run that failed. continue-on-error: code scanning
+      # is not enabled on every fork or mirror, and an upload refused there
+      # must not turn the gate's own verdict into a failure.
+      - name: Upload SARIF
+        if: always() && runner.os == 'Linux'
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@9f759ee644a3e7c15c1390abf49868036c00067b # v3
+        with:
+          sarif_file: arbiter-out/report.sarif
+
+  # The slow tier: the tests that run a real analyzer through the adapters or
+  # scan more than the fixtures. One Linux job rather than a matrix cell,
+  # because the matrix exists for the platform-sensitive paths and all of
+  # those are in the fast tier; and a job of its own rather than a step in
+  # the Linux cell, so the pull request waits for the slower of the two
+  # rather than for their sum. The gate steps stay in the matrix: this job
+  # answers one question, whether the adapters still agree with the tools.
+  slow-tier:
+    runs-on: ubuntu-latest
+    # About five minutes locally with the analyzers installed, most of it the
+    # one full scan through every adapter; installing the analyzers comes
+    # first, and semgrep's own startup varies with its network.
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.11"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          # mcp and api: the slow tier includes the scans that go through the
+          # hosted surfaces, and those skip without their extras.
+          pip install -e .[dev,mcp,api]
+
+      # The same installer the Linux cell uses, so the tier runs the same
+      # tools a laptop installs. A tool it could not fetch is a skip, printed
+      # by -rs below, not a pass.
+      - name: Install analyzers
+        run: ./tools/install_tools.sh
+
+      - name: Slow-tier tests
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python -m pytest -q -rs -m slow

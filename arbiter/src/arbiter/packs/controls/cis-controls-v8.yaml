@@ -1,0 +1,566 @@
+framework:
+  id: CIS-Controls-v8
+  title: CIS Critical Security Controls Version 8
+  version: "8"
+  authority: https://www.cisecurity.org/controls/v8
+  baseline: All implementation groups (IG3)
+  # 18 controls, 153 safeguards. IG1 is 56 safeguards, IG2 adds 74 for 130,
+  # IG3 adds 23 for 153. The safeguard is the unit. Following the convention
+  # of the government packs, the denominator is the full published set, not
+  # the number of safeguards listed below.
+  declared_controls: 153
+  declared_source: >-
+    CIS Controls v8 — 18 controls, 153 safeguards (IG1 56, IG2 130
+    cumulative, IG3 153 cumulative). An enterprise adopting only IG1 has a
+    denominator of 56; the figures this pack reports count against all 153.
+    This pack enumerates the scanner-relevant subset and a representative
+    set of the rest; everything not listed resolves to "not enumerated".
+  notes: >-
+    An INDEPENDENT pack. The CIS Controls are a prioritised set of
+    safeguards, not an assessed standard, and the safeguard is the unit a
+    scanner can speak to. The parenthetical implementation group in each
+    title — (IG1), (IG2), (IG3) — is Arbiter's annotation of the minimum
+    group that includes the safeguard; it is not part of the CIS title.
+
+    Two things a reader should know. First, the CIS Controls are not the CIS
+    Benchmarks. The Benchmarks are configuration-level hardening guides for
+    specific products; Arbiter's rules are not a Benchmark, and a pass on a
+    configuration safeguard below is not a Benchmark pass. Second, most
+    safeguards are phrased as "establish and maintain a process", and a
+    process is evidenced by its records, not by the configuration it
+    produces. A clean scan is not a safeguard implemented. Where a scan can
+    see the output of a process, the control is "partial" and the residual
+    names the process it cannot see.
+
+    Safeguard identifiers, titles and implementation groups were transcribed
+    from the public CIS Controls v8 document. Verify them against the
+    current CIS text before any of this appears in an assessment or a CIS
+    CSAT submission.
+
+controls:
+  # ---- 1 — Inventory and Control of Enterprise Assets --------------------
+  - id: "1.1"
+    title: Establish and Maintain Detailed Enterprise Asset Inventory (IG1)
+    family: "1 Inventory and Control of Enterprise Assets"
+    automatable: none
+    residual: >-
+      An inventory of every asset that can store or process data, reviewed
+      at least twice a year. A repository declares some assets; it is not
+      the inventory.
+    satisfied_by: []
+
+  # ---- 2 — Inventory and Control of Software Assets ----------------------
+  - id: "2.1"
+    title: Establish and Maintain a Software Inventory (IG1)
+    family: "2 Inventory and Control of Software Assets"
+    automatable: none
+    residual: >-
+      An inventory of installed software across the enterprise, reviewed at
+      least twice a year. Dependency manifests are a fragment of it.
+    satisfied_by: []
+
+  # ---- 3 — Data Protection ------------------------------------------------
+  - id: "3.3"
+    title: Configure Data Access Control Lists (IG1)
+    family: "3 Data Protection"
+    automatable: partial
+    machine_scope: >-
+      Storage and databases declared publicly reachable, and buckets with
+      public-read or public-write grants.
+    residual: >-
+      Whether the access lists that are not public are right — need-to-know
+      per user, per dataset — which is enforced at the application and
+      identity layers.
+    satisfied_by:
+      - arbiter/resource.public-object-store
+      - arbiter/resource.database-publicly-accessible
+      - checkov/CKV_AWS_20
+      - checkov/CKV_AWS_57
+
+  - id: "3.5"
+    title: Securely Dispose of Data (IG1)
+    family: "3 Data Protection"
+    automatable: none
+    residual: A disposal process and its records.
+    satisfied_by: []
+
+  - id: "3.10"
+    title: Encrypt Sensitive Data in Transit (IG2)
+    family: "3 Data Protection"
+    automatable: partial
+    machine_scope: >-
+      Listeners declared without TLS, TLS policies admitting 1.0 or 1.1,
+      databases accepting plaintext connections, HTTP endpoints that do not
+      redirect, and code that disables certificate verification or pins
+      withdrawn protocol versions.
+    residual: >-
+      Which data is sensitive, cipher policy, certificate provenance, and
+      every network path not declared in infrastructure code.
+    satisfied_by:
+      - arbiter/resource.plaintext-listener
+      - arbiter/resource.weak-tls-version
+      - arbiter/resource.database-allows-plaintext-connections
+      - arbiter/resource.no-https-redirect
+      - checkov/CKV_AWS_2
+      - checkov/CKV_AWS_103
+      - bandit/B501
+      - bandit/B502
+      - bandit/B503
+
+  - id: "3.11"
+    title: Encrypt Sensitive Data at Rest (IG2)
+    family: "3 Data Protection"
+    automatable: partial
+    machine_scope: Encryption at rest requested on declared storage and queue resources.
+    residual: >-
+      Which data is sensitive, key custody and rotation, and storage outside
+      the scanned estate. Encryption being switched on says nothing about who
+      holds the key.
+    satisfied_by:
+      - arbiter/resource.unencrypted-database
+      - arbiter/resource.unencrypted-object-store
+      - arbiter/resource.unencrypted-volume
+      - arbiter/resource.unencrypted-queue
+      - checkov/CKV_AWS_16
+      - checkov/CKV_AWS_19
+      - checkov/CKV_AWS_27
+
+  - id: "3.14"
+    title: Log Sensitive Data Access (IG3)
+    family: "3 Data Protection"
+    automatable: partial
+    machine_scope: Access logging declared on object stores.
+    residual: >-
+      Which stores hold sensitive data, and access logging on every one of
+      them, including the databases and applications that do not express it
+      as a resource property.
+    satisfied_by:
+      - arbiter/resource.no-object-store-logging
+      - checkov/CKV_AWS_18
+
+  # ---- 4 — Secure Configuration of Enterprise Assets and Software --------
+  - id: "4.1"
+    title: Establish and Maintain a Secure Configuration Process (IG1)
+    family: "4 Secure Configuration of Enterprise Assets and Software"
+    automatable: partial
+    machine_scope: >-
+      Declared workload settings measured against this build's rules:
+      security contexts, root, privilege escalation, capabilities, writable
+      root filesystems, privileged containers, host path mounts, and
+      instance metadata without IMDSv2.
+    residual: >-
+      The process itself — documented, reviewed annually — and the CIS
+      Benchmark the process should enforce, which these rules are not.
+      A pass here is not a Benchmark pass.
+    satisfied_by:
+      - arbiter/resource.k8s-no-security-context
+      - arbiter/resource.k8s-runs-as-root
+      - arbiter/resource.k8s-not-run-as-non-root
+      - arbiter/resource.k8s-privilege-escalation
+      - arbiter/resource.k8s-privilege-escalation-not-disabled
+      - arbiter/resource.k8s-capabilities-not-dropped
+      - arbiter/resource.k8s-dangerous-capabilities
+      - arbiter/resource.k8s-writable-root-filesystem
+      - arbiter/resource.privileged-container
+      - arbiter/resource.k8s-host-path-volume
+      - checkov/CKV_AWS_79
+
+  - id: "4.2"
+    title: Establish and Maintain a Secure Configuration Process for Network Infrastructure (IG1)
+    family: "4 Secure Configuration of Enterprise Assets and Software"
+    automatable: partial
+    machine_scope: >-
+      Ingress rules admitting any address, egress rules allowing all
+      destinations, and security group rules with no description to audit.
+    residual: >-
+      The process, reviewed annually, and the configuration of every network
+      device not declared as code — which is most of them.
+    satisfied_by:
+      - arbiter/resource.unrestricted-ingress
+      - checkov/CKV_AWS_382
+      - checkov/CKV_AWS_23
+
+  - id: "4.4"
+    title: Implement and Manage a Firewall on Servers (IG1)
+    family: "4 Secure Configuration of Enterprise Assets and Software"
+    automatable: partial
+    machine_scope: >-
+      Security groups admitting any address, including SSH, RDP and HTTP
+      from the world.
+    residual: >-
+      A default-deny posture on every server, host-based firewalls, and the
+      management of those rules over time. A cloud security group is one
+      firewall; it is not the safeguard.
+    satisfied_by:
+      - arbiter/resource.unrestricted-ingress
+      - checkov/CKV_AWS_24
+      - checkov/CKV_AWS_25
+      - checkov/CKV_AWS_260
+
+  - id: "4.8"
+    title: Uninstall or Disable Unnecessary Services on Enterprise Assets and Software (IG2)
+    family: "4 Secure Configuration of Enterprise Assets and Software"
+    automatable: partial
+    machine_scope: >-
+      Containers that retain the default capability set, add dangerous
+      capabilities, or share the host network.
+    residual: >-
+      Whether the services and functionality present are needed, which is a
+      judgement about the workload, and every host-level service no
+      manifest declares.
+    satisfied_by:
+      - arbiter/resource.k8s-capabilities-not-dropped
+      - arbiter/resource.k8s-dangerous-capabilities
+      - arbiter/resource.host-network
+
+  # ---- 5 — Account Management ---------------------------------------------
+  - id: "5.1"
+    title: Establish and Maintain an Inventory of Accounts (IG1)
+    family: "5 Account Management"
+    automatable: none
+    residual: An inventory of user and administrator accounts, validated quarterly.
+    satisfied_by: []
+
+  # ---- 6 — Access Control Management --------------------------------------
+  - id: "6.1"
+    title: Establish an Access Granting Process (IG1)
+    family: "6 Access Control Management"
+    automatable: none
+    residual: A documented process and the records of each grant.
+    satisfied_by: []
+
+  - id: "6.3"
+    title: Require MFA for Externally-Exposed Applications (IG1)
+    family: "6 Access Control Management"
+    automatable: none
+    residual: A property of the identity provider and the application's login flow.
+    satisfied_by: []
+
+  - id: "6.8"
+    title: Define and Maintain Role-Based Access Control (IG3)
+    family: "6 Access Control Management"
+    automatable: partial
+    machine_scope: >-
+      IAM grants nothing in the system uses, policies attached directly to
+      users rather than groups or roles, and policies with wildcard actions
+      or resources.
+    residual: >-
+      Role definitions tied to job function, and the annual review of
+      access rights the safeguard requires. No scan evidences a review.
+    satisfied_by:
+      - arbiter/interface.permission-unused
+      - checkov/CKV_AWS_1
+      - checkov/CKV_AWS_40
+      - checkov/CKV_AWS_62
+      - checkov/CKV_AWS_63
+
+  # ---- 7 — Continuous Vulnerability Management ----------------------------
+  - id: "7.1"
+    title: Establish and Maintain a Vulnerability Management Process (IG1)
+    family: "7 Continuous Vulnerability Management"
+    automatable: none
+    residual: A documented process, reviewed annually. Running a scanner is not the process.
+    satisfied_by: []
+
+  - id: "7.4"
+    title: Perform Automated Application Patch Management (IG1)
+    family: "7 Continuous Vulnerability Management"
+    automatable: partial
+    machine_scope: >-
+      Whether managed database engines are set to take minor version
+      patches automatically, and whether application dependencies are
+      declared with versions at all — the precondition for knowing what
+      needs patching.
+    residual: >-
+      A monthly or more frequent patch cadence, actually run. Pinning is the
+      opposite of automatic patching: a pin that is never moved is a patch
+      never applied, and a scan cannot tell the two apart.
+    satisfied_by:
+      - checkov/CKV_AWS_226
+      - arbiter/supply.unpinned-python-dep
+      - arbiter/supply.unpinned-npm-dep
+
+  - id: "7.5"
+    title: Perform Automated Vulnerability Scans of Internal Enterprise Assets (IG2)
+    family: "7 Continuous Vulnerability Management"
+    automatable: partial
+    machine_scope: >-
+      That static and infrastructure analysis ran, with coverage recorded,
+      and that container images are scanned on push.
+    residual: >-
+      Authenticated and unauthenticated scans of internal hosts at least
+      quarterly, with a SCAP-compliant tool. Static analysis of a repository
+      is a different activity and should not be reported as this one.
+    satisfied_by:
+      - checkov/CKV_AWS_1
+      - bandit/B105
+      - checkov/CKV_AWS_163
+
+  - id: "7.7"
+    title: Remediate Detected Vulnerabilities (IG2)
+    family: "7 Continuous Vulnerability Management"
+    automatable: none
+    residual: >-
+      Evidence that findings were fixed on the process's timeline, which
+      lives in a ticketing system rather than a repository. Arbiter's
+      adjudication ledger records decisions; it does not evidence fixes.
+    satisfied_by: []
+
+  # ---- 8 — Audit Log Management ------------------------------------------
+  - id: "8.1"
+    title: Establish and Maintain an Audit Log Management Process (IG1)
+    family: "8 Audit Log Management"
+    automatable: none
+    residual: A documented process covering collection, review and retention.
+    satisfied_by: []
+
+  - id: "8.2"
+    title: Collect Audit Logs (IG1)
+    family: "8 Audit Log Management"
+    automatable: partial
+    machine_scope: >-
+      Access logging declared on object stores, cloud control-plane trails,
+      cluster control planes and database engines.
+    residual: >-
+      Logging on every asset in the inventory, not only those declared as
+      code, and whether what is collected is what the process requires.
+    satisfied_by:
+      - arbiter/resource.no-object-store-logging
+      - checkov/CKV_AWS_18
+      - checkov/CKV_AWS_35
+      - checkov/CKV_AWS_58
+      - checkov/CKV_AWS_67
+      - checkov/CKV_AWS_129
+
+  - id: "8.10"
+    title: Retain Audit Logs (IG2)
+    family: "8 Audit Log Management"
+    automatable: partial
+    machine_scope: Whether a retention period is set on declared log groups at all.
+    residual: >-
+      The safeguard fixes a minimum of ninety days. A check that sees "a
+      period is set" cannot tell whether it meets that, and must not be read
+      as if it could.
+    satisfied_by:
+      - arbiter/resource.no-log-retention
+
+  - id: "8.11"
+    title: Conduct Audit Log Reviews (IG2)
+    family: "8 Audit Log Management"
+    automatable: none
+    residual: Weekly or more frequent reviews, with a record.
+    satisfied_by: []
+
+  # ---- 10 — Malware Defenses ---------------------------------------------
+  - id: "10.1"
+    title: Deploy and Maintain Anti-Malware Software (IG1)
+    family: "10 Malware Defenses"
+    automatable: none
+    residual: Anti-malware on every asset. A repository scanner is not it.
+    satisfied_by: []
+
+  # ---- 11 — Data Recovery -------------------------------------------------
+  - id: "11.1"
+    title: Establish and Maintain a Data Recovery Process (IG1)
+    family: "11 Data Recovery"
+    automatable: none
+    residual: A documented process, reviewed annually.
+    satisfied_by: []
+
+  - id: "11.2"
+    title: Perform Automated Backups (IG1)
+    family: "11 Data Recovery"
+    automatable: partial
+    machine_scope: Deletion protection and versioning declared on storage and database resources.
+    residual: >-
+      Backups taken weekly or more often, stored separately. Deletion
+      protection is not a backup and does not evidence one.
+    satisfied_by:
+      - arbiter/resource.no-deletion-protection
+      - checkov/CKV_AWS_21
+      - checkov/CKV_AWS_293
+
+  - id: "11.5"
+    title: Test Data Recovery (IG2)
+    family: "11 Data Recovery"
+    automatable: none
+    residual: A quarterly restoration test with a report.
+    satisfied_by: []
+
+  # ---- 12 — Network Infrastructure Management -----------------------------
+  - id: "12.2"
+    title: Establish and Maintain a Secure Network Architecture (IG2)
+    family: "12 Network Infrastructure Management"
+    automatable: partial
+    machine_scope: >-
+      Databases reachable from the internet, ingress open to the world,
+      instances auto-assigned public addresses, and cluster API endpoints
+      exposed publicly.
+    residual: >-
+      Segmentation design, least privilege between segments, and
+      availability — an architecture, documented and reviewed, not a set of
+      resource flags.
+    satisfied_by:
+      - arbiter/resource.unrestricted-ingress
+      - arbiter/resource.database-publicly-accessible
+      - checkov/CKV_AWS_88
+      - checkov/CKV_AWS_38
+      - checkov/CKV_AWS_39
+
+  # ---- 13 — Network Monitoring and Defense --------------------------------
+  - id: "13.1"
+    title: Centralize Security Event Alerting (IG2)
+    family: "13 Network Monitoring and Defense"
+    automatable: none
+    residual: A SIEM or equivalent, with alerts that people act on.
+    satisfied_by: []
+
+  # ---- 14 — Security Awareness and Skills Training ------------------------
+  - id: "14.1"
+    title: Establish and Maintain a Security Awareness Program (IG1)
+    family: "14 Security Awareness and Skills Training"
+    automatable: none
+    residual: Training records.
+    satisfied_by: []
+
+  # ---- 15 — Service Provider Management -----------------------------------
+  - id: "15.1"
+    title: Establish and Maintain an Inventory of Service Providers (IG1)
+    family: "15 Service Provider Management"
+    automatable: none
+    residual: An inventory of providers, with classification, reviewed annually.
+    satisfied_by: []
+
+  # ---- 16 — Application Software Security ---------------------------------
+  - id: "16.1"
+    title: Establish and Maintain a Secure Application Development Process (IG2)
+    family: "16 Application Software Security"
+    automatable: none
+    residual: >-
+      A documented process covering design, coding, testing and deployment.
+      Owning a scanner is not a process.
+    satisfied_by: []
+
+  - id: "16.4"
+    title: Establish and Manage an Inventory of Third-Party Software Components (IG2)
+    family: "16 Application Software Security"
+    automatable: partial
+    machine_scope: >-
+      Whether dependencies are declared with versions at all, and whether
+      code imports packages the manifest does not declare — components the
+      inventory would miss.
+    residual: >-
+      The inventory itself, with a software bill of materials, and whether
+      the components in it are supported. A manifest is a fragment of an
+      inventory, not the inventory.
+    satisfied_by:
+      - arbiter/supply.unpinned-python-dep
+      - arbiter/supply.unpinned-npm-dep
+      - arbiter/authored.undeclared-import
+
+  - id: "16.5"
+    title: Use Up-to-Date and Trusted Third-Party Software Components (IG2)
+    family: "16 Application Software Security"
+    automatable: partial
+    machine_scope: >-
+      CI actions and container images on mutable references, and imports of
+      packages that do not exist on the registry — the dependency-confusion
+      vector.
+    residual: >-
+      Whether the pinned versions are current and come from trusted sources.
+      Pinning says the build is reproducible; it does not say the dependency
+      is any good.
+    satisfied_by:
+      - arbiter/supply.unpinned-action
+      - arbiter/resource.k8s-mutable-image-tag
+      - arbiter/authored.import-of-nonexistent-package
+
+  - id: "16.7"
+    title: Use Standard Hardening Configuration Templates for Application Infrastructure (IG2)
+    family: "16 Application Software Security"
+    automatable: partial
+    machine_scope: >-
+      Workload manifests declared without a security context, running as
+      root, with escalation not disabled, or with a writable root
+      filesystem.
+    residual: >-
+      The templates themselves and whether every deployment uses them.
+      These rules are not a hardening template; they catch some departures
+      from one.
+    satisfied_by:
+      - arbiter/resource.k8s-no-security-context
+      - arbiter/resource.k8s-not-run-as-non-root
+      - arbiter/resource.k8s-runs-as-root
+      - arbiter/resource.k8s-privilege-escalation-not-disabled
+      - arbiter/resource.k8s-writable-root-filesystem
+
+  - id: "16.8"
+    title: Separate Production and Non-Production Systems (IG2)
+    family: "16 Application Software Security"
+    automatable: none
+    residual: >-
+      Environment separation, evidenced by the account and network layout
+      rather than by any one repository.
+    satisfied_by: []
+
+  - id: "16.11"
+    title: Leverage Vetted Modules or Services for Application Security Components (IG2)
+    family: "16 Application Software Security"
+    automatable: partial
+    machine_scope: >-
+      Weak or home-grown hashing, non-cryptographic randomness used for
+      security purposes, and whatever the semgrep ruleset in this build
+      flags.
+    residual: >-
+      Whether the modules used for authentication, encryption and logging
+      are the vetted ones, which is a review of the design, not a grep.
+    satisfied_by:
+      - bandit/B303
+      - bandit/B324
+      - bandit/B311
+      - semgrep/rules
+
+  - id: "16.12"
+    title: Implement Code-Level Security Checks (IG3)
+    family: "16 Application Software Security"
+    automatable: partial
+    machine_scope: >-
+      That static analysis ran over the code and the infrastructure, and
+      what it found: hardcoded credentials, keys and tokens above all.
+    residual: >-
+      The checks wired into the pipeline so they run on every change, which
+      one run does not prove, and the dynamic analysis the safeguard also
+      names. A clean result is weak evidence and should be reported as weak.
+    satisfied_by:
+      - bandit/B105
+      - semgrep/rules
+      - checkov/CKV_AWS_1
+      - arbiter/secrets.assigned-credential
+      - arbiter/secrets.private-key
+      - arbiter/secrets.aws-access-key
+      - arbiter/secrets.gh-token
+      - arbiter/secrets.slack-token
+      - arbiter/secrets.pg-url
+
+  - id: "16.13"
+    title: Conduct Application Penetration Testing (IG3)
+    family: "16 Application Software Security"
+    automatable: none
+    residual: A penetration test by a qualified tester, with a report.
+    satisfied_by: []
+
+  # ---- 17 — Incident Response Management ----------------------------------
+  - id: "17.1"
+    title: Designate Personnel to Manage Incident Handling (IG1)
+    family: "17 Incident Response Management"
+    automatable: none
+    residual: Named people, with backups, reviewed annually.
+    satisfied_by: []
+
+  # ---- 18 — Penetration Testing -------------------------------------------
+  - id: "18.1"
+    title: Establish and Maintain a Penetration Testing Program (IG2)
+    family: "18 Penetration Testing"
+    automatable: none
+    residual: A programme with scope, frequency and rules of engagement.
+    satisfied_by: []

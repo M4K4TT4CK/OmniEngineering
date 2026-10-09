@@ -114,7 +114,11 @@ class Fixture(unittest.TestCase):
 
     def git(self, *args: str) -> None:
         env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
-        subprocess.run(["git", "-C", str(self.root), *args], check=True, capture_output=True, env=env)
+        # Every git call in a fixture repository runs with auto-gc off: a commit may otherwise detach a
+        # gc that is still writing under .git/objects while the temporary directory is being removed,
+        # which failed teardown on macOS CI in the history-layer tests (FAIL-017) and then in the
+        # lineage test that inherits this fixture (FAIL-018). Passing it here covers every subclass.
+        subprocess.run(["git", "-C", str(self.root), "-c", "gc.auto=0", *args], check=True, capture_output=True, env=env)
 
     def edges(self, edge_type: str) -> set[tuple[str, str]]:
         return {(e.source, e.target) for e in self.graph.edges if e.type == edge_type}
@@ -177,6 +181,9 @@ class TestGovernanceLayer(Fixture):
 class TestHistoryLayer(Fixture):
     def commit_all(self, subject: str, body: str | None = None) -> None:
         self.git("init", "-q")
+        # No background gc: git may detach a repack into .git/objects/pack while the temp
+        # directory is being removed, which failed teardown on macOS CI (FAIL-017).
+        self.git("config", "gc.auto", "0")
         self.git("add", "-A")
         self.git("commit", "-q", "-m", subject, *(["-m", body] if body else []))
 
@@ -235,6 +242,9 @@ class TestHistoryLayer(Fixture):
 
     def test_a_repository_with_no_commits_yet(self) -> None:
         self.git("init", "-q")
+        # No background gc: git may detach a repack into .git/objects/pack while the temp
+        # directory is being removed, which failed teardown on macOS CI (FAIL-017).
+        self.git("config", "gc.auto", "0")
         stats = self.build()
         self.assertEqual(stats["commits"], 0)
         self.assertTrue(any("no commits yet" in note for note in self.graph.notes))
@@ -353,6 +363,9 @@ class TestWhy(Fixture):
     def setUp(self) -> None:
         super().setUp()
         self.git("init", "-q")
+        # No background gc: git may detach a repack into .git/objects/pack while the temp
+        # directory is being removed, which failed teardown on macOS CI (FAIL-017).
+        self.git("config", "gc.auto", "0")
         self.git("add", "-A")
         self.git("commit", "-q", "-m", "Add checkout (REQ-001)")
         og.add_governance_layer(self.graph, self.root)

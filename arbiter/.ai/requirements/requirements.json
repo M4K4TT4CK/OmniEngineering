@@ -1,0 +1,1209 @@
+{
+  "version": "3.0.0",
+  "requirement_id_prefix": "ARB",
+  "id_aliases": {
+    "REQ-001": "ARB-001",
+    "REQ-002": "ARB-002",
+    "REQ-003": "ARB-003",
+    "REQ-004": "ARB-004",
+    "REQ-005": "ARB-005",
+    "REQ-006": "ARB-006",
+    "REQ-007": "ARB-007",
+    "REQ-008": "ARB-008",
+    "REQ-009": "ARB-009",
+    "REQ-010": "ARB-010",
+    "REQ-011": "ARB-011",
+    "REQ-012": "ARB-012",
+    "REQ-013": "ARB-013",
+    "REQ-014": "ARB-014",
+    "REQ-015": "ARB-015",
+    "REQ-016": "ARB-016",
+    "REQ-017": "ARB-017",
+    "REQ-018": "ARB-018",
+    "REQ-019": "ARB-019",
+    "REQ-020": "ARB-020",
+    "REQ-021": "ARB-021",
+    "REQ-022": "ARB-022",
+    "REQ-023": "ARB-023",
+    "REQ-024": "ARB-024",
+    "REQ-025": "ARB-025",
+    "REQ-026": "ARB-026",
+    "REQ-027": "ARB-027",
+    "REQ-028": "ARB-028",
+    "REQ-029": "ARB-029",
+    "REQ-030": "ARB-030",
+    "REQ-031": "ARB-031",
+    "REQ-032": "ARB-032",
+    "REQ-033": "ARB-033",
+    "REQ-034": "ARB-034",
+    "REQ-035": "ARB-035",
+    "REQ-036": "ARB-036",
+    "REQ-037": "ARB-037",
+    "REQ-038": "ARB-038",
+    "REQ-039": "ARB-039",
+    "REQ-040": "ARB-040",
+    "REQ-041": "ARB-041",
+    "REQ-042": "ARB-042",
+    "REQ-043": "ARB-043",
+    "REQ-044": "ARB-044"
+  },
+  "requirements": [
+    {
+      "id": "ARB-005",
+      "category": "legal",
+      "title": "Establish licensing terms for arbiter",
+      "description": "Partly closed by engineering as of 2026-09-14; the remainder needs counsel and cannot be completed here. LICENSE exists at the repository root and pyproject.toml references it, copyright is asserted to Nicholas J Pauken, and LICENSE section 3 assigns scan output to the user -- the first three acceptance criteria. LICENSE is explicitly an interim notice and not the operative grant: it reserves all rights and grants none. The fourth criterion is L-6, the redistribution review for the five bundled analyzers, recorded in NOTICE.md with a date and a named reviewer. That is a legal determination about semgrep's LGPL-2.1 terms and it must not be signed by anyone who did not perform it, so this requirement stays pending until a person does. It blocks the air-gapped bundle and nothing else; docs/licensing.md records the open questions.",
+      "priority": "high",
+      "status": "pending",
+      "minimum_access_scope": [
+        "docs/licensing.md",
+        "NOTICE.md",
+        "LICENSE",
+        "pyproject.toml",
+        "README.md"
+      ],
+      "acceptance_criteria": [
+        "a LICENSE file exists at the repository root and pyproject.toml references it",
+        "copyright ownership is asserted",
+        "ownership of scan output is assigned to the user",
+        "the redistribution review for bundled analyzers is recorded in NOTICE.md with a date and a reviewer"
+      ],
+      "validation_required": [
+        "python omni doctor"
+      ],
+      "documentation_required": [
+        "docs/licensing.md",
+        "NOTICE.md",
+        "README.md"
+      ],
+      "risk_notes": [
+        "Requires qualified legal review and cannot be completed by engineering alone",
+        "the air-gapped bundle roadmap item stays blocked until the semgrep LGPL-2.1 redistribution question is answered",
+        "2026-10-09: the air-gapped bundle now ships without the analyzers (ARB-051); only including them in the bundle stays blocked on the L-6 redistribution review."
+      ]
+    },
+    {
+      "id": "ARB-020",
+      "category": "developer-tooling",
+      "title": "Attribute every adjudication verdict to a reviewer and a time",
+      "description": "learn.record() stores a verdict as the bare string 'true_positive' or 'false_positive:note' in Knowledge.adjudicated, with no reviewer, no per-verdict timestamp and no record of which entry point it arrived through. Only the rule carries first_seen/last_seen. The ledger refuses re-adjudication, so a wrong or machine-written mark is permanent and, today, untraceable: there is no way to find whose marks to distrust. The rule that verdicts come from a person is enforced in assistant instructions, not in the code. This matters more now that agents hold shell access and more again if a second person ever adjudicates.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/learn.py",
+        "src/arbiter/cli.py",
+        "tests/test_arbiter.py",
+        "docs/calibration.md"
+      ],
+      "acceptance_criteria": [
+        "Knowledge.adjudicated holds a structured record carrying verdict reviewer timestamp and entry point rather than a bare string/KNOWLEDGE_VERSION is raised and from_dict migrates a version 1 ledger without losing any existing verdict/record() requires a reviewer identity and refuses to write without one/the reviewer is resolved from an explicit flag or git config user rather than defaulted silently/a test asserts a version 1 ledger round-trips through the new schema/a test asserts a verdict without a reviewer is refused"
+      ],
+      "validation_required": [
+        "PYTHONPATH=src python -m pytest -q"
+      ],
+      "documentation_required": [
+        "docs/calibration.md",
+        "CHANGELOG.md",
+        ".ai/project-context.md"
+      ],
+      "risk_notes": [
+        "The ledger is committed and feeds version_hash() so the schema change moves the knowledge version and any pinned scan must be re-pinned/The live ledger has zero adjudications so migration is untested against real data and should be tested against a synthetic version 1 file/Attribution records who not whether they were human and must not be described as proof of personhood"
+      ]
+    },
+    {
+      "id": "ARB-021",
+      "category": "developer-tooling",
+      "title": "Refuse an adjudication verdict from a non-interactive session",
+      "description": "Nothing distinguishes a verdict typed by a person from one written by a script or an agent. review_ui._getch() falls back to input() when raw terminal mode is unavailable, nothing calls isatty(), and cli.cmd_feedback records a verdict from a fully non-interactive invocation. review --apply reads marks from a markdown file, so anything that can write markdown can adjudicate. This is no barrier against a determined caller and is not claimed to be one; it stops the accidental case, which is a piped script, a CI job or an agent shelling out.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/cli.py",
+        "src/arbiter/review_ui.py",
+        "tests/test_arbiter.py",
+        "docs/calibration.md"
+      ],
+      "acceptance_criteria": [
+        "the interactive adjudication paths require stdin to be a terminal and refuse otherwise with a reason/the refusal names an explicit override flag so a deliberate batch import is possible and visible/an overridden verdict is recorded with an entry point that says it was not interactive/docs/calibration.md states plainly that this is a guard against accident and not proof of personhood/a test asserts a piped non-interactive feedback invocation is refused"
+      ],
+      "validation_required": [
+        "PYTHONPATH=src python -m pytest -q"
+      ],
+      "documentation_required": [
+        "docs/calibration.md",
+        "CHANGELOG.md",
+        ".ai/project-context.md"
+      ],
+      "risk_notes": [
+        "Depends on ARB-020 for the entry point field so it should land after it/An override flag that is easy to pass is an override an agent can pass so the value is the record it leaves not the obstacle it creates/Existing tests that record verdicts programmatically will need the override or a direct call to record()"
+      ]
+    },
+    {
+      "id": "ARB-022",
+      "category": "developer-tooling",
+      "title": "Declare adapter probe scope deliberately and say what a partial scan does not run",
+      "description": "adapters.register_adapters constructs every adapter-backed Probe without a scope argument, so all five external analyzers inherit the repo default from Probe and are recorded as not-assessed in any partial scan. The default is right because nothing has established that ruff bandit checkov semgrep or gitleaks give subset-exact answers on a file subset, but it is inherited rather than chosen. docs/ci.md explains file and repo scope carefully and never names the external analyzers; RUNNING-ON-YOUR-OWN-CODE.md describes the pull-request job without saying it runs native probes only. A reader of either document would reasonably believe their gate runs semgrep. It does not.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/adapters.py",
+        "src/arbiter/packs/",
+        "docs/ci.md",
+        "RUNNING-ON-YOUR-OWN-CODE.md",
+        "tests/test_arbiter.py"
+      ],
+      "acceptance_criteria": [
+        "every adapter manifest declares its scope explicitly/register_adapters passes the declared scope instead of relying on the Probe default/docs/ci.md names the five external analyzers as repo-scoped and says a partial scan does not run them/RUNNING-ON-YOUR-OWN-CODE.md says the same where it describes the pull-request job/a test asserts no adapter-backed probe relies on the inherited default"
+      ],
+      "validation_required": [
+        "PYTHONPATH=src python -m pytest -q"
+      ],
+      "documentation_required": [
+        "docs/ci.md",
+        "RUNNING-ON-YOUR-OWN-CODE.md",
+        "CHANGELOG.md",
+        ".ai/project-context.md"
+      ],
+      "risk_notes": [
+        "Declaring any adapter file-scoped would assert subset-exactness that has never been measured so every declaration must stay repo until evidence exists/This is a documentation and deliberateness change and must not be described as making partial scans cover more"
+      ]
+    },
+    {
+      "id": "ARB-023",
+      "category": "training-evidence",
+      "title": "Cover the nightly training job with a requirement and a test",
+      "description": "The nightly calibration job in .github/workflows/train.yml and tools/train_cycle.sh has never been covered by a requirement. Four defects were repaired in it on 2026-09-13 as unplanned work, including one where git add matched a gitignore entry, git exited 1, and bash -e failed the job two seconds after a 55-minute cycle finished successfully, so run 1 measured everything and committed nothing. A job that produces the project's only accumulating evidence and can fail silently after doing all its work needs owned acceptance criteria.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        ".github/workflows/train.yml",
+        "tools/train_cycle.sh",
+        "tools/worklist.py",
+        "training/",
+        "tests/test_arbiter.py"
+      ],
+      "acceptance_criteria": [
+        "the job's outputs and the files it is expected to write back are stated as acceptance criteria/a failure to write back fails the job loudly rather than after the work is complete/the three accumulating files stay tracked while stamped per-run logs stay ignored/a test or a dry-run check covers the write-back path"
+      ],
+      "validation_required": [
+        "PYTHONPATH=src python -m pytest -q"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md",
+        ".ai/project-context.md",
+        "docs/calibration.md"
+      ],
+      "risk_notes": [
+        "The job runs for two hours nightly so a change to it cannot be validated quickly and a dry-run path is worth more than a live trial/It writes to the repository so a defect here can commit wrong evidence"
+      ]
+    },
+    {
+      "id": "ARB-024",
+      "category": "developer-tooling",
+      "title": "Exercise the Windows code paths in CI",
+      "description": "Originally: no workflow ran on Windows, so no Windows path was ever exercised by automation. ARB-006 fixed a crash that occurred on every adapter timeout on Windows and it survived to be found by hand because nothing tested it. pr-check.yml is a matrix over ubuntu-latest and windows-latest with fail-fast false and no continue-on-error, running the suite with -rs so each platform's skips appear with reasons, then tools/integrity.py and tools/mutate_tests.py, omni doctor and omni gate, and on Linux the analyzers and arbiter's own gate. Seven tests were added; four of them delete os.killpg so the taskkill fallback is exercised on Linux too. The matrix ran for the first time on 2026-10-09 (PR #3) and found two real defects (FAIL-035, FAIL-039). The last criterion, making the check required rather than advisory, was decided against on 2026-10-09: a required check only blocks the merge button, which a sole committer already reads, and the strict variant would make every pull request stale after each nightly training commit. Revisit when a second committer or automated merging arrives.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        ".github/workflows/",
+        "tests/test_arbiter.py",
+        ".ai/project-configuration.md"
+      ],
+      "acceptance_criteria": [
+        "a workflow runs the test suite on Windows/the run is required rather than advisory/the three currently skipped tests are accounted for as skipped-with-a-reason on each platform rather than silently absent"
+      ],
+      "validation_required": [
+        "PYTHONPATH=src python -m pytest -q"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md",
+        ".ai/project-configuration.md",
+        "docs/ci.md"
+      ],
+      "risk_notes": [
+        "Adding a matrix to the nightly training workflow would double a two-hour job so the test run belongs in a separate fast workflow/Windows runners are slower and some adapter binaries are unavailable there so expect new legitimate skips",
+        "2026-10-09: the first Windows run of pr-check (PR #3) failed three setup-script tests that spawned bare 'bash' and got the WSL launcher; fixed by resolving bash through PATH as the writeback test already did (FAIL-035). The workflow itself had never run before.",
+        "2026-10-09: completed with the check deliberately advisory. Branch protection is a repository setting the owner weighed and declined for now; the acceptance criterion 'required rather than advisory' is superseded by this note. Revisit when a second committer or auto-merge appears."
+      ]
+    },
+    {
+      "id": "ARB-025",
+      "category": "developer-tooling",
+      "title": "Have OmniEngineering register and verify Arbiter's live MCP server",
+      "description": "omni doctor never checked that an assistant working in this repo could actually reach Arbiter as MCP tools -- there was no .mcp.json, and nothing in make_ai.py exercised the MCP server at all, only static text in files unrelated to it. Add .mcp.json registering `arbiter mcp` (stdio) as server \"arbiter\", and a doctor check (validate_mcp_server) that imports arbiter.mcp and calls _build_server() for real rather than grepping for file text, because the mcp SDK's own shape has moved under this project before (23bc43e, same day). Document in .ai/project-configuration.md that arbiter_scan/arbiter_gate/arbiter_review_queue should be called through MCP when available, with the CLI remaining the only way to run arbiter review --apply since no MCP tool records a verdict.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        ".mcp.json",
+        "make_ai.py",
+        ".ai/project-configuration.md"
+      ],
+      "acceptance_criteria": [
+        ".mcp.json registers an \"arbiter\" server running `arbiter mcp`",
+        "omni doctor's validate_mcp_server builds the live MCP server and fails if it cannot rather than only checking .mcp.json's text",
+        ".ai/project-configuration.md tells assistants to prefer the MCP tools over the CLI when they are available"
+      ],
+      "validation_required": [
+        "python omni doctor shows the new MCP check passing",
+        "python -m pytest tests/ -q stays green"
+      ],
+      "documentation_required": [
+        ".ai/project-configuration.md",
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "the live check only passes when the optional mcp extra is installed; without it doctor warns instead of failing"
+      ]
+    },
+    {
+      "id": "ARB-026",
+      "category": "developer-tooling",
+      "title": "Stop vendored and generated content from being scanned as first-party source",
+      "description": "Scanning STEP-Migration and STEP_App as a system surfaced three compounding gaps that together reported a third-party library's own source as a leaked private key, and buried real findings under tens of thousands from vendored code. (1) _pem_has_key_material judged a PEM block real by checking whether any text after a BEGIN marker contained a colon anywhere in the next ~4000 characters -- a check meant to allow encrypted-key preambles (Proc-Type: 4,ENCRYPTED), but satisfied by almost any surrounding prose or code, so ecdsa's own PEM-parsing source and packaging metadata were reported as committed keys. (2) inventory.classify()'s GENERATED_HINTS/IAC_HINTS hardcoded the literal name cdk.out, so a project using CDK_OUTDIR to redirect synth output to a renamed directory (cdk.out.chk, seen on the real system) fell through to role=source, and a branch-ordering bug meant that even the unrenamed case would have classified a CDK stack's own synthesized *.template.json as generated rather than the iac role that exempts nothing, losing the ground-truth scanning SKIP_DIRS says is deliberate. (3) bandit and checkov each walk {workdir} with their own traversal, independent of SKIP_DIRS, so both walked into a full vendored .venv and a Lambda asset bundle's dependencies regardless of role -- bandit alone produced 129,379 raw findings and consumed 669s of its 900s budget on one such tree.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/probes.py",
+        "src/arbiter/inventory.py",
+        "src/arbiter/packs/adapters/bandit.adapter.toml",
+        "src/arbiter/packs/adapters/checkov.adapter.toml",
+        "tests/test_arbiter.py"
+      ],
+      "acceptance_criteria": [
+        "_pem_has_key_material walks forward line by line and stops at the first line that is not base64 or a Key: value header",
+        "so surrounding code or prose cannot manufacture a body",
+        "classify() recognises a CDK_OUTDIR-renamed cdk.out* directory and classifies its synthesized *.template.json as iac rather than letting the directory-wide generated match swallow it",
+        "bandit and checkov are invoked with exclusions mirroring inventory.SKIP_DIRS plus a CDK asset-bundle pattern",
+        "verified empirically against a real vendored tree rather than assumed from documentation"
+      ],
+      "validation_required": [
+        "python -m pytest tests/ -q is 421 passed 3 skipped 0 failed",
+        "a real cross-repo scan of STEP-Migration + STEP_App dropped from 3 critical / 6011 total findings to 0 critical / 1121 total",
+        "with 0 findings remaining inside a vendored asset bundle and bandit's runtime dropping from 669s to 4s"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "the bandit/checkov exclude patterns are a fixed list mirroring SKIP_DIRS rather than reading it programmatically",
+        "so the two lists can drift apart if SKIP_DIRS changes without the adapters being updated to match"
+      ]
+    },
+    {
+      "id": "ARB-027",
+      "category": "developer-tooling",
+      "title": "Fix MCP client tests reading pydantic alias names instead of the field names",
+      "description": "test_the_tool_schemas_still_build_against_the_installed_sdk and test_the_stdio_server_actually_starts_and_answers_a_real_client read .inputSchema, .serverInfo and .isError off objects the installed mcp SDK returns. Those models take a camelCase alias on construction but expose the field back out as the snake_case Python attribute via an alias generator, confirmed directly from Tool.model_fields/InitializeResult.model_fields/CallToolResult.model_fields on the installed SDK -- the camelCase name only exists on the wire. This was a pre-existing failure on main, unrelated to ARB-026, found while running the full suite during that work; confirmed by stashing ARB-026's changes and reproducing the same two failures against plain main.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "tests/test_arbiter.py"
+      ],
+      "acceptance_criteria": [
+        "the two tests read .input_schema",
+        ".server_info and .is_error rather than the camelCase alias",
+        "python -m pytest tests/ -q shows 0 failed"
+      ],
+      "validation_required": [
+        "python -m pytest tests/ -q is 421 passed 3 skipped 0 failed"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "none -- test-only change",
+        "no production code touched"
+      ]
+    },
+    {
+      "id": "ARB-028",
+      "category": "developer-tooling",
+      "title": "Author the missing OmniEngineering adapter/checklist/rulepack files",
+      "description": "Ten files required by make_ai.py (seven .ai/adapters/ guides, the public-release checklist, and two rule packs: fallback-llm-rules.json, hci-ui-rules.json) were an accepted gap since ARB-001 because no OmniEngineering upstream was available locally. Authored them directly for arbiter instead, wired into .ai/context-manifest.json (indexes.adapters, adapter_prompts, checklists.public_release), and updated project-configuration.md/project-context.md to stop describing this as an open gap. Left the deliberately-not-installed non-Claude assistant pointer files and legal files (LICENSE/NOTICE/TRADEMARKS) untouched, since those remain intentional per project-configuration.md.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        ".ai/adapters/",
+        ".ai/checklists/public-release.md",
+        ".ai/rules/fallback-llm-rules.json",
+        ".ai/rules/hci-ui-rules.json",
+        ".ai/context-manifest.json",
+        ".ai/project-configuration.md",
+        ".ai/project-context.md",
+        ".ai/checklists/README.md"
+      ],
+      "acceptance_criteria": [
+        "omni doctor reports 0 FAILs outside the documented non-Claude-pointer/legal-file set",
+        "omni sync proceeds past the required-files gate without writing the non-Claude pointer files",
+        "context-manifest.json's adapter_prompts and checklists keys reference every new file",
+        "rule packs validate against .ai/schemas/rulepack.schema.json"
+      ],
+      "validation_required": [
+        "python omni doctor",
+        "PYTHONPATH=src python -m pytest tests/ -q"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md",
+        ".ai/project-context.md",
+        ".ai/project-configuration.md"
+      ],
+      "risk_notes": [
+        "Content is arbiter-authored",
+        "not pulled from a pristine OmniEngineering upstream",
+        "so it may not match whatever that upstream eventually ships; review if/when one becomes available"
+      ]
+    },
+    {
+      "id": "ARB-029",
+      "category": "developer-tooling",
+      "title": "Fix adapter output paths and scan scope that broke on Windows and outside the fixture corpus",
+      "description": "Four related gaps surfaced by continuing ARB-026's cross-repo scanning work. (1) gitleaks has no write-JSON-to-stdout mode; --report-path took the conventional '-' literally, creating a file named '-' inside {workdir} (the repo being scanned, since the adapter never set cwd) full of gitleaks' own JSON output -- itself full of strings shaped like the secrets it exists to find -- for the next scan of any repo to read as content. Adapter.invoke() now substitutes a private temp path for a '{report_file}' placeholder, reads it back after the process exits, and deletes it in a finally block. (2) checkov and bandit hand back backslash-separated relative paths on Windows -- checkov's own output even starts with a bare leading backslash -- but every suppress-rule glob and Location.path in this codebase assumes '/', so path-based rules silently matched zero Windows findings from either tool; Adapter now normalizes backslashes to '/' before the existing './' stripping. (3) ARB-026 gave bandit and checkov exclusions mirroring inventory.SKIP_DIRS but flagged in its own risk_notes that semgrep, which walks {workdir} with its own traversal same as the other two, was not covered; semgrep.adapter.toml now carries the same --exclude list plus a cdk.out* pattern, for the same reason as bandit: none of its configured rulesets understand CloudFormation templates. (4) SKIP_DIRS is a fixed name list and can never cover a fresh arbiter-out/ (or any other untracked, .gitignore-matched directory) left over from a previous run under whatever --out name was given that time; walk_repo now also excludes whatever git itself calls untracked-and-ignored via 'git ls-files --others --ignored --exclude-standard --directory', which is the same plumbing incremental.py already uses for changed-file detection.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/adapters.py",
+        "src/arbiter/inventory.py",
+        "src/arbiter/packs/adapters/gitleaks.adapter.toml",
+        "src/arbiter/packs/adapters/semgrep.adapter.toml",
+        "tests/test_arbiter.py"
+      ],
+      "acceptance_criteria": [
+        "Adapter.invoke substitutes {report_file} with a private temp path for tools that require a real output filename",
+        "reads it back",
+        "and always deletes it",
+        "Windows-style backslash paths from any adapter are normalized to forward slashes before suppress-rule matching",
+        "semgrep is invoked with the same exclusion list as bandit/checkov plus cdk.out*",
+        "walk_repo additionally excludes paths git itself reports as untracked and ignored"
+      ],
+      "validation_required": [
+        "PYTHONPATH=src python -m pytest tests/ -q is 423 passed 3 skipped 0 failed"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "The semgrep/bandit/checkov exclude lists are three separate fixed lists mirroring SKIP_DIRS rather than one shared source",
+        "so they can still drift apart if SKIP_DIRS changes without all three adapters being updated to match -- same risk ARB-026 already noted for the first two"
+      ]
+    },
+    {
+      "id": "ARB-030",
+      "category": "developer-tooling",
+      "title": "Test the scanner against reformulations of its own input, and test the measurement code",
+      "description": "An audit of every testing parameter and the whole bug history found nineteen shipped defects collapsing into five recurring root causes, each previously fixed with a fixture for the one case that failed: platform and path assumptions, encoding defaults, attribution propagation, heuristic proxies with unhandled edges, and bugs in the measurement code itself. Three live defects were found by the audit. (1) Finding.fingerprint() hashed location.path unnormalized, so the same finding had different identities on Windows and Linux; because adjudications are permanent and keyed by fingerprint, a verdict recorded on one platform could never match the other, and a baseline built on one reported everything as new on the other. Normalization moved to the Location boundary that all ~54 construction sites pass through. (2) tools/calibrate_external.py wrote measured severities to a report file while learn.apply() read a map inside knowledge.json, with no code path between them -- every nightly measurement of the external tools had been changing nothing, and the live map came from a one-off step that no longer exists. (3) calibrate_external.py documented a >=50x -> high band its own BANDS constant cannot produce. Two further defects were found by the new tests: seven config reads used the platform default codec, which on Windows mis-decodes silently rather than raising; and inventory._is_binary treated any NUL byte as binary, so every UTF-16 file was classified as data and never read at all.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/core.py",
+        "src/arbiter/inventory.py",
+        "src/arbiter/learn.py",
+        "src/arbiter/probes.py",
+        "src/arbiter/policy.py",
+        "src/arbiter/ab.py",
+        "src/arbiter/adapters.py",
+        "src/arbiter/controls.py",
+        "tests/conftest.py",
+        "tests/test_invariants.py",
+        "tests/test_metamorphic.py",
+        "tests/test_properties.py",
+        "tests/test_measurement.py",
+        "tools/mutate_tests.py",
+        "tools/train_cycle.sh",
+        "tools/calibrate_external.py",
+        "docs/testing-parameters.md",
+        ".github/workflows/pr-check.yml",
+        "pyproject.toml"
+      ],
+      "acceptance_criteria": [
+        "fingerprints are identical for backslash and forward-slash paths",
+        "no finding from any fixture scan carries a backslash absolute or escaping path",
+        "every finding in a multi-repo scan names a repository that exists",
+        "every text read and write under src names an explicit encoding",
+        "a credential is found under every tested encoding and syntactic carrier and placeholders are not reported",
+        "calibrated confidence is unmoved by synthetic volume at any scale",
+        "measured external severities reach apply() and ungraded checks are not stored",
+        "tools/mutate_tests.py reintroduces each defect and every corresponding test fails"
+      ],
+      "validation_required": [
+        "PYTHONPATH=src python -m pytest tests/ -q",
+        "python tools/mutate_tests.py",
+        "python tools/integrity.py"
+      ],
+      "documentation_required": [
+        "docs/testing-parameters.md",
+        "CHANGELOG.md",
+        ".ai/project-context.md"
+      ],
+      "risk_notes": [
+        "The new tests run over committed fixtures rather than the cloned corpus",
+        "so they cover Arbiter's reading of code and not whether a rule's judgement matches a person's; that gap is the empty adjudicated ledger and only a reviewer can close it",
+        "Headerless UTF-16 is still classified as data rather than guessed at",
+        "which is deliberate but leaves those files unassessed",
+        "Most thresholds in docs/testing-parameters.md are graded arbitrary and remain unchanged; the published evidence is conditional on values nobody has tested an alternative against"
+      ]
+    },
+    {
+      "id": "ARB-031",
+      "category": "developer-tooling",
+      "title": "Re-sync the OmniEngineering workspace to its upstream and adopt the gate, ledger, graph and MCP tooling",
+      "description": "Arbiter's omni CLI was a 2026-06 fork assembled from STEP-Migration copies (ARB-001, ARB-028). This re-syncs it to the real OmniEngineering upstream with omni update (3-way merge, recorded in .ai/omni-version.json), moves the requirements registry and archive to the upstream flat format and file name, installs the assistant shims and OmniEngineering legal files, adopts omni gate (git hooks, Claude Code Stop hook, pr-check.yml) with training/ and .arbiter/ exempt, registers the test suites, configures and builds the code graph with fixtures excluded from the code layer, registers omni mcp serve beside arbiter mcp in .mcp.json, and backfills the failure ledger with the 34 shipped defects CHANGELOG.md and .ai/project-context.md already record. Arbiter's generic improvements (withdrawn status, terminal-only archiving, a live MCP server check in doctor) were ported upstream as OmniEngineering ARB-031 rather than kept as a local fork.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "omni",
+        "make_ai.py",
+        "omni_graph.py",
+        "omni_mcp.py",
+        ".ai/**",
+        ".mcp.json",
+        ".githooks/**",
+        ".claude/settings.json",
+        ".github/workflows/pr-check.yml",
+        ".gitignore",
+        "NOTICE",
+        "TRADEMARKS.md",
+        "LICENSES/**",
+        "root assistant shims",
+        "HANDOFF.md",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "python omni doctor reports no errors",
+        "python omni gate passes on the change set",
+        "python -m pytest tests/ -q and tools/integrity.py and tools/mutate_tests.py pass unchanged",
+        "python omni failure check passes with every shipped defect recorded",
+        "python omni graph build succeeds with no fixture symbols in the code layer",
+        "both .mcp.json servers answer initialize and tools/list"
+      ],
+      "validation_required": [
+        "python -m pytest tests/ -q",
+        "python tools/integrity.py",
+        "python tools/mutate_tests.py",
+        "python omni doctor",
+        "python omni gate",
+        "python omni failure check",
+        "python omni graph build"
+      ],
+      "documentation_required": [
+        "changelog",
+        "readme"
+      ],
+      "risk_notes": [
+        "arbiter's requirement categories (developer-tooling etc.) do not match the defect/bug/fix pattern that makes omni requirement complete demand a ledger entry; record defects deliberately or file them under a defect category. The gate's co_changed rules now require CHANGELOG.md and the registry to change with any other file; the nightly training job is exempt by path. The graph needs tree-sitter-python and tree-sitter-bash; a machine without them still has every other command."
+      ]
+    },
+    {
+      "id": "ARB-032",
+      "category": "defect",
+      "title": "Arbiter gates its own pull requests, and the authored probe stops reading its own docstring as code",
+      "description": "pr-check never ran arbiter on this repository although it ships a GitHub Action and a two-job example workflow; a self-scan withheld the grade and reported three high findings that were the authored probe matching the TLS-off patterns listed in its own module docstring. _blank_comments blanks # comments for Python but not triple-quoted strings, so prose inside a docstring was scanned as code. pr-check now runs arbiter gate on ubuntu after the suite, and the probe blanks docstrings the way the import scanner already does.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/authored.py",
+        "tests/test_arbiter.py",
+        ".github/workflows/pr-check.yml",
+        "arbiter.yaml",
+        "docs/ci.md"
+      ],
+      "acceptance_criteria": [
+        "arbiter gate . exits 0 on this repository with the tools pr-check installs",
+        "a regression test plants verify=False inside a docstring and inside code and asserts only the code one is reported",
+        "FAIL entry recorded"
+      ],
+      "validation_required": [
+        "python -m pytest tests/ -q",
+        "python tools/mutate_tests.py",
+        "arbiter gate .",
+        "python omni gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": [
+        "The gate runs with no baseline so every finding is new; the gate policy in arbiter.yaml fails on new high and above",
+        "which is the standard this repository holds itself to."
+      ]
+    },
+    {
+      "id": "ARB-033",
+      "category": "defect",
+      "title": "Probe precision on real repositories: history-aware doc drift, prose excluded from suppression scanning, a house rule that means what it says, tooling attributed upstream, and not-applicable probes kept out of the coverage denominator",
+      "description": "The self-scan's noise had five distinct causes. drift.doc-references-missing-file reported 24 paths named in CHANGELOG.md and project-context.md, most of them files that once existed and were deliberately removed or renamed, which an append-only history file is right to mention; the probe now asks git whether the path was ever tracked and reports those at info as removed rather than missing. assurance.blanket-suppression fired on Markdown prose that discusses # noqa; the probe now skips the docs role. house/no-bare-except matched every except clause, including except OSError, because its tree-sitter query had no predicate; it now matches only bare and Exception/BaseException clauses. OmniEngineering's own make_ai.py, omni_graph.py and omni_mcp.py were scored as arbiter's code in the quality dimension (44 of 90 complexity findings); arbiter.yaml now suppresses quality findings on them with the reason recorded, so they stay visible and attributed. The interface probe on a single-repository scan reported skipped with 0% dimension coverage although there is nothing to assess; a probe that declares itself not applicable is now recorded as such and excluded from the coverage denominator, while a probe that could have run but did not still counts against coverage.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/probes.py",
+        "src/arbiter/assurance.py",
+        "src/arbiter/engine.py",
+        "src/arbiter/policy.py",
+        "src/arbiter/report.py",
+        "src/arbiter/claims.py",
+        "arbiter.yaml",
+        "tests/test_arbiter.py",
+        "docs/probes.md"
+      ],
+      "acceptance_criteria": [
+        "self-scan drift findings on once-tracked paths are info and say removed",
+        "no blanket-suppression finding on a .md file",
+        "no-bare-except reports except Exception and bare except but not except OSError",
+        "self-scan coverage no longer counts the interface probe when the system has one repo and the scorecard says so",
+        "existing golden fixtures unchanged"
+      ],
+      "validation_required": [
+        "python -m pytest tests/ -q",
+        "python tools/integrity.py",
+        "python tools/mutate_tests.py",
+        "arbiter scan ."
+      ],
+      "documentation_required": [
+        "changelog",
+        "readme"
+      ],
+      "risk_notes": [
+        "Excluding not-applicable probes from the denominator is a scoring change; it is limited to probes that declare not-applicable themselves and the claim ledger records them separately so a report cannot pass off could-not-run as not-applicable."
+      ]
+    },
+    {
+      "id": "ARB-034",
+      "category": "developer-tooling",
+      "title": "pr-check exercises the external analyzers and the hosted API on Linux",
+      "description": "The pull-request job installed none of bandit, checkov, gitleaks or semgrep and not the api extra, so the adapter code paths ran only in the nightly job and the 16 hosted-API tests always skipped. On ubuntu the job now runs tools/install_tools.sh and installs .[dev,mcp,api]; Windows keeps the fast core run.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        ".github/workflows/pr-check.yml",
+        "docs/ci.md"
+      ],
+      "acceptance_criteria": [
+        "ubuntu job log shows the adapter tests and the API tests running rather than skipping",
+        "job time stays under ten minutes"
+      ],
+      "validation_required": [
+        "pull request run"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": [
+        "Tool installs add minutes to the ubuntu job; the install script never fails the build and a missing tool shows as not assessed."
+      ]
+    },
+    {
+      "id": "ARB-035",
+      "category": "integration",
+      "title": "A true-positive adjudication can draft a failure-ledger entry",
+      "description": "Arbiter's adjudication ledger and the OmniEngineering failure ledger both record what was wrong and why, in parallel. arbiter review --apply gains --ledger PATH: for every verdict recorded as true_positive it appends an open entry to the OmniEngineering ledger (title from the finding, symptom from its description and location, how_detected naming the rule, affected naming the file), skipping findings already present, so the fix that follows the verdict lands in the record the workspace's gate and graph already read.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/ledger.py",
+        "src/arbiter/cli.py",
+        "src/arbiter/review.py",
+        "tests/test_arbiter.py",
+        "docs/calibration.md"
+      ],
+      "acceptance_criteria": [
+        "a marked review applied with --ledger adds one open entry per true positive and none for false positives or repeats",
+        "the resulting file passes python omni failure check",
+        "no entry is written when the verdict was refused"
+      ],
+      "validation_required": [
+        "python -m pytest tests/ -q -k ledger",
+        "python omni failure check"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": [
+        "The ledger schema is OmniEngineering's; the bridge writes only the fields it requires plus affected and how_detected."
+      ]
+    },
+    {
+      "id": "ARB-036",
+      "category": "integration",
+      "title": "A Claude Code skill for Arbiter",
+      "description": "README listed the Claude skill as not yet built. .claude/skills/arbiter/SKILL.md tells a session when to use the arbiter MCP tools versus the CLI, how to read a withheld grade and a not-assessed probe, how to adjudicate with review --apply, and what the self-gate in pr-check requires of a change.",
+      "priority": "low",
+      "status": "completed",
+      "minimum_access_scope": [
+        ".claude/skills/arbiter/SKILL.md",
+        ".gitignore",
+        "README.md"
+      ],
+      "acceptance_criteria": [
+        "the skill file is tracked and names only commands and tools that exist",
+        "README no longer lists the skill as unbuilt"
+      ],
+      "validation_required": [
+        "manual_verification"
+      ],
+      "documentation_required": [
+        "readme"
+      ],
+      "risk_notes": [
+        "none"
+      ]
+    },
+    {
+      "id": "ARB-037",
+      "category": "compliance",
+      "title": "Commercial control packs: PCI DSS v4, HIPAA Security Rule, SOC 2 TSC, CIS Controls v8",
+      "description": "README said the interfaces exist and the implementations do not. Four packs in the format of the five government packs, each honest about the scanner-relevant subset it covers and about residual human work, with control identifiers transcribed from the public framework texts and flagged for verification against the licensed documents before audit use.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/packs/controls/",
+        "docs/compliance.md",
+        "README.md",
+        "tests/test_arbiter.py"
+      ],
+      "acceptance_criteria": [
+        "arbiter controls lists the nine frameworks",
+        "every satisfied_by id is a real rule",
+        "pack tests pass"
+      ],
+      "validation_required": [
+        "python -m pytest tests/ -q -k control",
+        "arbiter controls"
+      ],
+      "documentation_required": [
+        "changelog",
+        "readme"
+      ],
+      "risk_notes": [
+        "PCI DSS and the TSC are licensed documents; identifiers are transcribed",
+        "not reproduced",
+        "and must be verified before an audit package cites them."
+      ]
+    },
+    {
+      "id": "ARB-038",
+      "category": "feature",
+      "title": "Governance probe: Arbiter reads the OmniEngineering failure ledger and requirement ids",
+      "description": "Arbiter read nothing from the .ai/ workspace. A change-scoped governance probe reports a changed file named as affected by an open or mitigated failure-ledger entry when none of that entry's regression tests is in the change, and a fixed entry whose regression test no longer exists. Findings inside a change carry req:<ID> tags from the commits since the base, and the PR comment and Markdown report group findings by requirement. Not applicable (n/a) when no ledger exists.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/probes.py",
+        "src/arbiter/engine.py",
+        "src/arbiter/incremental.py",
+        "src/arbiter/diff.py",
+        "src/arbiter/report.py",
+        "tests/test_governance.py",
+        "docs/probes.md",
+        "docs/ci.md"
+      ],
+      "acceptance_criteria": [
+        "a changed affected file without its regression test is a finding and the control with the test changed is not",
+        "a fixed entry with a vanished test is a finding",
+        "findings carry the REQ ids cited since the base",
+        "pr-comment and REPORT.md group by requirement",
+        "no ledger records the probe as not applicable"
+      ],
+      "validation_required": [
+        "python -m pytest tests/ -q",
+        "python tools/integrity.py",
+        "python tools/mutate_tests.py",
+        "arbiter gate ."
+      ],
+      "documentation_required": [
+        "docs/probes.md",
+        "docs/ci.md",
+        ".claude/skills/arbiter/SKILL.md",
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "medium severity so the new rules never trip new:high on adoption"
+      ]
+    },
+    {
+      "id": "ARB-039",
+      "category": "ci",
+      "title": "PR-native output: GitHub annotations, step summary and SARIF upload",
+      "description": "Arbiter already renders SARIF and pr-comment.md but no CI consumed them. The gate names the findings that failed it (failing_ids); a new annotations format prints ::error for gating findings, ::warning for the rest and ::notice for out-of-change findings, titles only, never evidence; --github (default under GITHUB_ACTIONS) adds annotations and appends the PR comment to GITHUB_STEP_SUMMARY; pr-check and the composite action upload report.sarif to code scanning with continue-on-error.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/policy.py",
+        "src/arbiter/report.py",
+        "src/arbiter/cli.py",
+        ".github/workflows/pr-check.yml",
+        "ci/github-action/action.yml",
+        "tests/test_annotations.py",
+        "docs/cli.md",
+        "docs/ci.md"
+      ],
+      "acceptance_criteria": [
+        "gating findings are ::error and others ::warning",
+        "workflow command syntax is escaped",
+        "no format reprints a secret",
+        "the step summary is written only under GITHUB_ACTIONS",
+        "evaluate_gate returns failing_ids"
+      ],
+      "validation_required": [
+        "python -m pytest tests/ -q",
+        "python tools/integrity.py",
+        "arbiter gate . --format annotations"
+      ],
+      "documentation_required": [
+        "docs/cli.md",
+        "docs/ci.md",
+        "README.md",
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "SARIF upload needs security-events: write and is continue-on-error so the gate exit code stays the verdict"
+      ]
+    },
+    {
+      "id": "ARB-040",
+      "category": "compatibility",
+      "title": "Arbiter runs on Python 3.10",
+      "description": "The only 3.11 dependency was import tomllib in adapters.py, which made OmniEngineering's CI skip doctor and gate on its 3.10 cells when Arbiter is vendored. One helper reads TOML with tomllib or the tomli fallback; requires-python becomes >=3.10 with tomli as a conditional dependency; pr-check gains an ubuntu 3.10 cell.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/adapters.py",
+        "pyproject.toml",
+        ".github/workflows/pr-check.yml",
+        "tests/test_arbiter.py",
+        "arbiter.yaml"
+      ],
+      "acceptance_criteria": [
+        "the TOML reader falls back to tomli below 3.11",
+        "pr-check passes on 3.10",
+        "integrity and mutation tools stay stdlib-only"
+      ],
+      "validation_required": [
+        "python -m pytest tests/ -q",
+        "python tools/integrity.py"
+      ],
+      "documentation_required": [
+        "SETUP.md",
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "tomli is a runtime dependency only below 3.11"
+      ]
+    },
+    {
+      "id": "ARB-041",
+      "category": "performance",
+      "title": "Persistent per-file result cache for file-scoped probes",
+      "description": "Every scan re-read everything, so the pre-commit gate paid full price. An opt-in cache in .arbiter/cache.json keyed on file bytes, config hash, probe version and Arbiter version stores per-file findings for probes declared cacheable (secrets, supply_chain, ast_metrics, house_rules_ast, authored). --no-cache bypasses it, CI and pr-check run without it, --verify-cache re-runs a sample of hits and reports divergence, and integrity invariant CI-13 proves every cacheable probe is file-local. The cache file is never scanned.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/cache.py",
+        "src/arbiter/probes.py",
+        "src/arbiter/engine.py",
+        "src/arbiter/cli.py",
+        "src/arbiter/policy.py",
+        "tools/integrity.py",
+        "tools/mutate_tests.py",
+        "tests/test_cache.py",
+        ".gitignore"
+      ],
+      "acceptance_criteria": [
+        "a cache hit does not rerun the probe",
+        "a config change or an edited file invalidates",
+        "cached and uncached findings are identical",
+        "--no-cache bypasses",
+        "the cache file is never scanned",
+        "an uncacheable probe always runs",
+        "CI-13 rejects a non-file-local cacheable probe"
+      ],
+      "validation_required": [
+        "python -m pytest tests/ -q",
+        "python tools/integrity.py",
+        "python tools/mutate_tests.py"
+      ],
+      "documentation_required": [
+        "docs/cli.md",
+        "docs/architecture.md",
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "correctness rests on file-locality which CI-13 enforces; CI never uses the cache"
+      ]
+    },
+    {
+      "id": "ARB-042",
+      "category": "feature",
+      "title": "Run history and the trend dashboard",
+      "description": "Every report was standalone. Each scan or gate appends one line to <out>/history.jsonl (time, commit, grade, coverage, counts, gate result; no evidence, no paths) and arbiter dashboard renders the trend as a self-contained HTML page. Closes the README's 'not yet built: the dashboard' item.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/history.py",
+        "src/arbiter/cli.py",
+        "src/arbiter/report.py",
+        "tests/test_history.py",
+        "README.md",
+        "docs/cli.md"
+      ],
+      "acceptance_criteria": [
+        "every scan appends one history line",
+        "lines carry no evidence or paths",
+        "the dashboard is self-contained and renders an empty history",
+        "--no-history skips the append"
+      ],
+      "validation_required": [
+        "python -m pytest tests/ -q",
+        "python tools/integrity.py"
+      ],
+      "documentation_required": [
+        "README.md",
+        "docs/cli.md",
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "history lives under the gitignored output directory"
+      ]
+    },
+    {
+      "id": "ARB-043",
+      "category": "process",
+      "title": "Sync the workspace tooling from OmniEngineering (posture, baseline, impact, test run, findings in the graph, aliases)",
+      "description": "Pull the OmniEngineering CLI and rulepacks as of 2026-10-09 into this repository with omni update, rewrite the completion.arbiter_gate rule to pass the committed baseline and emit json, sarif and pr-comment, cut and commit .arbiter/baseline.json, and record the installed Arbiter version in .ai/omni-version.json.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        "omni_graph.py",
+        "omni_mcp.py",
+        ".ai/rules/completion-workflow.json",
+        ".arbiter/baseline.json",
+        ".ai/omni-version.json"
+      ],
+      "acceptance_criteria": [
+        "omni doctor passes with the posture line",
+        "omni gate runs arbiter gate with the baseline",
+        "omni graph findings works on this repository"
+      ],
+      "validation_required": [
+        "python omni doctor",
+        "python omni gate"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "none beyond a 3-way merge of template-managed files"
+      ]
+    },
+    {
+      "id": "ARB-044",
+      "category": "process",
+      "title": "Requirements use the ARB prefix so they never collide with an OmniEngineering registry",
+      "description": "Two registries on the REQ prefix collide the moment Arbiter is vendored into OmniEngineering (each had reached number 035 with a different requirement). omni requirement renumber --prefix ARB renumbers every requirement keeping its number, writes id_aliases so commits and ledger entries that cite REQ-### stay valid, and rewrites the governance text; code, tests and git history are untouched.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        ".ai/requirements/requirements.json",
+        ".ai/requirements/requirements-archive.json",
+        ".ai/failures/failure-ledger.json",
+        "CHANGELOG.md",
+        ".ai/project-context.md",
+        "README.md",
+        "docs/"
+      ],
+      "acceptance_criteria": [
+        "every requirement id reads ARB-###",
+        "id_aliases map every old id",
+        "omni doctor and omni gate pass",
+        "commits citing REQ-### still satisfy the gate"
+      ],
+      "validation_required": [
+        "python omni doctor",
+        "python omni gate",
+        "python omni failure check"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md",
+        "README.md"
+      ],
+      "risk_notes": [
+        "only governance text is rewritten"
+      ]
+    },
+    {
+      "id": "ARB-045",
+      "category": "performance",
+      "title": "Tool versions are memoised so adapter registration costs milliseconds, not 27 seconds",
+      "description": "Every arbiter invocation ran the five analyzers' --version at registration (27.5 s measured; semgrep alone reached its 20 s cutoff). Adapter.tool_version reads a memo at cache_dir()/tool-versions.json keyed on the resolved executable's path, mtime and size; a miss runs the probe and writes the memo; a missing binary is never probed. --no-cache does not disable it (it is not a result cache); ARBITER_NO_VERSION_MEMO=1 does.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/adapters.py",
+        "tests/",
+        "docs/configuration.md"
+      ],
+      "acceptance_criteria": [
+        "a second registration does not run any --version",
+        "touching an executable invalidates its entry",
+        "the gate's wall clock drops by the probe time"
+      ],
+      "validation_required": [
+        "python omni doctor",
+        "python omni gate",
+        "python -m pytest -q -rs",
+        "python tools/integrity.py",
+        "python tools/mutate_tests.py"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md",
+        "README.md"
+      ],
+      "risk_notes": [
+        "a tool updated in place without an mtime change keeps its old version string until the memo is cleared",
+        "Adapter.tool_version memoised in cache_dir()/tool-versions.json on the executable's path, mtime and size (and a script argument's); a missing binary is never probed; ARBITER_NO_VERSION_MEMO=1 disables; registration 24.5 s cold to 0.3 s warm. Validated on the merged branch: fast tier 644 passed, integrity PASS (14 invariants), 10 mutations caught, doctor 0 errors, gate PASS."
+      ]
+    },
+    {
+      "id": "ARB-046",
+      "category": "ci",
+      "title": "The suite runs in a fast and a slow tier and CI shards them",
+      "description": "tests/test_arbiter.py (5,516 lines, 374 tests) is split by area into files with every test keeping its name, proven by an identical pytest --collect-only id set. A registered slow marker covers tests that invoke a real external analyzer or scan beyond the fixtures. pr-check runs -m 'not slow' on every cell and a parallel Linux slow-tier job runs -m slow with the analyzers; the suite registry names the fast tier as the gate's suite.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "tests/",
+        "pyproject.toml",
+        ".github/workflows/pr-check.yml",
+        ".ai/test-suites.json"
+      ],
+      "acceptance_criteria": [
+        "the collected test ids are identical before and after the split",
+        "mutate_tests.py and integrity.py pass unchanged",
+        "the fast tier finishes in under three minutes here",
+        "pr-check has a slow-tier job"
+      ],
+      "validation_required": [
+        "python omni doctor",
+        "python omni gate",
+        "python -m pytest -q -rs",
+        "python tools/integrity.py",
+        "python tools/mutate_tests.py"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md",
+        "README.md"
+      ],
+      "risk_notes": [
+        "a test moved to the wrong file still runs; only a lost test would matter and the id set proves none is",
+        "test_arbiter.py split into fourteen files by area plus tests/helpers.py and session fixtures in conftest.py; identical 557 collected ids before and after (one shadowed duplicate definition dropped); slow marker on the eight analyzer-backed tests; pr-check runs the fast tier on every cell and a parallel slow-tier job; the suite registry names the fast tier as the gate's suite. Fast tier about two minutes here, slow tier about five. Validated: both tiers, integrity PASS, 8 mutations caught, doctor 0 errors, gate PASS."
+      ]
+    },
+    {
+      "id": "ARB-047",
+      "category": "performance",
+      "title": "Full scans are faster: adapters run concurrently and replay when nothing they read changed",
+      "description": "External adapters run in a thread pool (probes.adapters_parallel, default min(4, cpu count)) with results appended in registry order so reports stay deterministic. One ResultCache entry per adapter, keyed on the adapter name, its tool version, the rules hash and a digest over every inventory file's digest plus the repository's analyzer configuration, replays the adapter's findings when the cache is on and nothing changed; the memo is all-or-nothing because the adapters are not subset-exact. --verify-cache re-runs one memoised adapter and reports divergence; integrity invariant CI-14 proves a changed file is a miss.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/engine.py",
+        "src/arbiter/cache.py",
+        "src/arbiter/adapters.py",
+        "tools/integrity.py",
+        "tests/"
+      ],
+      "acceptance_criteria": [
+        "two adapters run at once under a fake slow adapter",
+        "a repeat full scan replays every adapter",
+        "one changed file re-runs every adapter",
+        "CI-14 passes"
+      ],
+      "validation_required": [
+        "python omni doctor",
+        "python omni gate",
+        "python -m pytest -q -rs",
+        "python tools/integrity.py",
+        "python tools/mutate_tests.py"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md",
+        "README.md"
+      ],
+      "risk_notes": [
+        "concurrency in the adapters exposes any shared state; the fake-adapter tests run under the pool",
+        "External probes run in a thread pool (probes.adapters_parallel, default min(4, cpu)) after the native probes with outcomes in registry order; one ResultCache entry per adapter keyed on name, tool version, rules hash and a digest of every inventory file plus the root analyzer configuration, all-or-nothing; --verify-cache re-runs one memoised adapter; CI-14 proves a changed file misses. Also FAIL-044: use_adapters=False now keeps analyzers out of a run. Validated on the merged branch: fast tier 644 passed in 1 m 53 s, integrity PASS, 10 mutations caught, doctor 0 errors, gate PASS."
+      ]
+    },
+    {
+      "id": "ARB-048",
+      "category": "quality",
+      "title": "The doc-drift probe ignores generated output, git-ignored paths and cross-repository references",
+      "description": "doc_drift flagged output filenames (REPORT.md under an --out directory) and a handbook that lives in another repository. A backticked path is skipped when it matches the repository's .gitignore, sits under the configured output directory or an arbiter-out prefix, contains :// or shares its line with an http(s) URL. A plainly missing file still fires.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/probes.py",
+        "fixtures/doc-drift/",
+        "tests/"
+      ],
+      "acceptance_criteria": [
+        "the four cases produce no finding",
+        "a missing file still does",
+        "the self-scan loses its doc-drift noise"
+      ],
+      "validation_required": [
+        "python omni doctor",
+        "python omni gate",
+        "python -m pytest -q -rs",
+        "python tools/integrity.py",
+        "python tools/mutate_tests.py"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md",
+        "README.md"
+      ],
+      "risk_notes": [
+        "a .gitignore pattern that is too broad hides real drift; only exact-path and directory patterns are honoured",
+        "doc_drift skips git-ignored paths, output directories (out: key, this run's --out, any arbiter-out segment), scheme-carrying link targets and backticked paths beside an http(s) URL on the same or adjacent paragraph line; self-scan doc-drift findings 30 to 20; fixtures/doc-drift plants the cases; 37 tests. Also FAIL-042: the stub detector counts a marker only at the body's own indentation. Validated: full suite, integrity PASS, 8 mutations caught, doctor 0 errors, gate PASS.",
+        "2026-10-09: code scanning on upstream OmniEngineering PR #3 showed two more precision gaps, both fixed: an environment-variable name assigned to a credential-named symbol is not a credential (FAIL-050), and the workflows are pinned to commit SHAs (FAIL-046)."
+      ]
+    },
+    {
+      "id": "ARB-049",
+      "category": "quality",
+      "title": "Arbiter's own debt is worked through the review flow and the baseline is re-cut",
+      "description": "The self-scan carried 411 baseline ids. Bare excepts are named or become except Exception with a reason, ruff import findings are fixed, suppressions without a reason gain one or go, production-path stubs are resolved, and the remaining true positives are adjudicated with arbiter review --apply --ledger; accepted debt (complexity, length) is suppressed in arbiter.yaml with a reason and a 2027 expiry only where a refactor is not reasonable. One commit per finding class, the full suite plus mutation and integrity after each, the baseline refreshed last from a green tree, before and after counts in the completion note.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/",
+        "tests/",
+        "arbiter.yaml",
+        ".arbiter/baseline.json",
+        ".ai/failures/failure-ledger.json"
+      ],
+      "acceptance_criteria": [
+        "the baseline id count drops",
+        "the dashboard shows the drop",
+        "every suite and check passes after each class"
+      ],
+      "validation_required": [
+        "python omni doctor",
+        "python omni gate",
+        "python -m pytest -q -rs",
+        "python tools/integrity.py",
+        "python tools/mutate_tests.py"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md",
+        "README.md"
+      ],
+      "risk_notes": [
+        "behaviour changes while cleaning: one class per commit so a regression bisects",
+        "Self-scan 482 active findings (score 71) to 320 (score 81); baseline 411 ids at 19b40f7 to 320 at 2a18ce9; bare excepts named or justified, ruff findings fixed, suppressions carry reasons, build_parser and render_html split; FAIL-045 (HTML Read first block never rendered), FAIL-047, FAIL-048, FAIL-049 fixed, FAIL-046 (mutable action tags) open; 55 over-limit functions suppressed per file until 2027-04-01; the sweep's 59 marks are a committed draft in .arbiter/reviews for a person to apply and the knowledge ledger records none of them. Validated on the merged branch: fast tier 663 passed, integrity PASS, 10 mutations caught, doctor 0 errors, gate PASS."
+      ]
+    },
+    {
+      "id": "ARB-050",
+      "category": "feature",
+      "title": "arbiter_review_draft: an assistant proposes marks with reasons and never records one",
+      "description": "docs/mcp.md rules out any tool that records a verdict. arbiter_review_draft(report_path, output_dir, limit, rule, verdicts) writes review-draft.md in the exact review.parse format with the reason under each mark and a header saying who drafted it and that nothing is recorded, and returns the ledger entries the y marks would draft, as text. arbiter review --apply --reviewer stays the only writer; the no-verdict test is extended to the new tool.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/service.py",
+        "src/arbiter/mcp.py",
+        "docs/mcp.md",
+        ".claude/skills/arbiter/SKILL.md",
+        "tests/"
+      ],
+      "acceptance_criteria": [
+        "the knowledge file is byte-identical after the tool runs",
+        "review --apply reads the draft unchanged",
+        "the doc explains why drafting is allowed"
+      ],
+      "validation_required": [
+        "python omni doctor",
+        "python omni gate",
+        "python -m pytest -q -rs",
+        "python tools/integrity.py",
+        "python tools/mutate_tests.py"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md",
+        "README.md"
+      ],
+      "risk_notes": [
+        "a person applying a draft without reading it; the header says so in the first line",
+        "arbiter_review_draft (service.review_draft) writes review-draft.md in review.parse format with the assistant's reasons, records nothing (knowledge byte-identical, proven for every tool in TOOLS), returns the ledger entries the y marks would draft as text; docs/mcp.md explains why drafting is allowed and applying is not; the skill describes the inline flow. Validated: 18 tests, full suite, integrity PASS, mutations caught, doctor 0 errors, gate PASS."
+      ]
+    },
+    {
+      "id": "ARB-051",
+      "category": "feature",
+      "title": "The air-gapped bundle ships Arbiter without the analyzers; the hosted API's limiter is shared across processes",
+      "description": "arbiter bundle build writes wheels for Arbiter and its two runtime dependencies, the packs, the knowledge file, install scripts and a MANIFEST.json with a SHA-256 per file that states no analyzer is included (ARB-005); arbiter bundle verify fails on any altered or extra file. RateLimiter gains a SQLite-backed mode beside the key store (--limiter file) so uvicorn workers share one budget, proven by a multi-process test; memory stays the single-process default. The README's not-yet-built paragraph and docs/hosted-api.md are updated.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/bundle.py",
+        "src/arbiter/cli.py",
+        "src/arbiter/api.py",
+        "docs/hosted-api.md",
+        "README.md",
+        "tests/"
+      ],
+      "acceptance_criteria": [
+        "a bundle builds from the checkout and verifies",
+        "verify fails on a changed file",
+        "several processes never exceed the cap",
+        "README names what the bundle excludes"
+      ],
+      "validation_required": [
+        "python omni doctor",
+        "python omni gate",
+        "python -m pytest -q -rs",
+        "python tools/integrity.py",
+        "python tools/mutate_tests.py"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md",
+        "README.md"
+      ],
+      "risk_notes": [
+        "pip wheel needs setuptools available offline; the two dependency wheels are downloaded once and documented",
+        "arbiter bundle build/verify (wheels for Arbiter and its two runtime deps, knowledge file when present, install scripts, MANIFEST.json with SHA-256 per file and the analyzers-not-included statement); a real bundle built, verified and installed offline into a fresh venv; FileRateLimiter in limiter.db with BEGIN IMMEDIATE per decision, proven by six spawned processes against a cap of two; --limiter memory|file on api serve and mcp --http. Validated: 28 tests, full suite 581 passed, integrity PASS, mutations caught, doctor 0 errors, gate PASS."
+      ]
+    },
+    {
+      "id": "ARB-052",
+      "category": "quality",
+      "title": "The governance probe tags a finding with the requirements its file's recent commits cite, not every open one",
+      "description": "req: tags named every open requirement, so a finding in a gate run cited all five requirements of a round and OmniEngineering's graph could not say which one introduced it. The probe now reads the commits between the gate base (changed_since) and HEAD that touch the finding's path, collects the requirement ids their messages cite (through the registry's aliases), and tags those as req:; only when none cites one does it fall back to the open requirements, adding a req-scope:open tag so a reader knows the tags are context rather than attribution. A full scan without a base keeps today's behaviour with the same marker.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/probes.py",
+        "tests/",
+        "docs/probes.md"
+      ],
+      "acceptance_criteria": [
+        "a finding in a file whose commits since base cite ARB-052 is tagged req:ARB-052 alone",
+        "a file with no citing commit falls back to open requirements with req-scope:open",
+        "a full scan carries req-scope:open",
+        "the governance tests pass"
+      ],
+      "validation_required": [
+        "python omni doctor",
+        "python omni gate",
+        "python -m pytest -q -rs -m 'not slow'"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md",
+        "docs/probes.md"
+      ],
+      "risk_notes": [
+        "git log per changed file costs one subprocess per file; batch with one git log --name-only over the range",
+        "incremental.attribute_requirements tags a finding in a --changed gate with the ids cited by the commits since the base that touched its file (req-scope:commits), falls back to the range's ids with req-scope:open, resolves aliases, one git log per repository; the By requirement table names the scope. Validated: 548 passed, integrity PASS, 8 mutations caught, doctor 0 errors, gate PASS, self-gate PASS."
+      ]
+    }
+  ]
+}

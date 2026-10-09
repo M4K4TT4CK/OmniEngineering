@@ -5,10 +5,14 @@ on:
   push:
     branches:
       - main
+      - arbiter   # the branch that vendors Arbiter; its subtree job must run on every push there
 
 jobs:
   test:
     name: Tests, doctor & gate (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    permissions:
+      contents: read
+      security-events: write # the SARIF upload below
     strategy:
       fail-fast: false
       matrix:
@@ -17,14 +21,36 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0 # omni doctor's commit-drift check and omni gate's diff both need full history
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: ${{ matrix.python-version }}
+
+      # A vendored Arbiter (under arbiter/ on main since 2026-10-09) registers `arbiter mcp` in .mcp.json and a command rule
+      # that runs `arbiter gate`; doctor starts that server for real and the gate runs that command, so
+      # the package has to be installed wherever the subtree is present. Arbiter's interpreter floor is
+      # read from its own pyproject (`requires-python`, >=3.11 today), so this stays right when the
+      # subtree lowers it to 3.10; 3.11 is assumed when the file or the key is missing. On an older
+      # interpreter the subtree cannot be installed: the unit tests still run there, and the doctor and
+      # gate steps (which would fail only on the missing `arbiter` executable) are skipped with a note
+      # instead; both still run on every 3.12 cell. No-op on branches without the subtree.
+      - name: Is a vendored Arbiter present, and can this Python run it?
+        id: vendored
+        shell: bash
+        run: |
+          if [ -f arbiter/pyproject.toml ]; then present=true; else present=false; fi
+          supported=$(python -c 'import re, sys, pathlib; p = pathlib.Path("arbiter/pyproject.toml"); m = re.search(r"^requires-python\s*=\s*\"?[^\d]*(\d+)\.(\d+)", p.read_text(encoding="utf-8"), re.M) if p.is_file() else None; floor = (int(m.group(1)), int(m.group(2))) if m else (3, 11); print("true" if sys.version_info[:2] >= floor else "false")')
+          echo "present=$present" >> "$GITHUB_OUTPUT"
+          echo "supported=$supported" >> "$GITHUB_OUTPUT"
+          echo "vendored arbiter present=$present, interpreter supported=$supported"
+
+      - name: Install the vendored Arbiter
+        if: steps.vendored.outputs.present == 'true' && steps.vendored.outputs.supported == 'true'
+        run: python -m pip install -e "./arbiter[mcp]"
 
       # `python <script>` (not `./omni` or `python3`) so this step is identical on Linux, macOS and Windows:
       # it doesn't depend on the executable bit or on which of python/python3 is on PATH.
@@ -35,22 +61,43 @@ jobs:
         run: python -m unittest discover -s tests -v
 
       - name: Run omni doctor
+        if: steps.vendored.outputs.present != 'true' || steps.vendored.outputs.supported == 'true'
         run: python omni doctor
 
       - name: Run omni gate
+        if: steps.vendored.outputs.present != 'true' || steps.vendored.outputs.supported == 'true'
         run: python omni gate
+
+      # The completion.arbiter_gate rule writes arbiter-out/omni-gate/report.sarif (its --format names sarif);
+      # uploading it puts Arbiter's findings in the repository's code-scanning alerts beside everything else.
+      # The gate's exit code above stays the verdict: this step runs even after a failed gate (that is when
+      # the SARIF matters most), never fails the job itself, and only exists when a vendored Arbiter
+      # actually produced the file.
+      - name: Upload the gate's SARIF to code scanning
+        if: always() && steps.vendored.outputs.present == 'true' && steps.vendored.outputs.supported == 'true' && hashFiles('arbiter-out/omni-gate/report.sarif') != ''
+        uses: github/codeql-action/upload-sarif@9f759ee644a3e7c15c1390abf49868036c00067b # v3
+        with:
+          sarif_file: arbiter-out/omni-gate/report.sarif
+        continue-on-error: true
+
+      - name: Doctor and gate skipped on this interpreter
+        if: steps.vendored.outputs.present == 'true' && steps.vendored.outputs.supported != 'true'
+        shell: bash
+        run: |
+          echo "The vendored Arbiter requires Python 3.11+; doctor's live 'arbiter mcp' check and the gate's"
+          echo "'arbiter gate' command rule cannot run on Python ${{ matrix.python-version }}. Both run on the 3.12 cells."
 
   graph-extra:
     name: Optional [graph] extra installs and builds (ubuntu-latest, Python 3.12)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
 
@@ -65,3 +112,178 @@ jobs:
 
       - name: Render the offline viewer
         run: python omni graph view --all --mode 2d
+
+  # A vendored Arbiter (a subtree under arbiter/, on main since 2026-10-09) must not rot
+  # silently: the main job never looks inside arbiter/tests. This job exists only when the subtree
+  # does; on branches without it (main) it is skipped, not failed.
+  vendored-arbiter:
+    name: Vendored Arbiter subtree tests (ubuntu-latest, Python 3.12)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+
+      - name: Is Arbiter vendored here?
+        id: vendored
+        run: |
+          if [ -f arbiter/pyproject.toml ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Set up Python
+        if: steps.vendored.outputs.present == 'true'
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - name: Install the vendored Arbiter with its test and MCP extras
+        if: steps.vendored.outputs.present == 'true'
+        run: python -m pip install -e "./arbiter[dev,mcp]"
+
+      - name: Run Arbiter's suite, claim-integrity and mutation checks
+        if: steps.vendored.outputs.present == 'true'
+        working-directory: arbiter
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python -m pytest -q -rs
+          python tools/integrity.py
+          python tools/mutate_tests.py
+
+      - name: The vendored workspace runs the same tooling as this checkout
+        if: steps.vendored.outputs.present == 'true'
+        run: python omni doctor
+
+  # The adopt loop proven end to end, not by unit tests of its parts: a fresh directory adopts the
+  # workspace with Arbiter wired in, becomes a git repository, gets a real defect planted, `omni gate`
+  # has to fail on completion.arbiter_gate alone (the required completion.tests rule, REQ-047, runs
+  # `omni test run --impacted` and passes: the adopted registry has no suites), the defect is fixed,
+  # and the same gate has to pass.
+  # tests/test_adopt_loop.py mirrors this script. Like vendored-arbiter, this exists only when the
+  # subtree does; on branches without it (main) it is skipped, not failed.
+  adopt-loop:
+    name: "Adopt loop: adopt with Arbiter, plant a defect, gate fails, fix, gate passes (ubuntu-latest, Python 3.12)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+
+      - name: Is Arbiter vendored here?
+        id: vendored
+        run: |
+          if [ -f arbiter/pyproject.toml ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Set up Python
+        if: steps.vendored.outputs.present == 'true'
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - name: Install the vendored Arbiter with its MCP extra
+        if: steps.vendored.outputs.present == 'true'
+        run: python -m pip install -e "./arbiter[mcp]"
+
+      - name: Adopt, plant verify=False, gate fails, fix it, gate passes
+        if: steps.vendored.outputs.present == 'true'
+        shell: bash
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          set -euo pipefail
+          TMP=$(mktemp -d)
+          # --tools all and --include-legal because every `omni gate` runs doctor first, and doctor requires
+          # the assistant pointer files the context manifest names plus LICENSE, NOTICE and TRADEMARKS.md;
+          # README.md is the adopter's own. The adopt also cuts the Arbiter baseline (a full offline scan).
+          python omni adopt --target "$TMP" --tools all --include-cli --include-legal --with-arbiter ./arbiter --skip-pip
+          cd "$TMP"
+          echo "# Adopt loop" > README.md
+          echo "# Changelog" > CHANGELOG.md
+          git init -q -b main
+          git config user.email ci@example.invalid
+          git config user.name ci
+          git add -A
+          git commit -qm "Adopt the workspace with Arbiter (REQ-001)"
+          # The adopted registry is a copy of this repository's (REQ-001 already exists there), so the seed
+          # requirement gets an id of its own. It is added in the same uncommitted change as the code, and
+          # CHANGELOG.md changes alongside, so the requirements_registry and changelog_gate co_changed rules
+          # are satisfied and the Arbiter rule is the only one that can fail.
+          python omni requirement add --id REQ-900 --title "Adopt loop seed" --description "Seed requirement for the adopt loop" --category Feature
+          mkdir -p src
+          printf 'import requests\n\n\ndef fetch(url):\n    return requests.get(url, verify=False)\n' > src/app.py
+          echo "- REQ-900: src/app.py fetches a url" >> CHANGELOG.md
+          set +e
+          out=$(python omni gate 2>&1); code=$?
+          set -e
+          echo "$out"
+          if [ "$code" -ne 1 ]; then
+            echo "::error::expected omni gate to exit 1 on the planted verify=False, got exit $code (output above)"; exit 1
+          fi
+          if ! grep -q "completion.arbiter_gate" <<<"$out"; then
+            echo "::error::omni gate failed, but not on completion.arbiter_gate (output above)"; exit 1
+          fi
+          if grep "^  - " <<<"$out" | grep -qv "^  - completion.arbiter_gate"; then
+            echo "::error::rules other than completion.arbiter_gate failed, so the Arbiter verdict is masked (output above)"; exit 1
+          fi
+          # REQ-047: completion.tests is required; with no suite registered it has nothing to run and passes,
+          # and the gate's per-rule line proves it ran rather than being skipped or memoised.
+          if ! grep -Eq "^  ran +completion\.tests [0-9]+\.[0-9]s PASS$" <<<"$out"; then
+            echo "::error::the required completion.tests rule did not run and pass on a repository with no suites (output above)"; exit 1
+          fi
+          sed -i 's/verify=False/verify=True/' src/app.py
+          out=$(python omni gate 2>&1); code=$?
+          echo "$out"
+          if [ "$code" -ne 0 ]; then
+            echo "::error::expected omni gate to pass after the fix, got exit $code (output above)"; exit 1
+          fi
+          if ! grep -Eq "^  ran +completion\.tests [0-9]+\.[0-9]s PASS$" <<<"$out"; then
+            echo "::error::the fix changed src/app.py, so completion.tests had to run again and pass (output above)"; exit 1
+          fi
+          echo "adopt loop OK: the planted verify=False failed completion.arbiter_gate alone, completion.tests passed with no suites, and the fix passed the gate"
+
+  # The viewer is a page, and the unit tests above only read its template; this job drives the built page in a
+  # real headless Chromium (REQ-048): tests/test_viewer_browser.py builds a graph from a fixture repository
+  # plus a synthetic Arbiter report, opens the viewer, switches to the Findings tab, selects a finding, reads
+  # the source row and the breadcrumb, traces it to its requirement and to its failure-ledger entry, and
+  # switches the colour mode. The test skips itself anywhere Playwright or a Chromium is missing, so it runs
+  # for real only here. The browser download is this job's own dependency: it is cached by Playwright version
+  # (and the cached browser is reused across runs), the install is retried once because it is a network
+  # download, and the job runs on its own so the test matrix stays independent of it. Whether this job becomes
+  # a required check is the integrator's call.
+  viewer-browser:
+    name: Graph viewer in headless Chromium (ubuntu-latest, Python 3.12)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PLAYWRIGHT_VERSION: "1.63.0"   # the pin tests/test_viewer_browser.py was written against; the cache key follows it
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - name: Install with the [graph] extra (omni graph build needs tree-sitter) and the pinned Playwright
+        run: |
+          python -m pip install '.[graph]'
+          python -m pip install "playwright==${PLAYWRIGHT_VERSION}"
+
+      - name: Cache the Playwright browser
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ env.PLAYWRIGHT_VERSION }}
+
+      # --with-deps also installs Chromium's system libraries, which the cache does not hold, so the step runs
+      # on a cache hit too (the download itself is then skipped). One retry covers a flaky download.
+      - name: Install Chromium for Playwright (retried once)
+        run: |
+          python -m playwright install --with-deps chromium || { echo "first install failed; retrying once"; sleep 15; python -m playwright install --with-deps chromium; }
+
+      - name: Drive the viewer in headless Chromium
+        run: python -m unittest tests.test_viewer_browser -v

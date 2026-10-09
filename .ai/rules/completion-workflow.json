@@ -185,6 +185,52 @@
         "completion",
         "graph"
       ]
+    },
+    {
+      "id": "completion.tests",
+      "severity": "required",
+      "statement": "The registered test suites the change set reaches must pass before completion is reported. `omni gate` runs `omni test run --impacted`, which picks the suites through `omni graph impact` (every suite when no graph exists; nothing to run, and a pass, when no suite is registered) and exits non-zero on any failure or timeout. A rule that passed is memoised on its scoped change set, so the hook does not re-run it until a file the rule watches changes; `omni gate --no-memo` forces it. Waive for one change with `omni waive completion.tests --reason \"...\"`.",
+      "scope": [
+        "testing",
+        "validation",
+        "completion"
+      ],
+      "validation": {
+        "type": "command",
+        "run": "omni test run --impacted",
+        "when_changed": [
+          "**"
+        ],
+        "ignore": [
+          ".ai/**",
+          "*.md",
+          "docs/**"
+        ],
+        "timeout": 900
+      }
+    },
+    {
+      "id": "completion.arbiter_gate",
+      "severity": "required",
+      "statement": "A change passes Arbiter's own gate (`arbiter gate . --changed <base>` under arbiter.yaml) before it is reported complete.",
+      "scope": [
+        "completion",
+        "validation"
+      ],
+      "validation": {
+        "type": "command",
+        "run": "arbiter gate . --changed {base} --profile offline --baseline .arbiter/baseline.json --out arbiter-out/omni-gate --format json,sarif,pr-comment",
+        "when_changed": [
+          "**"
+        ],
+        "ignore": [
+          ".ai/**",
+          "CHANGELOG.md",
+          "*.md",
+          "docs/**"
+        ],
+        "timeout": 600
+      }
     }
   ]
 }
