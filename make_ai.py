@@ -1738,6 +1738,31 @@ def validate_omni_version_present(report: DoctorReport) -> None:
         report.pass_check(f"{OMNI_VERSION_FILE} is present")
 
 
+_MCP_ENV_PLACEHOLDER_RE = re.compile(r"\$\{(\w+)(:-([^}]*))?\}|\$(\w+)")
+
+
+def expand_mcp_env_placeholders(value: str) -> str:
+    """Expand ${VAR:-default}, ${VAR}, and $VAR against the current process
+    environment.
+
+    Claude Code's own .mcp.json format supports this bash-style syntax
+    (CLAUDE_PROJECT_DIR is the common one) and expands it itself before
+    spawning a configured server. Without the same expansion here, the live
+    probe passes the literal, unexpanded placeholder string as the command
+    path, which the OS naturally can't find -- reporting a working server as
+    failed.
+    """
+    def replace(match: re.Match[str]) -> str:
+        braced_var, _, default, bare_var = match.groups()
+        var = braced_var or bare_var
+        resolved = os.environ.get(var) if var else None
+        if resolved is not None:
+            return resolved
+        return default if default is not None else ""
+
+    return _MCP_ENV_PLACEHOLDER_RE.sub(replace, value)
+
+
 def probe_mcp_server(
     command: str,
     args: list[str],
@@ -1970,6 +1995,8 @@ def validate_mcp_registrations(report: DoctorReport, force_probe: bool = False) 
         if not isinstance(env, dict) or not all(isinstance(key, str) and isinstance(value, str) for key, value in env.items()):
             report.error(f"MCP server {name!r} env must be an object of string values")
             continue
+        command = expand_mcp_env_placeholders(command)
+        args = [expand_mcp_env_placeholders(item) for item in args]
         fingerprint = mcp_executable_fingerprint(command)
         record = memo.get(name)
         probed_at = mcp_probe_memo_hit(record, fingerprint, now)
