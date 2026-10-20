@@ -1,6 +1,6 @@
 # What to work on next
 
-Generated 2026-10-19T18:22:33+00:00 by `tools/worklist.py` from the last training cycle.
+Generated 2026-10-20T17:35:03+00:00 by `tools/worklist.py` from the last training cycle.
 
 Nothing here is a decision. Each entry says what the measurement shows and what question it raises.
 
@@ -36,7 +36,7 @@ arbiter learn
 
 Twenty adjudications on one rule is the point where `arbiter learn` stops calling it unproven. A dozen on the noisiest rules is worth more than another million trials.
 
-### 3. [HIGH] 162 real-world fix pairs waiting for a verdict
+### 3. [HIGH] 163 real-world fix pairs waiting for a verdict
 
 A commit where a maintainer changed code a rule fired on, after which it stopped firing. This is the only evidence in the whole system that the tool did not generate for itself — nobody wrote these commits to be found by a scanner.
 
