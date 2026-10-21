@@ -5,6 +5,8 @@ under `[Unreleased]` (there are no release tags yet) and reference the
 `REQ-###` they serve. Rationale belongs in `.ai/project-context.md`.
 
 ## [Unreleased]
+### 2026-10-21 (gold re-run)
+- ARB-065 | Gold benchmark re-run after the precision fixes (Arbiter 8cf1ee7, 23 repositories without keycloak, native checks): 6,477 findings, 1.32 per KLOC, 7 rules over budget. The first run (d57e479, 24 repositories) had 12,468 findings, 2.05 per KLOC, 16 over budget. Results in `tools/gold/results/2026-10-21-gold-*-after.*`.
 ### 2026-10-21 (roadmap)
 - ARB-066 to ARB-075 | Proposed roadmap requirements: remediation through MCP
 with a verify loop, explaining why a rule fired or did not, auto-apply only for
