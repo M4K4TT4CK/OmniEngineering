@@ -154,6 +154,19 @@ def test_unconditionally_skipped_test_is_reported(tmp_path):
     assert [f for f in found if "permanently-skipped-test" in f.rule_id]
 
 
+def test_a_skip_annotation_inside_a_comment_is_not_a_skipped_test(tmp_path):
+    # gson PerformanceTest.java: `{@code @Ignore}` in Javadoc.
+    d = tmp_path / "src" / "test" / "java"
+    d.mkdir(parents=True)
+    (d / "PerfTest.java").write_text(
+        "/**\n * Remove the {@code @Ignore} to run this.\n * @Ignore is also mentioned here\n */\n"
+        "public class PerfTest {\n  // @Disabled until fixed\n  @Test public void a() { assertTrue(true); }\n"
+        "  @Ignore @Test public void b() { assertTrue(true); }\n}\n")
+    found = _scan_text(tmp_path, "z.txt", "", ["assurance"])
+    lines = [f.location.start_line for f in found if "permanently-skipped-test" in f.rule_id]
+    assert lines == [8]
+
+
 def test_a_test_that_asserts_nothing_is_reported(tmp_path):
     (tmp_path / "tests").mkdir()
     (tmp_path / "tests" / "test_x.py").write_text(
