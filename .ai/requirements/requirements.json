@@ -1211,7 +1211,7 @@
       "title": "Flag check-then-act on shared collections without a lock",
       "description": "Interview test 2026-10-20: a worker's 'if len(self.tasks) > 0: return self.tasks.pop(0)' with no lock in scope was not reported. Two workers can take the same task or pop from an empty list.",
       "priority": "high",
-      "status": "proposed",
+      "status": "completed",
       "minimum_access_scope": [],
       "acceptance_criteria": [
         "fires on a planted fixture",
@@ -1232,7 +1232,7 @@
       "title": "Flag unsynchronised counters mutated from thread or async worker targets",
       "description": "Interview test 2026-10-20: 'self.processed += 1' inside a threading.Thread target was not reported.",
       "priority": "high",
-      "status": "proposed",
+      "status": "completed",
       "minimum_access_scope": [],
       "acceptance_criteria": [
         "fires on a planted fixture",

@@ -2274,6 +2274,15 @@ except Exception:  # noqa: BLE001 - an optional probe module must not break the 
     pass
 
 
+# Shared state touched by concurrent workers without a lock (ARB-053, ARB-054):
+# the race model-drafted worker code most often ships with.
+try:
+    from .concurrency import register_concurrency as _register_concurrency
+    _register_concurrency()
+except Exception:  # noqa: BLE001 - an optional probe module must not break the registry import
+    pass
+
+
 # Contracts declared in one artifact and implemented in another: an OpenAPI
 # document against the routes actually registered, a migration against the code
 # that queries the column. The same idea as the cross-repo seam checks, moved

@@ -8,6 +8,16 @@ under `[Unreleased]` (there are no release tags yet) and reference the
 
 ### 2026-10-20
 
+- ARB-053, ARB-054 | New `concurrency` probe (Python, stdlib `ast`).
+  `concurrency.check-then-act-unlocked` reports an `if` that reads a shared
+  collection and then changes it with no lock held;
+  `concurrency.unsynchronised-counter` reports `+=` on `self` or a global inside
+  a thread target, `Thread.run` or executor job. Each rule is tested against a
+  correct twin that must stay silent. Precision run: no findings on Arbiter,
+  OmniEngineering, concurrent.futures, urllib3, requests, anyio, uvicorn or
+  starlette, after narrowing plain functions in event-loop files to ones started
+  as threads (an anyio semaphore had been reported).
+
 - ARB-059 | An analyzer that could not run is now reported as not assessed or as
   an error, never as a clean run. Adapters can declare required files
   (`[requires] files`); semgrep declares its pinned ruleset, so a missing

@@ -11,6 +11,7 @@ treated as passes.
 - [Infrastructure as code](#infrastructure-as-code)
 - [The resource graph](#the-resource-graph)
 - [Machine-authored code](#machine-authored-code)
+- [Concurrency](#concurrency)
 - [Contracts between artifacts](#contracts-between-artifacts)
 - [Assurance: is the checking switched on?](#assurance-is-the-checking-switched-on)
 - [The judgement pass](#the-judgement-pass)
@@ -34,6 +35,7 @@ treated as passes.
 | `house_rules` | quality, drift | nothing | Your own rules from `arbiter.yaml` |
 | `assurance` | assurance | nothing | Whether the *checking* is switched on — see below |
 | `authored` | supply chain, security | nothing | Defects characteristic of machine-drafted code — see below |
+| `concurrency` | quality | nothing | Python: shared state changed by concurrent workers with no lock held — see below |
 | `contract` | drift | nothing | Contracts declared in one artifact and implemented in another — see below |
 | `governance` | drift | a failure ledger | The ledger held against the change — see [Probe scopes](#probe-scopes). `governance.open-failure-untested`: an open or mitigated entry's affected file changed without any of its regression tests (`--changed` only). `governance.regression-test-missing`: a fixed entry whose regression test file is gone. Not applicable (`n/a`) without `.ai/failures/failure-ledger.json` |
 | `judgement` | drift | a model | Claims in prose the code contradicts. Inferred, never gates |
@@ -145,6 +147,30 @@ That fires on an RDS instance, an Azure PostgreSQL server and a Cloud SQL
 instance without a line of provider-specific code.
 
 ---
+
+## Concurrency
+
+The race model-drafted worker code most often ships with: it reads correctly,
+the single-threaded test passes, and two workers eventually take the same task.
+None of the wrapped analyzers look for it. Python only, from the standard
+library's own parser.
+
+| Check | What it catches |
+|---|---|
+| `concurrency.check-then-act-unlocked` | An `if` that reads a shared collection and then changes it with no lock held: `if self.tasks: return self.tasks.pop(0)`, `if key not in CACHE: CACHE[key] = v`, `job = JOBS[id]` then `if job["state"] == "queued": job["state"] = "running"`. |
+| `concurrency.unsynchronised-counter` | `self.processed += 1` (or a `global`) inside a function the same file starts as a thread, a `Thread` subclass's `run`, or an executor job. |
+
+*Shared* means an attribute of `self` or a collection bound at module level.
+*Lock held* means inside a `with` on a lock (a name bound to `Lock()`, `RLock()`,
+`Condition()`, `Semaphore()`, or containing lock/mutex/cond/sem), or a function
+that calls `.acquire()`. Synchronous code is checked only in files that use
+threads or executors; an `async def` only when an `await` falls between the
+check and the change, since asyncio cannot interleave anywhere else. In a file
+built on an event loop, a plain function counts only if it is started as a
+thread.
+
+Limits: a lock taken by the caller is invisible, and nothing follows calls into
+other functions or files. Both rules report at medium confidence.
 
 ## Machine-authored code
 
