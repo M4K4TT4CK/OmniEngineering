@@ -40,3 +40,19 @@ settings correspond to `.ai/rules/universal-engineering-ruleset.json`.
 - `validation_required`: `<build | test | lint | typecheck | manual_verification | data_validation | security_review>`
 - `documentation_required`: `<changelog | readme | architecture | api | data_model | deployment | none>`
 - `risk_notes`: `<known risk, dependency, assumption, or follow-up>`
+
+## Findings In The Graph
+
+When `.ai/graph-config.json` points `findings_report` at an Arbiter report
+(`"auto"` reads the newest full report under `arbiter-out/` and the newest gate
+report together), every unsuppressed finding becomes a `finding` node with its
+`rule_id`, `severity`, `cwe` and `controls`. Edges: `flags` the file and its
+smallest enclosing symbol, `violates` an `arbiter_rule` node, `classified_as`
+each `cwe` node, `cites` the requirement in its `req:<ID>` tag, and
+`introduced_by` the commit `git blame` holds for its line.
+
+- `./omni graph build --if-stale` rebuilds only when HEAD or a report changed.
+- `./omni graph findings --cwe CWE-89 --rule 'arbiter/python.*' --under src/`
+- `./omni graph why f:<id>`: rule, CWE, flagged code, requirement, commit.
+- `./omni graph impact <file>` and `./omni graph impact CWE-89` list findings.
+- MCP: `graph_findings`, `graph_cwe`, `graph_impact`.
