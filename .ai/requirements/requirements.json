@@ -1495,6 +1495,240 @@
         "changelog"
       ],
       "risk_notes": []
+    },
+    {
+      "id": "ARB-066",
+      "category": "capability",
+      "title": "Remediation through MCP, with a verify loop",
+      "description": "Each finding carries a concrete fix for its own lines (before/after, not just the rule's generic remediation) and a verify step: rerun the probe on the file, the tests, and the gate. The fix and the check are exposed over MCP in a machine-readable form so an AI agent can apply and prove a fix. Sources: rule remediation text, the planted good twins, and fix pairs mined by tools/fixpairs.py.",
+      "priority": "high",
+      "status": "proposed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "arbiter explain/fix <finding> returns a patch-shaped suggestion and a verify command for every native rule",
+        "MCP tool returns the same structure; a schema test pins it",
+        "applying the planted good twin's change to its bad file makes the finding disappear for every planted defect",
+        "verify reports pass/fail per step (probe, tests, gate)"
+      ],
+      "validation_required": [
+        "pytest",
+        "doctor",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-067",
+      "category": "quality",
+      "title": "Explain why a rule fired or did not fire; feed verdicts back into confidence",
+      "description": "`arbiter why <finding>` shows the matched query, the captures and which exclusions (unless_inside / unless_in_scope / unless_in_file) were checked; `arbiter why-not <file:line> <rule>` shows which part failed to match. `arbiter feedback` verdicts adjust per-rule confidence and are reported, never silently applied.",
+      "priority": "high",
+      "status": "proposed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "why and why-not work for every native pack rule",
+        "a recorded false-positive verdict lowers that rule's reported confidence on the next scan, with the verdict cited",
+        "precision per rule over the clean and gold corpora is published in docs/"
+      ],
+      "validation_required": [
+        "pytest",
+        "doctor",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-068",
+      "category": "capability",
+      "title": "Auto-apply fixes only for rules whose fixes verify reliably",
+      "description": "After ARB-066, a rule earns auto-apply when its suggested fix verifies (probe silent, tests pass, gate passes) on at least 95% of its planted and mined fix pairs. Auto-apply is opt-in per repository, reversible (one commit per fix, referencing the finding), and never applies to security rules without review.",
+      "priority": "medium",
+      "status": "proposed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "per-rule fix verification rate is measured and stored",
+        "only rules at or above the threshold are eligible",
+        "each applied fix is its own commit citing the finding id and the verify result",
+        "security-dimension rules require an explicit reviewer approval"
+      ],
+      "validation_required": [
+        "pytest",
+        "doctor",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": [
+        "Automated edits can hide judgement; keep opt-in and reviewable."
+      ]
+    },
+    {
+      "id": "ARB-069",
+      "category": "process",
+      "title": "Claims need evidence: agent and PR claims carry the command that proves them",
+      "description": "Agent reports and PR descriptions list each factual claim (scores, test counts, 'no false positives', gate status) with the exact command that reproduces it. The gate reruns those commands and fails when a claimed result does not match.",
+      "priority": "high",
+      "status": "proposed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "a claims block format is documented and parsed",
+        "omni gate reruns each claim's command and compares the result",
+        "a mismatched claim fails the gate with the expected and actual values"
+      ],
+      "validation_required": [
+        "pytest",
+        "doctor",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-070",
+      "category": "process",
+      "title": "Assumption ledger linked in OmniGraph",
+      "description": "Assumptions made while specifying or building (from clarify, prompts, agent briefs) are recorded with status unverified, verified (with evidence) or wrong. OmniGraph links requirement -> assumption -> evidence. A requirement cannot be completed while it depends on an unverified assumption.",
+      "priority": "medium",
+      "status": "proposed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "assumptions are stored in the registry or a sibling file with a schema",
+        "omni graph shows requirement-to-assumption-to-evidence edges",
+        "completing a requirement with an unverified assumption fails the registry gate"
+      ],
+      "validation_required": [
+        "pytest",
+        "doctor",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-071",
+      "category": "quality",
+      "title": "Briefs and instructions generated from code, or tested against it",
+      "description": "Facts given to agents (pack schema, CLI commands, what the query engine supports) are generated from the source and tests. A hand-written fact carries a test that fails when it stops being true. Found: a pack comment said #not-match? was ignored; it was copied into four agent briefs and was wrong.",
+      "priority": "high",
+      "status": "proposed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "agent brief sections listing schema and commands are generated",
+        "every hand-written engine capability claim in packs/ and docs/ has a test",
+        "the #not-match? claim is covered by a test"
+      ],
+      "validation_required": [
+        "pytest",
+        "doctor",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-072",
+      "category": "reliability",
+      "title": "Environment preflight before every agent or scan run",
+      "description": "Before work starts, check and record: which copy of arbiter is imported, the git branch and HEAD, tool and grammar versions, and that every pack compiles. A failed check stops the run instead of producing confident wrong numbers. Found: a precision run used the shared install instead of the worktree.",
+      "priority": "high",
+      "status": "proposed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "arbiter preflight prints and stores import path, branch, HEAD, tool versions and pack compile status",
+        "a mismatch between the expected and actual import path fails",
+        "reports include the preflight record"
+      ],
+      "validation_required": [
+        "pytest",
+        "doctor",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-073",
+      "category": "process",
+      "title": "Independent mechanical re-verification of agent reports",
+      "description": "A separate step rechecks each agent report against the repository (reruns the scores, the suite and the gate on the agent's commit) rather than trusting the report. Discrepancies are listed, not silently corrected.",
+      "priority": "medium",
+      "status": "proposed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "a re-verify command takes a branch and a report and reruns every claimed check",
+        "discrepancies are reported per claim",
+        "merging an agent branch is blocked until re-verification passes"
+      ],
+      "validation_required": [
+        "pytest",
+        "doctor",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-074",
+      "category": "quality",
+      "title": "Label statements as verified, inferred or assumed; flag lossy input",
+      "description": "Agent statements and generated reports label each claim as verified (with evidence), inferred or assumed. Input that was compressed, truncated or summarised is flagged so conclusions drawn from it are marked.",
+      "priority": "medium",
+      "status": "proposed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "report and brief schemas carry a per-claim label",
+        "inputs passed through compression or truncation are marked in the record",
+        "a conclusion drawn only from lossy input is labelled inferred"
+      ],
+      "validation_required": [
+        "pytest",
+        "doctor",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-075",
+      "category": "process",
+      "title": "Ask instead of guessing on decisions the user owns",
+      "description": "When a request is ambiguous and the answer changes what gets built (scope, destructive actions, public exposure, naming of external things), workflows stop and ask with concrete options instead of picking one silently. Defaults are allowed only where a convention exists, and are stated.",
+      "priority": "medium",
+      "status": "proposed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "workflow instructions list the decision classes that require asking",
+        "skills record each question asked and the answer in the session log",
+        "a default chosen without asking is stated in the output"
+      ],
+      "validation_required": [
+        "pytest",
+        "doctor",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
     }
   ]
 }

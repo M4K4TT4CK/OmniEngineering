@@ -5,6 +5,13 @@ under `[Unreleased]` (there are no release tags yet) and reference the
 `REQ-###` they serve. Rationale belongs in `.ai/project-context.md`.
 
 ## [Unreleased]
+### 2026-10-21 (roadmap)
+- ARB-066 to ARB-075 | Proposed roadmap requirements: remediation through MCP
+with a verify loop, explaining why a rule fired or did not, auto-apply only for
+fixes that verify, and seven requirements against hallucination and hidden
+assumptions (claims need evidence, assumption ledger, generated briefs,
+environment preflight, independent re-verification, verified/inferred/assumed
+labels, ask instead of guessing).
 ### 2026-10-21
 - ARB-061 | Rule packs for Python, TypeScript/JavaScript, Go, Java and Ruby:
 races, outbound calls with no timeout (and Go DB calls with no deadline),
