@@ -777,13 +777,120 @@ def _stub_marker_at_body_level(body: str) -> bool:
             return True
     return False
 
+# A stub by design. Celery's backends override `save_group` with
+# `raise NotImplementedError('save_group is not supported by this backend.')`,
+# and its `BasePool` has `on_apply(...): pass` hooks for subclasses to fill in;
+# those were 309 reports on gold (ARB-065). The structural signals, any one of
+# which makes an empty or raising body a declaration rather than a gap:
+#   - `raise NotImplementedError(<message>)`: the message is the decision;
+#   - a comment in the body explaining why it is empty;
+#   - an `on_*` / `before_*` / `after_*` hook, empty by convention;
+#   - `@abstractmethod`, or a docstring saying subclasses must or should
+#     implement or override it;
+#   - the enclosing class is a base: named Base*/Abstract*/*Base/*Mixin/
+#     *Interface/*Protocol, deriving from ABC, ABCMeta or Protocol, or
+#     subclassed by another class in the same file.
+# A `return True  # TODO` is never excused: that is a hardcoded answer, not an
+# abstract method, and it is the always-yes this check exists for.
+_NOT_IMPLEMENTED_WITH_MESSAGE = re.compile(r"\braise\s+NotImplementedError\s*\(\s*[^)\s]")
+# Hook methods, which exist to be overridden and do nothing by default:
+# celery's `on_consumer_ready`, `on_init_blueprint`.
+_HOOK_NAME = re.compile(r"^_?(?:on|before|after)_[a-z]")
+# A comment in the body says the emptiness was decided: `# results messages
+# on reply queue, nothing stored server-side` above a `pass`, or `pass  # unused`.
+# A TODO is the opposite of an explanation, and stays a stub.
+_BODY_COMMENT = re.compile(r"#\s*(\S[^\n]*)")
+_UNFINISHED = re.compile(r"(?i)\b(?:todo|fixme|xxx|hack|stub|placeholder|implement|for now|temporar)")
+
+
+def _explained(body: str) -> bool:
+    return any(len(c) >= 5 and not _UNFINISHED.search(c)
+               for c in _BODY_COMMENT.findall(_strip_strings(body)))
+
+
+def _strip_strings(code: str) -> str:
+    return re.sub(r"(['\"])(?:\\.|(?!\1).)*\1", "''", code)
+_HARDCODED_RETURN = re.compile(
+    r"\breturn\s+(?:True|False|None|\[\]|\{\}|0|\"\"|'')\s*#", re.IGNORECASE)
+_ABSTRACT_DOC = re.compile(
+    r"(?i)\b(?:subclass(?:es)?|child classes|implementations?|backends?)\s+(?:must|should|need to|may)"
+    r"|\b(?:must|should|to)\s+be\s+(?:implemented|overridden|overriden)"
+    r"|\boverride\s+(?:this|in)\b|\babstract\b")
+_BASE_CLASS_NAME = re.compile(
+    r"^(?:Base|Abstract)[A-Z_]|(?:Base|Mixin|Interface|Protocol|ABC)$")
+_ABSTRACT_BASES = re.compile(r"\b(?:ABC|ABCMeta|Protocol|abc\.ABC|typing\.Protocol)\b")
+_CLASS_DEF = re.compile(r"^(?P<indent>[ \t]*)class\s+(?P<name>\w+)\s*(?:\((?P<bases>[^)]*)\))?\s*:", re.MULTILINE)
+
+
+def _enclosing_class(text: str, pos: int, indent: str) -> re.Match | None:
+    """The `class` statement a def at `pos` with `indent` is a method of, or None.
+
+    The first code line above it that is indented less decides: a `class`
+    line makes it a method, anything else (a `def`, an `if`) means it is not.
+    """
+    width = len(indent.expandtabs())
+    for line in reversed(text[:pos].split("\n")):
+        stripped = line.strip()
+        if not stripped or stripped.startswith(("#", "@")):
+            continue
+        if len(line.expandtabs()) - len(line.expandtabs().lstrip()) < width:
+            return _CLASS_DEF.match(line)
+    return None
+
+
+def _stub_by_design(text: str, m: re.Match, body: str, subclassed: set[str]) -> bool:
+    if _HARDCODED_RETURN.search(body):
+        return False
+    if _NOT_IMPLEMENTED_WITH_MESSAGE.search(body) or _explained(body):
+        return True
+    if _HOOK_NAME.match(m.group("name")) and not _SENSITIVE_NAME.search(m.group("name")):
+        return True
+    head = "\n".join(text[:m.start()].split("\n")[-4:])
+    if re.search(r"@(?:abc\.)?abstract(?:method|property|classmethod|staticmethod)\b", head):
+        return True
+    doc = re.match(r'\s*(?:[rbu]?)("""|\'\'\')(.*?)\1', body, re.DOTALL)
+    if doc and _ABSTRACT_DOC.search(doc.group(2)):
+        return True
+    indent = m.group("indent")
+    if not indent:
+        return False
+    cls = _enclosing_class(text, m.start(), indent)
+    if cls is None:
+        return False
+    return bool(_BASE_CLASS_NAME.search(cls.group("name"))
+                or _ABSTRACT_BASES.search(cls.group("bases") or "")
+                or cls.group("name") in subclassed)
+
+
+def _subclassed_names(text: str) -> set[str]:
+    out: set[str] = set()
+    for c in _CLASS_DEF.finditer(text):
+        for base in (c.group("bases") or "").split(","):
+            name = base.strip().split("[")[0].split(".")[-1]
+            if name.isidentifier():
+                out.add(name)
+    return out
+
+
 def _stubs(f, text) -> list[Finding]:
     if f.language != "python" or f.role in ("test", "docs"):
         return []
     out: list[Finding] = []
-    for m in _STUB_BODY.finditer(text):
+    subclassed: set[str] | None = None
+    # Match on the text with docstrings blanked, so a `def my_view(request):`
+    # inside a docstring's example (django/views/decorators/debug.py) is not a
+    # function; read the body from the original, which has the same offsets.
+    blanked = _PY_DOCSTRING.sub(lambda d: re.sub(r"[^\n]", " ", d.group(0)), text)
+    for mb in _STUB_BODY.finditer(blanked):
+        m = _STUB_BODY.match(text, mb.start())
+        if m is None:
+            continue
         name, body = m.group("name"), m.group("body")
         if not _stub_marker_at_body_level(body):
+            continue
+        if subclassed is None:
+            subclassed = _subclassed_names(text)
+        if _stub_by_design(text, m, body, subclassed):
             continue
         sensitive = bool(_SENSITIVE_NAME.search(name))
         out.append(Finding(
