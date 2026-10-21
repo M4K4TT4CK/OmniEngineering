@@ -43,19 +43,30 @@ rules:
          body: (assignment left: (element_reference object: (_) @a))
          condition: (call receiver: (element_reference object: (_) @b)))
         @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
-      ; `@tasks.shift unless @tasks.empty?` / `@seen << k unless @seen.include?(k)`
+      ; `@tasks.shift unless @tasks.empty?` / `@seen << k unless @seen.include?(k)`.
+      ; The check must ask the collection about its contents (`include?`,
+      ; `key?`, `empty?`, `size`, ...): `@io.flush unless @io.sync`,
+      ; `x.freeze if x.is_a?(String)` and `respond_to?` probes are not a race
+      ; on shared state, and the act must change it (`shift`, `delete`, `<<`):
+      ; `hooks.each { ... } unless hooks.empty?` only reads (gold benchmark,
+      ; ARB-065).
       ((unless_modifier
-         body: (call receiver: (_) @a)
-         condition: (call receiver: (_) @b))
-        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
+         body: (call receiver: (_) @a method: (identifier) @w)
+         condition: (call receiver: (_) @b method: (identifier) @q))
+        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])")
+        (#match? @q "^(include\\?|key\\?|has_key\\?|member\\?|empty\\?|any\\?|none\\?|nil\\?|value\\?|has_value\\?|size|length|count|fetch|find|detect)$")
+        (#match? @w "^(push|append|prepend|unshift|shift|pop|delete|delete_at|delete_if|reject!|select!|keep_if|store|insert|add|add\\?|clear|concat|merge!|update|replace|compact!|uniq!|transform_values!|compare_and_set)$"))
       ((unless_modifier
          body: (binary left: (_) @a)
-         condition: (call receiver: (_) @b))
-        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
+         condition: (call receiver: (_) @b method: (identifier) @q))
+        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])")
+        (#match? @q "^(include\\?|key\\?|has_key\\?|member\\?|empty\\?|any\\?|none\\?|nil\\?|value\\?|has_value\\?|size|length|count|fetch|find|detect)$"))
       ((if_modifier
-         body: (call receiver: (_) @a)
-         condition: (call receiver: (_) @b))
-        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
+         body: (call receiver: (_) @a method: (identifier) @w)
+         condition: (call receiver: (_) @b method: (identifier) @q))
+        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])")
+        (#match? @q "^(include\\?|key\\?|has_key\\?|member\\?|empty\\?|any\\?|none\\?|nil\\?|value\\?|has_value\\?|size|length|count|fetch|find|detect)$")
+        (#match? @w "^(push|append|prepend|unshift|shift|pop|delete|delete_at|delete_if|reject!|select!|keep_if|store|insert|add|add\\?|clear|concat|merge!|update|replace|compact!|uniq!|transform_values!|compare_and_set)$"))
       ; the same shapes as block `if`/`unless`
       ((if
          condition: (binary left: (element_reference object: (_) @b))
@@ -70,27 +81,52 @@ rules:
          consequence: (then . (assignment left: (element_reference object: (_) @a))))
         @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
       ((if
-         condition: (call receiver: (_) @b)
-         consequence: (then . (call receiver: (_) @a)))
-        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
+         condition: (call receiver: (_) @b method: (identifier) @q)
+         consequence: (then . (call receiver: (_) @a method: (identifier) @w)))
+        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])")
+        (#match? @q "^(include\\?|key\\?|has_key\\?|member\\?|empty\\?|any\\?|none\\?|nil\\?|value\\?|has_value\\?|size|length|count|fetch|find|detect)$")
+        (#match? @w "^(push|append|prepend|unshift|shift|pop|delete|delete_at|delete_if|reject!|select!|keep_if|store|insert|add|add\\?|clear|concat|merge!|update|replace|compact!|uniq!|transform_values!|compare_and_set)$"))
       ((unless
-         condition: (call receiver: (_) @b)
-         consequence: (then . (call receiver: (_) @a)))
-        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
+         condition: (call receiver: (_) @b method: (identifier) @q)
+         consequence: (then . (call receiver: (_) @a method: (identifier) @w)))
+        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])")
+        (#match? @q "^(include\\?|key\\?|has_key\\?|member\\?|empty\\?|any\\?|none\\?|nil\\?|value\\?|has_value\\?|size|length|count|fetch|find|detect)$")
+        (#match? @w "^(push|append|prepend|unshift|shift|pop|delete|delete_at|delete_if|reject!|select!|keep_if|store|insert|add|add\\?|clear|concat|merge!|update|replace|compact!|uniq!|transform_values!|compare_and_set)$"))
       ((unless
-         condition: (call receiver: (_) @b)
+         condition: (call receiver: (_) @b method: (identifier) @q)
          consequence: (then . (binary left: (_) @a)))
-        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
+        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])")
+        (#match? @q "^(include\\?|key\\?|has_key\\?|member\\?|empty\\?|any\\?|none\\?|nil\\?|value\\?|has_value\\?|size|length|count|fetch|find|detect)$"))
       ; `CACHE[k] ||= compute(k)` on a module-level constant. The same on an
       ; instance variable (`@routes[verb] ||= []`) is nearly always class-body
       ; setup or request-scoped memoisation, so it is not reported.
-      (operator_assignment
-        left: (element_reference object: (constant))
+      ; `CACHE[k] ||= compute(k)` on a module-level constant. ENV and the
+      ; per-thread / per-fiber stores (`IsolatedExecutionState[:k] ||= []`,
+      ; `Ractor[:k]`, `Fiber[:k]`) are not shared between threads this way.
+      ((operator_assignment
+        left: (element_reference object: (constant) @c)
         "||=") @hit
+        (#not-match? @c "^(ENV|IsolatedExecutionState|Ractor|Fiber)$"))
     unless_inside: |
       (call method: (identifier) @m
         (#match? @m "^(synchronize|mon_synchronize|with_lock|with_write_lock|with_read_lock)$")
         block: [(do_block) (block)]) @lock
+      ; Gold benchmark (ARB-065), Rails' quoting caches: the constant is a
+      ; `Concurrent::Map` (or `Concurrent::Hash`) declared beside the methods
+      ; that use it, so `QUOTED_COLUMN_NAMES[name] ||= ...` is thread-safe.
+      ; A query cannot follow a name across the file, so the declaration must
+      ; sit in the same class or module body as the method, or one nested
+      ; module above it (`module ClassMethods`).
+      (body_statement
+        (assignment left: (constant) @k right: (call receiver: (scope_resolution scope: (constant) @cc name: (constant) @ct) method: (identifier) @new))
+        [(method body: (body_statement (operator_assignment left: (element_reference object: (constant) @o) "||=") @safe))
+         (singleton_method body: (body_statement (operator_assignment left: (element_reference object: (constant) @o) "||=") @safe))]
+        (#eq? @cc "Concurrent") (#match? @ct "^(Map|Hash|Array)$") (#eq? @new "new") (#eq? @k @o))
+      (body_statement
+        (assignment left: (constant) @k right: (call receiver: (scope_resolution scope: (constant) @cc name: (constant) @ct) method: (identifier) @new))
+        [(module body: (body_statement [(method body: (body_statement (operator_assignment left: (element_reference object: (constant) @o) "||=") @safe)) (singleton_method body: (body_statement (operator_assignment left: (element_reference object: (constant) @o) "||=") @safe))]))
+         (class body: (body_statement [(method body: (body_statement (operator_assignment left: (element_reference object: (constant) @o) "||=") @safe)) (singleton_method body: (body_statement (operator_assignment left: (element_reference object: (constant) @o) "||=") @safe))]))]
+        (#eq? @cc "Concurrent") (#match? @ct "^(Map|Hash|Array)$") (#eq? @new "new") (#eq? @k @o))
     description: >-
       The collection is read and then changed as two steps, in a file that
       runs threads, with no Mutex#synchronize around them. Two threads can
@@ -318,6 +354,15 @@ rules:
       ; there, and `x = foo rescue nil`, are still reported.
       (assignment right: (begin (rescue body: (then . (nil) .)) @fallback))
       (operator_assignment right: (begin (rescue body: (then . (nil) .)) @fallback))
+      ; Gold benchmark (ARB-065): a comment in the empty rescue says why it is
+      ; empty (`# Ignored`, `# the query already failed; keep its error`).
+      ; RuboCop's Lint/SuppressedException allows the same by default. A
+      ; TODO there is not a reason and is still reported, nor is a planted
+      ; corpus marker (`# expect: ...`).
+      ((rescue !body (comment) @c) @explained (#not-match? @c "(?i)\\b(todo|fixme|xxx)\\b|^#\\s*expect(-ext)?:"))
+      ; `rescue => @setup_exception` keeps the error for later (Rails'
+      ; parallel test worker reports it after the fork).
+      (rescue (exception_variable (instance_variable))) @stored
     description: >-
       The rescue body is empty or `nil`, so the failure is dropped with no
       log, no metric and no re-raise. The caller sees `nil` where it expected
@@ -358,6 +403,23 @@ rules:
          (then (call method: (identifier) @m arguments: (argument_list (identifier) @a)))) @handoff
         (#match? @m "^(call|handle_exception|handle_error|on_error|report_exception|notify)$")
         (#eq? @a @v))
+      ; Gold benchmark (ARB-065), Puma and Rails: the exception goes to a
+      ; method named for error handling (`@log_writer.unknown_error(e, ...)`),
+      ; into a collection that is raised later (`exceptions << e`), or out
+      ; wrapped (`WrappedException.new(e)`). A logger level call
+      ; (`logger.error`, `warn`) or `STDERR.puts` is still reported.
+      ((rescue (exception_variable (identifier) @v)
+         (then (call method: (identifier) @m arguments: (argument_list . (identifier) @a)))) @handoff
+        (#match? @m "(?i)(error|exception)") (#not-match? @m "^(error|warn|info|debug|fatal)$")
+        (#eq? @a @v))
+      ((rescue (exception_variable (identifier) @v)
+         (then (binary operator: "<<" right: (identifier) @a))) @collected
+        (#eq? @a @v))
+      ((rescue (exception_variable (identifier) @v)
+         (then . (call receiver: (_) method: (identifier) @n arguments: (argument_list . (identifier) @a .)) .)) @wrapped
+        (#eq? @n "new") (#eq? @a @v))
+      ; RuboCop's own cop disabled on the line, which a reviewer has accepted.
+      ((rescue (comment) @c) @accepted (#match? @c "rubocop:(disable|todo)[^\\n]*Lint/RescueException"))
     description: >-
       Exception is the root of Interrupt, SignalException, SystemExit and
       NoMemoryError. Rescuing it makes Ctrl-C and `exit` no-ops inside this
@@ -375,18 +437,24 @@ rules:
     cwe: [CWE-89]
     controls: [NIST-800-218:PW.5, NIST-800-53r5:SI-10]
     tags: [injection, sql]
+    # An interpolation that quotes or escapes its value (`quote_table_name`,
+    # `sanitize_sql`, `pg_conn.escape_identifier`, `escape_string`), converts
+    # it to a number (`.to_i`, `Integer(...)`) or splices a constant or a
+    # schema name is not reported; each raw interpolation in the string is
+    # matched on its own, so one raw value beside escaped ones still is
+    # (gold benchmark, ARB-065: Action Cable's PostgreSQL adapter).
     query: |
       ; where("name = '#{name}'"), find_by_sql("... #{id}"), db.execute("... #{id}")
       ((call method: (identifier) @m
          (#match? @m "^(where|rewhere|not|find_by_sql|count_by_sql|execute|exec_query|exec_update|exec_delete|exec_insert|select_all|select_one|select_value|select_values|select_rows|query|exec|exec_params|prepare|order|reorder|group|having|joins|select|pluck|update_all|delete_all|async_exec|exec_prepared|execute_batch)$")
          arguments: (argument_list . (string (interpolation) @i)))
-        @hit (#not-match? @i "^#\\{[A-Z]|table_name|primary_key|quote|sanitize|connection\\.|_column|arel"))
+        @hit (#not-match? @i "^#\\{[A-Z]|table_name|primary_key|quote|sanitize|escape|connection\\.|_column|arel|\\.to_i\\s*\\}$|\\.to_f\\s*\\}$|^#\\{\\s*(Integer|Float)\\("))
       ; where(<<~SQL) with an interpolation inside the heredoc body
       (((call method: (identifier) @m
           (#match? @m "^(where|find_by_sql|count_by_sql|execute|exec_query|select_all|select_one|select_value|select_values|query|exec|prepare|update_all|delete_all)$")
           arguments: (argument_list . (heredoc_beginning))) @hit
         (heredoc_body (interpolation) @i))
-        (#not-match? @i "^#\\{[A-Z]|table_name|primary_key|quote|sanitize|connection\\.|_column|arel"))
+        (#not-match? @i "^#\\{[A-Z]|table_name|primary_key|quote|sanitize|escape|connection\\.|_column|arel|\\.to_i\\s*\\}$|\\.to_f\\s*\\}$|^#\\{\\s*(Integer|Float)\\("))
       ; order(params[:sort]), pluck(params[:field]): the column name comes straight from the request
       ((call method: (identifier) @m
          (#match? @m "^(order|reorder|group|select|pluck|joins|having|where|execute|query)$")
@@ -552,11 +620,43 @@ rules:
       ; raise "TODO" / raise NotImplementedError, "TODO: later"
       ([(method body: (body_statement . (call method: (identifier) @r (#eq? @r "raise")) @hit))
         (singleton_method body: (body_statement . (call method: (identifier) @r (#eq? @r "raise")) @hit))] @meth
-        (#match? @meth "(?i)^def [^\\n]*\\n\\s*raise (NotImplementedError, )?[\"'][^\"'\\n]*(todo|fixme|not (yet )?implemented|implement me|stub|later|placeholder)[^\"'\\n]*[\"']\\s*(#[^\\n]*)?\\n\\s*end$"))
+        (#match? @meth "(?i)^def [^\\n]*\\n\\s*raise ([\"'][^\"'\\n]*(todo|fixme|not (yet )?implemented|implement me|stub|later|placeholder)|NotImplementedError, [\"'][^\"'\\n]*(todo|fixme|not yet implemented|implement me|stub|later|placeholder))[^\"'\\n]*[\"']\\s*(#[^\\n]*)?\\n\\s*end$"))
       ; def x; nil # TODO; end  /  true # stub
       ([(method body: (body_statement . [(nil) (true) (false)] @hit))
         (singleton_method body: (body_statement . [(nil) (true) (false)] @hit))] @meth
         (#match? @meth "(?i)^def [^\\n]*\\n\\s*(nil|true|false)\\s*#\\s*(todo|fixme|stub|placeholder|for now|temporary|later)[^\\n]*\\n\\s*end$"))
+    # Gold benchmark (ARB-065), Rails and RubyGems: the abstract-method
+    # convention is mostly a bare `raise NotImplementedError`. Such a method
+    # is an interface, not a stub, when (1) its class, module or `class <<
+    # self` declares two or more of them (ActiveStorage::Service,
+    # DatabaseConfig, Key, Gem::BasicSpecification), (2) it is a private
+    # hook below `private` that a subclass overrides (StatementPool#dealloc),
+    # or (3) its class is named for it (`AbstractRenderer`, `Base`). Only the
+    # raising methods are captured, so a `nil # TODO` stub beside them is
+    # still reported. `raise NotImplementedError, "rename_table is not
+    # implemented"` says an adapter lacks a feature and is not reported;
+    # "TODO" and "not yet implemented" still are. One bare raise in an
+    # ordinary class is still reported.
+    unless_inside: |
+      (class body: (body_statement
+        [(method) (singleton_method)] @a (#match? @a "^def [^\\n]*\\n\\s*raise NotImplementedError\\b")
+          (#not-match? @a "(?i)todo|fixme|not yet implemented|implement me|placeholder")
+        [(method) (singleton_method)] @b (#match? @b "^def [^\\n]*\\n\\s*raise NotImplementedError\\b")
+          (#not-match? @b "(?i)todo|fixme|not yet implemented|implement me|placeholder")))
+      (module body: (body_statement
+        [(method) (singleton_method)] @a (#match? @a "^def [^\\n]*\\n\\s*raise NotImplementedError\\b")
+          (#not-match? @a "(?i)todo|fixme|not yet implemented|implement me|placeholder")
+        [(method) (singleton_method)] @b (#match? @b "^def [^\\n]*\\n\\s*raise NotImplementedError\\b")
+          (#not-match? @b "(?i)todo|fixme|not yet implemented|implement me|placeholder")))
+      (singleton_class body: (body_statement
+        (method) @a (#match? @a "^def [^\\n]*\\n\\s*raise NotImplementedError\\b")
+          (#not-match? @a "(?i)todo|fixme|not yet implemented|implement me|placeholder")
+        (method) @b (#match? @b "^def [^\\n]*\\n\\s*raise NotImplementedError\\b")
+          (#not-match? @b "(?i)todo|fixme|not yet implemented|implement me|placeholder")))
+      (body_statement (identifier) @p (#match? @p "^(private|protected)$")
+        (method) @hook (#match? @hook "^def [^\\n]*\\n\\s*raise NotImplementedError\\b"))
+      (class name: (_) @n (#match? @n "(^|::)(Abstract|Base)[A-Z]|(Abstract|Base)$")
+        body: (body_statement [(method) (singleton_method)] @m (#match? @m "^def [^\\n]*\\n\\s*raise NotImplementedError\\b")))
     description: >-
       The method does nothing but raise or return a constant marked
       temporary. In a scaffold that is fine; shipped, every caller is
@@ -576,19 +676,41 @@ rules:
     tags: [assurance, test, rspec]
     roles: [test]
     files: "*_spec.rb"
+    # Gold benchmark (ARB-065), Bundler: a call to an assertion helper,
+    # `should_be_ruby_version_incorrect`, `expect_no_output`,
+    # `mock_confirm_message` (sets a message expectation), `check_commands!`
+    # or `gem_skeleton_assertions`, is an assertion.
     query: |
       ((call method: (identifier) @m (#match? @m "^(it|specify|example|scenario)$")
          arguments: (argument_list)
          block: (do_block) @b)
-        @hit (#not-match? @b "\\bexpect\\s*[({]|\\bexpect_any_instance_of\\b|\\bis_expected\\b|\\bshould\\b|\\bassert|\\.to\\b|\\.not_to\\b|\\.to_not\\b|\\bverify|raise_error|aggregate_failures|\\bpending\\b|\\bskip\\b|\\bflunk\\b|\\bfail\\b"))
+        @hit (#not-match? @b "\\bexpect\\s*[({]|\\bexpect_any_instance_of\\b|\\bis_expected\\b|\\bshould\\b|\\bassert|\\.to\\b|\\.not_to\\b|\\.to_not\\b|\\bverify|raise_error|aggregate_failures|\\bpending\\b|\\bskip\\b|\\bflunk\\b|\\bfail\\b|\\b(should|expect|assert|verify|must|mock|check)_\\w+|\\w_assertions?\\b"))
       ((call method: (identifier) @m (#match? @m "^(it|specify|example|scenario)$")
          block: (block) @b)
-        @hit (#not-match? @b "\\bexpect\\s*[({]|\\bexpect_any_instance_of\\b|\\bis_expected\\b|\\bshould\\b|\\bassert|\\.to\\b|\\.not_to\\b|\\.to_not\\b|\\bverify|raise_error|aggregate_failures|\\bpending\\b|\\bskip\\b|\\bflunk\\b|\\bfail\\b"))
+        @hit (#not-match? @b "\\bexpect\\s*[({]|\\bexpect_any_instance_of\\b|\\bis_expected\\b|\\bshould\\b|\\bassert|\\.to\\b|\\.not_to\\b|\\.to_not\\b|\\bverify|raise_error|aggregate_failures|\\bpending\\b|\\bskip\\b|\\bflunk\\b|\\bfail\\b|\\b(should|expect|assert|verify|must|mock|check)_\\w+|\\w_assertions?\\b"))
     unless_inside: |
       ((call method: (identifier) @m (#match? @m "^(it|specify|example|scenario)$")
          block: (do_block body: (body_statement (call !receiver method: (identifier) @h) .)))
         @delegated
         (#not-match? @h "^(get|post|put|patch|delete|head|options|visit|click|fill_in|sleep|puts|p|pp|print|run|call|subject|described_class|send|request|follow_redirect!)$"))
+      ; Gold benchmark (ARB-065), Bundler's specs: the helper call is followed
+      ; by its heredoc (`install_gemfile <<-G ... G`, which raises on a
+      ; failed install), or is a bare helper name (`should_not_resolve`,
+      ; `gem_skeleton_assertions`).
+      ((call method: (identifier) @m (#match? @m "^(it|specify|example|scenario)$")
+         block: (do_block body: (body_statement (call !receiver method: (identifier) @h) . (heredoc_body) .)))
+        @delegated
+        (#not-match? @h "^(get|post|put|patch|delete|head|options|visit|click|fill_in|sleep|puts|p|pp|print|run|call|subject|described_class|send|request|follow_redirect!)$"))
+      ((call method: (identifier) @m (#match? @m "^(it|specify|example|scenario)$")
+         block: (do_block body: (body_statement (identifier) @h .)))
+        @delegated
+        (#not-match? @h "^(get|post|put|patch|delete|head|options|visit|click|fill_in|sleep|puts|p|pp|print|run|call|subject|described_class|send|request|follow_redirect!)$"))
+      ; the example is named for not raising: "doesn't blow up when the config
+      ; is empty", "does not raise". The body is the assertion.
+      ((call method: (identifier) @m (#match? @m "^(it|specify|example|scenario)$")
+         arguments: (argument_list . (string) @d))
+        @no_raise
+        (#match? @d "(?i)\\b(does not|doesn't|do not|don't|should not|shouldn't|will not|won't|never)\\s+(raise|blow up|explode|crash|error|hang|break)"))
       ; the group's `after { expect(...) }` / `after { stubs.verify_stubbed_calls }`
       ; asserts for every example in it (faraday connection_spec.rb)
       ((call method: (identifier) @g

@@ -276,6 +276,24 @@ rules:
       (call function: (attribute object: (identifier) @re (#eq? @re "re")
           attribute: (identifier) @rf
           (#match? @rf "^(match|fullmatch|search|compile|findall|finditer|sub|subn|split)$"))) @x
+      ; Gold benchmark (ARB-065), Django's database backends. Every spliced
+      ; value is a quoting call (`quote_name`, `connection.ops.quote_name`,
+      ; `qn`, `escape_identifier`, ...), an ALL_CAPS constant, a SQL fragment
+      ; variable (`sql`, `inner_sql`: reported where it was built, if at all)
+      ; or a placeholder list (`", ".join(["%s"] * len(keys))`). The regex is
+      ; that atom, repeated for a tuple, a dict and .format() arguments. One
+      ; raw value among quoted ones is still reported.
+      (binary_operator left: (string) operator: ["%" "+"] right: (_) @r
+        (#match? @r "^(((\\w+\\.)*(quote_?\\w*|qn2?|escape_\\w+|format_table)\\([^()]*(\\([^()]*\\)[^()]*)*\\)|(\\w+\\.)*[A-Z][A-Z0-9_]+|\\w*sql|\"[^\"]*\"\\.join\\(\\[?\\s*\"[^\"]*\"\\s*\\]?\\s*\\*\\s*len\\([^()]*(\\([^()]*\\)[^()]*)*\\)\\))|\\(\\s*((\\w+\\.)*(quote_?\\w*|qn2?|escape_\\w+|format_table)\\([^()]*(\\([^()]*\\)[^()]*)*\\)|(\\w+\\.)*[A-Z][A-Z0-9_]+|\\w*sql|\"[^\"]*\"\\.join\\(\\[?\\s*\"[^\"]*\"\\s*\\]?\\s*\\*\\s*len\\([^()]*(\\([^()]*\\)[^()]*)*\\)\\))(\\s*,\\s*((\\w+\\.)*(quote_?\\w*|qn2?|escape_\\w+|format_table)\\([^()]*(\\([^()]*\\)[^()]*)*\\)|(\\w+\\.)*[A-Z][A-Z0-9_]+|\\w*sql|\"[^\"]*\"\\.join\\(\\[?\\s*\"[^\"]*\"\\s*\\]?\\s*\\*\\s*len\\([^()]*(\\([^()]*\\)[^()]*)*\\)\\)))*\\s*,?\\s*\\)|\\{\\s*[\"']\\w+[\"']\\s*:\\s*((\\w+\\.)*(quote_?\\w*|qn2?|escape_\\w+|format_table)\\([^()]*(\\([^()]*\\)[^()]*)*\\)|(\\w+\\.)*[A-Z][A-Z0-9_]+|\\w*sql|\"[^\"]*\"\\.join\\(\\[?\\s*\"[^\"]*\"\\s*\\]?\\s*\\*\\s*len\\([^()]*(\\([^()]*\\)[^()]*)*\\)\\))(\\s*,\\s*[\"']\\w+[\"']\\s*:\\s*((\\w+\\.)*(quote_?\\w*|qn2?|escape_\\w+|format_table)\\([^()]*(\\([^()]*\\)[^()]*)*\\)|(\\w+\\.)*[A-Z][A-Z0-9_]+|\\w*sql|\"[^\"]*\"\\.join\\(\\[?\\s*\"[^\"]*\"\\s*\\]?\\s*\\*\\s*len\\([^()]*(\\([^()]*\\)[^()]*)*\\)\\)))*\\s*,?\\s*\\})$")) @x
+      (call function: (attribute object: (string) attribute: (identifier) @fm (#eq? @fm "format"))
+        arguments: (argument_list) @r (#match? @r "^\\(\\s*((\\w+\\.)*(quote_?\\w*|qn2?|escape_\\w+|format_table)\\([^()]*(\\([^()]*\\)[^()]*)*\\)|(\\w+\\.)*[A-Z][A-Z0-9_]+|\\w*sql|\"[^\"]*\"\\.join\\(\\[?\\s*\"[^\"]*\"\\s*\\]?\\s*\\*\\s*len\\([^()]*(\\([^()]*\\)[^()]*)*\\)\\))(\\s*,\\s*((\\w+\\.)*(quote_?\\w*|qn2?|escape_\\w+|format_table)\\([^()]*(\\([^()]*\\)[^()]*)*\\)|(\\w+\\.)*[A-Z][A-Z0-9_]+|\\w*sql|\"[^\"]*\"\\.join\\(\\[?\\s*\"[^\"]*\"\\s*\\]?\\s*\\*\\s*len\\([^()]*(\\([^()]*\\)[^()]*)*\\)\\)))*\\s*,?\\s*\\)$")) @x
+      ((string (interpolation)) @x (#match? @x "^[^{}]*(\\{((\\w+\\.)*(quote_?\\w*|qn2?|escape_\\w+|format_table)\\([^()]*(\\([^()]*\\)[^()]*)*\\)|(\\w+\\.)*[A-Z][A-Z0-9_]+|\\w*sql|\"[^\"]*\"\\.join\\(\\[?\\s*\"[^\"]*\"\\s*\\]?\\s*\\*\\s*len\\([^()]*(\\([^()]*\\)[^()]*)*\\)\\))\\}[^{}]*)+$"))
+      ; A two-stage template: identifiers are spliced in, and the values stay
+      ; `%%s` bind parameters for execute(). A `'%s'` slot inside quotes is
+      ; a value spliced as a literal and is still reported.
+      (binary_operator left: (string) @s operator: "%"
+        (#match? @s "%%s") (#not-match? @s "'%s'")) @x
+      ((string (interpolation)) @x (#match? @x "%%s") (#not-match? @x "'%s'|'\\{"))
     description: >-
       The value is spliced into the statement text, so whoever controls it
       controls the query. This is the shape every SQL-injection exploit
@@ -334,6 +352,18 @@ rules:
     unless_inside: |
       (call function: (identifier) @f (#match? @f "^(eval|exec)$")
         arguments: (argument_list . (call function: (identifier) @c (#eq? @c "compile")))) @x
+    # OWASP Benchmark Python (ARB-065): a function that validates the input
+    # first and returns or raises when it fails -- `if not s.startswith("'")
+    # or ...: return`, `if not re.fullmatch(...)`, `if name not in ALLOWED`
+    # -- has bounded what reaches eval. A syntactic rule cannot tie the guard
+    # to the eval'd variable, so a guard anywhere in the function counts.
+    # Decoys where a constant replaces the input (a map, a `match`) still
+    # report: that needs constant propagation.
+    unless_in_scope: |
+      (if_statement
+        condition: (_) @c
+        (#match? @c "\\.(startswith|endswith|isidentifier|isdigit|isdecimal|isnumeric|isalnum|isalpha|fullmatch)\\(|\\bre\\.(fullmatch|match)\\(|\\bnot\\s+in\\s+[A-Z][A-Z0-9_]*\\b")
+        consequence: (block [(return_statement) (raise_statement)] .)) @x
     description: >-
       Whatever ends up in the argument runs as Python with the privileges of
       this process. Model-drafted code reaches for `eval` to parse a filter
@@ -382,11 +412,23 @@ rules:
       (assignment left: (_) @t
         (#match? @t "(?i)(token|secret|passw|pwd|nonce|salt|otp|csrf|api_?key|secret_?key|signing_?key|private_?key|session_?(id|key)|reset_?code|verification_?code|auth_?code)")
         right: (_) @r
-        (#match? @r "\\brandom\\.(random|randint|choice|choices|getrandbits|randrange|randbytes|sample|uniform)\\(")) @hit
+        (#match? @r "\\brandom\\.(random|randint|choice|choices|getrandbits|randrange|randbytes|sample|uniform|normalvariate|gauss|triangular|betavariate|expovariate|lognormvariate|paretovariate|weibullvariate|vonmisesvariate|gammavariate)\\(")) @hit
       (function_definition name: (identifier) @n
         (#match? @n "(?i)(token|secret|passw|pwd|nonce|salt|otp|csrf|api_?key|session_?id|reset_?code|verification_?code|auth_?code)")
         body: (block (return_statement (_) @r
-          (#match? @r "\\brandom\\.(random|randint|choice|choices|getrandbits|randrange|randbytes|sample|uniform)\\(")) @hit))
+          (#match? @r "\\brandom\\.(random|randint|choice|choices|getrandbits|randrange|randbytes|sample|uniform|normalvariate|gauss|triangular|betavariate|expovariate|lognormvariate|paretovariate|weibullvariate|vonmisesvariate|gammavariate)\\(")) @hit))
+      ; OWASP Benchmark Python (ARB-065): the value is not named for a secret
+      ; but handed to the client as one -- stored in the session or a cookie
+      ; (`value = str(random.random())[2:]` ... `session[cookie] = value`).
+      ; A random value assigned in a function that writes a session or
+      ; cookie entry, or put there directly.
+      ((function_definition body: (block (assignment right: (_) @r
+          (#match? @r "\\brandom\\.(random|randint|choice|choices|getrandbits|randrange|randbytes|sample|uniform|normalvariate|gauss|triangular|betavariate|expovariate|lognormvariate|paretovariate|weibullvariate|vonmisesvariate|gammavariate)\\(")) @hit)) @fn
+        (#match? @fn "(?i)(session\\w*|cookies?)\\s*\\[[^\\]]*\\]\\s*=[^=]|\\bset_cookie\\("))
+      (assignment left: (subscript value: (_) @s (#match? @s "(?i)(session|cookie)"))
+        right: (_) @r (#match? @r "\\brandom\\.(random|randint|choice|choices|getrandbits|randrange|randbytes|sample|uniform|normalvariate|gauss|triangular|betavariate|expovariate|lognormvariate|paretovariate|weibullvariate|vonmisesvariate|gammavariate)\\(")) @hit
+      (call function: (attribute attribute: (identifier) @sc (#eq? @sc "set_cookie"))
+        arguments: (argument_list) @a (#match? @a "\\brandom\\.(random|randint|choice|choices|getrandbits|randrange|randbytes|sample|uniform|normalvariate|gauss|triangular|betavariate|expovariate|lognormvariate|paretovariate|weibullvariate|vonmisesvariate|gammavariate)\\(")) @hit
     description: >-
       `random` is a Mersenne Twister: 624 outputs reveal its whole state, and
       it is often seeded from the clock. A token drawn from it can be
@@ -406,10 +448,18 @@ rules:
     # for passwords -- report once when both apply.
     query: |
       (block [(return_statement) (assignment) (call)] @hit
-        (#match? @hit "(?s)\\bhashlib\\.(md5|sha1)\\(.*(?i:passw|pwd)|\\bhashlib\\.new\\(\\s*[\"'](?i:md5|sha1)[\"'].*(?i:passw|pwd)"))
+        (#match? @hit "(?s)\\bhashlib\\.(md5|sha1)\\(.*(?i:passw|pwd|signature)|\\bhashlib\\.new\\(\\s*[\"'](?i:md5|sha1)[\"'].*(?i:passw|pwd|signature)"))
       (function_definition name: (identifier) @n (#match? @n "(?i)(passw|pwd)")
         body: (block [(return_statement) (assignment) (call)] @hit
           (#match? @hit "(?s)\\bhashlib\\.(md5|sha1)\\(|\\bhashlib\\.new\\(\\s*[\"'](?i:md5|sha1)[\"']")))
+      ; OWASP Benchmark Python (ARB-065): an empty digest object,
+      ; `h = hashlib.md5()` or `hashlib.new('sha1')`, fed with `h.update(...)`
+      ; in a function that handles a password (it names one: the input, the
+      ; store, the file the digest goes to). A one-shot digest of other data
+      ; in such a function (aiohttp's digest-auth cnonce) is not reported.
+      ((function_definition body: (block (assignment) @hit
+          (#match? @hit "^[^=]*=\\s*hashlib\\.(md5|sha1)\\(\\s*\\)$|^[^=]*=\\s*hashlib\\.new\\(\\s*[\"'](?i:md5|sha1)[\"']\\s*\\)$"))) @fn
+        (#match? @fn "(?i)passw|pwd"))
     description: >-
       MD5 and SHA-1 are designed to be fast, which is exactly wrong for a
       password: a GPU tries billions a second, and both have public

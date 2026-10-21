@@ -64,6 +64,29 @@ base-class, hook, explained and "not supported" bodies are declarations.
 Fixture private keys stay reported, as low with a `test-fixture` tag. Keycloak:
 undeclared-import 678 to 158, assigned-credential 677 to 56. Insecure apps
 keep their true positives (planted corpus unchanged in all five languages).
+- ARB-065 | Python and Ruby packs, first fixes from the gold triage.
+Python `sql-injection` skips a statement whose every spliced value is a
+quoting call (`quote_name`, `qn`, `escape_identifier`), an ALL_CAPS constant
+or a built SQL fragment, and a two-stage template whose values stay `%%s`
+binds (Django 65 to 29). `insecure-random-for-secret` also reports a
+`random` value stored in a session or cookie, and knows `normalvariate` and
+the other distributions; `weak-password-hash` reports an empty md5/sha1
+object fed by `update()` in a function that handles a password (OWASP
+Benchmark Python: weak randomness 0/99 to 99/99, weak hash 0/71 to 71/71, no
+safe case flagged). `code-injection` skips eval behind a validating guard
+that returns or raises (safe cases flagged 33/33 to 11/33; the rest are
+constant-propagation decoys). Ruby: `stub-method` treats a class with two or
+more bare `raise NotImplementedError` methods, a private hook, an
+`Abstract*`/`Base` class and "is not implemented" messages as the abstract
+idiom; `vacuous-spec` counts `should_*`/`expect_*`/`mock_*` helpers, a
+helper with a heredoc and "does not raise" names; `check-then-act-unlocked`
+needs a collection query and a mutating act, and skips a `Concurrent::Map`
+constant declared beside its use, ENV and per-thread stores; `sql-injection`
+skips `escape_*` and `.to_i` interpolations; `rescue-exception` skips a
+hand-off to an error method, a collected or wrapped exception, and a
+RuboCop disable; `swallowed-error` skips an empty rescue with a comment
+saying why, and `rescue => @ivar`. Each pinned by planted pairs and tests
+that keep a still-reported case.
 - ARB-062 | CWE Top 25 (2024) measured before any new rule: an
 applicability matrix for Python, TypeScript/JavaScript, Go, Java and Ruby
 (`docs/cwe-top25.md`), 47 new planted pairs, one per applicable cell not

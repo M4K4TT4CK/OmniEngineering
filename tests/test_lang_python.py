@@ -304,3 +304,92 @@ def test_weak_digest_is_only_reported_for_passwords(tmp_path):
 
 def test_pack_rules_skip_test_files(tmp_path):
     assert not rules_in(tmp_path, "import pickle\nx = pickle.loads(b)\n", name="tests/test_x.py")
+
+
+# --- gold benchmark and OWASP Benchmark Python (ARB-065) ---------------------
+
+def _lines(tmp_path, code: str, rule: str, name: str = "service.py") -> list[int]:
+    found = _scan_text(tmp_path, name, code, only=["lang_python"])
+    return sorted(f.location.start_line for f in found if f.rule_id == f"arbiter/python.{rule}")
+
+
+def test_sql_with_every_splice_quoted_or_bound_is_fine(tmp_path):
+    # Django's backends: sqlite3/introspection.py:92, cache/backends/db.py:151,
+    # postgres/operations.py:326, models/sql/compiler.py:2052.
+    code = (
+        "def f(self, cursor, t, name, sql):\n"
+        "    cursor.execute('PRAGMA table_xinfo(%s)' % self.connection.ops.quote_name(t))\n"
+        "    cursor.execute('ALTER TABLE %s VALIDATE CONSTRAINT %s' % (qn(t), self.quote_name(name)))\n"
+        "    cursor.execute('UPDATE %(table)s SET a = 1' % {'table': self.quote_name(t)})\n"
+        "    cursor.execute('SELECT %s, %s FROM %s WHERE %s = %%s' % (a, b, t, c), [name])\n"
+        "    cursor.execute(f'SELECT * FROM {qn(t)} LIMIT {MAX_ROWS}')\n"
+        "    cursor.execute('SELECT * FROM {}'.format(quote_name(t)))\n"
+        "    cursor.execute('SELECT * FROM (%s) subquery' % sql)\n"
+        # still reported: one raw value beside quoted identifiers, a quoted
+        # '%s' slot in a two-stage template, a raw f-string value
+        "    cursor.execute(\"UPDATE %s SET a = '%s'\" % (qn(t), name))\n"
+        "    cursor.execute(\"SELECT * FROM %s WHERE n = '%s' AND x = %%s\" % (t, name))\n"
+        "    cursor.execute(f\"SELECT {qn(t)} FROM t WHERE n = '{name}'\")\n"
+        "    cursor.execute('SELECT * FROM %s' % t)\n")
+    assert _lines(tmp_path, code, "sql-injection") == [9, 10, 11, 12]
+
+
+def test_random_value_put_in_a_session_or_cookie_is_a_secret(tmp_path):
+    # OWASP Benchmark Python weakrand: `value = str(random.random())[2:]`,
+    # then `mysession[cookie] = value`. SystemRandom and secrets are fine.
+    code = (
+        "import random, secrets\n"
+        "def remember(resp):\n"
+        "    value = str(random.normalvariate())[2:]\n"
+        "    session['rememberMe'] = value\n"
+        "def remember_ok(resp):\n"
+        "    value = str(random.SystemRandom().getrandbits(32))\n"
+        "    other = secrets.token_hex(16)\n"
+        "    session['rememberMe'] = value\n"
+        "def jitter():\n"
+        "    delay = random.uniform(0, 1)\n"
+        "    return delay\n"
+        "def direct(resp):\n"
+        "    resp.set_cookie('id', str(random.getrandbits(64)))\n")
+    assert _lines(tmp_path, code, "insecure-random-for-secret") == [3, 13]
+
+
+def test_streaming_weak_digest_in_a_password_handler(tmp_path):
+    # OWASP Benchmark Python hash: `h = hashlib.new('md5'); h.update(input)`,
+    # written to passwordFile.txt. aiohttp's digest-auth cnonce (a one-shot
+    # sha1 of a counter in a function that holds a password) is not reported.
+    code = (
+        "import hashlib\n"
+        "def store(data):\n"
+        "    h = hashlib.new('md5')\n"
+        "    h.update(data)\n"
+        "    open('passwordFile.txt', 'a').write(h.hexdigest())\n"
+        "def sign(self):\n"
+        "    a1 = self._password_bytes\n"
+        "    cnonce = hashlib.sha1(str(self._count).encode()).hexdigest()\n"
+        "def etag(data):\n"
+        "    h = hashlib.md5()\n"
+        "    h.update(data)\n"
+        "def store_strong(data):\n"
+        "    h = hashlib.sha512()\n"
+        "    open('passwordFile.txt', 'a').write(h.hexdigest())\n")
+    assert _lines(tmp_path, code, "weak-password-hash") == [3]
+
+
+def test_eval_behind_a_validating_guard_is_fine(tmp_path):
+    # OWASP Benchmark Python codeinj: the safe twins return early unless the
+    # input is a plain string literal. A guard elsewhere, or none, still reports.
+    code = (
+        "def ok(bar):\n"
+        "    if not bar.startswith(\"'\") or not bar.endswith(\"'\"):\n"
+        "        return 'must be a literal'\n"
+        "    return eval(bar)\n"
+        "def name_only(expr, ns):\n"
+        "    if not expr.isidentifier():\n"
+        "        raise ValueError(expr)\n"
+        "    return eval(expr, {}, ns)\n"
+        "def unguarded(bar):\n"
+        "    if bar.startswith('x'):\n"
+        "        log(bar)\n"
+        "    return eval(bar)\n")
+    assert _lines(tmp_path, code, "code-injection") == [12]

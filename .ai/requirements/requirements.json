@@ -1524,7 +1524,8 @@
         "shared-probe false positives found on gold fixed, each pinned by a test that also keeps a still-reported case",
         "undeclared-import resolves Python requirement layouts, nearest go.mod, bare Node built-ins, Java plugin and transitive packages and Ruby gemspecs",
         "assigned-credential judges only literal values and skips key-name constants, message bundles and test data that is not generated-looking",
-        "insecure corpus apps keep their true positives and the planted corpus stays fully caught"
+        "insecure corpus apps keep their true positives and the planted corpus stays fully caught",
+        "Python and Ruby pack fixes from the triage measured before and after on the gold repositories, the earlier clean corpora and OWASP Benchmark Python, each pinned by a planted pair and a test that keeps a still-reported case"
       ],
       "validation_required": [
         "pytest",
