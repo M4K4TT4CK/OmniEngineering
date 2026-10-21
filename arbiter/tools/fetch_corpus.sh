@@ -110,5 +110,23 @@ get php-guzzle       https://github.com/guzzle/guzzle.git
 get r-stringr        https://github.com/tidyverse/stringr.git
 get shell-nvm        https://github.com/nvm-sh/nvm.git
 
+# The language packs look for timeouts, retries, worker loops, locks and query
+# building. A clean library that never does those things proves nothing, so
+# these are well-run projects whose whole job is exactly that code.
+echo "Carefully maintained — HTTP clients, job workers, retries, pools:"
+get py-httpx         https://github.com/encode/httpx.git
+get py-rq            https://github.com/rq/rq.git
+get py-tenacity      https://github.com/jd/tenacity.git
+get ts-got           https://github.com/sindresorhus/got.git
+get ts-bullmq        https://github.com/taskforcesh/bullmq.git
+get ts-fastify       https://github.com/fastify/fastify.git
+get go-retryablehttp https://github.com/hashicorp/go-retryablehttp.git
+get go-nsq           https://github.com/nsqio/nsq.git
+get go-chi           https://github.com/go-chi/chi.git
+get java-hikaricp    https://github.com/brettwooldridge/HikariCP.git
+get java-resilience4j https://github.com/resilience4j/resilience4j.git
+get ruby-sidekiq     https://github.com/sidekiq/sidekiq.git
+get ruby-faraday     https://github.com/lostisland/faraday.git
+
 echo
 echo "Downloaded to $DEST ($(du -sh "$DEST" 2>/dev/null | cut -f1))"

@@ -5,6 +5,57 @@ under `[Unreleased]` (there are no release tags yet) and reference the
 `REQ-###` they serve. Rationale belongs in `.ai/project-context.md`.
 
 ## [Unreleased]
+### 2026-10-21
+- ARB-061 | Rule packs for Python, TypeScript/JavaScript, Go, Java and Ruby:
+races, outbound calls with no timeout (and Go DB calls with no deadline),
+retry loops with no backoff or cap, swallowed errors and unstoppable worker
+loops, SQL and command injection, stubs, tests that cannot fail, TLS off,
+weak randomness for secrets. Planted corpus: every defect caught in all five
+languages (41/39/38/45/50), nothing on the good twins. Each pack was checked
+for precision on real code (21 deliberately insecure and carefully maintained
+repositories, 13 of them added to `tools/fetch_corpus.sh`) and every false
+positive found was fixed and pinned by a test. Shared fixes from those runs:
+Java undeclared-import reads Gradle version catalogs, maps packages to
+groupIds and treats Gradle test source sets as tests (2,295 findings to 117
+on seven Java repos); a skip annotation inside a comment is no longer a
+skipped test.
+- ARB-064 | Findings traceable in OmniGraph: rule and CWE nodes, `violates`
+and `classified_as` edges, full and gate reports merged, `--if-stale`
+rebuild, `omni graph findings --cwe/--rule`, impact by file or CWE.
+
+### 2026-10-20
+
+- ARB-060 | Foundation for every IDE language. Shipped tree-sitter rule packs
+  (`packs/rules/ast/{python,typescript,go,java,ruby}.yaml`), one `lang_<pack>`
+  probe each, with `unless_inside` / `unless_in_scope` / `unless_in_file` /
+  `requires_file` context conditions and a schema that fails loudly. A grammar
+  that is not cached is reported as not assessed; `install_tools.sh` caches all
+  seven (`.tsx` now parses with the tsx grammar). Findings carry `cwe`, in JSON
+  and as SARIF `external/cwe/*` tags, from the packs, a native table, and
+  semgrep/bandit/gitleaks output. Undeclared imports are now checked for Go
+  (go.mod), Java (pom.xml, Gradle) and Ruby (Gemfile). `*.test.ts`, `*_spec.rb`
+  and `src/test/` are tests; java and ruby stacks are detected. A planted
+  corpus (`fixtures/planted/`) with correct twins is asserted in CI and scored
+  by `tools/planted_score.py`.
+
+- ARB-053, ARB-054 | New `concurrency` probe (Python, stdlib `ast`).
+  `concurrency.check-then-act-unlocked` reports an `if` that reads a shared
+  collection and then changes it with no lock held;
+  `concurrency.unsynchronised-counter` reports `+=` on `self` or a global inside
+  a thread target, `Thread.run` or executor job. Each rule is tested against a
+  correct twin that must stay silent. Precision run: no findings on Arbiter,
+  OmniEngineering, concurrent.futures, urllib3, requests, anyio, uvicorn or
+  starlette, after narrowing plain functions in event-loop files to ones started
+  as threads (an anyio semaphore had been reported).
+
+- ARB-059 | An analyzer that could not run is now reported as not assessed or as
+  an error, never as a clean run. Adapters can declare required files
+  (`[requires] files`); semgrep declares its pinned ruleset, so a missing
+  `~/.cache/arbiter/semgrep-rules` is skipped with the path and
+  `tools/install_tools.sh` named, before any cache replay. An exit outside
+  `ok_exit` with no parsed findings is an error with the tool's own message.
+  Before this, semgrep with no rules showed `ran, 0 findings`, or replayed the
+  last run's findings from the cache.
 
 ### 2026-10-09
 

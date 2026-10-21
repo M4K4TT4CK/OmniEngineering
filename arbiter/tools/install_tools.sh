@@ -312,6 +312,36 @@ if wants gitleaks; then
   fi
 fi
 
+# tree-sitter grammars for the language packs (packs/rules/ast). The pack
+# downloads a grammar on first use; fetching them here keeps scans offline and
+# makes a missing one a "not assessed" fact at install time, not mid-scan.
+ARBITER_GRAMMARS="${ARBITER_GRAMMARS:-python javascript typescript tsx go java ruby}"
+fetch_grammars() {
+  local py
+  py="$(command -v python3 || command -v python)"
+  if [ -z "$py" ]; then
+    printf '  MISSED %-10s no python3 to fetch grammars\n' grammars
+    return 0
+  fi
+  if "$py" - $ARBITER_GRAMMARS <<'PY' 2>/dev/null; then
+import sys
+try:
+    import tree_sitter_language_pack as t
+except ImportError:
+    sys.exit(2)
+want = sys.argv[1:]
+have = set(getattr(t, "downloaded_languages", lambda: want)())
+missing = [g for g in want if g not in have]
+if missing and hasattr(t, "download"):
+    t.download(missing)
+PY
+    printf '  got    %-10s %s\n' grammars "$ARBITER_GRAMMARS"
+  else
+    printf '  MISSED %-10s needs tree-sitter-language-pack (pip install -e .[ast]) and network\n' grammars
+  fi
+}
+fetch_grammars
+
 echo
 echo "What Arbiter can run here:"
 python3 -c "

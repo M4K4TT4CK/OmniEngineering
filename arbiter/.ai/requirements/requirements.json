@@ -1204,6 +1204,296 @@
         "git log per changed file costs one subprocess per file; batch with one git log --name-only over the range",
         "incremental.attribute_requirements tags a finding in a --changed gate with the ids cited by the commits since the base that touched its file (req-scope:commits), falls back to the range's ids with req-scope:open, resolves aliases, one git log per repository; the By requirement table names the scope. Validated: 548 passed, integrity PASS, 8 mutations caught, doctor 0 errors, gate PASS, self-gate PASS."
       ]
+    },
+    {
+      "id": "ARB-053",
+      "category": "reliability",
+      "title": "Flag check-then-act on shared collections without a lock",
+      "description": "Interview test 2026-10-20: a worker's 'if len(self.tasks) > 0: return self.tasks.pop(0)' with no lock in scope was not reported. Two workers can take the same task or pop from an empty list.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "fires on a planted fixture",
+        "silent on a locked twin"
+      ],
+      "validation_required": [
+        "doctor",
+        "validate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-054",
+      "category": "reliability",
+      "title": "Flag unsynchronised counters mutated from thread or async worker targets",
+      "description": "Interview test 2026-10-20: 'self.processed += 1' inside a threading.Thread target was not reported.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "fires on a planted fixture",
+        "silent when guarded by a lock or atomic"
+      ],
+      "validation_required": [
+        "doctor",
+        "validate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-055",
+      "category": "reliability",
+      "title": "Flag worker loops with no stop signal and non-daemon threads",
+      "description": "Interview test 2026-10-20: 'while True' worker started as a non-daemon thread with no shutdown event was not reported; the process cannot exit cleanly on SIGTERM.",
+      "priority": "medium",
+      "status": "proposed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "fires on a planted fixture",
+        "silent when a stop event or context cancellation is checked"
+      ],
+      "validation_required": [
+        "doctor",
+        "validate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": [
+        "Folded into ARB-061 (all-language interview slice), 2026-10-20"
+      ]
+    },
+    {
+      "id": "ARB-056",
+      "category": "reliability",
+      "title": "Flag swallowed errors in worker loops with no retry or dead-letter path",
+      "description": "Interview test 2026-10-20: bandit/ruff reported bare except as low-severity style; nothing reported that the failed task is silently lost.",
+      "priority": "medium",
+      "status": "proposed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "worker-loop context raises severity",
+        "silent when the error is logged and re-queued"
+      ],
+      "validation_required": [
+        "doctor",
+        "validate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": [
+        "Folded into ARB-061 (all-language interview slice), 2026-10-20"
+      ]
+    },
+    {
+      "id": "ARB-057",
+      "category": "reliability",
+      "title": "Flag outbound HTTP and DB calls without a timeout in TypeScript, Java and Go",
+      "description": "Only Python requests calls are covered today (via bandit B113).",
+      "priority": "medium",
+      "status": "proposed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "fires on planted fetch/HttpClient/http.Get fixtures",
+        "silent when a timeout or context deadline is set"
+      ],
+      "validation_required": [
+        "doctor",
+        "validate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": [
+        "Folded into ARB-061 (all-language interview slice), 2026-10-20"
+      ]
+    },
+    {
+      "id": "ARB-058",
+      "category": "reliability",
+      "title": "Tests call sys.executable instead of a bare python",
+      "description": "11 tests in tests/test_tools_training.py run 'python', which does not exist on stock Ubuntu/WSL (only python3); they fail with FileNotFoundError.",
+      "priority": "low",
+      "status": "proposed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "suite passes on a machine with only python3"
+      ],
+      "validation_required": [
+        "doctor",
+        "validate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": [
+        "Folded into ARB-061 (all-language interview slice), 2026-10-20"
+      ]
+    },
+    {
+      "id": "ARB-059",
+      "category": "reliability",
+      "title": "An analyzer that could not run is not assessed, never a clean pass",
+      "description": "Interview prep 2026-10-20: with ~/.cache/arbiter/semgrep-rules absent, semgrep exited 7 ('unable to find a config') with a JSON error body, and the scan recorded semgrep as ran with 0 findings; a cached run also replayed old findings because the rules directory is not part of the key. Adapters declare the files they need; a missing one is a coverage gap reported before the cache is read, and an exit code outside ok_exit with no parsed results is an error.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/adapters.py",
+        "src/arbiter/probes.py",
+        "src/arbiter/packs/adapters/semgrep.adapter.toml",
+        "tests/test_adapters.py"
+      ],
+      "acceptance_criteria": [
+        "semgrep with its rules directory missing is skipped with a reason naming the path and tools/install_tools.sh",
+        "the skip happens before any cache replay",
+        "an adapter exiting outside ok_exit with no parsed findings records status error",
+        "an adapter exiting outside ok_exit that still parsed findings keeps them",
+        "installed rules still run"
+      ],
+      "validation_required": [
+        "pytest",
+        "doctor",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-060",
+      "category": "capability",
+      "title": "Shared foundation for per-language rule packs, CWE and the planted corpus",
+      "description": "Native checks were mostly Python-only (planted test 2026-10-20: ts 5/12, go 5/14, java 4/13, ruby 4/16). One probe per shipped tree-sitter pack (packs/rules/ast/<lang>.yaml) with context conditions, Finding.cwe carried into JSON and SARIF, grammars cached at install and missing ones reported as not assessed, Go/Java/Ruby imports and manifests, test-file and stack detection for every IDE language, and a planted corpus with good twins asserted in CI.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/lang_rules.py",
+        "src/arbiter/cwe.py",
+        "src/arbiter/ecosystems.py",
+        "src/arbiter/planted.py",
+        "src/arbiter/ast.py",
+        "src/arbiter/inventory.py",
+        "src/arbiter/authored.py",
+        "fixtures/planted",
+        "tools/planted_score.py"
+      ],
+      "acceptance_criteria": [
+        "each of python typescript go java ruby has a pack and a corpus",
+        "a missing grammar is not assessed",
+        "findings carry cwe in json and sarif",
+        "go java ruby imports nothing declares are reported",
+        "corpus defects caught and twins silent"
+      ],
+      "validation_required": [
+        "pytest",
+        "doctor",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-061",
+      "category": "capability",
+      "title": "Interview slice: reliability and injection rules in all five IDE languages",
+      "description": "Per-language rules with planted defects and silent twins: check-then-act and counters without a lock, outbound calls with no timeout, retry with no backoff or cap, swallowed errors and no stop signal in worker loops, SQL and command injection, stubs, tests that assert nothing or are permanently skipped, TLS verification off, insecure randomness. Subsumes ARB-055 to ARB-058.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "every interview-slice defect in the planted corpus is caught in python typescript go java ruby",
+        "no rule fires on a good twin",
+        "precision run on each language's corpus repos reviewed"
+      ],
+      "validation_required": [
+        "pytest",
+        "doctor",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-062",
+      "category": "capability",
+      "title": "CWE Top 25 coverage per IDE language, with what is not assessed stated",
+      "description": "For each IDE language, every applicable CWE Top 25 weakness has a planted pair caught by a native rule or a pinned analyzer; weaknesses out of reach of single-file structural checks (authorization, data flow without taint tracking) are listed as not assessed per language.",
+      "priority": "medium",
+      "status": "pending",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "per-language CWE table in docs/probes.md",
+        "each in-scope CWE has a passing planted pair",
+        "not-assessed CWEs appear in the controls coverage output"
+      ],
+      "validation_required": [
+        "pytest",
+        "doctor",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-063",
+      "category": "capability",
+      "title": "Install and test on Windows, Linux and macOS",
+      "description": "tools/install_tools.ps1 for Windows; install_tools.sh fixed for macOS; pr-check runs ubuntu, windows and macos with analyzers installed and the self-gate on all three, Python 3.10 to 3.13; OS classifiers; per-OS setup docs.",
+      "priority": "medium",
+      "status": "pending",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "pr-check matrix includes macos-latest and windows-latest with analyzers",
+        "planted corpus passes on all three",
+        "CI-shape tests require macos"
+      ],
+      "validation_required": [
+        "pytest",
+        "doctor",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-064",
+      "category": "capability",
+      "title": "Every finding traceable in OmniGraph: rule, CWE, file, requirement, commit",
+      "description": "Finding nodes keep cwe and controls; rule and cwe nodes with edges; impact lists findings; the newest full and gate reports are both ingested; the graph rebuilds after a scan; Version B's omni gains findings support.",
+      "priority": "high",
+      "status": "pending",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "omni graph why <finding> shows file symbol rule cwe requirement and introducing commit",
+        "omni graph impact <file> lists findings",
+        "works in interview-ide-arbiter after make scan"
+      ],
+      "validation_required": [
+        "pytest",
+        "doctor",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
     }
   ]
 }
