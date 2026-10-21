@@ -42,3 +42,19 @@ function refresh(name) {
 }
 
 module.exports = { tailLog, scheduleRefresh, renderBanner, clearBanner, fetchStatus, warmCache, readConfig };
+
+function coerceDate(value) {
+  try {
+    return new Date(value);
+  } catch (_err) {}
+  return null;
+}
+
+function cachedEntry(raw) {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    // A malformed cache entry is rebuilt by the caller; nothing to report.
+  }
+  return undefined;
+}

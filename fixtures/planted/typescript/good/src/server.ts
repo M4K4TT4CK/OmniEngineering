@@ -64,6 +64,16 @@ export function parseFilter(body: string): unknown {
   return JSON.parse(body);
 }
 
+export function nativeFlag(): unknown {
+  // A literal is pointless but not an injection: nothing from outside reaches it.
+  return eval("typeof globalThis");
+}
+
+app.get("/user-or-error", (req: Request, res: Response) => {
+  // `||` is a choice between two values, not a string built from the request.
+  res.send(settings.get(String(req.params.id)) || { error: "not found" });
+});
+
 export function today(): string {
   return dayjs().format("YYYY-MM-DD");
 }

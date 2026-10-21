@@ -262,6 +262,78 @@ def test_a_function_callback_test_that_asserts_is_fine(tmp_path):
     assert not _scan(tmp_path, {"a.test.js": src}, "test-without-assertion")
 
 
+# ------------------------------------------- precision on real code (ARB-061)
+# Each case below is a shape that fired on a real repository (zod, express,
+# juice-shop) and was judged a false positive; the fix is pinned here.
+
+def test_eval_of_a_literal_is_not_reported(tmp_path):
+    # zod: `eval("...")` on a constant string is a feature probe, not injection.
+    src = (
+        "export const a = () => eval('typeof globalThis');\n"
+        "export const b = (s) => eval(s);\n"
+        "export const c = (r) => eval(r.body.x);\n"
+        "export const d = (n) => eval(`${n} + 1`);\n"
+    )
+    assert _lines(_scan(tmp_path, {"a.js": src}, "eval-call")) == [2, 3, 4]
+
+
+def test_response_with_a_fallback_value_is_not_html_from_request(tmp_path):
+    src = (
+        "app.get('/a', (req, res) => { res.send(cache.get(req.params.id) || { error: 'x' }); });\n"
+        "app.get('/b', (req, res) => { res.send('hi ' + req.params.name); });\n"
+    )
+    assert _lines(_scan(tmp_path, {"a.js": src}, "html-from-request")) == [2]
+
+
+def test_deliberate_empty_catch_is_not_reported(tmp_path):
+    # zod: `catch (_err) {}` in coercion and benchmarks; scripts that say why.
+    src = (
+        "export function a() {\n"
+        "  try { x(); } catch (_err) {}\n"
+        "  try { x(); } catch (_e: any) {}\n"
+        "  try { x(); } catch {\n"
+        "    // unreadable directories are skipped\n"
+        "  }\n"
+        "  try { x(); } catch (e) {}\n"
+        "  try { x(); } catch {} // trailing comment is not an explanation\n"
+        "}\n"
+    )
+    found = _scan(tmp_path, {"a.ts": src}, "empty-catch")
+    assert _lines(found) == [7, 8]
+    assert {f.confidence for f in found} == {"medium"}
+
+
+def test_random_names_need_a_secret_word_not_a_suffix_lookalike(tmp_path):
+    # three.js `generateUUID: function () {...}` and `(function () {...})()`
+    # are helper bodies, not values drawn for a secret; `valid` and `decode`
+    # only end in "id" / "code".
+    src = (
+        "export const M = {\n"
+        "  generateUUID: function () { return Math.random().toString(16); },\n"
+        "  objectId: (function () { return () => Math.random(); })(),\n"
+        "  secret: '' + Math.random(),\n"
+        "};\n"
+        "const valid = items[Math.floor(Math.random() * 3)];\n"
+        "const decode = Math.random() > 0.5;\n"
+        "const userId = Math.random().toString(36);\n"
+        "const api_key = Math.random().toString(36);\n"
+    )
+    assert _lines(_scan(tmp_path, {"a.ts": src}, "insecure-random-secret")) == [4, 8, 9]
+
+
+def test_done_handed_on_or_a_does_not_throw_title_counts_as_an_assertion(tmp_path):
+    # express test/Router.js: `{ end: done }` fails by timeout if the route is
+    # wrong; "should not throw ..." says that not throwing is the check.
+    src = (
+        "it('routes', function (done) { router.handle(req, { end: done }, function () {}); });\n"
+        "it('should not throw if all callbacks are functions', function () { build(); });\n"
+        "it(\"doesn't throw on empty input\", function () { build(); });\n"
+        "it('builds', function () { build(); });\n"
+        "it('waits', function (done) { setTimeout(function () { done(); }, 1); });\n"
+    )
+    assert _lines(_scan(tmp_path, {"a.test.js": src}, "test-without-assertion")) == [4, 5]
+
+
 # ---------------------------------------------------------------- the corpus
 
 def test_the_corpus_exercises_every_rule_in_the_pack():

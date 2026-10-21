@@ -29,8 +29,14 @@ rules:
     controls: [NIST-800-218:PW.5]
     tags: [injection]
     query: |
-      (call_expression function: (identifier) @fn (#eq? @fn "eval")) @hit
-    description: "Anything that reaches the string runs with the process's full rights."
+      (call_expression
+        function: (identifier) @fn (#eq? @fn "eval")
+        arguments: (arguments . [(identifier) (member_expression) (subscript_expression) (call_expression)
+                                 (binary_expression) (template_string (template_substitution))])) @hit
+    description: >
+      Anything that reaches the string runs with the process's full rights.
+      A literal string is pointless but not an injection, so only a built or
+      passed-in argument is reported.
     remediation: "Parse data with JSON.parse; never build code from input."
 
   - id: new-function-code
@@ -189,7 +195,7 @@ rules:
           object: (identifier) @o (#match? @o "^(res|response|reply)$")
           property: (property_identifier) @m (#match? @m "^(send|write|end)$"))
         arguments: (arguments
-          . [(template_string) (binary_expression)] @body
+          . [(template_string) (binary_expression operator: "+")] @body
           (#match? @body "\\breq(uest)?\\.(query|params|body)\\b")
           (#not-match? @body "(?i)escape|sanitiz|encode"))) @hit
     description: >
@@ -271,21 +277,23 @@ rules:
     tags: [crypto, randomness]
     query: |
       ((variable_declarator name: (identifier) @n value: (_) @v) @hit
-       (#match? @n "(?i)token|secret|passw|nonce|session|salt|otp|apikey|api_key|csrf|^id$|Id$|_id$|^key$|Key$|_key$|code$")
+       (#match? @n "(?i:token|secret|passw|nonce|session|salt|otp|apikey|api_key|csrf|^id$|_id$|^key$|_key$|^code$|_code$)|Id$|ID$|Key$|Code$")
        (#match? @v "\\bMath\\.random\\s*\\("))
       ((assignment_expression left: [(identifier) (member_expression)] @n right: (_) @v) @hit
-       (#match? @n "(?i)token|secret|passw|nonce|session|salt|otp|apikey|api_key|csrf|^id$|Id$|_id$|^key$|Key$|_key$|code$")
+       (#match? @n "(?i:token|secret|passw|nonce|session|salt|otp|apikey|api_key|csrf|^id$|_id$|^key$|_key$|^code$|_code$)|Id$|ID$|Key$|Code$")
        (#match? @v "\\bMath\\.random\\s*\\("))
-      ((pair key: (property_identifier) @n value: (_) @v) @hit
-       (#match? @n "(?i)token|secret|passw|nonce|session|salt|otp|apikey|api_key|csrf|^id$|Id$|_id$|^key$|Key$|_key$|code$")
+      ((pair key: (property_identifier) @n
+             value: [(call_expression function: [(identifier) (member_expression)])
+                    (binary_expression) (member_expression) (template_string)] @v) @hit
+       (#match? @n "(?i:token|secret|passw|nonce|session|salt|otp|apikey|api_key|csrf|^id$|_id$|^key$|_key$|^code$|_code$)|Id$|ID$|Key$|Code$")
        (#match? @v "\\bMath\\.random\\s*\\("))
       ((function_declaration name: (identifier) @n
          body: (statement_block . (return_statement) @hit . (comment)? .))
-       (#match? @n "(?i)token|secret|passw|nonce|session|salt|otp|apikey|api_key|csrf|Id$|Key$|code$")
+       (#match? @n "(?i:token|secret|passw|nonce|session|salt|otp|apikey|api_key|csrf|^id$|_id$|^key$|_key$|^code$|_code$)|Id$|ID$|Key$|Code$")
        (#match? @hit "\\bMath\\.random\\s*\\("))
       ((method_definition name: (property_identifier) @n
          body: (statement_block . (return_statement) @hit . (comment)? .))
-       (#match? @n "(?i)token|secret|passw|nonce|session|salt|otp|apikey|api_key|csrf|Id$|Key$|code$")
+       (#match? @n "(?i:token|secret|passw|nonce|session|salt|otp|apikey|api_key|csrf|^id$|_id$|^key$|_key$|^code$|_code$)|Id$|ID$|Key$|Code$")
        (#match? @hit "\\bMath\\.random\\s*\\("))
     description: >
       `Math.random` is a seeded PRNG whose output is predictable from a few
@@ -489,14 +497,19 @@ rules:
   - id: empty-catch
     title: "Error swallowed by an empty `catch`"
     severity: low
-    confidence: high
+    confidence: medium
     dimension: quality
     cwe: [CWE-391, CWE-703]
     controls: [NIST-800-218:PW.5]
     tags: [error-handling]
+    # Silent when the block says why (a comment inside it) or the binding is
+    # named `_...`, the lint convention for a deliberately unused error.
     query: |
-      (catch_clause body: (statement_block) @b
-        (#match? @b "^\\{\\s*(//[^\\n]*\\s*|/\\*[\\s\\S]*?\\*/\\s*)*\\}")) @hit
+      (catch_clause !parameter body: (statement_block) @b
+        (#match? @b "^\\{\\s*\\}")) @hit
+      (catch_clause parameter: (identifier) @p body: (statement_block) @b
+        (#not-match? @p "^_")
+        (#match? @b "^\\{\\s*\\}")) @hit
     unless_inside: |
       [(for_statement body: (statement_block (try_statement handler: (catch_clause) @c)))
        (for_in_statement body: (statement_block (try_statement handler: (catch_clause) @c)))
@@ -506,6 +519,8 @@ rules:
       The error is caught and dropped: no log, no rethrow, no fallback. When
       this fails in production nothing records that it did, and the caller
       carries on with whatever half-state the failed call left behind.
+      A block with a comment saying why, or an error bound as `_...`, is
+      taken as a deliberate choice and not reported.
     remediation: "Log it with context, rethrow, or return a documented fallback; if ignoring is right, say why in the block."
 
   - id: empty-catch-in-loop
@@ -607,12 +622,16 @@ rules:
           [(function_expression body: (statement_block) @b)
            (arrow_function parameters: (formal_parameters (_)) body: (statement_block) @b)]))
        (#match? @fn "^(it|test)$")
-       (#not-match? @b "(?i)\\b(expect|assert\\w*|should|verify|check|validate|snapshot|throws?|rejects|resolves|toHaveBeenCalled|fail)\\b"))
+       (#not-match? @b "(?i)\\b(expect|assert\\w*|should|verify|check|validate|snapshot|throws?|rejects|resolves|toHaveBeenCalled|fail)\\b|[(,:]\\s*done\\s*[,)}]")
+       (#not-match? @hit "(?i)(\\bnot|\\bnever|n't|\\bwithout) throw"))
     description: >
       The test body has nothing that can fail: no `expect`, `assert` or
-      `should`. It passes whatever the code does. (Arrow-function callbacks
+      `should`, and `done` is not handed to anything that could call it with
+      an error. It passes whatever the code does. (Arrow-function callbacks
       with no parameters are covered by `assurance.test-asserts-nothing`;
-      this catches `function () {}` and `(done) => {}` callbacks.)
+      this catches `function () {}` and `(done) => {}` callbacks.) A test
+      whose title says it checks that nothing throws, or that hands `done`
+      on as a callback (`{ end: done }`), is not reported.
     remediation: "Assert the behaviour, or say in a comment that not throwing is the assertion."
 
   - id: skipped-test

@@ -61,3 +61,20 @@ export class TokenStore {
     return token;
   }
 }
+
+export const MathUtils = {
+  // A scene-object label, not a secret: the object value is a function, not a draw.
+  generateUUID: function (): string {
+    return Math.floor(Math.random() * 1e9).toString(16);
+  },
+  // The same helper built by an IIFE, as three.js ships it.
+  generateObjectUUID: (function () {
+    return () => Math.floor(Math.random() * 1e9).toString(16);
+  })(),
+};
+
+export function pickValid(options: string[]): string {
+  // `valid` ends in "id" but is not an identifier.
+  const valid = options[Math.floor(Math.random() * options.length)];
+  return valid;
+}

@@ -16,6 +16,20 @@ describe("queue", () => {
     });
   });
 
+  it("drains through the callback", function (done) {
+    // `done` handed to the code under test: an error there fails the test.
+    drain([job]).then(() => done(), done);
+  });
+
+  it("routes to the handler", function (done) {
+    // The handler ends the response with `done`; a wrong route never calls it.
+    getJob("1").then((j) => ({ end: done }).end(j && undefined));
+  });
+
+  it("does not throw on an empty batch", function () {
+    drain([]);
+  });
+
   test("retries a failed job", async () => {
     await drain([job]);
     expect(job.state).toBe("done");

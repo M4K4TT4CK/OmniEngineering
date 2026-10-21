@@ -25,9 +25,7 @@ function warmCache(loader) {
 function readConfig(path) {
   try {
     return JSON.parse(require("node:fs").readFileSync(path, "utf8"));
-  } catch (e) { // expect: arbiter/typescript.empty-catch
-    // fall through
-  }
+  } catch (e) {} // expect: arbiter/typescript.empty-catch
   return {};
 }
 
