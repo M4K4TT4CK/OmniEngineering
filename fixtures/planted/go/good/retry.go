@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -97,3 +98,18 @@ func pop() (Job, error) { return Job{}, errBusy }
 func probe() error { return nil }
 
 func write(buf []byte) error { return nil }
+
+// serve is a protocol read loop (nsqlookupd's shape): a read error ends the
+// loop, a bad command is answered and skipped. Nothing here is a retry.
+func serve(r *bufio.Reader, handle func(string) error) {
+	for {
+		line, err := r.ReadString('\n')
+		if err != nil {
+			return
+		}
+		if err := handle(line); err != nil {
+			log.Printf("bad command %q: %v", line, err)
+			continue
+		}
+	}
+}

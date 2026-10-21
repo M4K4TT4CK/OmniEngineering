@@ -59,19 +59,76 @@ rules:
         body: (literal_value) @body)
         (#eq? @t "http.Client")
         (#not-match? @body "Timeout")) @hit
-    # Timeout assigned after construction, or deadlines carried by context.
+    # Timeout assigned after construction, or deadlines carried by context:
+    # a file that attaches a context to its requests (req.WithContext,
+    # http.NewRequestWithContext) is a client whose caller owns the deadline
+    # -- the Prometheus API client is this shape. So is a client handed to an
+    # SDK whose own options set the deadline (docker's client.WithTimeout,
+    # resty's SetTimeout) -- traefik's docker provider.
     unless_in_file: |
       ((assignment_statement
         left: (expression_list (selector_expression field: (field_identifier) @f)))
         (#eq? @f "Timeout"))
       ((selector_expression) @s
         (#match? @s "^context\\.(WithTimeout|WithDeadline)$"))
+      ((selector_expression field: (field_identifier) @f)
+        (#match? @f "^(WithContext|NewRequestWithContext)$"))
+      ((call_expression function: (selector_expression field: (field_identifier) @f))
+        (#match? @f "^(WithTimeout|SetTimeout|WithRequestTimeout)$"))
     description: >-
       An http.Client literal without a Timeout (and without a Transport that
       sets one) behaves like the default client: no overall deadline on a
       request. Every slow dependency call then ties up a goroutine and a
       connection for as long as the far end chooses.
     remediation: "Set Timeout on the client, or pass a context with a deadline on every request."
+
+  - id: db-call-no-deadline
+    title: "`{text}` runs a database call with no deadline or cancellation"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [timeout, reliability, database]
+    # Two shapes, both "a context was there to use and was not":
+    #   1. a ...Context method handed context.Background() / context.TODO()
+    #      literally, so the call has no deadline whatever the caller wanted;
+    #   2. a handler or ctx-taking function that calls the context-free
+    #      Query/QueryRow/Exec/Prepare/Begin on a db / tx / conn / pool,
+    #      dropping the request's cancellation (the `noctx` linter's shape).
+    # Shape 2 is limited to files that import database/sql or sqlx, to
+    # receivers named like a database handle (url.Values.Query is not one),
+    # and (below) to functions that have a context to pass.
+    query: |
+      ((call_expression
+        function: (selector_expression field: (field_identifier) @m)
+        arguments: (argument_list . (call_expression function: (selector_expression) @bg)))
+        (#match? @m "^(QueryContext|QueryRowContext|ExecContext|PrepareContext|BeginTx|PingContext|QueryxContext|QueryRowxContext|SelectContext|GetContext|NamedExecContext|NamedQueryContext|MustExecContext|BeginTxx)$")
+        (#match? @bg "^context\\.(Background|TODO)$")) @hit
+      ((call_expression
+        function: (selector_expression operand: (_) @db field: (field_identifier) @m))
+        (#match? @m "^(Query|QueryRow|Exec|Prepare|Begin|Ping|Queryx|QueryRowx|MustExec|NamedExec|NamedQuery|Beginx)$")
+        (#match? @db "(?i)(^|\\.)(db|sqldb|database|tx|conn|pool|dbx|sqlx)$")) @hit
+    requires_file: |
+      ((import_spec path: (interpreted_string_literal) @p)
+        (#match? @p "^\"(database/sql|github.com/jmoiron/sqlx|github.com/jackc/pgx/v[0-9]+/stdlib)\"$"))
+    # Both shapes need a context in reach: a function (or closure) whose own
+    # parameters carry neither *http.Request nor context.Context has nothing
+    # better to pass -- startup code in main, a CLI command -- and is left
+    # alone. A closure inside a handler counts as its own scope.
+    unless_inside: |
+      ((function_declaration parameters: (parameter_list) @p body: (block (statement_list) @skip))
+        (#not-match? @p "\\*http\\.Request|context\\.Context"))
+      ((method_declaration parameters: (parameter_list) @p body: (block (statement_list) @skip))
+        (#not-match? @p "\\*http\\.Request|context\\.Context"))
+      ((func_literal parameters: (parameter_list) @p body: (block (statement_list) @skip))
+        (#not-match? @p "\\*http\\.Request|context\\.Context"))
+    description: >-
+      The query runs with no deadline and ignores the caller's cancellation.
+      When the database is slow or a lock is held, the request that started
+      it gives up but the query keeps its connection, and under load the
+      pool drains until every handler is waiting on it.
+    remediation: "Pass the request's context (r.Context() or the ctx parameter), bounded with context.WithTimeout, to the ...Context variant of the call."
 
   # ---------------------------------------------------------------------
   # Races
@@ -249,6 +306,16 @@ rules:
         (#match? @hit "^for\\s*\\{"))
     requires_file: |
       (go_statement) @g
+    # A goroutine started straight from main lives exactly as long as the
+    # process; the example programs that tick a metric forever are that
+    # shape. The leak is a loop started from a constructor or handler.
+    unless_inside: |
+      ((function_declaration name: (identifier) @n body: (block (statement_list
+        (go_statement) @skip))) (#eq? @n "main"))
+      ((function_declaration name: (identifier) @n body: (block (statement_list (_ (_ (statement_list
+        (go_statement) @skip)))))) (#eq? @n "main"))
+      ((function_declaration name: (identifier) @n body: (block (statement_list (_ (_ (statement_list (_ (_ (statement_list
+        (go_statement) @skip))))))))) (#eq? @n "main"))
     unless_in_scope: |
       (return_statement) @x
       (break_statement) @x
@@ -283,6 +350,15 @@ rules:
           condition: (binary_expression left: (identifier) @e operator: "==" right: (nil))
           consequence: (block (statement_list [(return_statement) (break_statement)] .)))))) @hit
         (#match? @hit "^for\\s*\\{") (#match? @e "(?i)err$"))
+    # A loop that leaves on an error is a read loop, not a retry: nsqlookupd's
+    # protocol loop reads a line, breaks on a read error and `continue`s past
+    # a bad command. Retrying means the failure path stays in the loop.
+    unless_inside: |
+      ((for_statement body: (block (statement_list
+        (if_statement
+          condition: (binary_expression left: (identifier) @e operator: "!=" right: (nil))
+          consequence: (block (statement_list [(break_statement) (return_statement)] .)))))) @skip
+        (#match? @e "(?i)err$"))
     # Anything that waits between attempts: a sleep, a timer, a ticker, a
     # backoff helper, or a blocking channel receive.
     unless_in_scope: |
