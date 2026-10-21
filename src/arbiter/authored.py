@@ -107,11 +107,75 @@ _JS_IMPORT = re.compile(
     re.M,
 )
 
+# Node's built-in modules, which may be imported with or without the `node:`
+# scheme. Only the scheme was recognised, so nest's `import * as http from
+# 'http'` was an undeclared package 79 times on gold (ARB-065). This is
+# `require('module').builtinModules` for Node 22, written out so the check stays
+# offline and does not depend on which Node (if any) is installed. A subpath
+# (`fs/promises`, `stream/web`, `util/types`) belongs to its head.
+NODE_BUILTINS = frozenset({
+    "assert", "async_hooks", "buffer", "child_process", "cluster", "console",
+    "constants", "crypto", "dgram", "diagnostics_channel", "dns", "domain",
+    "events", "fs", "http", "http2", "https", "inspector", "module", "net", "os",
+    "path", "perf_hooks", "process", "punycode", "querystring", "readline",
+    "repl", "stream", "string_decoder", "sys", "timers", "tls", "trace_events",
+    "tty", "url", "util", "v8", "vm", "wasi", "worker_threads", "zlib",
+})
+
 _MANIFESTS = {
     "requirements.txt", "requirements-dev.txt", "pyproject.toml", "setup.py",
     "setup.cfg", "Pipfile", "environment.yml", "constraints.txt",
     "package.json", "package-lock.json", "yarn.lock", "pnpm-lock.yaml",
 } | _eco.MANIFESTS
+
+# Python requirement files outside the one conventional name. Celery keeps its
+# runtime dependencies in `requirements/default.txt` and its extras under
+# `requirements/extras/`, so `click` and `vine` -- declared on lines 3 and 4 --
+# were reported 88 times on gold (ARB-065). pip-tools' `requirements.in`,
+# `requirements-test.txt`, `test-requirements.txt` and `constraints-*.txt` are
+# the same thing under other spellings. A name alone cannot say that
+# `default.txt` is a requirement file; its directory can.
+_PY_REQUIREMENT_FILE = re.compile(
+    r"(?i)^(?:requirements|constraints)[\w.-]*\.(?:txt|in)$"
+    r"|^[\w.-]+[-_.]requirements\.(?:txt|in)$")
+_PY_REQUIREMENT_DIR = re.compile(r"(?i)(^|/)requirements(/|$)")
+
+
+def is_manifest_path(path: str) -> bool:
+    """True when the file at `path` is one the dependency check reads.
+
+    Path, not name: a `.txt` or `.in` file anywhere under a `requirements/`
+    directory is a requirement file whatever it is called.
+    """
+    name = path.rsplit("/", 1)[-1]
+    if name in _MANIFESTS or _PY_REQUIREMENT_FILE.match(name) or name.endswith(_eco.GEMSPEC_SUFFIX):
+        return True
+    parent = path[: -len(name)]
+    return name.lower().endswith((".txt", ".in")) and bool(_PY_REQUIREMENT_DIR.search(parent))
+
+
+# TypeScript and JavaScript path aliases: `"paths": {"@app/*": ["src/*"]}` in a
+# tsconfig makes `@app/config` a local import. Not a manifest -- it declares no
+# dependency -- but it decides whether an import is local, so it is read beside
+# the manifests and folded into the cache context with them.
+_ALIAS_CONFIG = re.compile(r"^(?:tsconfig[\w.-]*|jsconfig[\w.-]*)\.json$")
+
+
+def is_context_path(path: str) -> bool:
+    """A file whose content decides what the import check concludes elsewhere."""
+    return is_manifest_path(path) or bool(_ALIAS_CONFIG.match(path.rsplit("/", 1)[-1]))
+
+
+def _jsonc(text: str):
+    """Parse a tsconfig: JSON with comments and trailing commas. None if not."""
+    import json as _json
+    code = re.sub(r'("(?:\\.|[^"\\])*")|//[^\n]*|/\*.*?\*/',
+                  lambda m: m.group(1) or "", text, flags=re.DOTALL)
+    code = re.sub(r",(\s*[}\]])", r"\1", code)
+    try:
+        return _json.loads(code)
+    except ValueError:
+        return None
 
 # Names that look like third-party imports and are not: the repository's own
 # packages, and the conventional local-source roots.
@@ -310,13 +374,15 @@ def _declared_dependencies(ctx: ProbeContext, repo_id: str) -> tuple[set[str], b
     names: set[str] = set()
     seen_manifest = False
     for f in ctx.inventory.text_files():
-        if f.repo_id != repo_id or Path(f.path).name not in _MANIFESTS:
+        if f.repo_id != repo_id or not is_manifest_path(f.path):
             continue
         text = _read(f)
         if not text:
             continue
         seen_manifest = True
-        for m in re.finditer(r"^\s*\"?([A-Za-z0-9_.@/-]{2,})\"?\s*[:=<>~^\s\"]", text, re.M):
+        # `[` and `;` end a name too: `pytest-celery[all]>=1.3.0` and
+        # `uvloop; sys_platform != "win32"` are requirement lines (ARB-065).
+        for m in re.finditer(r"^\s*\"?([A-Za-z0-9_.@/-]{2,})\"?\s*[:=<>~^\s\"\[;]", text, re.M):
             raw = m.group(1).strip().strip('"')
             names.add(raw.lower().replace("_", "-"))
             names.add(raw.lower().split("/")[-1].replace("_", "-"))
@@ -328,6 +394,9 @@ def _declared_dependencies(ctx: ProbeContext, repo_id: str) -> tuple[set[str], b
         # undeclared (FAIL-049).
         for m in re.finditer(r"[\"']([A-Za-z0-9_.-]{2,})(?:\[[^\]]*\])?\s*(?:[<>=~!;]|[\"'])", text):
             names.add(m.group(1).lower().replace("_", "-"))
+    # A namespace distribution (`backports.zoneinfo`, `zope.interface`) is
+    # imported by its first segment.
+    names |= {n.split(".")[0] for n in names if "." in n and "/" not in n}
     return names, seen_manifest
 
 
@@ -358,6 +427,16 @@ def _workspace_packages(ctx: ProbeContext, repo_id: str) -> set[str]:
             if head and "*" not in head:
                 out.add(head.lower())
                 out.add(f"@{head.lower()}")
+    for f in ctx.inventory.text_files():
+        if f.repo_id != repo_id or not _ALIAS_CONFIG.match(Path(f.path).name):
+            continue
+        doc = _jsonc(_read(f) or "")
+        opts = doc.get("compilerOptions") if isinstance(doc, dict) else None
+        paths = opts.get("paths") if isinstance(opts, dict) else None
+        for alias in paths if isinstance(paths, dict) else ():
+            head = str(alias).split("*")[0].rstrip("/").lower()
+            if head:
+                out.add(head)
     # An organisation scope used by any local package is local for all of them,
     # in both the bare and the @-scoped spelling: a package.json named
     # "juice-shop" is the sibling that `@juice-shop/models` refers to.
@@ -454,6 +533,8 @@ def _undeclared_imports(f, text, declared, local, has_manifest,
         for spec in sorted(n for n in names if n):
             if spec.startswith((".", "/", "#", "node:")):
                 continue
+            if spec.split("/")[0] in NODE_BUILTINS:
+                continue
             pkg = "/".join(spec.split("/")[:2]) if spec.startswith("@") else spec.split("/")[0]
             low = pkg.lower()
             if low in declared or low.split("/")[-1] in declared or low in local:
@@ -475,17 +556,20 @@ def _ecosystem_facts(ctx: ProbeContext, repo_id: str, language: str) -> dict:
     whole = getattr(ctx.inventory, "whole", None) or ctx.inventory
     files = [f for f in whole.text_files() if f.repo_id == repo_id]
     wanted = _eco.MANIFESTS_OF[language]
-    manifests = [f for f in files if Path(f.path).name in wanted]
+    manifests = [f for f in files if Path(f.path).name in wanted
+                 or (language == "ruby" and f.path.endswith(_eco.GEMSPEC_SUFFIX))]
     declared: set[str] = set()
     local: set[str] = set()
+    per_module: dict[str, set[str]] = {}
     for m in manifests:
         text = _read(m) or ""
         if language == "go":
             req, own = _eco.go_declared(text)
             declared |= req
             local |= own
+            per_module[m.path.rpartition("/")[0]] = req
         elif language == "java":
-            declared |= _eco.java_declared(text)
+            declared |= _eco.java_declared(text, m.path)
         else:
             declared |= _eco.ruby_declared(text)
     if language == "java":
@@ -496,7 +580,8 @@ def _ecosystem_facts(ctx: ProbeContext, repo_id: str, language: str) -> dict:
                     local.add(pkg)
     elif language == "ruby":
         local |= _eco.ruby_local([f.path for f in files])
-    return {"declared": declared, "local": local, "has_manifest": bool(manifests)}
+    return {"declared": declared, "local": local, "has_manifest": bool(manifests),
+            "per_module": per_module}
 
 
 # A Go file excluded from every build: `//go:build ignore` (or the legacy
@@ -523,6 +608,12 @@ def _undeclared_other(f, text, facts: dict) -> list[Finding]:
     out: list[Finding] = []
     seen: set[str] = set()
     if lang == "go":
+        # Each Go module declares its own requirements; a file answers to the
+        # go.mod nearest above it, not to the union of every go.mod in the tree.
+        per_module = facts.get("per_module") or {}
+        home = _eco.nearest_manifest(f.path, list(per_module))
+        if home is not None:
+            declared = per_module[home]
         names = [(n, n) for n in _eco.go_imports(text) if not _eco.go_resolves(n, declared, local)]
     elif lang == "java":
         names = [(n, ".".join(n.split(".")[:3])) for n in _eco.java_imports(text)
@@ -842,5 +933,5 @@ def register_authored() -> None:
         # paths exist, so both are folded into the cache key. An unchanged
         # file is served from the cache only while neither has moved.
         cacheable=True,
-        cache_context=make_context_digest(_MANIFESTS),
+        cache_context=make_context_digest(is_context_path),
     ))
