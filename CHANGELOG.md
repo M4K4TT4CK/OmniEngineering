@@ -47,6 +47,23 @@ to 1.0, false-positive rate 0.043 to 0.565, score 0.003 to 0.435: weak
 randomness 218/218 with no false positive; SQL and command injection flag
 every safe case too, because the safe cases differ only by constant
 propagation.
+- ARB-065 | Shared-probe precision on the gold set (23 repositories without
+Keycloak). undeclared-import 1,647 to 79: Python requirement files in any
+layout (`requirements/*.txt`, `requirements-*.txt`, `requirements.in`, extras
+and markers), Go files resolved against their nearest go.mod (and module paths
+without a slash), bare Node built-ins, tsconfig path aliases, Java plugin ids,
+artifactId-named packages, the Gradle API in plugin builds and a documented
+table of guaranteed transitive packages (jspecify, aopalliance,
+reactive-streams, jose4j), Ruby gemspecs and renamed requires.
+assigned-credential 1,019 to 132: only literals are judged (no unquoted
+values in source code), constants holding key names, headers, URLs, hashes or
+their own name's words are skipped, as are i18n bundles and docs; under test
+paths only generated-looking values report. blanket-suppression 243 to 178:
+gosec `#nosec G115` names a rule. stub-on-production-path 309 to 48: abstract,
+base-class, hook, explained and "not supported" bodies are declarations.
+Fixture private keys stay reported, as low with a `test-fixture` tag. Keycloak:
+undeclared-import 678 to 158, assigned-credential 677 to 56. Insecure apps
+keep their true positives (planted corpus unchanged in all five languages).
 - ARB-062 | CWE Top 25 (2024) measured before any new rule: an
 applicability matrix for Python, TypeScript/JavaScript, Go, Java and Ruby
 (`docs/cwe-top25.md`), 47 new planted pairs, one per applicable cell not

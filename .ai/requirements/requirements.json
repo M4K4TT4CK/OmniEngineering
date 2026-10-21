@@ -1520,7 +1520,11 @@
         "recall per CWE on at least one labelled benchmark",
         "harness logic tested without network",
         "first measurement triaged into a prioritised list of rule fixes",
-        "java and typescript pack rules over budget on the gold set brought under budget, each fix with a planted pair and a pinned test that keeps a still-reported case, and OWASP Benchmark Java in-scope recall raised with its false-positive rate reported per CWE"
+        "java and typescript pack rules over budget on the gold set brought under budget, each fix with a planted pair and a pinned test that keeps a still-reported case, and OWASP Benchmark Java in-scope recall raised with its false-positive rate reported per CWE",
+        "shared-probe false positives found on gold fixed, each pinned by a test that also keeps a still-reported case",
+        "undeclared-import resolves Python requirement layouts, nearest go.mod, bare Node built-ins, Java plugin and transitive packages and Ruby gemspecs",
+        "assigned-credential judges only literal values and skips key-name constants, message bundles and test data that is not generated-looking",
+        "insecure corpus apps keep their true positives and the planted corpus stays fully caught"
       ],
       "validation_required": [
         "pytest",

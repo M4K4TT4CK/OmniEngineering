@@ -72,7 +72,11 @@ from .probes import ProbeContext, _line_of, _read
 # when the suppression names any. A suppression that names nothing is blanket.
 SUPPRESSION_PATTERNS: list[tuple[str, re.Pattern, int]] = [
     ("ruff/flake8", re.compile(r"#\s*noqa(?::\s*([A-Z]+[0-9]+(?:\s*,\s*[A-Z]+[0-9]+)*))?"), 1),
-    ("bandit", re.compile(r"#\s*nosec(?:\s+(B[0-9]+(?:\s*,\s*B[0-9]+)*))?"), 1),
+    # `#nosec` is bandit's in Python and gosec's in Go, where rules are G-ids
+    # and may be space-separated: `// #nosec G115 -- bounded by the check
+    # above` names a rule and was reported as a blanket bandit suppression
+    # (coredns, ARB-065). The tool label is corrected per file below.
+    ("bandit", re.compile(r"#\s*nosec(?:\s+([BG][0-9]+(?:(?:\s*,\s*|\s+)[BG][0-9]+)*))?"), 1),
     ("mypy", re.compile(r"#\s*type:\s*ignore(?:\[([a-z-]+(?:\s*,\s*[a-z-]+)*)\])?"), 1),
     ("pylint", re.compile(r"#\s*pylint:\s*disable=?\s*([\w-]+(?:\s*,\s*[\w-]+)*)?"), 1),
     ("eslint", re.compile(r"//\s*eslint-disable(?:-next-line|-line)?(?:\s+([\w@/-]+(?:\s*,\s*[\w@/-]+)*))?"), 1),
@@ -277,9 +281,10 @@ def _suppressions(ctx: ProbeContext, repo_id: str) -> list[Finding]:
         for tool, pattern, gi in SUPPRESSION_PATTERNS:
             if tool in _IAC_ONLY_SUPPRESSIONS and f.role in ("docs", "test"):
                 continue
+            label = "gosec" if tool == "bandit" and getattr(f, "language", "") == "go" else tool
             for m in pattern.finditer(text):
                 total += 1
-                per_tool[tool] += 1
+                per_tool[label] += 1
                 line_start = text.rfind("\n", 0, m.start()) + 1
                 line_end = text.find("\n", m.start())
                 line = text[line_start: line_end if line_end != -1 else len(text)]
@@ -288,7 +293,7 @@ def _suppressions(ctx: ProbeContext, repo_id: str) -> list[Finding]:
                 if not _JUSTIFIED.search(trailing) and not _JUSTIFIED.search(line[:m.start() - line_start]):
                     unjustified += 1
                 if _blanket(named):
-                    blanket.append((tool, f.path, _line_of(text, m.start()), line.strip()[:110]))
+                    blanket.append((label, f.path, _line_of(text, m.start()), line.strip()[:110]))
 
     out: list[Finding] = []
     if not total:
