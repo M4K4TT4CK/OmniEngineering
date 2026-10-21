@@ -357,11 +357,56 @@ _ASSIGNED_SECRET_BARE = re.compile(
 # A symbol whose name ends this way holds a reference to a secret, not a
 # secret: `secretName`, `access_key_status`, `tokenUrl`, `secretKeyRef`.
 _NON_SECRET_SUFFIX = re.compile(
-    r"(_(?:status|state|id|name|arn|path|file|url|uri|type|enabled|required|"
-    r"expiry|expires|rotation|algorithm|version|ref|class|provider|manager|store|hash|selector|policy|config|template|format|scope|prefix|suffix)"
+    # The underscore spelling is matched in either case: `TOKEN_URL` and
+    # `PASSWORD_FIELD` are constants named for what they hold (ARB-065).
+    r"((?i:_(?:status|state|id|name|arn|path|file|url|uri|type|enabled|required|"
+    r"expiry|expires|rotation|algorithm|version|ref|class|provider|manager|store|hash|selector|policy|config|template|format|scope|prefix|suffix|"
+    r"endpoint|header|field|param|parameter|property|attribute|attr|label|key_name|lifespan|length|size|timeout|ttl|count))"
     r"|(?:Status|State|Id|Name|Arn|Path|File|Url|Uri|Type|Enabled|Required|"
-    r"Expiry|Expires|Rotation|Algorithm|Version|Ref|Class|Provider|Manager|Store|Hash|Selector|Policy|Config|Template|Format|Scope|Prefix|Suffix))$"
+    r"Expiry|Expires|Rotation|Algorithm|Version|Ref|Class|Provider|Manager|Store|Hash|Selector|Policy|Config|Template|Format|Scope|Prefix|Suffix|"
+    r"Endpoint|Header|Field|Param|Parameter|Property|Attribute|Attr|Label|Lifespan|Length|Size|Timeout|Ttl|Count))$"
 )
+
+# Languages in which an unquoted right-hand side is never a string literal: it
+# is a variable, a call or an expression. `self.key_password = key_password`
+# (urllib3's connection.py) and `this.accessTokenLifespan = realm.get...` were
+# about 630 of 1,696 assigned-credential reports on gold (ARB-065). The bare
+# pattern exists for .env, YAML, shell, Dockerfile and properties files, where
+# values are written without quotes; in source code it only ever saw names.
+_EXPRESSION_LANGUAGES = frozenset({
+    "python", "javascript", "typescript", "go", "ruby", "java", "kotlin", "c",
+    "cpp", "csharp", "rust", "php",
+})
+
+# A quoted value that names something rather than being something. Constants
+# like `PASSWORD_KEY = "password"`, `TOKEN_HEADER = "X-Auth-Token"`,
+# `KEY_PASSWORD_KEY = "keyPassword"` and OpenTelemetry's
+# `ATTR_GEN_AI_USAGE_INPUT_TOKENS = "gen_ai.usage.input_tokens"` hold the NAME
+# of a config key, header or attribute. Three shapes, all letters only (a digit
+# anywhere and the value is judged as a credential as before):
+#   - a dotted, colon or slash path of words: `spring.security.user.password`,
+#     `gen_ai.usage.input_tokens`; `oauth2.client-secret` fails on the digit;
+#   - a Title-Case header name: `X-Auth-Token`, `Proxy-Authorization`. Plain
+#     lower-case kebab (`super-secret-key`) is how weak secrets are written,
+#     and stays reported;
+#   - a short lowerCamelCase identifier, two to four words: `keyPassword`,
+#     `accessToken`. A longer camel phrase is a passphrase, and WebGoat's
+#     `PASSWORD_TOM_9 = "somethingVeryRandomWhichNoOneWillEverTypeIn..."` is
+#     exactly that, so it is still reported.
+_KEY_NAME_VALUE = re.compile(
+    r"^(?:[A-Za-z][A-Za-z_-]*(?:[.:/][A-Za-z][A-Za-z_-]*)+"
+    r"|[A-Z][a-z]*(?:-[A-Z][a-z]*)+"
+    r"|(?=.{0,32}$)[a-z]+(?:[A-Z][a-z]+){1,3})$")
+# A URL without user-info is an endpoint (`TOKEN_URL = "https://oauth2...`).
+# Credentials embedded in a URL are the pg-url pattern's business.
+_PLAIN_URL_VALUE = re.compile(r"^[a-z][a-z0-9+.-]*://[^\s@]*$|^/[^\s]*$", re.IGNORECASE)
+
+# Java i18n message bundles: `messages.properties`, `messages_de.properties`,
+# `ValidationMessages_pt_BR.properties`, tomcat's `LocalStrings.properties`. Their keys say `emptyPassword` and
+# their values are translated text, sometimes without a space (67 on gold).
+_MESSAGE_BUNDLE = re.compile(
+    r"(^|/)(?:[\w-]*(?i:messages?|localstrings)[\w-]*|[\w-]+_[a-z]{2}(?:_[A-Z]{2}|_[A-Z][a-z]{3})?)\.properties$"
+    r"|(^|/)(?i:i18n|l10n|locales?|messages|translations?)/[^/]+\.properties$")
 
 _PLACEHOLDER = re.compile(
     r"(?i)^(|x{3,}|\*{3,}|\.{3,}|changeme|todo|none|null|test|dummy|"
@@ -487,6 +532,23 @@ _ENV_VAR_NAME = re.compile(r"^[A-Z][A-Z0-9_]{2,}$")
 # A symbol that says it holds the NAME of something (`API_KEY_ENV`,
 # `token_env_var`, `secret_name`), not the thing itself.
 _NAME_HOLDER_SUFFIX = re.compile(r"(?i)(?:_env|_env_var|_envvar|_var|_name|_key_name)$")
+# A constant whose PREFIX says it holds a name: spring-security's XML parsers
+# write `ATT_USER_PASSWORD = "password-attribute"` and
+# `ELT_ENCRYPTION_CREDENTIAL = "encryption-credential"` (ARB-065).
+_NAME_HOLDER_PREFIX = re.compile(
+    r"^(?:ATTR?|ELT|ELEM|ELEMENT|PARAM|HEADER|PROP|PROPERTY|FIELD|COL|COLUMN|CLAIM|OPT|OPTION)_")
+# A password HASH is the safe way to store one; a test of the encoder holds
+# many. bcrypt/argon2/crypt(3) modular format, and Spring's `{id}` prefix for
+# a hashing encoder (not `{noop}`, which is plaintext).
+_PASSWORD_HASH = re.compile(
+    r"^\$(?:2[abxy]?|argon2(?:id|i|d)|pbkdf2[\w-]*|scrypt|[1356])\$"
+    r"|^\{(?:bcrypt|ssha|sha(?:-?\d+)?|md[45]|ldap|pbkdf2|scrypt|argon2|sha256)\}", re.IGNORECASE)
+
+
+def _words(s: str) -> set[str]:
+    """Lower-case words of an identifier or value: camelCase and separators split."""
+    spaced = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", s)
+    return {w for w in re.split(r"[^A-Za-z0-9]+", spaced.lower()) if w}
 
 
 def _credential_finding(f, text: str, offset: int, name: str, value: str,
@@ -506,14 +568,30 @@ def _credential_finding(f, text: str, offset: int, name: str, value: str,
     # scan). An upper-case identifier with underscores has two character
     # classes and enough entropy to pass the gates below, so it is excluded by
     # shape, and so is a symbol whose suffix says it holds a name, not a value.
-    if _ENV_VAR_NAME.match(val_s) or _NAME_HOLDER_SUFFIX.search(name):
+    if _ENV_VAR_NAME.match(val_s) or _NAME_HOLDER_SUFFIX.search(name) \
+            or _NAME_HOLDER_PREFIX.match(name):
+        return None
+    if _PASSWORD_HASH.match(val_s):
+        return None
+    # `"CredentialsNonExpired=").append(this.credentialsNonExpired).append(";"`:
+    # the "value" is the code between two string literals.
+    if quoted and (val_s[0] in ")+,;" or ").append(" in val_s or '" +' in val_s):
         return None
     # `access_key_status = "Inactive"` and `secretName: tls-cert` hold a status
     # and a reference. The keyword matched; the suffix says what it holds.
     if _NON_SECRET_SUFFIX.search(name):
         return None
-    # `secret_key = "secret_key"` — a literal echoing its own symbol.
+    if quoted and (_KEY_NAME_VALUE.match(val_s) or _PLAIN_URL_VALUE.match(val_s)):
+        return None
+    # `secret_key = "secret_key"` — a literal echoing its own symbol. Echoing
+    # part of it counts too: `ELT_ENCRYPTION_CREDENTIAL = "encryption-credential"`
+    # and `INVALID_ID_TOKEN_ERROR_CODE = "invalid_id_token"` name an XML element
+    # and an error code (spring-security, ARB-065). A value with a word of its
+    # own (`JWT_SECRET = "super-secret-key"`) is still judged below.
     if re.sub(r"[^a-z0-9]", "", val_s.lower()) == re.sub(r"[^a-z0-9]", "", name.lower()):
+        return None
+    value_words = _words(val_s)
+    if value_words and value_words <= _words(name):
         return None
     # Real credentials do not contain spaces. Values that do are example
     # passphrases ("keyboard cat") or prose, and were the largest source of
@@ -548,6 +626,15 @@ def _credential_finding(f, text: str, offset: int, name: str, value: str,
     # whitespace, placeholder and character-class filters do the discriminating.
     ent = _entropy(val_s)
     if ent < 2.6 or classes < 2:
+        return None
+    # Under a test or fixture path a credential-named literal is test data by
+    # design: `password="some-gibbberish"`, `token="test-token"` -- about 600 of
+    # the gold reports. Only a value that looks generated is reported there:
+    # three character classes and the entropy of a real password, or a long
+    # high-entropy blob (juice-shop's hex wallet keys in checkKeys.test.ts). A
+    # live key pasted into a test is still caught; `admin123` is not.
+    generated = (classes >= 3 and ent >= 3.3) or (len(val_s) >= 32 and ent >= 3.5)
+    if test_material and not generated:
         return None
     strong = ent >= 4.2 and classes >= 3 and not test_material
     where = "unquoted " if not quoted else ""
@@ -616,12 +703,18 @@ def probe_secrets(ctx: ProbeContext) -> list[Finding]:
                     controls=["NIST-800-53r5:IA-5", "NIST-800-53r5:SC-28"],
                     tags=["secret"],
                 ))
+        # The name heuristic is for code and configuration. In documentation
+        # (`docs/`, `.adoc`, release notes) a credential-named assignment is an
+        # illustration; the provider-token patterns above still run there.
+        if _MESSAGE_BUNDLE.search(f.path) or f.role == "docs":
+            continue
         for m in _ASSIGNED_SECRET.finditer(text):
             found = _credential_finding(f, text, m.start(), m.group(1), m.group(3),
                                         test_material, quoted=True)
             if found:
                 out.append(found)
-        for m in _ASSIGNED_SECRET_BARE.finditer(text):
+        for m in ([] if f.language in _EXPRESSION_LANGUAGES
+                  else _ASSIGNED_SECRET_BARE.finditer(text)):
             found = _credential_finding(f, text, m.start(1), m.group(1), m.group(2),
                                         test_material, quoted=False)
             if found:
