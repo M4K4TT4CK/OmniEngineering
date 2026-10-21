@@ -162,6 +162,21 @@ def parse_file(path: str, language: str):
         return None
 
 
+def compile_query(ts_lang: str, query_src: str) -> None:
+    """Compile `query_src` against grammar `ts_lang` (a tree-sitter name, e.g.
+    "tsx"), raising ValueError with tree-sitter's reason when it does not.
+    Callers check `cached_grammars()` first: this never downloads one."""
+    lang = _language(ts_lang)
+    try:
+        import tree_sitter as _ts
+        if hasattr(_ts, "Query") and not hasattr(lang, "query"):
+            _ts.Query(lang, query_src)
+        else:
+            lang.query(query_src)
+    except Exception as exc:
+        raise ValueError(" ".join(str(exc).split()) or type(exc).__name__) from exc
+
+
 def run_query(language: str, query_src: str, tree_and_src) -> list[dict]:
     """Run a tree-sitter query. Returns one dict per capture."""
     ts = ts_name(language)
