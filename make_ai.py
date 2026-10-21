@@ -6155,7 +6155,7 @@ def graph_rebuild_if_stale_note(graph_file: Path | None = None) -> str | None:
         graph, semantic_info = omni_graph.build_graph(root, ["auto"], semantic=False, layers=set(omni_graph.LAYERS), max_commits=None)
         write_json(graph_file, graph.to_json(str(root), ["auto"], semantic_info))
         findings = (graph.layer_stats.get(omni_graph.LAYER_ASSURANCE) or {}).get("findings", 0)
-        return f"graph: rebuilt {graph_file} ({reason}; {len(graph.nodes)} nodes, {findings} finding(s))"
+        return f"graph: rebuilt {graph_file.as_posix()} ({reason}; {len(graph.nodes)} nodes, {findings} finding(s))"
     except Exception as exc:  # noqa: BLE001 -- advisory only
         return f"graph: not rebuilt ({type(exc).__name__}: {str(exc).splitlines()[0][:120] if str(exc) else 'no detail'}); run ./omni graph build"
 
