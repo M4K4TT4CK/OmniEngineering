@@ -51,8 +51,12 @@ module Jobs
     end
 
     post "/eval" do
+      json result: eval(params[:expr]) # expect: arbiter/ruby.code-injection, arbiter/ruby.dynamic-eval
+    end
+
+    post "/calc" do
       expr = JSON.parse(request.body.read)["expr"]
-      json result: eval(expr) # expect: arbiter/ruby.code-injection
+      json result: eval(expr) # expect: arbiter/ruby.dynamic-eval
     end
 
     get "/logs" do

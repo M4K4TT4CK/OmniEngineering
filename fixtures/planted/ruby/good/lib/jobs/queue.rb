@@ -3,6 +3,10 @@
 require "json"
 require "logger"
 require "concurrent-ruby"
+begin
+  require "oj" # faster JSON when available; the stdlib parser is the fallback
+rescue LoadError
+end
 
 module Jobs
   # In-process job queue: HTTP handlers enqueue, a pool of worker threads runs.
@@ -43,6 +47,13 @@ module Jobs
       @stopping = true
       @workers.times { @queue << STOP }
       @threads.each(&:join)
+    rescue Exception => e
+      @threads.each { |t| t.raise(e) if t.alive? }
+      raise
+    end
+
+    def renice(pid)
+      system("renice -n 5 -p #{pid.to_i}")
     end
 
     def processed

@@ -66,5 +66,11 @@ module Jobs
       warn("cancel #{id}: #{e.message}")
       false
     end
+
+    def close
+      @conn&.close
+    rescue IOError
+      # already closed: a named failure, deliberately ignored
+    end
   end
 end

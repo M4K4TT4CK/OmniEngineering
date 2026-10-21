@@ -81,9 +81,11 @@ rules:
          condition: (call receiver: (_) @b)
          consequence: (then . (binary left: (_) @a)))
         @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
-      ; `CACHE[k] ||= compute(k)` on a constant, class or instance variable
+      ; `CACHE[k] ||= compute(k)` on a module-level constant. The same on an
+      ; instance variable (`@routes[verb] ||= []`) is nearly always class-body
+      ; setup or request-scoped memoisation, so it is not reported.
       (operator_assignment
-        left: (element_reference object: [(constant) (instance_variable) (class_variable)])
+        left: (element_reference object: (constant))
         "||=") @hit
     unless_inside: |
       (call method: (identifier) @m
@@ -277,9 +279,23 @@ rules:
     controls: [NIST-800-218:PW.5]
     tags: [error-handling]
     query: |
-      (rescue !body) @hit
-      ((rescue body: (then . (nil)) @b) @hit (#match? @b "^\\s*nil(\\s*#[^\\n]*)?\\s*$"))
-      (rescue_modifier handler: (nil)) @hit
+      ; bare `rescue`, `rescue => e`
+      (rescue !exceptions !body) @hit
+      ((rescue !exceptions body: (then . (nil)) @b) @hit (#match? @b "^\\s*nil(\\s*#[^\\n]*)?\\s*$"))
+      ; `rescue StandardError`, `rescue Exception`, `rescue RuntimeError`: a class so
+      ; broad that nothing specific was decided. A named class (`rescue LoadError`,
+      ; `rescue Errno::ESRCH`) left empty is a decision about that failure and is not reported.
+      ((rescue exceptions: (exceptions . (constant) @c .) !body) @hit
+        (#match? @c "^(StandardError|Exception|RuntimeError)$"))
+      ((rescue exceptions: (exceptions . (constant) @c .) body: (then . (nil)) @b) @hit
+        (#match? @c "^(StandardError|Exception|RuntimeError)$") (#match? @b "^\\s*nil(\\s*#[^\\n]*)?\\s*$"))
+    unless_inside: |
+      ; `post_was = begin handle(req.POST) rescue StandardError; nil end`: a
+      ; `nil` written as the value of an assigned begin is the fallback the
+      ; caller then tests (rack-protection escaped_params.rb). An empty body
+      ; there, and `x = foo rescue nil`, are still reported.
+      (assignment right: (begin (rescue body: (then . (nil) .)) @fallback))
+      (operator_assignment right: (begin (rescue body: (then . (nil) .)) @fallback))
     description: >-
       The rescue body is empty or `nil`, so the failure is dropped with no
       log, no metric and no re-raise. The caller sees `nil` where it expected
@@ -300,9 +316,13 @@ rules:
       (rescue exceptions: (exceptions (constant) @c (#eq? @c "Exception"))) @hit
       (rescue exceptions: (exceptions (scope_resolution) @c (#eq? @c "::Exception"))) @hit
     unless_inside: |
-      ; a handler that re-raises is deliberately observing, not swallowing
-      (rescue body: (then (identifier) @r (#eq? @r "raise"))) @reraise
-      (rescue body: (then (call method: (identifier) @r (#eq? @r "raise")))) @reraise
+      ; a handler that re-raises (even from inside a block) is observing, not swallowing
+      ((rescue body: (then) @b) @reraise (#match? @b "\\braise\\b"))
+      ; a Rack middleware's `call(env)` is the request boundary: it turns every
+      ; failure into an error response (sinatra show_exceptions.rb). Interrupt
+      ; and SystemExit are delivered to the main thread, not the request.
+      ((method name: (identifier) @n parameters: (method_parameters . (identifier) @p .)) @boundary
+        (#match? @n "^call!?$") (#eq? @p "env"))
     description: >-
       Exception is the root of Interrupt, SignalException, SystemExit and
       NoMemoryError. Rescuing it makes Ctrl-C and `exit` no-ops inside this
@@ -356,19 +376,24 @@ rules:
     controls: [NIST-800-218:PW.5, NIST-800-53r5:SI-10]
     tags: [injection, shell]
     query: |
-      ; `ls #{dir}` and %x(...)
+      ; `ls #{dir}` and %x(...). An interpolation of a pid or an `.to_i` is not
+      ; injectable; the hit needs at least one other interpolation, so
+      ; `cp #{name} bak#{Time.now.to_i}` is still reported (railsgoat benefits.rb).
       ((subshell (interpolation)) @hit
-        (#not-match? @hit "Shellwords|shellescape|shelljoin|\\.escape\\("))
+        (#not-match? @hit "Shellwords|shellescape|shelljoin|\\.escape\\(")
+        (#match? @hit "#\\{(?![^}]*(\\.to_i|\\bpid)\\s*\\})"))
       ; system("ls #{dir}") / exec / spawn: one string goes through /bin/sh
       ((call !receiver method: (identifier) @m (#match? @m "^(system|exec|spawn)$")
          arguments: (argument_list . (string (interpolation)) (pair)* .))
-        @hit (#not-match? @hit "Shellwords|shellescape|shelljoin|\\.escape\\("))
+        @hit (#not-match? @hit "Shellwords|shellescape|shelljoin|\\.escape\\(")
+        (#match? @hit "#\\{(?![^}]*(\\.to_i|\\bpid)\\s*\\})"))
       ; Open3.capture2("ls #{dir}"), IO.popen("..."), Kernel.system, Process.spawn
       ((call receiver: (constant) @r method: (identifier) @m
          (#match? @r "^(Open3|IO|Kernel|Process)$")
          (#match? @m "^(capture2|capture2e|capture3|popen|popen2|popen2e|popen3|pipeline|pipeline_r|pipeline_w|system|spawn|exec)$")
          arguments: (argument_list . (string (interpolation)) (pair)* .))
-        @hit (#not-match? @hit "Shellwords|shellescape|shelljoin|\\.escape\\("))
+        @hit (#not-match? @hit "Shellwords|shellescape|shelljoin|\\.escape\\(")
+        (#match? @hit "#\\{(?![^}]*(\\.to_i|\\bpid)\\s*\\})"))
     description: >-
       A single command string with `#{}` in it is handed to /bin/sh, which
       interprets `;`, `|`, `$()` and backticks in the interpolated value.
@@ -387,14 +412,9 @@ rules:
     controls: [NIST-800-218:PW.5, NIST-800-53r5:SI-10]
     tags: [injection, eval]
     query: |
-      ; eval(code) with anything but a literal
-      (call !receiver method: (identifier) @m (#eq? @m "eval")
-        arguments: (argument_list . [(identifier) (instance_variable) (element_reference) (call) (string (interpolation))])) @hit
-      (call receiver: (constant) @r method: (identifier) @m (#eq? @r "Kernel") (#eq? @m "eval")
-        arguments: (argument_list . [(identifier) (instance_variable) (element_reference) (call) (string (interpolation))])) @hit
-      ; send(params[:action]), instance_eval(params[:code]), const_get(params[:type])
+      ; eval(params[:expr]), send(params[:action]), instance_eval(params[:code]), const_get(params[:type])
       ((call method: (identifier) @m
-         (#match? @m "^(send|public_send|__send__|instance_eval|class_eval|module_eval|instance_variable_get|instance_variable_set|const_get|define_method|method)$")
+         (#match? @m "^(eval|send|public_send|__send__|instance_eval|class_eval|module_eval|instance_variable_get|instance_variable_set|const_get|define_method|method)$")
          arguments: (argument_list) @a)
         @hit (#match? @a "\\bparams\\b|\\brequest\\.|\\bcookies\\b"))
       ; params[:klass].constantize, "Jobs::#{params[:type]}".constantize
@@ -410,6 +430,29 @@ rules:
       Dispatch through an explicit allow-list (`HANDLERS.fetch(name)`,
       `%w[asc desc].include?(dir)`); never eval or send a value you did not
       write yourself.
+
+  - id: dynamic-eval
+    title: "`{text}` runs a string as code"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-95]
+    controls: [NIST-800-218:PW.5]
+    tags: [injection, eval]
+    query: |
+      ; eval(code) with anything but a literal; request-sourced strings are code-injection
+      (call !receiver method: (identifier) @m (#eq? @m "eval")
+        arguments: (argument_list . [(identifier) (instance_variable) (element_reference) (call) (string (interpolation))])) @hit
+      (call receiver: (constant) @r method: (identifier) @m (#eq? @r "Kernel") (#eq? @m "eval")
+        arguments: (argument_list . [(identifier) (instance_variable) (element_reference) (call) (string (interpolation))])) @hit
+    description: >-
+      Whatever the string holds runs with the caller's privileges. Reading it
+      from a file or building it at runtime is a code-loading mechanism
+      (Rack::Builder does this for config.ru); if any part of it can be
+      influenced from outside the process, it is remote code execution.
+    remediation: >-
+      Prefer `load`/`require` for files, `public_send` through an allow-list
+      for dispatch, and a parser for expressions.
 
   # --- Deserialization -------------------------------------------------------
   - id: marshal-load
@@ -438,7 +481,7 @@ rules:
       ((call receiver: (constant) @r method: (identifier) @m
          (#match? @r "^(YAML|Psych)$")
          (#match? @m "^(load|load_file|load_stream|unsafe_load|unsafe_load_file)$"))
-        @hit (#not-match? @hit "permitted_classes|safe"))
+        @hit (#not-match? @hit "permitted_classes|\\.safe_load"))
       ((call receiver: (constant) @r method: (identifier) @m (#eq? @r "Oj") (#eq? @m "load"))
         @hit (#not-match? @hit "mode:\\s*:(strict|null|compat|json|rails|wab)"))
     description: >-
@@ -500,6 +543,11 @@ rules:
       ((call method: (identifier) @m (#match? @m "^(it|specify|example|scenario)$")
          block: (block) @b)
         @hit (#not-match? @b "\\bexpect\\s*[({]|\\bexpect_any_instance_of\\b|\\bis_expected\\b|\\bshould\\b|\\bassert|\\.to\\b|\\.not_to\\b|\\.to_not\\b|\\bverify|raise_error|aggregate_failures|\\bpending\\b|\\bskip\\b|\\bflunk\\b|\\bfail\\b"))
+    unless_inside: |
+      ((call method: (identifier) @m (#match? @m "^(it|specify|example|scenario)$")
+         block: (do_block body: (body_statement (call !receiver method: (identifier) @h) .)))
+        @delegated
+        (#not-match? @h "^(get|post|put|patch|delete|head|options|visit|click|fill_in|sleep|puts|p|pp|print|run|call|subject|described_class|send|request|follow_redirect!)$"))
     description: >-
       The example body contains no `expect`, `should`, `assert` or
       `is_expected`, so it passes whatever the code does, and counts toward
@@ -537,6 +585,9 @@ rules:
       (if_modifier) @cond
       (unless_modifier) @cond
       (conditional) @cond
+      (case) @cond
+      ; `rescue LoadError => e; skip e.message` is conditional on the failure
+      (rescue) @cond
     description: >-
       An unconditionally skipped or pending example passes forever and
       protects nothing. A skip with a condition (a platform, a missing

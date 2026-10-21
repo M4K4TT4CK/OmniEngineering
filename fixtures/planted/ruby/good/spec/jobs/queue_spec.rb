@@ -32,4 +32,23 @@ RSpec.describe Jobs::Queue do
   end
 
   it { is_expected.to respond_to(:enqueue) }
+
+  it "records the claim" do
+    queue.enqueue("c", "{}")
+    queue.claim("c")
+    expect_state "c", "running"
+  end
+
+  it "parses with the native encoder" do
+    begin
+      require "oj"
+    rescue LoadError => e
+      skip "oj not installed: #{e.message}"
+    end
+    expect(queue.process("{}")).to eq({})
+  end
+
+  def expect_state(id, state)
+    expect(Jobs::Queue::JOBS[id]["state"]).to eq(state)
+  end
 end

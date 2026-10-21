@@ -47,7 +47,7 @@ module Jobs
 
     def cancel(id)
       connection.delete("/jobs/#{id}")
-    rescue Faraday::Error # expect: arbiter/ruby.swallowed-error
+    rescue StandardError # expect: arbiter/ruby.swallowed-error
       nil
     end
   end
