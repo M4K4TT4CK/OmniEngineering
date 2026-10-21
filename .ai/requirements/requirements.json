@@ -1519,7 +1519,8 @@
         "findings per KLOC per rule with budgets from a data file and a non-zero exit on breach",
         "recall per CWE on at least one labelled benchmark",
         "harness logic tested without network",
-        "first measurement triaged into a prioritised list of rule fixes"
+        "first measurement triaged into a prioritised list of rule fixes",
+        "Python and Ruby pack fixes from the triage measured before and after on the gold repositories, the earlier clean corpora and OWASP Benchmark Python, each pinned by a planted pair and a test that keeps a still-reported case"
       ],
       "validation_required": [
         "pytest",

@@ -359,12 +359,9 @@ def test_safe_load_and_strict_oj_are_silent(tmp_path):
 
 def test_abstract_method_idiom_is_not_a_stub(tmp_path):
     code = '''
-    class Base
+    class Worker
       def call
         raise NotImplementedError, "#{self.class} must implement #call"
-      end
-      def pending
-        raise NotImplementedError
       end
       def flag
         nil # TODO: wire up
@@ -372,9 +369,14 @@ def test_abstract_method_idiom_is_not_a_stub(tmp_path):
       def ok
         nil
       end
+      def pending
+        raise NotImplementedError
+      end
     end
     '''
-    assert _rules(tmp_path, code)["stub-method"] == [7, 10]
+    # `call` and `pending` both raise NotImplementedError: the class is an
+    # interface (gold benchmark, ARB-065). The TODO stub is still reported.
+    assert _rules(tmp_path, code)["stub-method"] == [7]
 
 
 def test_spec_rules_run_only_on_spec_files(tmp_path):
@@ -672,3 +674,187 @@ def test_expectation_in_a_group_after_hook_covers_its_examples(tmp_path):
     end
     '''
     assert _rules(tmp_path, code, "spec/conn_spec.rb")["vacuous-spec"] == [17]
+
+
+# --- gold benchmark: Rails, RubyGems, Puma (ARB-065) ------------------------
+
+def test_abstract_interfaces_and_unsupported_features_are_not_stubs(tmp_path):
+    # ActiveStorage::Service and DatabaseConfig declare many bare raises;
+    # StatementPool#dealloc is a private hook; AbstractRenderer#render; and
+    # the schema statements say an adapter lacks a feature.
+    code = '''
+    class Service
+      def upload(key, io)
+        raise NotImplementedError
+      end
+      def download(key)
+        raise NotImplementedError
+      end
+      def flag
+        nil # TODO: wire up
+      end
+    end
+    class StatementPool
+      def clear
+        cache.clear
+      end
+      private
+        def dealloc(stmt)
+          raise NotImplementedError
+        end
+    end
+    class AbstractRenderer
+      def render
+        raise NotImplementedError
+      end
+    end
+    class Adapter
+      def rename_table(a, b)
+        raise NotImplementedError, "rename_table is not implemented"
+      end
+      def later
+        raise NotImplementedError, "not yet implemented"
+      end
+    end
+    class Store
+      def purge
+        raise NotImplementedError
+      end
+    end
+    '''
+    # the TODO beside the interface, "not yet implemented", and the lone stub
+    assert _rules(tmp_path, code)["stub-method"] == [10, 32, 37]
+
+
+def test_bundler_assertion_helpers_and_no_raise_examples_are_not_vacuous(tmp_path):
+    # rubygems spec/commands/platform_spec.rb:592, install_spec.rb:781,
+    # resolver/platform_spec.rb:115, newgem_options_spec.rb:291
+    code = '''
+    RSpec.describe "bundle" do
+      it "fails when ruby version doesn't match" do
+        bundle :update, all: true, raise_on_error: false
+        should_be_ruby_version_incorrect
+      end
+      it "doesn't blow up when the config is empty" do
+        FileUtils.touch(bundled_app(".bundle/config"))
+        bundle :install
+      end
+      it "installs" do
+        install_gemfile <<-G
+          gem "foo"
+        G
+      end
+      it "generates a skeleton" do
+        gem_skeleton_assertions
+      end
+      it "reports the push" do
+        mock_confirm_message "Pushed"
+        Rake.application["release"].invoke
+      end
+      it "allows a platform" do
+        subject.gem("foo", platform: :ruby)
+      end
+    end
+    '''
+    assert _rules(tmp_path, code, "spec/bundle_spec.rb")["vacuous-spec"] == [23]
+
+
+def test_concurrent_map_env_and_thread_local_memoisation_are_not_races(tmp_path):
+    # activerecord sqlite3/quoting.rb:46, notifications/fanout.rb:385, puma server.rb:138
+    code = '''
+    module Quoting
+      QUOTED_COLUMN_NAMES = Concurrent::Map.new
+      PLAIN = {}
+      module ClassMethods
+        def quote_column_name(name)
+          QUOTED_COLUMN_NAMES[name] ||= name.to_s.freeze
+        end
+        def plain(name)
+          PLAIN[name] ||= name.to_s
+        end
+      end
+      def boot
+        ENV["RACK_ENV"] ||= "development"
+        IsolatedExecutionState[:stack] ||= []
+        @io.flush unless @io.sync
+        @hooks.each(&:call) unless @hooks.empty?
+        @remotes.unshift(uri) unless @remotes.include?(uri)
+      end
+    end
+    '''
+    assert _rules(tmp_path, code)["check-then-act-unlocked"] == [10, 18]
+
+
+def test_sql_interpolation_escaped_by_the_driver_is_silent(tmp_path):
+    # actioncable subscription_adapter/postgresql.rb:22
+    code = '''
+    def notify(pg_conn, channel, payload, n)
+      pg_conn.exec("NOTIFY #{pg_conn.escape_identifier(channel)}, '#{pg_conn.escape_string(payload)}'")
+      pg_conn.exec("LISTEN #{pg_conn.escape_identifier channel}")
+      pg_conn.exec("SELECT * FROM t LIMIT #{n.to_i}")
+      pg_conn.exec("NOTIFY #{pg_conn.escape_identifier(channel)}, '#{payload}'")
+    end
+    '''
+    assert _rules(tmp_path, code)["sql-injection"] == [6]
+
+
+def test_rescue_exception_handed_to_an_error_reporter_is_silent(tmp_path):
+    # puma response.rb:104 / server.rb:439, fanout.rb:32, bundler worker.rb:72
+    code = '''
+    class Server
+      def handle(env)
+        app.call(env)
+      rescue Exception => error
+        @log_writer.unknown_error error, nil, "Rack app"
+      end
+      def each_subscriber
+        subs.each do |s|
+          s.call
+        rescue Exception => e
+          exceptions << e
+        end
+      end
+      def apply(obj)
+        @func.call(obj)
+      rescue Exception => e
+        WrappedException.new(e)
+      end
+      def hook
+        run_hook
+      rescue Exception => e # rubocop:disable Lint/RescueException
+        STDERR.puts e.message
+      end
+      def pool
+        work
+      rescue Exception => e
+        STDERR.puts "Error reached top of thread-pool: #{e.message}"
+      end
+    end
+    '''
+    assert _rules(tmp_path, code)["rescue-exception"] == [27]
+
+
+def test_empty_rescue_with_a_reason_or_a_kept_error_is_not_swallowed(tmp_path):
+    # activerecord reflection.rb:460, parallelization/worker.rb:26
+    code = '''
+    def load(name)
+      begin
+        compute_class(name)
+      rescue
+        # Ignored: the constant may not exist yet
+      end
+      begin
+        after_fork
+      rescue => @setup_exception; end
+      begin
+        flush
+      rescue StandardError
+        # TODO: handle this
+      end
+      begin
+        close
+      rescue StandardError
+      end
+    end
+    '''
+    assert _rules(tmp_path, code)["swallowed-error"] == [13, 18]
