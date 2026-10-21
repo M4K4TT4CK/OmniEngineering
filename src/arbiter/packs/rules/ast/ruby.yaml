@@ -1,7 +1,495 @@
 # Ruby rules. Owner: the Ruby agent. Schema: src/arbiter/lang_rules.py.
+#
+# Query notes (tree-sitter-ruby, py-tree-sitter 0.26):
+# * Predicates belong to the top-level pattern they sit in, so two shapes that
+#   need different `#match?` tests are written as two top-level patterns, never
+#   as branches of one `[...]` alternation sharing a capture name.
+# * A wildcard with children, `(_ (break))`, matches every node here, so every
+#   nesting level is spelled out with its real node type.
+# * Ruby's tree-sitter node for `x.y = z` is an `assignment` whose `left` is a
+#   `call`; `#{}` is `(string (interpolation))`; backticks are `subshell`.
 pack: ruby
 languages: [ruby]
 rules:
+  # --- Concurrency -----------------------------------------------------------
+  - id: check-then-act-unlocked
+    title: "Check-then-act on a shared collection with no lock: `{text}`"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-362, CWE-366]
+    controls: [NIST-800-218:PW.5]
+    tags: [concurrency, race]
+    requires_file: |
+      (call receiver: (constant) @c method: (identifier) @m
+        (#eq? @c "Thread") (#match? @m "^(new|start|fork)$")) @threads
+      (scope_resolution scope: (constant) @c (#eq? @c "Concurrent")) @threads
+      (call receiver: (constant) @c method: (identifier) @m
+        (#match? @c "^(Queue|SizedQueue|Mutex|Monitor)$") (#eq? @m "new")) @threads
+      (scope_resolution scope: (constant) @c name: (constant) @n
+        (#eq? @c "Thread") (#match? @n "^(Queue|SizedQueue|Mutex)$")) @threads
+    query: |
+      ; `@jobs[id] = "running" if @jobs[id] == "queued"`
+      ((if_modifier
+         body: (assignment left: (element_reference object: (_) @a))
+         condition: (binary left: (element_reference object: (_) @b)))
+        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
+      ; `@jobs[id] = job unless @jobs[id]` / `... if @jobs[id].nil?`
+      ((unless_modifier
+         body: (assignment left: (element_reference object: (_) @a))
+         condition: (element_reference object: (_) @b))
+        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
+      ((if_modifier
+         body: (assignment left: (element_reference object: (_) @a))
+         condition: (call receiver: (element_reference object: (_) @b)))
+        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
+      ; `@tasks.shift unless @tasks.empty?` / `@seen << k unless @seen.include?(k)`
+      ((unless_modifier
+         body: (call receiver: (_) @a)
+         condition: (call receiver: (_) @b))
+        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
+      ((unless_modifier
+         body: (binary left: (_) @a)
+         condition: (call receiver: (_) @b))
+        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
+      ((if_modifier
+         body: (call receiver: (_) @a)
+         condition: (call receiver: (_) @b))
+        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
+      ; the same shapes as block `if`/`unless`
+      ((if
+         condition: (binary left: (element_reference object: (_) @b))
+         consequence: (then . (assignment left: (element_reference object: (_) @a))))
+        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
+      ((if
+         condition: (call receiver: (element_reference object: (_) @b))
+         consequence: (then . (assignment left: (element_reference object: (_) @a))))
+        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
+      ((unless
+         condition: (element_reference object: (_) @b)
+         consequence: (then . (assignment left: (element_reference object: (_) @a))))
+        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
+      ((if
+         condition: (call receiver: (_) @b)
+         consequence: (then . (call receiver: (_) @a)))
+        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
+      ((unless
+         condition: (call receiver: (_) @b)
+         consequence: (then . (call receiver: (_) @a)))
+        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
+      ((unless
+         condition: (call receiver: (_) @b)
+         consequence: (then . (binary left: (_) @a)))
+        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
+      ; `CACHE[k] ||= compute(k)` on a module-level constant. The same on an
+      ; instance variable (`@routes[verb] ||= []`) is nearly always class-body
+      ; setup or request-scoped memoisation, so it is not reported.
+      (operator_assignment
+        left: (element_reference object: (constant))
+        "||=") @hit
+    unless_inside: |
+      (call method: (identifier) @m
+        (#match? @m "^(synchronize|mon_synchronize|with_lock|with_write_lock|with_read_lock)$")
+        block: [(do_block) (block)]) @lock
+    description: >-
+      The collection is read and then changed as two steps, in a file that
+      runs threads, with no Mutex#synchronize around them. Two threads can
+      both see "queued" and both start the job, or both see a missing key and
+      both compute it; the single-threaded test passes.
+    remediation: >-
+      Wrap the check and the change in one `@mutex.synchronize do ... end`,
+      or use a structure that does it atomically (Thread::Queue#pop,
+      Concurrent::Map#compute_if_absent, Hash#delete with a check on the
+      return).
+
+  - id: unsynchronised-counter
+    title: "`{text}` on a shared counter with no lock in a threaded file"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-362, CWE-366]
+    controls: [NIST-800-218:PW.5]
+    tags: [concurrency, race]
+    requires_file: |
+      (call receiver: (constant) @c method: (identifier) @m
+        (#eq? @c "Thread") (#match? @m "^(new|start|fork)$")) @threads
+      (scope_resolution scope: (constant) @c name: (constant) @n
+        (#eq? @c "Concurrent") (#match? @n "^(FixedThreadPool|CachedThreadPool|ThreadPoolExecutor|Future|Promise|TimerTask)$")) @threads
+    query: |
+      (operator_assignment
+        left: [(instance_variable) (class_variable)]
+        ["+=" "-="]) @hit
+    unless_inside: |
+      (call method: (identifier) @m
+        (#match? @m "^(synchronize|mon_synchronize|with_lock|with_write_lock|with_read_lock)$")
+        block: [(do_block) (block)]) @lock
+    description: >-
+      `+=` on an instance or class variable is a read, an add and a write;
+      with the GVL released between them (any I/O, any allocation) two
+      threads lose updates. The file starts threads, and nothing synchronizes
+      the counter.
+    remediation: >-
+      Hold a Mutex around the update, or use Concurrent::AtomicFixnum#increment.
+
+  - id: endless-worker-loop
+    title: "Thread runs `{text}` with no stop signal"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-835]
+    controls: [NIST-800-218:PW.5]
+    tags: [concurrency, shutdown]
+    query: |
+      ; Thread.new do loop do ... end end   (either block style, either loop form)
+      ((call receiver: (constant) @t method: (identifier) @n (#eq? @t "Thread") (#match? @n "^(new|start|fork)$")
+         block: (do_block body: (body_statement .
+           (call method: (identifier) @l (#eq? @l "loop") block: (do_block) @body) @hit)))
+        (#not-match? @body "\\b(break|return|exit|throw|stop|shut|running|done|quit|terminat|kill|abort)"))
+      ((call receiver: (constant) @t method: (identifier) @n (#eq? @t "Thread") (#match? @n "^(new|start|fork)$")
+         block: (do_block body: (body_statement .
+           (call method: (identifier) @l (#eq? @l "loop") block: (block) @body) @hit)))
+        (#not-match? @body "\\b(break|return|exit|throw|stop|shut|running|done|quit|terminat|kill|abort)"))
+      ((call receiver: (constant) @t method: (identifier) @n (#eq? @t "Thread") (#match? @n "^(new|start|fork)$")
+         block: (block body: (block_body .
+           (call method: (identifier) @l (#eq? @l "loop") block: (block) @body) @hit)))
+        (#not-match? @body "\\b(break|return|exit|throw|stop|shut|running|done|quit|terminat|kill|abort)"))
+      ((call receiver: (constant) @t method: (identifier) @n (#eq? @t "Thread") (#match? @n "^(new|start|fork)$")
+         block: (block body: (block_body .
+           (call method: (identifier) @l (#eq? @l "loop") block: (do_block) @body) @hit)))
+        (#not-match? @body "\\b(break|return|exit|throw|stop|shut|running|done|quit|terminat|kill|abort)"))
+      ((call receiver: (constant) @t method: (identifier) @n (#eq? @t "Thread") (#match? @n "^(new|start|fork)$")
+         block: (do_block body: (body_statement .
+           (while condition: (true) body: (do) @body) @hit)))
+        (#not-match? @body "\\b(break|return|exit|throw|stop|shut|running|done|quit|terminat|kill|abort)"))
+      ((call receiver: (constant) @t method: (identifier) @n (#eq? @t "Thread") (#match? @n "^(new|start|fork)$")
+         block: (block body: (block_body .
+           (while condition: (true) body: (do) @body) @hit)))
+        (#not-match? @body "\\b(break|return|exit|throw|stop|shut|running|done|quit|terminat|kill|abort)"))
+    unless_in_file: |
+      (call receiver: (_) @r method: (identifier) @m
+        (#match? @r "(?i)thread|worker|@t$|\\bt$") (#match? @m "^(kill|exit|terminate|wakeup|raise)$")) @external
+    description: >-
+      The thread body is `loop do ... end` with nothing inside that can leave
+      it, and nothing in the file kills the thread. It cannot be shut down
+      cleanly: at exit the process either hangs on `join` or abandons the
+      work in flight, and in tests the thread leaks across examples.
+    remediation: >-
+      Loop on a flag (`until @stopping`) or on `Queue#pop` returning a
+      sentinel (`break if job == :stop`), and give the owner a `stop` method
+      that sets the flag or pushes the sentinel and joins.
+
+  # --- Outbound calls --------------------------------------------------------
+  - id: http-no-timeout
+    title: "`{text}` makes an outbound call with no timeout set"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [timeout, reliability]
+    query: |
+      ; Net::HTTP convenience class methods: nothing can set a timeout on them
+      (call receiver: (scope_resolution) @r method: (identifier) @m
+        (#eq? @r "Net::HTTP") (#match? @m "^(get|get_response|get_print|post|post_form|put)$")) @hit
+      ; Net::HTTP.start/new: the timeout is a keyword or an attribute set in the same scope
+      (call receiver: (scope_resolution) @r method: (identifier) @m
+        (#eq? @r "Net::HTTP") (#match? @m "^(start|new)$")) @hit
+      ; HTTParty and Faraday: no default timeout at all
+      (call receiver: (constant) @r method: (identifier) @m
+        (#eq? @r "HTTParty") (#match? @m "^(get|post|put|patch|delete|head|options)$")) @hit
+      (call receiver: (constant) @r method: (identifier) @m
+        (#eq? @r "Faraday") (#eq? @m "new")) @hit
+    unless_in_scope: |
+      (pair key: (hash_key_symbol) @k (#match? @k "timeout$")) @t
+      (pair key: (simple_symbol) @k (#match? @k "timeout$")) @t
+      (call method: (identifier) @m
+        (#match? @m "^(open_timeout|read_timeout|write_timeout|ssl_timeout|timeout|default_timeout|continue_timeout)$")) @t
+      (call receiver: (constant) @c method: (identifier) @m (#eq? @c "Timeout") (#eq? @m "timeout")) @t
+    unless_in_file: |
+      (call method: (identifier) @m (#match? @m "^(default_timeout|default_options|request_options)$")
+        !receiver) @cls
+    description: >-
+      Net::HTTP waits 60 seconds by default and HTTParty and Faraday wait
+      forever; a slow upstream holds this thread (and the Puma worker it is
+      on) for that long. Nothing in the enclosing method sets `open_timeout`,
+      `read_timeout` or a `timeout:` option.
+    remediation: >-
+      Pass `open_timeout:`/`read_timeout:` to Net::HTTP.start, `timeout:` to
+      HTTParty, or `request: { timeout:, open_timeout: }` to Faraday, sized
+      to the caller's deadline.
+
+  # --- Retries ---------------------------------------------------------------
+  - id: retry-unbounded
+    title: "`retry` with no attempt counter: retries forever"
+    severity: medium
+    confidence: high
+    dimension: quality
+    cwe: [CWE-834, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [retry, reliability]
+    query: |
+      (retry) @hit
+    unless_in_scope: |
+      ; `retry if attempts < 3`, `raise if (tries += 1) > 3`, `retries -= 1 ... if retries.positive?`
+      (binary (identifier) @v (#match? @v "(?i)attempt|retr|tries|count|budget|limit|max")) @cap
+      (binary (instance_variable) @v (#match? @v "(?i)attempt|retr|tries|count|budget|limit|max")) @cap
+      (binary (parenthesized_statements (operator_assignment left: (_) @v
+        (#match? @v "(?i)attempt|retr|tries|count")))) @cap
+      (call receiver: (_) @v method: (identifier) @m
+        (#match? @v "(?i)attempt|retr|tries|count") (#match? @m "^(positive\\?|zero\\?|nonzero\\?|<|>|>=|<=)$")) @cap
+      (if_modifier body: (retry) condition: (binary)) @cap
+      (unless_modifier body: (retry) condition: (binary)) @cap
+    unless_inside: |
+      ; a one-shot retry: a literal flag set right before `retry` and tested on
+      ; the way in (sidekiq capsule.rb `retryable = false; retry`,
+      ; current_attributes.rb `retried = true; retry`) runs at most twice.
+      ((then (assignment left: (identifier) right: [(true) (false)]) . (retry)) @once)
+      ; repair-then-retry behind a guard that re-raises every other error
+      ; (sidekiq scheduled.rb `raise unless e.message.start_with?("NOSCRIPT")`
+      ; then `@sha = nil; retry`; web/helpers.rb re-encodes the text). The
+      ; failure is local state the handler fixed, not a dependency outage.
+      ((rescue body: (then . [(unless_modifier) (if_modifier)] @g (_) . (retry) .)) @repair
+        (#match? @g "^raise\\b"))
+    description: >-
+      `retry` re-runs the begin block on every rescue, and nothing in this
+      method counts attempts or compares them with a limit. A dependency that
+      stays down keeps this loop spinning until the process is killed.
+    remediation: >-
+      Count attempts and stop: `retry if (attempts += 1) < 3`, then raise or
+      return a failure the caller can see.
+
+  - id: retry-without-backoff
+    title: "`retry` with no sleep: hammers the failing dependency"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [retry, reliability]
+    query: |
+      (retry) @hit
+    unless_in_scope: |
+      (call method: (identifier) @m (#match? @m "^(sleep|backoff|wait|delay|pause)$")) @sleep
+      (call method: (identifier) @m (#match? @m "(backoff|_delay|_wait|jitter)")) @sleep
+      ((identifier) @m (#match? @m "^(sleep|backoff)$"))
+    unless_inside: |
+      ; a one-shot retry: a literal flag set right before `retry` and tested on
+      ; the way in (sidekiq capsule.rb `retryable = false; retry`,
+      ; current_attributes.rb `retried = true; retry`) runs at most twice.
+      ((then (assignment left: (identifier) right: [(true) (false)]) . (retry)) @once)
+      ; repair-then-retry behind a guard that re-raises every other error
+      ; (sidekiq scheduled.rb `raise unless e.message.start_with?("NOSCRIPT")`
+      ; then `@sha = nil; retry`; web/helpers.rb re-encodes the text). The
+      ; failure is local state the handler fixed, not a dependency outage.
+      ((rescue body: (then . [(unless_modifier) (if_modifier)] @g (_) . (retry) .)) @repair
+        (#match? @g "^raise\\b"))
+    description: >-
+      The retry fires again immediately. Against an overloaded or restarting
+      dependency that is the worst possible timing: every client retries at
+      once, and the dependency never gets room to recover.
+    remediation: >-
+      Sleep before `retry`, with exponential backoff and jitter:
+      `sleep((2**attempts) * 0.1 * (0.5 + rand))`.
+
+  # --- Error handling --------------------------------------------------------
+  - id: swallowed-error
+    title: "`{text}` swallows the error: empty rescue"
+    severity: medium
+    confidence: high
+    dimension: quality
+    cwe: [CWE-391, CWE-703]
+    controls: [NIST-800-218:PW.5]
+    tags: [error-handling]
+    query: |
+      ; bare `rescue`, `rescue => e`
+      (rescue !exceptions !body) @hit
+      ((rescue !exceptions body: (then . (nil)) @b) @hit (#match? @b "^\\s*nil(\\s*#[^\\n]*)?\\s*$"))
+      ; `rescue StandardError`, `rescue Exception`, `rescue RuntimeError`: a class so
+      ; broad that nothing specific was decided. A named class (`rescue LoadError`,
+      ; `rescue Errno::ESRCH`) left empty is a decision about that failure and is not reported.
+      ((rescue exceptions: (exceptions . (constant) @c .) !body) @hit
+        (#match? @c "^(StandardError|Exception|RuntimeError)$"))
+      ((rescue exceptions: (exceptions . (constant) @c .) body: (then . (nil)) @b) @hit
+        (#match? @c "^(StandardError|Exception|RuntimeError)$") (#match? @b "^\\s*nil(\\s*#[^\\n]*)?\\s*$"))
+    unless_inside: |
+      ; `post_was = begin handle(req.POST) rescue StandardError; nil end`: a
+      ; `nil` written as the value of an assigned begin is the fallback the
+      ; caller then tests (rack-protection escaped_params.rb). An empty body
+      ; there, and `x = foo rescue nil`, are still reported.
+      (assignment right: (begin (rescue body: (then . (nil) .)) @fallback))
+      (operator_assignment right: (begin (rescue body: (then . (nil) .)) @fallback))
+    description: >-
+      The rescue body is empty or `nil`, so the failure is dropped with no
+      log, no metric and no re-raise. The caller sees `nil` where it expected
+      a result, and the first symptom appears somewhere else.
+    remediation: >-
+      Rescue the specific class you can handle, log or record the error, and
+      re-raise or return an explicit failure for anything else.
+
+  - id: rescue-exception
+    title: "`rescue Exception` catches interrupts, SystemExit and NoMemoryError"
+    severity: medium
+    confidence: high
+    dimension: quality
+    cwe: [CWE-396]
+    controls: [NIST-800-218:PW.5]
+    tags: [error-handling]
+    query: |
+      (rescue exceptions: (exceptions (constant) @c (#eq? @c "Exception"))) @hit
+      (rescue exceptions: (exceptions (scope_resolution) @c (#eq? @c "::Exception"))) @hit
+    unless_inside: |
+      ; a handler that re-raises (even from inside a block) is observing, not swallowing
+      ((rescue body: (then) @b) @reraise (#match? @b "\\braise\\b"))
+      ; a Rack middleware's `call(env)` is the request boundary: it turns every
+      ; failure into an error response (sinatra show_exceptions.rb). Interrupt
+      ; and SystemExit are delivered to the main thread, not the request.
+      ((method name: (identifier) @n parameters: (method_parameters . (identifier) @p .)) @boundary
+        (#match? @n "^call!?$") (#eq? @p "env"))
+      ; isolating one callback: the protected body is a single `x.call(...)`
+      ; (sidekiq cli.rb chained signal handler, config.rb error handlers), so a
+      ; broken plug-in cannot take the host down.
+      (begin . (call method: (identifier) @c (#eq? @c "call")) . (rescue) @isolate)
+      (do_block body: (body_statement . (call method: (identifier) @c (#eq? @c "call")) . (rescue) @isolate))
+      ; the caught exception is handed to a supervisor hook, not dropped
+      ; (sidekiq processor.rb `@callback.call(self, ex)`, job_retry.rb
+      ; `handle_exception(e, ...)`). Only logging it (`logger.error(e)`) is
+      ; still reported.
+      ((rescue (exception_variable (identifier) @v)
+         (then (call method: (identifier) @m arguments: (argument_list (identifier) @a)))) @handoff
+        (#match? @m "^(call|handle_exception|handle_error|on_error|report_exception|notify)$")
+        (#eq? @a @v))
+    description: >-
+      Exception is the root of Interrupt, SignalException, SystemExit and
+      NoMemoryError. Rescuing it makes Ctrl-C and `exit` no-ops inside this
+      block, and a worker that cannot be stopped by its supervisor.
+    remediation: >-
+      Rescue StandardError (the default for a bare `rescue`), or the specific
+      classes the code can handle.
+
+  # --- Injection -------------------------------------------------------------
+  - id: sql-injection
+    title: "SQL built by string interpolation: `{text}`"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-89]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SI-10]
+    tags: [injection, sql]
+    query: |
+      ; where("name = '#{name}'"), find_by_sql("... #{id}"), db.execute("... #{id}")
+      ((call method: (identifier) @m
+         (#match? @m "^(where|rewhere|not|find_by_sql|count_by_sql|execute|exec_query|exec_update|exec_delete|exec_insert|select_all|select_one|select_value|select_values|select_rows|query|exec|exec_params|prepare|order|reorder|group|having|joins|select|pluck|update_all|delete_all|async_exec|exec_prepared|execute_batch)$")
+         arguments: (argument_list . (string (interpolation) @i)))
+        @hit (#not-match? @i "^#\\{[A-Z]|table_name|primary_key|quote|sanitize|connection\\.|_column|arel"))
+      ; where(<<~SQL) with an interpolation inside the heredoc body
+      (((call method: (identifier) @m
+          (#match? @m "^(where|find_by_sql|count_by_sql|execute|exec_query|select_all|select_one|select_value|select_values|query|exec|prepare|update_all|delete_all)$")
+          arguments: (argument_list . (heredoc_beginning))) @hit
+        (heredoc_body (interpolation) @i))
+        (#not-match? @i "^#\\{[A-Z]|table_name|primary_key|quote|sanitize|connection\\.|_column|arel"))
+      ; order(params[:sort]), pluck(params[:field]): the column name comes straight from the request
+      ((call method: (identifier) @m
+         (#match? @m "^(order|reorder|group|select|pluck|joins|having|where|execute|query)$")
+         arguments: (argument_list . (element_reference object: (identifier) @p)))
+        @hit (#eq? @p "params"))
+    description: >-
+      The SQL text is assembled from a runtime value. Whoever controls that
+      value controls the query: a quote in a name reads or deletes other
+      rows. `order`/`pluck` with a request parameter is the same defect
+      without the quote.
+    remediation: >-
+      Bind values: `where("name = ?", name)` or `where(name: name)`; whitelist
+      column names for `order`; use prepared statements (`db.execute(sql,
+      [id])`, `conn.exec_params`) for raw drivers.
+
+  - id: command-injection
+    title: "Shell command built by string interpolation: `{text}`"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-78]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SI-10]
+    tags: [injection, shell]
+    query: |
+      ; `ls #{dir}` and %x(...). An interpolation of a pid or an `.to_i` is not
+      ; injectable; the hit needs at least one other interpolation, so
+      ; `cp #{name} bak#{Time.now.to_i}` is still reported (railsgoat benefits.rb).
+      ((subshell (interpolation)) @hit
+        (#not-match? @hit "Shellwords|shellescape|shelljoin|\\.escape\\(")
+        (#match? @hit "#\\{(?![^}]*(\\.to_i|\\bpid)\\s*\\})"))
+      ; system("ls #{dir}") / exec / spawn: one string goes through /bin/sh
+      ((call !receiver method: (identifier) @m (#match? @m "^(system|exec|spawn)$")
+         arguments: (argument_list . (string (interpolation)) (pair)* .))
+        @hit (#not-match? @hit "Shellwords|shellescape|shelljoin|\\.escape\\(")
+        (#match? @hit "#\\{(?![^}]*(\\.to_i|\\bpid)\\s*\\})"))
+      ; Open3.capture2("ls #{dir}"), IO.popen("..."), Kernel.system, Process.spawn
+      ((call receiver: (constant) @r method: (identifier) @m
+         (#match? @r "^(Open3|IO|Kernel|Process)$")
+         (#match? @m "^(capture2|capture2e|capture3|popen|popen2|popen2e|popen3|pipeline|pipeline_r|pipeline_w|system|spawn|exec)$")
+         arguments: (argument_list . (string (interpolation)) (pair)* .))
+        @hit (#not-match? @hit "Shellwords|shellescape|shelljoin|\\.escape\\(")
+        (#match? @hit "#\\{(?![^}]*(\\.to_i|\\bpid)\\s*\\})"))
+    description: >-
+      A single command string with `#{}` in it is handed to /bin/sh, which
+      interprets `;`, `|`, `$()` and backticks in the interpolated value.
+      Anyone who influences that value runs their own command.
+    remediation: >-
+      Use the multi-argument form, which bypasses the shell:
+      `system("ls", dir)`, `Open3.capture2("git", "log", path)`; or escape
+      with `Shellwords.escape` if a single string is unavoidable.
+
+  - id: code-injection
+    title: "Runtime value reaches `{text}`"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-95, CWE-470]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SI-10]
+    tags: [injection, eval]
+    query: |
+      ; eval(params[:expr]), send(params[:action]), instance_eval(params[:code]), const_get(params[:type])
+      ((call method: (identifier) @m
+         (#match? @m "^(eval|send|public_send|__send__|instance_eval|class_eval|module_eval|instance_variable_get|instance_variable_set|const_get|define_method|method)$")
+         arguments: (argument_list) @a)
+        @hit (#match? @a "\\bparams\\b|\\brequest\\.|\\bcookies\\b"))
+      ; params[:klass].constantize, "Jobs::#{params[:type]}".constantize
+      ((call receiver: (_) @r method: (identifier) @m
+         (#match? @m "^(constantize|safe_constantize)$"))
+        @hit (#match? @r "\\bparams\\b|\\brequest\\.|\\bcookies\\b"))
+    description: >-
+      `eval`, `send` and `constantize` turn a string into code, a method call
+      or a class. When the string comes from the request, the caller chooses
+      what runs: `send("destroy")`, `constantize` to any class with a
+      dangerous `new`.
+    remediation: >-
+      Dispatch through an explicit allow-list (`HANDLERS.fetch(name)`,
+      `%w[asc desc].include?(dir)`); never eval or send a value you did not
+      write yourself.
+
+  - id: dynamic-eval
+    title: "`{text}` runs a string as code"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-95]
+    controls: [NIST-800-218:PW.5]
+    tags: [injection, eval]
+    query: |
+      ; eval(code) with anything but a literal; request-sourced strings are code-injection
+      (call !receiver method: (identifier) @m (#eq? @m "eval")
+        arguments: (argument_list . [(identifier) (instance_variable) (element_reference) (call) (string (interpolation))])) @hit
+      (call receiver: (constant) @r method: (identifier) @m (#eq? @r "Kernel") (#eq? @m "eval")
+        arguments: (argument_list . [(identifier) (instance_variable) (element_reference) (call) (string (interpolation))])) @hit
+    description: >-
+      Whatever the string holds runs with the caller's privileges. Reading it
+      from a file or building it at runtime is a code-loading mechanism
+      (Rack::Builder does this for config.ru); if any part of it can be
+      influenced from outside the process, it is remote code execution.
+    remediation: >-
+      Prefer `load`/`require` for files, `public_send` through an allow-list
+      for dispatch, and a parser for expressions.
+
+  # --- Deserialization -------------------------------------------------------
   - id: marshal-load
     title: "`Marshal.load` deserializes untrusted bytes"
     severity: high
@@ -12,6 +500,201 @@ rules:
     tags: [deserialization]
     query: |
       (call receiver: (constant) @r method: (identifier) @m
-        (#eq? @r "Marshal") (#eq? @m "load")) @hit
+        (#eq? @r "Marshal") (#match? @m "^(load|restore)$")) @hit
+    unless_inside: |
+      ; `Marshal.load(Marshal.dump(obj))` is a deep copy of an object this
+      ; process built (sidekiq redis_connection.rb); no foreign bytes involved.
+      ((call receiver: (constant) @r method: (identifier) @m
+         arguments: (argument_list . (call receiver: (constant) @r2 method: (identifier) @d) .)) @clone
+        (#eq? @r "Marshal") (#eq? @r2 "Marshal") (#eq? @d "dump"))
     description: "Marshal.load can instantiate arbitrary objects chosen by whoever wrote the bytes."
     remediation: "Use JSON.parse, or YAML.safe_load with permitted classes."
+
+  - id: yaml-unsafe-load
+    title: "`{text}` can instantiate arbitrary classes from the document"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-502]
+    controls: [NIST-800-218:PW.5]
+    tags: [deserialization, yaml]
+    query: |
+      ((call receiver: (constant) @r method: (identifier) @m
+         (#match? @r "^(YAML|Psych)$")
+         (#match? @m "^(load|load_file|load_stream|unsafe_load|unsafe_load_file)$"))
+        @hit (#not-match? @hit "permitted_classes|\\.safe_load"))
+      ((call receiver: (constant) @r method: (identifier) @m (#eq? @r "Oj") (#eq? @m "load"))
+        @hit (#not-match? @hit "mode:\\s*:(strict|null|compat|json|rails|wab)"))
+    description: >-
+      `YAML.unsafe_load` (and `YAML.load` on Psych 3, which Rubies before 3.1
+      ship) builds whatever Ruby object the `!ruby/object` tag names; `Oj.load`
+      in its default object mode does the same from `^o` keys. A document
+      from a client or a file it can write is a remote code execution path.
+    remediation: >-
+      `YAML.safe_load(doc, permitted_classes: [...])`, `Oj.load(doc, mode:
+      :strict)` or `Oj.strict_load`; `JSON.parse` when the format is yours
+      to choose.
+
+  # --- Stubs -----------------------------------------------------------------
+  - id: stub-method
+    title: "Method body is only `{text}`"
+    severity: low
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-1164]
+    controls: [NIST-800-218:PW.5]
+    tags: [stub]
+    query: |
+      ; def x; raise NotImplementedError; end  -- bare, not the abstract-method idiom with a message
+      ([(method body: (body_statement . (call method: (identifier) @r (#eq? @r "raise")) @hit))
+        (singleton_method body: (body_statement . (call method: (identifier) @r (#eq? @r "raise")) @hit))] @meth
+        (#match? @meth "^def [^\\n]*\\n\\s*raise NotImplementedError\\s*(#[^\\n]*)?\\n\\s*end$"))
+      ; raise "TODO" / raise NotImplementedError, "TODO: later"
+      ([(method body: (body_statement . (call method: (identifier) @r (#eq? @r "raise")) @hit))
+        (singleton_method body: (body_statement . (call method: (identifier) @r (#eq? @r "raise")) @hit))] @meth
+        (#match? @meth "(?i)^def [^\\n]*\\n\\s*raise (NotImplementedError, )?[\"'][^\"'\\n]*(todo|fixme|not (yet )?implemented|implement me|stub|later|placeholder)[^\"'\\n]*[\"']\\s*(#[^\\n]*)?\\n\\s*end$"))
+      ; def x; nil # TODO; end  /  true # stub
+      ([(method body: (body_statement . [(nil) (true) (false)] @hit))
+        (singleton_method body: (body_statement . [(nil) (true) (false)] @hit))] @meth
+        (#match? @meth "(?i)^def [^\\n]*\\n\\s*(nil|true|false)\\s*#\\s*(todo|fixme|stub|placeholder|for now|temporary|later)[^\\n]*\\n\\s*end$"))
+    description: >-
+      The method does nothing but raise or return a constant marked
+      temporary. In a scaffold that is fine; shipped, every caller is
+      either broken or getting a placeholder answer. (The abstract-method
+      idiom, `raise NotImplementedError, "subclasses must implement"`, is
+      left alone.)
+    remediation: "Implement it, or make the caller fail loudly with a message that says why."
+
+  # --- Tests (spec/*_spec.rb) ------------------------------------------------
+  - id: vacuous-spec
+    title: "Example `{text}` has no expectation"
+    severity: low
+    confidence: medium
+    dimension: assurance
+    cwe: [CWE-1164]
+    controls: [NIST-800-218:PW.8, NIST-800-53r5:SA-11]
+    tags: [assurance, test, rspec]
+    roles: [test]
+    files: "*_spec.rb"
+    query: |
+      ((call method: (identifier) @m (#match? @m "^(it|specify|example|scenario)$")
+         arguments: (argument_list)
+         block: (do_block) @b)
+        @hit (#not-match? @b "\\bexpect\\s*[({]|\\bexpect_any_instance_of\\b|\\bis_expected\\b|\\bshould\\b|\\bassert|\\.to\\b|\\.not_to\\b|\\.to_not\\b|\\bverify|raise_error|aggregate_failures|\\bpending\\b|\\bskip\\b|\\bflunk\\b|\\bfail\\b"))
+      ((call method: (identifier) @m (#match? @m "^(it|specify|example|scenario)$")
+         block: (block) @b)
+        @hit (#not-match? @b "\\bexpect\\s*[({]|\\bexpect_any_instance_of\\b|\\bis_expected\\b|\\bshould\\b|\\bassert|\\.to\\b|\\.not_to\\b|\\.to_not\\b|\\bverify|raise_error|aggregate_failures|\\bpending\\b|\\bskip\\b|\\bflunk\\b|\\bfail\\b"))
+    unless_inside: |
+      ((call method: (identifier) @m (#match? @m "^(it|specify|example|scenario)$")
+         block: (do_block body: (body_statement (call !receiver method: (identifier) @h) .)))
+        @delegated
+        (#not-match? @h "^(get|post|put|patch|delete|head|options|visit|click|fill_in|sleep|puts|p|pp|print|run|call|subject|described_class|send|request|follow_redirect!)$"))
+      ; the group's `after { expect(...) }` / `after { stubs.verify_stubbed_calls }`
+      ; asserts for every example in it (faraday connection_spec.rb)
+      ((call method: (identifier) @g
+         block: (do_block body: (body_statement (call !receiver method: (identifier) @a block: (_) @ab))))
+        @checked_after
+        (#match? @g "^(describe|context|feature|shared_examples|shared_examples_for|shared_context)$")
+        (#eq? @a "after")
+        (#match? @ab "\\bexpect\\s*[({]|\\bis_expected\\b|\\bshould\\b|\\bassert|\\bverify"))
+    description: >-
+      The example body contains no `expect`, `should`, `assert` or
+      `is_expected`, so it passes whatever the code does, and counts toward
+      coverage while proving nothing. A smoke test that only checks "does
+      not raise" should say so with `expect { ... }.not_to raise_error`.
+    remediation: "Assert the behaviour, or state the no-raise expectation explicitly."
+
+  - id: skipped-spec
+    title: "Example is skipped unconditionally: `{text}`"
+    severity: low
+    confidence: high
+    dimension: assurance
+    cwe: [CWE-1164]
+    controls: [NIST-800-218:PW.8, NIST-800-53r5:SA-11]
+    tags: [assurance, test, rspec]
+    roles: [test]
+    files: "*_spec.rb"
+    query: |
+      ; xit "..." do ... end, xdescribe, xcontext
+      (call method: (identifier) @m (#match? @m "^(xit|xspecify|xexample|xdescribe|xcontext|xfeature|xscenario)$")) @hit
+      ; a bare `skip` / `pending` with no receiver and no condition
+      (call !receiver method: (identifier) @m (#match? @m "^(skip|pending)$")) @hit
+      ((identifier) @hit (#match? @hit "^(skip|pending)$"))
+      ; it "..." with no block is pending in RSpec
+      (call method: (identifier) @m (#match? @m "^(it|specify|example)$")
+        arguments: (argument_list . (string) .) !block) @hit
+      ; it "...", skip: true / :pending
+      (call method: (identifier) @m (#match? @m "^(it|specify|example|describe|context)$")
+        arguments: (argument_list (pair key: (hash_key_symbol) @k (#match? @k "^(skip|pending)$") value: [(true) (string)]))) @hit
+      (call method: (identifier) @m (#match? @m "^(it|specify|example|describe|context)$")
+        arguments: (argument_list (simple_symbol) @k (#match? @k "^:(skip|pending)$"))) @hit
+    unless_inside: |
+      (if) @cond
+      (unless) @cond
+      (if_modifier) @cond
+      (unless_modifier) @cond
+      (conditional) @cond
+      (case) @cond
+      ; `rescue LoadError => e; skip e.message` is conditional on the failure
+      (rescue) @cond
+    description: >-
+      An unconditionally skipped or pending example passes forever and
+      protects nothing. A skip with a condition (a platform, a missing
+      service) is a different thing and is not reported.
+    remediation: "Fix it, delete it, or give the skip a condition and a reason."
+
+  # --- TLS -------------------------------------------------------------------
+  - id: tls-verify-off
+    title: "TLS certificate verification disabled: `{text}`"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-295]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-8]
+    tags: [tls, security-check-disabled]
+    query: |
+      (scope_resolution name: (constant) @c (#eq? @c "VERIFY_NONE")) @hit
+      (pair key: (hash_key_symbol) @k value: (false)
+        (#match? @k "^(verify|verify_ssl|verify_peer|ssl_verify_peer|verify_ssl_certificate|verify_hostname|ssl_verify)$")) @hit
+      (pair key: (simple_symbol) @k value: (false)
+        (#match? @k "^:(verify|verify_ssl|verify_peer|ssl_verify_peer|verify_ssl_certificate|verify_hostname|ssl_verify)$")) @hit
+    description: >-
+      With verification off the client accepts any certificate, so anyone on
+      the path can terminate the TLS session and read or rewrite the traffic.
+      Written to get past a self-signed certificate in development; shipped
+      because nothing complains afterwards.
+    remediation: >-
+      Leave `verify_mode` at VERIFY_PEER; for a private CA, set `ca_file`
+      or add it to the cert store instead.
+
+  # --- Randomness ------------------------------------------------------------
+  - id: insecure-random
+    title: "`{text}` uses the predictable Kernel#rand for a secret"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-338]
+    controls: [NIST-800-218:PW.5]
+    tags: [randomness, crypto]
+    query: |
+      ; token = rand(36**8).to_s(36) / @session_id = Random.new.bytes(16) / code = DIGITS.sample
+      ((assignment left: (_) @l right: (_) @r) @hit
+        (#match? @l "(?i)token|secret|passw|nonce|session|salt|otp|api_key|apikey|csrf|reset_code|verif|activation|confirm")
+        (#match? @r "\\brand\\(|\\brand\\b|\\bRandom\\.(new|rand|bytes)\\b|\\.(sample|shuffle)\\b"))
+      ; def generate_token ... rand(...) ... end: a call in the body that reaches rand
+      ((method name: (identifier) @n
+         (#match? @n "(?i)token|secret|passw|nonce|session_id|salt|otp|api_key|apikey|csrf|reset_code|verification_code|activation|confirmation_code")
+         body: (body_statement (call) @hit))
+        (#match? @hit "\\brand\\(|\\bRandom\\.(new|rand|bytes)\\b|\\.(sample|shuffle)\\b"))
+      ((method name: (identifier) @n
+         (#match? @n "(?i)token|secret|passw|nonce|session_id|salt|otp|api_key|apikey|csrf|reset_code|verification_code|activation|confirmation_code")
+         body: (body_statement (assignment right: (call) @hit)))
+        (#match? @hit "\\brand\\(|\\bRandom\\.(new|rand|bytes)\\b|\\.(sample|shuffle)\\b"))
+    description: >-
+      Kernel#rand, Random.new and Array#sample draw from a Mersenne Twister
+      seeded once per process: observe a few outputs and the rest are
+      predictable. A token, session id or reset code built from it can be
+      guessed.
+    remediation: >-
+      Use SecureRandom: `SecureRandom.hex(16)`, `SecureRandom.urlsafe_base64`,
+      `SecureRandom.random_number(range)`, `SecureRandom.alphanumeric`.

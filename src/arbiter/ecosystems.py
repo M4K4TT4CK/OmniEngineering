@@ -19,10 +19,10 @@ import re
 from pathlib import Path
 
 MANIFESTS = {"go.mod", "go.sum", "pom.xml", "build.gradle", "build.gradle.kts",
-             "Gemfile", "Gemfile.lock", "gems.rb"}
+             "libs.versions.toml", "Gemfile", "Gemfile.lock", "gems.rb"}
 
 ECOSYSTEM_OF = {"go": "go", "java": "maven", "ruby": "rubygems"}
-MANIFESTS_OF = {"go": {"go.mod"}, "java": {"pom.xml", "build.gradle", "build.gradle.kts"},
+MANIFESTS_OF = {"go": {"go.mod"}, "java": {"pom.xml", "build.gradle", "build.gradle.kts", "libs.versions.toml"},
                 "ruby": {"Gemfile", "gems.rb", "Gemfile.lock"}}
 
 # --- Go ----------------------------------------------------------------------
@@ -77,9 +77,37 @@ def java_declared(manifest_text: str) -> set[str]:
     return groups
 
 
+# Packages whose name does not start with their groupId. Each resolves when any
+# of the listed groupIds is declared. Found on caffeine, resilience4j, gson and
+# HikariCP, where these made up most of 2,295 false reports.
+_JAVA_PACKAGE_GROUPS = {
+    "lombok": ("org.projectlombok",),
+    "edu.umd.cs.findbugs": ("com.github.spotbugs", "com.google.code.findbugs"),
+    "junit": ("junit",),
+    "org.junit": ("junit", "org.junit", "org.junit.jupiter", "org.junit.platform", "org.junit.vintage"),
+    "com.google.common": ("com.google.guava",),
+    "com.google.errorprone": ("com.google.errorprone",),
+    "net.jcip": ("net.jcip",),
+    "kotlin": ("org.jetbrains.kotlin", "org.jetbrains.kotlinx"),
+    "kotlinx": ("org.jetbrains.kotlinx",),
+    "reactor": ("io.projectreactor", "io.projectreactor.addons"),
+    "io.reactivex": ("io.reactivex.rxjava2", "io.reactivex.rxjava3", "io.reactivex"),
+    "groovy": ("org.codehaus.groovy", "org.apache.groovy"),
+    "spock": ("org.spockframework",),
+    "feign": ("io.github.openfeign", "com.netflix.feign"),
+    "retrofit2": ("com.squareup.retrofit2",),
+    "okhttp3": ("com.squareup.okhttp3",),
+    "dagger": ("com.google.dagger",),
+    "org.openjdk.jmh": ("org.openjdk.jmh",),
+}
+
+
 def java_resolves(name: str, declared: set[str], local: set[str]) -> bool:
     if name.startswith(_JDK):
         return True
+    for pkg, groups in _JAVA_PACKAGE_GROUPS.items():
+        if (name == pkg or name.startswith(pkg + ".")) and any(g in declared for g in groups):
+            return True
     for prefix in declared | local:
         parts = prefix.split(".")
         # A groupId names an organisation, and its artifacts' packages start

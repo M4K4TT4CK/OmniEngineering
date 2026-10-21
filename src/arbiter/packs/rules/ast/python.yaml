@@ -1,24 +1,417 @@
 # Python rules. Owner: the Python agent. Schema: src/arbiter/lang_rules.py.
 # The stdlib-ast concurrency probe (src/arbiter/concurrency.py) stays for checks
 # that need alias tracking; rules a query can express belong here.
+#
+# Query notes for this grammar (tree-sitter-python via tree_sitter_language_pack):
+#   * child patterns must appear in tree order (`operator:` before `right:`);
+#   * `expression_statement` is transparent: match `(block (call))` and
+#     `(block (assignment))` directly;
+#   * `#not-match?` filters captures as expected; for exclusions that depend on
+#     an enclosing node, use `unless_inside` / `unless_in_scope`;
+#   * `#match?` takes Rust-style regex: `(?i)`, `\\b`, `\\s` all work.
 pack: python
 languages: [python]
 rules:
+  # --------------------------------------------------------------------------
+  # Outbound HTTP
+  # --------------------------------------------------------------------------
+  - id: http-no-timeout
+    title: "`{text}` has no timeout: a stalled upstream stalls this call forever"
+    severity: medium
+    confidence: high
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [timeout, http, reliability]
+    query: |
+      (call function: (attribute) @fn
+        (#match? @fn "^requests\\.(get|post|put|delete|patch|head|options|request)$")) @hit
+      (call function: [(attribute) (identifier)] @fn
+        (#match? @fn "^(urllib\\.request\\.|request\\.)?urlopen$")) @hit
+    unless_inside: |
+      (call arguments: (argument_list (keyword_argument name: (identifier) @k (#eq? @k "timeout")))) @x
+      (call arguments: (argument_list (dictionary_splat))) @x
+    description: >-
+      `requests` and `urllib` block indefinitely by default. One upstream that
+      accepts the connection and never answers pins a worker thread (or the
+      whole request handler) until the process is restarted.
+    remediation: "Pass `timeout=(connect, read)` on every call, or wrap the client so the default is set once."
+
+  - id: http-timeout-disabled
+    title: "`{text}` switches the client's timeout off"
+    severity: medium
+    confidence: high
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [timeout, http, reliability]
+    # The hit is the whole call, not the `timeout=None` keyword: evidence is
+    # the hit text, and two identical `timeout=None` in one file would share
+    # a fingerprint and collapse into one finding.
+    query: |
+      (call function: (attribute) @fn
+        (#match? @fn "^(requests|httpx)\\.(get|post|put|delete|patch|head|options|request|stream|Client|AsyncClient)$")
+        arguments: (argument_list
+          (keyword_argument name: (identifier) @k (#eq? @k "timeout") value: (none)))) @hit
+    description: >-
+      httpx ships a 5-second default; `timeout=None` removes it, and for
+      `requests` it is the same as passing nothing. Either way a hung upstream
+      holds this call for ever.
+    remediation: "Set a finite timeout (`httpx.Timeout(5.0, connect=2.0)` or a `(connect, read)` tuple)."
+
+  # --------------------------------------------------------------------------
+  # Retry and worker loops
+  # --------------------------------------------------------------------------
   - id: retry-loop-no-backoff
-    title: "`while True` retry loop with no sleep or backoff"
+    title: "Unbounded retry loop with no sleep or backoff"
     severity: medium
     confidence: medium
     dimension: quality
     cwe: [CWE-400]
     controls: [NIST-800-218:PW.5]
     tags: [retry, reliability]
+    # Shape: an unbounded loop (`while True`, `while not flag`, `for _ in
+    # itertools.count()`) whose try body exits on success (return/break, a
+    # flag set to True, or try/else break) and whose except clause ends by
+    # retrying at once (`continue`, `pass`, or just a log call).
     query: |
-      (while_statement
-        condition: (true)
-        body: (block (try_statement (except_clause)))) @hit
+      (while_statement condition: (true)
+        body: (block (try_statement
+          body: (block [(return_statement) (break_statement)
+                        (if_statement consequence: (block [(return_statement) (break_statement)]))])
+          (except_clause (block [(continue_statement) (pass_statement)
+                                 (call function: (_) @lg (#match? @lg "(?i)(log|print|warn)"))] .))))) @hit
+      (while_statement condition: (true)
+        body: (block (try_statement
+          (except_clause (block [(continue_statement) (pass_statement)
+                                 (call function: (_) @lg (#match? @lg "(?i)(log|print|warn)"))] .))
+          (else_clause (block (break_statement)))))) @hit
+      (while_statement condition: (not_operator)
+        body: (block (try_statement
+          body: (block [(return_statement) (break_statement) (assignment right: (true))] .)
+          (except_clause (block [(continue_statement) (pass_statement)
+                                 (call function: (_) @lg (#match? @lg "(?i)(log|print|warn)"))] .))))) @hit
+      (for_statement right: (call function: [(attribute) (identifier)] @c (#match? @c "^(itertools\\.)?count$"))
+        body: (block (try_statement
+          body: (block [(return_statement) (break_statement)
+                        (if_statement consequence: (block [(return_statement) (break_statement)]))])
+          (except_clause (block [(continue_statement) (pass_statement)
+                                 (call function: (_) @lg (#match? @lg "(?i)(log|print|warn)"))] .))))) @hit
     unless_in_scope: |
-      (call function: (_) @f (#match? @f "(sleep|backoff|wait)$")) @x
+      (call function: (_) @f (#match? @f "(?i)(sleep|backoff|wait|wait_for|retry|timeout|settimeout|recv|recv_into|accept|poll|select|readline|receive|input|getpass)$")) @x
+      (keyword_argument name: (identifier) @k (#match? @k "^(wait|delay|backoff)$")) @x
+      ((identifier) @d (#match? @d "(?i)^(deadline|monotonic|perf_counter|time_ns|expires?|expiry|expires_at|until|give_up_at)$"))
+      ((identifier) @w (#eq? @w "WatchError"))
+    # Redis WATCH/MULTI (rq's worker): a WatchError means another writer moved
+    # a watched key, and retrying at once is the protocol, not a busy loop.
     description: >-
       A loop that retries on every exception with no delay and no limit turns
       one failing upstream into a busy loop that hammers it and burns CPU.
     remediation: "Cap the attempts and sleep with exponential backoff and jitter (or use tenacity/backoff)."
+
+  - id: swallowed-error-in-worker-loop
+    title: "`{text}` drops every error inside a worker loop"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-391, CWE-703]
+    controls: [NIST-800-218:PW.5]
+    tags: [error-handling, worker, reliability]
+    # `except Exception: pass|continue` and bare `except: pass|continue` whose
+    # try sits in a `while`/`for` body (directly, or one statement deep), in a
+    # module that runs workers. bandit B110 reports every try/except/pass;
+    # this is the worker-loop subset, where the loop goes on as if nothing
+    # had happened and the failure is invisible for good.
+    query: |
+      (while_statement body: (block (try_statement
+        (except_clause . (block . [(pass_statement) (continue_statement)] .)) @hit)))
+      (while_statement body: (block (try_statement
+        (except_clause (identifier) @e (#match? @e "^(Exception|BaseException)$")
+          (block . [(pass_statement) (continue_statement)] .)) @hit)))
+      (while_statement body: (block (try_statement
+        (except_clause (as_pattern (identifier) @e (#match? @e "^(Exception|BaseException)$"))
+          (block . [(pass_statement) (continue_statement)] .)) @hit)))
+      (while_statement body: (block (_ (block (try_statement
+        (except_clause . (block . [(pass_statement) (continue_statement)] .)) @hit)))))
+      (while_statement body: (block (_ (block (try_statement
+        (except_clause (identifier) @e (#match? @e "^(Exception|BaseException)$")
+          (block . [(pass_statement) (continue_statement)] .)) @hit)))))
+      (while_statement body: (block (_ (block (try_statement
+        (except_clause (as_pattern (identifier) @e (#match? @e "^(Exception|BaseException)$"))
+          (block . [(pass_statement) (continue_statement)] .)) @hit)))))
+      (for_statement body: (block (try_statement
+        (except_clause . (block . [(pass_statement) (continue_statement)] .)) @hit)))
+      (for_statement body: (block (try_statement
+        (except_clause (identifier) @e (#match? @e "^(Exception|BaseException)$")
+          (block . [(pass_statement) (continue_statement)] .)) @hit)))
+      (for_statement body: (block (try_statement
+        (except_clause (as_pattern (identifier) @e (#match? @e "^(Exception|BaseException)$"))
+          (block . [(pass_statement) (continue_statement)] .)) @hit)))
+    requires_file: |
+      (import_statement (dotted_name) @m (#match? @m "^(threading|multiprocessing|concurrent|asyncio|queue)")) @x
+      (import_from_statement module_name: (dotted_name) @m (#match? @m "^(threading|multiprocessing|concurrent|asyncio|queue)")) @x
+    description: >-
+      The worker catches everything and carries on. A job that fails every
+      time is retried or dropped for ever with nothing in the logs, no metric,
+      and no way to tell from outside that work is being lost.
+    remediation: "Log the exception (`logger.exception`) and count it; re-raise or dead-letter what cannot be retried."
+
+  - id: worker-loop-no-stop-signal
+    title: "Worker loop `while True` has no way to stop"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-835]
+    controls: [NIST-800-218:PW.5]
+    tags: [worker, shutdown, reliability]
+    # tree-sitter cannot follow `Thread(target=fn)` to `fn`, so the worker is
+    # recognised by name (worker/run/loop/consume/poll/process/serve/listen/
+    # dispatch) in a module that imports threading or multiprocessing. Any
+    # exit path in the function -- break, return, yield, an Event check, a
+    # stop/shutdown/running name -- counts as a stop signal.
+    query: |
+      (function_definition name: (identifier) @n
+        (#match? @n "(?i)(worker|^_?run$|_run$|loop|consume|poll|process|serve|listen|dispatch)")
+        body: (block (while_statement condition: (true)) @hit))
+      (function_definition name: (identifier) @n
+        (#match? @n "(?i)(worker|^_?run$|_run$|loop|consume|poll|process|serve|listen|dispatch)")
+        body: (block (_ (block (while_statement condition: (true)) @hit))))
+    requires_file: |
+      (import_statement (dotted_name) @m (#match? @m "^(threading|multiprocessing)")) @x
+      (import_from_statement module_name: (dotted_name) @m (#match? @m "^(threading|multiprocessing)")) @x
+    unless_in_scope: |
+      [(break_statement) (return_statement) (yield)] @x
+      ((identifier) @i (#match? @i "(?i)(stop|shutdown|running|alive|cancel|exit|done|closed|finished|terminate)"))
+    description: >-
+      The thread runs until the process dies. Shutdown cannot drain it, tests
+      cannot end it, and if it is not a daemon the interpreter waits on it for
+      ever at exit.
+    remediation: "Loop on `while not self._stop.is_set()` (threading.Event) or a sentinel item on the queue; join the thread on shutdown."
+
+  - id: thread-not-daemon-never-joined
+    title: "`{text}` is neither a daemon nor ever joined"
+    severity: low
+    confidence: low
+    dimension: quality
+    cwe: [CWE-835]
+    controls: [NIST-800-218:PW.5]
+    tags: [worker, shutdown, reliability]
+    query: |
+      (call function: [(attribute) (identifier)] @f (#match? @f "^(threading\\.)?Thread$")) @hit
+    unless_inside: |
+      (call arguments: (argument_list (keyword_argument name: (identifier) @k (#eq? @k "daemon")))) @x
+    unless_in_file: |
+      (call function: (attribute attribute: (identifier) @j (#eq? @j "join"))
+        arguments: (argument_list) @a (#match? @a "^\\(\\s*(timeout\\s*=[^,]*|[\\d.]+)?\\s*\\)$")) @x
+      (assignment left: (attribute attribute: (identifier) @d (#eq? @d "daemon"))) @x
+      (call function: (attribute attribute: (identifier) @d (#eq? @d "setDaemon"))) @x
+      (class_definition superclasses: (argument_list (_) @b (#match? @b "Thread$"))) @x
+    description: >-
+      A non-daemon thread keeps the interpreter alive until it returns, and
+      nothing in this module ever waits for it. On shutdown the process hangs
+      with the worker still looping, or the thread is killed mid-job when it
+      is finally forced down.
+    remediation: "Keep a handle, signal it to stop and `join()` it on shutdown; or pass `daemon=True` if losing its work at exit is acceptable."
+
+  # --------------------------------------------------------------------------
+  # Injection
+  # --------------------------------------------------------------------------
+  - id: sql-injection
+    title: "SQL built by string formatting: `{text}`"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-89]
+    controls: [NIST-800-53r5:SI-10, OWASP-ASVS:5.3.4]
+    tags: [injection, sql, security]
+    # Two anchors: (1) the first argument of execute()/raw() is an f-string,
+    # a `%` format, `.format()` or `+` concatenation; (2) anywhere, a
+    # formatted string whose literal part is a SQL statement (upper-case verb,
+    # or lower-case with the clause structure), since the query is usually
+    # built into a variable first and executed later.
+    query: |
+      (call function: (attribute attribute: (identifier) @m
+          (#match? @m "^(execute|executemany|executescript|exec_driver_sql|raw)$"))
+        arguments: (argument_list . [
+          (string (interpolation))
+          (concatenated_string (string (interpolation)))
+          (binary_operator left: (string) operator: "%")
+          (binary_operator left: (string) operator: "+"
+            right: [(identifier) (attribute) (call) (subscript) (parenthesized_expression) (binary_operator)])
+          (binary_operator left: [(identifier) (attribute) (call) (subscript) (parenthesized_expression)]
+            operator: "+" right: (string))
+          (call function: (attribute object: (string) attribute: (identifier) @fm (#eq? @fm "format")))
+        ] @hit))
+      (call function: (attribute attribute: (identifier) @m
+          (#match? @m "^(execute|executemany|exec_driver_sql|scalar|scalars)$"))
+        arguments: (argument_list . (call function: (identifier) @t (#eq? @t "text")
+          arguments: (argument_list . [
+            (string (interpolation))
+            (concatenated_string (string (interpolation)))
+            (binary_operator left: (string) operator: "%")
+            (binary_operator left: (string) operator: "+"
+              right: [(identifier) (attribute) (call) (subscript) (parenthesized_expression) (binary_operator)])
+            (binary_operator left: [(identifier) (attribute) (call) (subscript) (parenthesized_expression)]
+              operator: "+" right: (string))
+            (call function: (attribute object: (string) attribute: (identifier) @fm (#eq? @fm "format")))
+          ] @hit))))
+      (string (string_start) . (string_content) @sc
+        (#match? @sc "(?s)^\\s*((SELECT|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|TRUNCATE|MERGE)\\b|(?i:select\\s.*\\sfrom\\s|insert\\s+into\\s|update\\s+\\S+\\s+set\\s|delete\\s+from\\s))")
+        (interpolation)) @hit
+      (concatenated_string . (string (string_start) . (string_content) @sc
+        (#match? @sc "(?s)^\\s*((SELECT|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|TRUNCATE|MERGE)\\b|(?i:select\\s.*\\sfrom\\s|insert\\s+into\\s|update\\s+\\S+\\s+set\\s|delete\\s+from\\s))"))
+        (string (interpolation))) @hit
+      (binary_operator left: (string (string_start) . (string_content) @sc
+        (#match? @sc "(?s)^\\s*((SELECT|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|TRUNCATE|MERGE)\\b|(?i:select\\s.*\\sfrom\\s|insert\\s+into\\s|update\\s+\\S+\\s+set\\s|delete\\s+from\\s))"))
+        operator: "%") @hit
+      (binary_operator left: (string (string_start) . (string_content) @sc
+        (#match? @sc "(?s)^\\s*((SELECT|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|TRUNCATE|MERGE)\\b|(?i:select\\s.*\\sfrom\\s|insert\\s+into\\s|update\\s+\\S+\\s+set\\s|delete\\s+from\\s))"))
+        operator: "+" right: [(identifier) (attribute) (call) (subscript) (parenthesized_expression) (binary_operator)]) @hit
+      (call function: (attribute object: (string (string_start) . (string_content) @sc
+        (#match? @sc "(?s)^\\s*((SELECT|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|TRUNCATE|MERGE)\\b|(?i:select\\s.*\\sfrom\\s|insert\\s+into\\s|update\\s+\\S+\\s+set\\s|delete\\s+from\\s))"))
+        attribute: (identifier) @fm (#eq? @fm "format"))) @hit
+    # A regex that parses SQL (`re.match(r"CREATE\s+TABLE" + NAME, ...)`) is
+    # not a query: skip SQL-shaped strings built inside an `re` call.
+    unless_inside: |
+      (call function: (attribute object: (identifier) @re (#eq? @re "re")
+          attribute: (identifier) @rf
+          (#match? @rf "^(match|fullmatch|search|compile|findall|finditer|sub|subn|split)$"))) @x
+    description: >-
+      The value is spliced into the statement text, so whoever controls it
+      controls the query. This is the shape every SQL-injection exploit
+      starts from, and the fix costs nothing.
+    remediation: "Send parameters separately: `cursor.execute(\"... WHERE id = %s\", (user_id,))`, `text(\"... :id\").bindparams(id=...)`, or the ORM."
+
+  - id: command-injection
+    title: "Shell command built from a variable: `{text}`"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-78]
+    controls: [NIST-800-53r5:SI-10, OWASP-ASVS:5.3.8]
+    tags: [injection, shell, security]
+    query: |
+      (call function: (attribute object: (identifier) @o (#eq? @o "subprocess")
+          attribute: (identifier) @m (#match? @m "^(run|call|check_output|check_call|Popen)$"))
+        arguments: (argument_list . [(identifier) (attribute) (call) (binary_operator) (subscript)
+                                     (string (interpolation)) (concatenated_string (string (interpolation)))]
+          (keyword_argument name: (identifier) @k (#eq? @k "shell") value: (true)))) @hit
+      (call function: (identifier) @f (#match? @f "^(run|call|check_output|check_call|Popen)$")
+        arguments: (argument_list . [(identifier) (attribute) (call) (binary_operator) (subscript)
+                                     (string (interpolation)) (concatenated_string (string (interpolation)))]
+          (keyword_argument name: (identifier) @k (#eq? @k "shell") value: (true)))) @hit
+      (call function: (attribute object: (identifier) @o (#eq? @o "subprocess")
+          attribute: (identifier) @m (#match? @m "^(getoutput|getstatusoutput)$"))
+        arguments: (argument_list . [(identifier) (attribute) (call) (binary_operator) (subscript)
+                                     (string (interpolation)) (concatenated_string (string (interpolation)))])) @hit
+      (call function: (attribute object: (identifier) @o (#eq? @o "os")
+          attribute: (identifier) @m (#match? @m "^(system|popen)$"))
+        arguments: (argument_list . [(identifier) (attribute) (call) (binary_operator) (subscript)
+                                     (string (interpolation)) (concatenated_string (string (interpolation)))])) @hit
+    unless_inside: |
+      (call arguments: (argument_list . (_) @a (#match? @a "shlex\\.(quote|join)"))) @x
+    description: >-
+      The command line goes through a shell, and part of it comes from a
+      variable. Anything in that variable -- a filename with a `;`, a
+      user-supplied argument -- is interpreted as shell syntax.
+    remediation: "Pass an argv list with `shell=False` (`subprocess.run([\"ls\", \"-l\", path])`); if a shell is unavoidable, quote every piece with `shlex.quote`."
+
+  - id: code-injection
+    title: "`{text}` evaluates code from a variable"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-95]
+    controls: [NIST-800-53r5:SI-10]
+    tags: [injection, eval, security]
+    query: |
+      (call function: (identifier) @f (#match? @f "^(eval|exec)$")
+        arguments: (argument_list . [(identifier) (attribute) (call) (binary_operator) (subscript)
+                                     (string (interpolation)) (concatenated_string (string (interpolation)))])) @hit
+    # `exec(compile(src, path, "exec"), ns)` is deliberate code loading -- a
+    # config file, a plugin -- and never the shape model-drafted code uses to
+    # evaluate an expression. Flask's config.from_pyfile is the reference case.
+    unless_inside: |
+      (call function: (identifier) @f (#match? @f "^(eval|exec)$")
+        arguments: (argument_list . (call function: (identifier) @c (#eq? @c "compile")))) @x
+    description: >-
+      Whatever ends up in the argument runs as Python with the privileges of
+      this process. Model-drafted code reaches for `eval` to parse a filter
+      expression or a config value; both are a remote code execution waiting
+      for the first hostile input.
+    remediation: "Parse instead of evaluate: `ast.literal_eval` for data, `json.loads`, an operator table for expressions, importlib for a plugin name."
+
+  - id: unsafe-deserialization
+    title: "`{text}` deserialises with a format that can execute code"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-502]
+    controls: [NIST-800-53r5:SI-10, OWASP-ASVS:5.5.3]
+    tags: [deserialization, security]
+    query: |
+      (call function: (attribute) @f
+        (#match? @f "^(pickle|cPickle|_pickle|dill|cloudpickle)\\.(load|loads|Unpickler)$")) @hit
+      (call function: (attribute) @f (#match? @f "^marshal\\.(load|loads)$")) @hit
+      (call function: (attribute) @f (#match? @f "^yaml\\.(load|load_all|unsafe_load|unsafe_load_all)$")) @hit
+    unless_inside: |
+      (call arguments: (argument_list (_) @a (#match? @a "(SafeLoader|CSafeLoader)"))) @x
+    description: >-
+      pickle, marshal and PyYAML's full loader all construct arbitrary
+      objects, and arbitrary objects mean arbitrary code. If the bytes came
+      from a request, a queue or a file somebody else can write, this is
+      remote code execution.
+    remediation: "Use `json` or `yaml.safe_load`; if pickle is unavoidable, sign the payload (HMAC) and verify before loading."
+
+  # --------------------------------------------------------------------------
+  # Cryptography
+  # --------------------------------------------------------------------------
+  - id: insecure-random-for-secret
+    title: "`random` used for a secret: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-338]
+    controls: [NIST-800-53r5:SC-13, OWASP-ASVS:6.3.1]
+    tags: [crypto, random, security]
+    # Only where the name says the value is a credential: an assignment
+    # target or a function name containing token/secret/password/nonce/salt/
+    # otp/csrf/api_key/session_id. The expression is matched by text so the
+    # call can sit inside join()/str()/a comprehension.
+    query: |
+      (assignment left: (_) @t
+        (#match? @t "(?i)(token|secret|passw|pwd|nonce|salt|otp|csrf|api_?key|secret_?key|signing_?key|private_?key|session_?(id|key)|reset_?code|verification_?code|auth_?code)")
+        right: (_) @r
+        (#match? @r "\\brandom\\.(random|randint|choice|choices|getrandbits|randrange|randbytes|sample|uniform)\\(")) @hit
+      (function_definition name: (identifier) @n
+        (#match? @n "(?i)(token|secret|passw|pwd|nonce|salt|otp|csrf|api_?key|session_?id|reset_?code|verification_?code|auth_?code)")
+        body: (block (return_statement (_) @r
+          (#match? @r "\\brandom\\.(random|randint|choice|choices|getrandbits|randrange|randbytes|sample|uniform)\\(")) @hit))
+    description: >-
+      `random` is a Mersenne Twister: 624 outputs reveal its whole state, and
+      it is often seeded from the clock. A token drawn from it can be
+      predicted by anyone who sees a few others.
+    remediation: "Use `secrets.token_hex()`, `secrets.token_urlsafe()`, `secrets.choice()` or `random.SystemRandom()`."
+
+  - id: weak-password-hash
+    title: "Password hashed with a fast digest: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-916, CWE-327]
+    controls: [NIST-800-53r5:IA-5, OWASP-ASVS:2.4.1]
+    tags: [crypto, password, security]
+    # The hit is the statement (return / assignment / bare call) so the two
+    # shapes -- the password named in the statement, or the function named
+    # for passwords -- report once when both apply.
+    query: |
+      (block [(return_statement) (assignment) (call)] @hit
+        (#match? @hit "(?s)\\bhashlib\\.(md5|sha1)\\(.*(?i:passw|pwd)|\\bhashlib\\.new\\(\\s*[\"'](?i:md5|sha1)[\"'].*(?i:passw|pwd)"))
+      (function_definition name: (identifier) @n (#match? @n "(?i)(passw|pwd)")
+        body: (block [(return_statement) (assignment) (call)] @hit
+          (#match? @hit "(?s)\\bhashlib\\.(md5|sha1)\\(|\\bhashlib\\.new\\(\\s*[\"'](?i:md5|sha1)[\"']")))
+    description: >-
+      MD5 and SHA-1 are designed to be fast, which is exactly wrong for a
+      password: a GPU tries billions a second, and both have public
+      collision attacks. A salt does not change the speed.
+    remediation: "Use a password hash: `hashlib.scrypt`, `bcrypt.hashpw`, argon2, or `hashlib.pbkdf2_hmac` with a high iteration count."

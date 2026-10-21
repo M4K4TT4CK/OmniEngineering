@@ -58,14 +58,58 @@ These settings correspond to the `configuration` block in
   under `src/` or `tools/` holds a literal key shape, and all of them stay
   scanned.
 - **Code graph.** `python omni graph build` writes `.ai/project-graph.json`
-  (git-ignored; needs `tree-sitter` plus `tree-sitter-python` and
-  `tree-sitter-bash`, which the `graph` extra installs). `.ai/graph-config.json`
+  (git-ignored; needs `tree-sitter` plus a python grammar: either the
+  `tree-sitter-python` wheel or `tree-sitter-language-pack`, which Arbiter's
+  own `ast` extra installs and the graph falls back to). `.ai/graph-config.json`
   excludes `fixtures/`, `examples/`, `training/`, `.arbiter/`, `arbiter-out/`
   and `arbiter-ab/` from the code layer: fixtures are planted-defect corpora,
   not arbiter's source, and a graph that linked them would attribute their
-  symbols to the product. `.ai/test-suites.json` registers the pytest fast
-  tier (`root-pytest`, the gate's suite), the slow tier (`root-pytest-slow`,
-  integration, run by CI's slow-tier job) and `tools/check_writeback.sh`.
+  symbols to the product. A finding raised on an excluded path still gets a
+  plain `file` node (no symbols) so it stays traceable. `.ai/test-suites.json`
+  registers the pytest fast tier (`root-pytest`, the gate's suite), the slow
+  tier (`root-pytest-slow`, integration, run by CI's slow-tier job) and
+  `tools/check_writeback.sh`.
+- **Findings in the graph (ARB-064).** Every unsuppressed Arbiter finding is a
+  `finding` node in the assurance layer, with `rule_id`, `probe`, `dimension`,
+  `severity`, `status`, `tags`, `cwe` (list), `controls` (list) and `sources`
+  (the report(s) it came from). Its edges: `flags` the file and the smallest
+  enclosing function/class, `violates` its `arbiter_rule` node (attrs `probe`,
+  `title`), `classified_as` each `cwe` node (named from a built-in CWE table;
+  the rule is `classified_as` the same CWEs), `cites` the requirement named by
+  a `req:<ID>` tag, `recorded_as` the ledger failure whose `how_detected` names
+  it, and `introduced_by` the commit git blame holds for its line.
+  - *Which reports.* With `findings_report: "auto"` (the default) the graph
+    reads two: the newest **full** report under `arbiter-out/` (any
+    `report.json` whose `scan_scope.mode` is not `partial`) as the base, and
+    the newest **partial** report under the gate rule's `--out` directory
+    (`arbiter-out/omni-gate/`) on top. Findings are deduplicated by `id`; the
+    newer report wins on `status`. `findings_report: "<path>"` reads exactly
+    that one report; `null` disables finding nodes.
+  - *Keeping it current.* `./omni graph build --if-stale` is a no-op unless
+    HEAD, a report, a requirement registry, the failure ledger or the suite
+    file moved since the graph was written (the graph records them under
+    `inputs`). `./omni gate` calls it when a graph file already exists and
+    prints one advisory `graph: ...` line; a rebuild failure never fails the
+    gate. A workspace whose `make scan` runs `arbiter scan` should chain the
+    same call: `arbiter scan . --out arbiter-out && ./omni graph build --if-stale`
+    (and set `findings_report` to that report path when its `arbiter-out/`
+    layout differs from the default).
+  - *Asking.* `./omni graph findings --cwe CWE-362`, `--rule 'arbiter/concurrency.*'`
+    (glob or substring), `--under src/`, `--dimension`, `--severity`;
+    `./omni graph why f:<id>` (rule, CWE, flagged code, requirement, commit),
+    `./omni graph why CWE-89` (every finding and file of that class),
+    `./omni graph impact src/x.py` (a `findings` bucket) and
+    `./omni graph impact CWE-89` (its findings and their files);
+    `./omni graph show --all --kind cwe|arbiter_rule|finding`. Over MCP:
+    `graph_findings` (same filters), `graph_cwe` (one CWE or rule id) and
+    `graph_impact` (with `paths`). End to end:
+
+    ```
+    arbiter scan fixtures/planted/python/bad --profile offline --out arbiter-out/full
+    ./omni graph build --if-stale
+    ./omni graph findings --cwe CWE-362
+    ./omni graph why f:d6ac7c224062
+    ```
 - **Failure ledger.** `.ai/failures/failure-ledger.json` records every shipped
   defect with its root cause, regression test and prevention rule; it was
   backfilled from `CHANGELOG.md` and `.ai/project-context.md` on 2026-10-09.

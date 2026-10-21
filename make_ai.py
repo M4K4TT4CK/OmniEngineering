@@ -2278,6 +2278,17 @@ def run_graph_build(args: argparse.Namespace) -> int:
         print(f"Unknown layer(s): {', '.join(sorted(bad_layers))}. Layers: {', '.join(omni_graph.LAYERS)}", file=sys.stderr)
         return 1
 
+    if getattr(args, "if_stale", False):  # ARB-064: a no-op when the reports, ledgers and HEAD have not moved
+        stale, reason = omni_graph.graph_stale(Path(args.output), root.resolve())
+        if not stale:
+            if args.json:
+                print(json.dumps({"output": args.output, "rebuilt": False, "reason": "up to date"}))
+            else:
+                print(f"graph: {args.output} is up to date; nothing rebuilt")
+            return 0
+        if not args.json:
+            print(f"graph: rebuilding {args.output} ({reason})")
+
     try:
         graph, semantic_info = omni_graph.build_graph(
             root.resolve(), languages, semantic=args.semantic, layers=layers, max_commits=args.max_commits
@@ -2681,7 +2692,9 @@ def run_graph_sources(args: argparse.Namespace) -> int:
         print(f"      detected  {s['id']}  [{s['framework']}] {s['files']} file(s)  {s['command'] or '-'}")
     fr = a.get("findings") or {}  # REQ-043
     if fr.get("report"):
-        print(f"      findings  {fr['report']}: {fr['findings']} unsuppressed Arbiter finding(s)")
+        reports = fr.get("reports") or [{"path": fr["report"], "mode": "?"}]
+        listed = ", ".join(f"{r['path']} ({r['mode']})" for r in reports)
+        print(f"      findings  {listed}: {fr['findings']} unsuppressed Arbiter finding(s) after merging")
     elif fr.get("note"):
         print(f"      {fr['note']}")
     w = layers["workspace"]
@@ -2761,6 +2774,7 @@ def run_graph_why(args: argparse.Namespace) -> int:
         "files modified", "files mentioned", "previous commit", "next commit", "test files", "tests", "test suites", "covers",
         "guards", "regression tests", "failures", "repeats", "repeated by", "prevented by",
         "rules and playbooks from those failures", "failures it prevents", "rules", "gaps",
+        "finding", "flagged code", "rule", "cwe", "arbiter_rule", "findings", "files",  # REQ-043 / ARB-064
     ]
     for section in sorted(result["sections"], key=lambda name: order.index(name) if name in order else len(order)):
         items = result["sections"][section]
@@ -2836,15 +2850,19 @@ def run_graph_impact(args: argparse.Namespace) -> int:
         print(f"Graph file not found: {graph_path}; run ./omni graph build first", file=sys.stderr)
         return 1
 
-    base = args.changed or gate_base_commit()
-    changed = sorted(gate_changed_paths(base))
+    explicit = [str(p) for p in (getattr(args, "paths", None) or []) if str(p).strip()]
+    base = None if explicit else (args.changed or gate_base_commit())
+    changed = explicit or sorted(gate_changed_paths(base))
     result = omni_graph.impact(graph_path, changed, depth=max(0, args.depth))
     result["base"] = base
     if args.json:
         print(json.dumps(result, indent=2))
         return 0
 
-    print(f"{len(changed)} changed path(s) since {base or 'the index'}: {len(result['changed'])} in the graph, {len(result['unresolved'])} unresolved")
+    if explicit:
+        print(f"{len(changed)} path(s) or id(s) given: {len(result['changed'])} in the graph, {len(result['unresolved'])} unresolved")
+    else:
+        print(f"{len(changed)} changed path(s) since {base or 'the index'}: {len(result['changed'])} in the graph, {len(result['unresolved'])} unresolved")
     for path in result["unresolved"][: args.limit]:
         print(f"  ? {path}")
     for bucket in omni_graph.IMPACT_BUCKETS:
@@ -2881,13 +2899,16 @@ def run_graph_findings(args: argparse.Namespace) -> int:
         print(f"Graph file not found: {graph_path}; run ./omni graph build first", file=sys.stderr)
         return 1
 
-    result = omni_graph.findings(graph_path, under=args.under, dimension=args.dimension, severity=args.severity, depth=max(0, args.depth))
+    result = omni_graph.findings(
+        graph_path, under=args.under, dimension=args.dimension, severity=args.severity, depth=max(0, args.depth),
+        cwe=getattr(args, "cwe", None), rule=getattr(args, "rule", None),
+    )
     if args.json:
         print(json.dumps(result, indent=2))
     else:
         print(omni_graph.render_findings_tree(result))
         if not result["total"] and not any(result["filters"].values()):
-            print("  Run `./omni gate` (which runs `arbiter gate`) and then `./omni graph build` to add the findings to the graph.")
+            print("  Run `arbiter scan` or `./omni gate` (which runs `arbiter gate`) and then `./omni graph build --if-stale` to add the findings to the graph.")
     if not args.view:
         return 0
 
@@ -6116,6 +6137,29 @@ def gate_signature(failures: list[str], changed: set[str]) -> str:
     return hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()
 
 
+def graph_rebuild_if_stale_note(graph_file: Path | None = None) -> str | None:
+    """ARB-064: rebuild `.ai/project-graph.json` in place when one already exists and its inputs (the Arbiter reports,
+    the ledgers, HEAD) moved since it was written -- the gate just ran `arbiter gate`, so the findings it wrote are
+    what `omni graph findings/why/impact` should answer from. One line back, or None when there is no graph to keep
+    current. Never raises: the graph is advice beside the gate, not part of its verdict."""
+    if omni_graph is None:
+        return None
+    graph_file = graph_file or Path(GRAPH_DEFAULT_OUTPUT)
+    if not graph_file.is_file():
+        return None
+    try:
+        root = Path.cwd().resolve()
+        stale, reason = omni_graph.graph_stale(graph_file, root)
+        if not stale:
+            return None
+        graph, semantic_info = omni_graph.build_graph(root, ["auto"], semantic=False, layers=set(omni_graph.LAYERS), max_commits=None)
+        write_json(graph_file, graph.to_json(str(root), ["auto"], semantic_info))
+        findings = (graph.layer_stats.get(omni_graph.LAYER_ASSURANCE) or {}).get("findings", 0)
+        return f"graph: rebuilt {graph_file.as_posix()} ({reason}; {len(graph.nodes)} nodes, {findings} finding(s))"
+    except Exception as exc:  # noqa: BLE001 -- advisory only
+        return f"graph: not rebuilt ({type(exc).__name__}: {str(exc).splitlines()[0][:120] if str(exc) else 'no detail'}); run ./omni graph build"
+
+
 def run_gate(args: argparse.Namespace) -> int:
     top = git_run("rev-parse", "--show-toplevel")
     if top is None:
@@ -6155,6 +6199,10 @@ def run_gate(args: argparse.Namespace) -> int:
         rule_failures, waived = gate_evaluate(changed, gate_waivers(base), base, memo=memo, outcomes=outcomes)
         failures.extend(rule_failures)
         gate_state_save({"memo": memo})
+
+    graph_note = graph_rebuild_if_stale_note()  # ARB-064: advisory; a failed rebuild never fails the gate
+    if graph_note and not args.hook:
+        print(graph_note)
 
     if not args.hook:
         for outcome in outcomes:
@@ -6494,6 +6542,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Print a machine-readable build summary instead of a human summary.",
     )
+    graph_build.add_argument(
+        "--if-stale",
+        action="store_true",
+        help="Only rebuild when an input moved since the graph was written: the Arbiter report(s), the requirement registries, the failure ledger, HEAD. A no-op otherwise (ARB-064; what `make scan` and `omni gate` call).",
+    )
 
     graph_trace = graph_subparsers.add_parser(
         "trace",
@@ -6520,7 +6573,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     graph_show.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
     graph_show.add_argument("--all", action="store_true", help="List every node instead of inspecting one (externals hidden unless --include-external).")
-    graph_show.add_argument("--kind", choices=["module", "class", "interface", "function", "method", "table", "external", "file", "requirement", "changelog", "commit", "failure", "rule", "suite", "rulepack", "playbook", "checklist"], help="With --all: only this node kind.")
+    graph_show.add_argument("--kind", choices=["module", "class", "interface", "function", "method", "table", "external", "file", "requirement", "changelog", "commit", "failure", "rule", "suite", "rulepack", "playbook", "checklist", "finding", "arbiter_rule", "cwe"], help="With --all: only this node kind.")
     graph_show.add_argument("--layer", choices=["code", "governance", "history", "assurance", "workspace"], help="With --all: only this layer.")
     graph_show.add_argument("--language", help="With --all: only this language (python, java, sql, go, ...).")
     graph_show.add_argument("--file", help="With --all: only files matching this glob, or containing this text.")
@@ -6591,8 +6644,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     graph_impact = graph_subparsers.add_parser(
         "impact",
-        help="What the pending change set reaches across the layers: requirements, failures, suites, tests, rules, commits.",
+        help="What the pending change set (or the given paths, CWE ids or Arbiter rule ids) reaches across the layers: requirements, failures, findings, suites, tests, rules, commits.",
     )
+    graph_impact.add_argument("paths", nargs="*", help="Paths, symbols' files, CWE ids (CWE-89), Arbiter rule ids or finding ids to start from instead of the pending change set (ARB-064).")
     graph_impact.add_argument("--changed", metavar="BASE", help="Base commit for the change set (default: the merge-base `omni gate` uses).")
     graph_impact.add_argument("--graph", default=GRAPH_DEFAULT_OUTPUT, help=f"Graph file to read. Defaults to {GRAPH_DEFAULT_OUTPUT}.")
     graph_impact.add_argument("--depth", type=int, default=2, help="Cross-layer hops to follow from each changed path (default 2).")
@@ -6669,12 +6723,14 @@ def build_parser() -> argparse.ArgumentParser:
     # REQ-043: Arbiter findings in the graph
     graph_findings = graph_subparsers.add_parser(
         "findings",
-        help="Arbiter findings from the newest gate report, grouped by directory with the requirements, failures and suites each one is tied to.",
+        help="Arbiter findings from the newest full and gate reports, grouped by directory with the CWE, rule, requirements, failures and suites each one is tied to.",
     )
     graph_findings.add_argument("--graph", default=GRAPH_DEFAULT_OUTPUT, help=f"Graph file to read. Defaults to {GRAPH_DEFAULT_OUTPUT}.")
     graph_findings.add_argument("--under", help="Only findings in this directory (or file).")
     graph_findings.add_argument("--dimension", help="Only this Arbiter dimension (security, quality, drift, supply_chain, ...).")
     graph_findings.add_argument("--severity", help="Only this severity (critical, high, medium, low, info).")
+    graph_findings.add_argument("--cwe", help="Only findings classified as this CWE, e.g. CWE-362 (ARB-064).")
+    graph_findings.add_argument("--rule", help="Only findings whose Arbiter rule id matches this glob or substring, e.g. 'arbiter/concurrency.*' (ARB-064).")
     graph_findings.add_argument("--depth", type=int, default=2, help="Hops over non-code links to collect requirements, failures and suites (default 2).")
     graph_findings.add_argument("--tree", action="store_true", help="Print the text tree (the default).")
     graph_findings.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
