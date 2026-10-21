@@ -13,6 +13,16 @@ assumptions (claims need evidence, assumption ledger, generated briefs,
 environment preflight, independent re-verification, verified/inferred/assumed
 labels, ask instead of guessing).
 ### 2026-10-21
+- ARB-067 | Gaps and next-steps report (`docs/gaps-and-next-steps.md`):
+where Arbiter stands, with measured numbers and their sources (gold benchmark,
+OWASP recall, CWE Top 25 matrix, scan times), the gaps in detection,
+precision, performance, platform, product and developer experience, fifteen
+improvements ranked by value over effort with requirement ids, an evaluation
+of fourteen testing options, and three milestones with measurable exit
+criteria. Every claim is labelled measured, inferred or assumed (ARB-074).
+Records the issues found during the overnight runs: findings with the same
+evidence collapsing, per-file query recompilation, the `lang_rules` import
+cycle and `controls._probe_of`. Documentation only; no code changed.
 - ARB-062 | CWE Top 25 (2024) measured before any new rule: an
 applicability matrix for Python, TypeScript/JavaScript, Go, Java and Ruby
 (`docs/cwe-top25.md`), 47 new planted pairs, one per applicable cell not
