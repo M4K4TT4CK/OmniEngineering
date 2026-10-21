@@ -376,3 +376,27 @@ def test_the_broad_except_house_rule_matches_only_broad_clauses(tmp_path):
     found = _scan_text(tmp_path, "pkg/a.py", code, ["house_rules_ast"], {"rules": [rule]})
     hits = sorted(f.location.start_line for f in found if f.rule_id == "house/no-bare-except")
     assert hits == [5, 7]
+
+
+def _vacuous(tmp_path, name, body):
+    d = tmp_path / name
+    (d / "tests").mkdir(parents=True)
+    (d / "tests" / name).write_text(body)
+    rep = run_scan([str(d)], load_config(None), only=["assurance"], use_adapters=False)
+    return [f for f in rep.active() if "asserts-nothing" in f.rule_id]
+
+
+def test_go_helper_taking_t_in_a_later_position_counts_as_assertion(tmp_path):
+    """cobra's args_test.go: `noArgsWithArgs(err, t, "one")` passes the test
+    handle second, and 32 of its tests were reported as asserting nothing."""
+    later = ('func TestNoArgs_WithArgs(t *testing.T) {\n'
+             '\t_, err := run(c, "one")\n\tnoArgsWithArgs(err, t, "one")\n}\n')
+    assert not _vacuous(tmp_path, "args_test.go", later)
+    last = 'func TestA(t *testing.T) {\n\terr := run()\n\tcheckErr(err, t)\n}\n'
+    assert not _vacuous(tmp_path, "b_test.go", last)
+    # Still reported: a Go test that never hands `t` to anything ...
+    none = 'func TestB(t *testing.T) {\n\terr := run()\n\t_ = err\n}\n'
+    assert _vacuous(tmp_path, "c_test.go", none)
+    # ... and outside Go a variable named `t` passed along is not an assertion.
+    py = "def test_smoke():\n    t = make()\n    run(1, t)\n"
+    assert _vacuous(tmp_path, "test_py.py", py)

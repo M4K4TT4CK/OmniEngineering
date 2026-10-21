@@ -197,6 +197,13 @@ _ASSERTION = re.compile(
     r"templateMatches)\s*\("
 )
 
+# Go only: a helper handed the test handle `t` in ANY argument position.
+# cobra's args_test.go writes `noArgsWithArgs(err, t, "one")`, and the
+# first-position pattern above reported 32 of its tests as asserting nothing.
+# Kept to Go, where `t` is the conventional *testing.T name; in Python or JS
+# a variable called `t` passed to a call says nothing about assertions.
+_GO_T_HELPER = re.compile(r"\b\w+\((?:[^()\n]*,)?\s*t\s*[,)]")
+
 # Go's test harness entry point. It is not a test and has nothing to assert.
 _NOT_REALLY_A_TEST = re.compile(r"^(TestMain|TestAccPreCheck|TestHelperProcess)$")
 
@@ -450,6 +457,8 @@ def _untestable_tests(ctx: ProbeContext, repo_id: str) -> list[Finding]:
             if _NOT_REALLY_A_TEST.match(name):
                 continue
             if _ASSERTION.search(body):
+                continue
+            if f.language == "go" and _GO_T_HELPER.search(body):
                 continue
             if _SKIPPED_TEST.search(body):
                 continue  # already reported above

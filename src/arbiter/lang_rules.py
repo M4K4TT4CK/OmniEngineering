@@ -108,6 +108,90 @@ def validate_pack(data: dict, name: str) -> None:
             raise PackError(f"{where}: query must capture @hit")
 
 
+QUERY_KEYS = ("query", "unless_inside", "unless_in_scope", "unless_in_file", "requires_file")
+
+
+# File names standing in for each grammar a language can be parsed with, so a
+# rule narrowed by `files:` is compiled only for the grammars it can meet: the
+# JSX rules are `files: "*.[jt]sx"` because plain typescript has no JSX nodes.
+_SAMPLE_FILES = {
+    "typescript": ("a.ts", "a.mts", "a.cts", "a.tsx"),
+    "javascript": ("a.js", "a.mjs", "a.cjs", "a.jsx"),
+}
+
+
+def _grammars(rule: dict, languages) -> set[str]:
+    from . import ast as ts
+    out: set[str] = set()
+    for lang in languages:
+        samples = _SAMPLE_FILES.get(lang)
+        if not samples:
+            if ts.ts_name(lang):
+                out.add(ts.ts_name(lang))
+            continue
+        for sample in samples:
+            if rule.get("files") and not fnmatch.fnmatch(sample, rule["files"]):
+                continue
+            g = ts.grammar_for(sample, lang)
+            if g:
+                out.add(g)
+    return out
+
+
+def compile_pack(data: dict, name: str) -> None:
+    """Compile every query in a pack against every grammar it will run on.
+
+    A query that does not compile used to surface only mid-scan, as the whole
+    `lang_<pack>` probe erroring out: a `#` comment inside a `|` query block
+    took the Go planted score from 41/41 to 4/41 with nothing pointing at the
+    rule. Raised as a PackError, like a schema error, naming pack, rule and
+    reason. Grammars this machine has not cached are skipped (never
+    downloaded); that language is then reported as not assessed anyway.
+    """
+    from . import ast as ts
+    if not ts.available():
+        return
+    cached = ts.cached_grammars()
+    for i, rule in enumerate(data["rules"]):
+        for grammar in sorted(_grammars(rule, rule.get("languages") or data["languages"]) & cached):
+            for key in QUERY_KEYS:
+                if not rule.get(key):
+                    continue
+                try:
+                    ts.compile_query(grammar, rule[key])
+                except ValueError as exc:
+                    raise PackError(
+                        f"{name} rule {i} ({rule['id']}): `{key}` does not compile "
+                        f"for {grammar}: {exc}") from exc
+
+
+def _compiled_stamp(text: str) -> Path:
+    """Where a successful compile of this exact pack text is remembered.
+
+    Compiling every query costs ~4s (the Ruby pack alone ~2s), too much to
+    pay on every import. A stamp keyed on the pack's bytes, the tree-sitter
+    versions and the cached grammars means the cost is paid once per pack
+    edit or upgrade; a broken pack is never stamped, so it fails every load.
+    """
+    import hashlib
+    from importlib import metadata
+
+    from . import ast as ts
+    try:
+        versions = [metadata.version(d) for d in ("tree-sitter", "tree-sitter-language-pack")]
+    except metadata.PackageNotFoundError:
+        versions = ["?"]
+    key = hashlib.sha256("\0".join(
+        [text, *versions, *sorted(ts.cached_grammars())]).encode()).hexdigest()
+    return _stamp_dir() / key
+
+
+def _stamp_dir() -> Path:
+    import os
+    base = os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache")
+    return Path(base) / "arbiter" / "compiled-packs"
+
+
 @cache
 def load_packs() -> dict[str, dict]:
     import yaml
@@ -115,9 +199,18 @@ def load_packs() -> dict[str, dict]:
     if not AST_PACKS.is_dir():
         return out
     for path in sorted(AST_PACKS.glob("*.yaml")):
-        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        text = path.read_text(encoding="utf-8")
+        data = yaml.safe_load(text) or {}
         name = data.get("pack") or path.stem
         validate_pack(data, path.name)
+        stamp = _compiled_stamp(text)
+        if not stamp.exists():
+            compile_pack(data, path.name)
+            try:
+                stamp.parent.mkdir(parents=True, exist_ok=True)
+                stamp.touch()
+            except OSError:
+                pass  # unwritable cache: compile again next load, still correct
         out[name] = data
     return out
 
