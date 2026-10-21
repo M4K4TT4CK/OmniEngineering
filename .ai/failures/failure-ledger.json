@@ -1323,6 +1323,31 @@
       ],
       "prevention_notes": "The regression test holds three name-holding assignments that must be silent and a live-looking key beside them that must fire.",
       "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-051",
+      "date": "2026-10-20",
+      "title": "An analyzer with no ruleset was reported as a clean run",
+      "status": "fixed",
+      "severity": "high",
+      "symptom": "With ~/.cache/arbiter/semgrep-rules absent, semgrep exited 7 ('unable to find a config') and the report showed semgrep: ran, 0 findings; with a primed cache it replayed the previous run's 11 findings.",
+      "how_detected": "Planted-bug scan of the interview starters, 2026-10-20",
+      "root_cause": "Adapter.run only treated a non-ok exit as an error when stdout was empty; semgrep prints a JSON error body, so the failed run parsed as zero results. The ruleset was never declared as a requirement, so nothing checked for it before the cache lookup, and the cache key does not cover the rules directory.",
+      "requirement": "ARB-059",
+      "affected": [
+        "src/arbiter/adapters.py",
+        "src/arbiter/probes.py",
+        "src/arbiter/packs/adapters/semgrep.adapter.toml"
+      ],
+      "fix_summary": "Adapters declare required files ([requires] files, {cache} resolved at check time); Probe.prevented reports a missing one as not assessed before any cache replay; an exit outside ok_exit with no parsed rows is an error carrying the tool's first error message. semgrep declares its pinned ruleset marker.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_adapter_not_assessed.py"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [],
+      "prevention_notes": "A tool's exit code and an empty result are separate facts; check the exit code whenever nothing parsed. Any input an analyzer needs besides its binary is declared in its manifest.",
+      "recurrence_of": ""
     }
   ]
 }

@@ -209,6 +209,7 @@ class Adapter:
     dimensions: list[str] = field(default_factory=lambda: ["quality"])
     stacks: list[str] | None = None
     binaries: list[str] = field(default_factory=list)
+    files: list[str] = field(default_factory=list)
     network: bool = False
     timeout: int = 300
     argv: list[str] = field(default_factory=list)
@@ -533,12 +534,31 @@ class Adapter:
                 out, code = self.invoke(repo.path)
             except subprocess.TimeoutExpired:
                 raise RuntimeError(f"{self.name} timed out after {self.timeout}s")
-            if code not in self.ok_exit and not out.strip():
-                raise RuntimeError(f"{self.name} exited {code}")
-            produced = self.to_findings(self.parse_output(out), repo.id, repo.path)
+            rows = self.parse_output(out)
+            # An exit outside ok_exit is a failed run unless the tool still
+            # handed back findings. Checking only for empty output let semgrep's
+            # "unable to find a config" (exit 7, a JSON body of errors and no
+            # results) be recorded as a clean run with nothing found (ARB-059).
+            if code not in self.ok_exit and not rows:
+                raise RuntimeError(f"{self.name} exited {code}{_error_detail(out)}")
+            produced = self.to_findings(rows, repo.id, repo.path)
             known = {f.path for f in ctx.inventory.by_repo.get(repo.id, [])}
             findings.extend(in_scope(produced, known))
         return findings
+
+
+def _error_detail(out: str) -> str:
+    """The tool's own first error message, when it reported one as JSON."""
+    try:
+        doc = json.loads(out)
+    except ValueError:
+        return ""
+    errors = doc.get("errors") if isinstance(doc, dict) else None
+    if isinstance(errors, list) and errors and isinstance(errors[0], dict):
+        message = str(errors[0].get("message") or "").strip()
+        if message:
+            return f": {message[:200]}"
+    return ""
 
 
 def in_scope(findings: list[Finding], known_paths: set[str]) -> list[Finding]:
@@ -590,6 +610,7 @@ def load_adapter(path: Path) -> Adapter:
         dimensions=data.get("dimensions", ["quality"]),
         stacks=sel.get("stacks"),
         binaries=req.get("binaries", []),
+        files=req.get("files", []),
         network=req.get("network", False),
         timeout=int(req.get("timeout", 300)),
         argv=inv.get("argv", []),
@@ -640,6 +661,7 @@ def register_adapters(extra_dirs: list[str] | None = None) -> list[Adapter]:
             run=a.run,
             stacks=a.stacks,
             binaries=a.binaries,
+            files=a.files,
             network=a.network,
             scope=a.scope,
             scope_reason=SCOPE_REASON,

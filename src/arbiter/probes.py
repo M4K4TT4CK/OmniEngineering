@@ -57,6 +57,10 @@ class Probe:
     stacks: list[str] | None = None       # None = always applicable
     binaries: list[str] = field(default_factory=list)
     modules: list[str] = field(default_factory=list)
+    # Files the probe cannot run without (an analyzer's ruleset). `{cache}`
+    # resolves to adapters.cache_dir() at check time. A missing one is a
+    # dependency this machine lacks, like a missing binary (ARB-059).
+    files: list[str] = field(default_factory=list)
     network: bool = False
     model: bool = False
     multi_repo_only: bool = False
@@ -126,6 +130,13 @@ class Probe:
             import importlib.util
             if importlib.util.find_spec(mod) is None:
                 return True, f"missing python package: {mod}"
+        if self.files:
+            from .adapters import cache_dir
+            for spec in self.files:
+                path = Path(spec.replace("{cache}", str(cache_dir())))
+                if not path.exists():
+                    return True, (f"missing required file: {path} "
+                                  "(run tools/install_tools.sh)")
         return False, ""
 
     def applicable(self, ctx: ProbeContext) -> tuple[bool, str]:

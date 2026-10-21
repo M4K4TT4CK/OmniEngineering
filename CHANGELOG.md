@@ -6,6 +6,17 @@ under `[Unreleased]` (there are no release tags yet) and reference the
 
 ## [Unreleased]
 
+### 2026-10-20
+
+- ARB-059 | An analyzer that could not run is now reported as not assessed or as
+  an error, never as a clean run. Adapters can declare required files
+  (`[requires] files`); semgrep declares its pinned ruleset, so a missing
+  `~/.cache/arbiter/semgrep-rules` is skipped with the path and
+  `tools/install_tools.sh` named, before any cache replay. An exit outside
+  `ok_exit` with no parsed findings is an error with the tool's own message.
+  Before this, semgrep with no rules showed `ran, 0 findings`, or replayed the
+  last run's findings from the cache.
+
 ### 2026-10-09
 
 - FAIL-050 (ARB-048) | The secrets probe no longer reports an environment-variable
