@@ -239,6 +239,51 @@ _COMPENSATING_TLS = re.compile(
 )
 _COMPENSATION_WINDOW = 8   # lines after the finding
 
+# Verification REPLACED, not removed. Go's crypto/tls only lets a program run
+# its own chain check (SPIFFE IDs, pinned peers) by setting InsecureSkipVerify
+# and supplying VerifyPeerCertificate or VerifyConnection; with either beside it
+# the flag is how custom verification is spelled, and it is not reported.
+# PeerCertSANs / PeerCertURI are the declarative form of the same thing:
+# Traefik's TLS client config turns them into a VerifyPeerCertificate callback
+# (pkg/server/service/transport.go), and its Consul Connect transport
+# (consulcatalog/connect_tls.go) pins the SPIFFE ID that way. Only the struct
+# literal holding the flag counts, or an assignment to the field shortly after.
+_CUSTOM_VERIFIER_FIELD = re.compile(
+    r"\b(?:VerifyPeerCertificate|VerifyConnection|PeerCertSANs|PeerCertURI)\s*:")
+_CUSTOM_VERIFIER_ASSIGN = re.compile(r"\.(?:VerifyPeerCertificate|VerifyConnection)\s*=[^=]")
+
+
+def _enclosing_braces(code: str, pos: int) -> str:
+    """The innermost `{...}` around `pos`, or "" when there is none."""
+    depth, start = 0, -1
+    for i in range(pos - 1, -1, -1):
+        c = code[i]
+        if c == "}":
+            depth += 1
+        elif c == "{":
+            if depth == 0:
+                start = i
+                break
+            depth -= 1
+    if start < 0:
+        return ""
+    depth = 0
+    for j in range(start, len(code)):
+        if code[j] == "{":
+            depth += 1
+        elif code[j] == "}":
+            depth -= 1
+            if depth == 0:
+                return code[start:j + 1]
+    return code[start:]
+
+
+def _custom_verification(code: str, lines: list[str], pos: int, line: int) -> bool:
+    if _CUSTOM_VERIFIER_FIELD.search(_enclosing_braces(code, pos)):
+        return True
+    return bool(_CUSTOM_VERIFIER_ASSIGN.search(
+        "\n".join(lines[line: line + _COMPENSATION_WINDOW])))
+
 # ---------------------------------------------------------------------------
 # 4. Prose describing absent code
 # ---------------------------------------------------------------------------
@@ -686,6 +731,9 @@ def _disabled_checks(f, text) -> list[Finding]:
     for pattern, title, sev in _DISABLED_CHECK:
         for m in pattern.finditer(code):
             n = _line_of(code, m.start())
+            if "InsecureSkipVerify" in m.group(0) and _custom_verification(
+                    code, lines, m.start(), n):
+                continue
             window = "\n".join(lines[max(0, n - 1 - _GUARD_WINDOW): n])
             guarded = bool(_OPT_IN_GUARD.search(window))
             after = "\n".join(lines[n: n + _COMPENSATION_WINDOW])

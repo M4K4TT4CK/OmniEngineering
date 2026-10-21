@@ -521,3 +521,28 @@ def test_provider_token_lookalikes_do_not_fire(tmp_path, line):
               "gitlab-token", "npm-token", "sendgrid-key", "pypi-token",
               "slack-webhook"}}
     assert not fired, f"{line} fired {fired}"
+
+
+@pytest.mark.parametrize("code,reported", [
+    # Custom verification in the same literal: the flag is how Go spells it.
+    ("cfg := &tls.Config{\n\tInsecureSkipVerify: true,\n"
+     "\tVerifyPeerCertificate: verifySPIFFE,\n}\n", False),
+    ("cfg := &tls.Config{InsecureSkipVerify: true, VerifyConnection: check}\n", False),
+    # Traefik's consulcatalog/connect_tls.go: the SPIFFE ID pinned declaratively.
+    ("t := &dynamic.ServersTransport{\n\tServerName: n,\n\tInsecureSkipVerify: true,\n"
+     "\tRootCAs: c.getRoot(),\n\tPeerCertSANs: []traefiktls.SAN{\n\t\t{Value: id},\n\t},\n}\n",
+     False),
+    ("cfg := &tls.Config{InsecureSkipVerify: true}\n"
+     "cfg.VerifyPeerCertificate = func(raw [][]byte, _ [][]*x509.Certificate) error {\n"
+     "\treturn verify(raw)\n}\n", False),
+    # Still reported: the plain flag, and a verifier in a DIFFERENT literal.
+    ("cfg := &tls.Config{InsecureSkipVerify: true}\n", True),
+    ("a := &tls.Config{InsecureSkipVerify: true}\n"
+     "b := &tls.Config{VerifyPeerCertificate: v}\n", True),
+])
+def test_insecure_skip_verify_with_its_own_verifier_is_not_reported(tmp_path, code, reported):
+    (tmp_path / "a.go").write_text("package p\n\nfunc f() {\n" + code + "}\n")
+    rep = run_scan([str(tmp_path)], load_config(None), only=["authored"],
+                   use_adapters=False, use_cache=False)
+    hits = [f for f in rep.active() if "security-check-disabled" in f.rule_id]
+    assert bool(hits) == reported, [(f.location.start_line, f.title) for f in hits]
