@@ -1,0 +1,20 @@
+# Java rules. Owner: the Java agent. Schema: src/arbiter/lang_rules.py.
+pack: java
+languages: [java]
+rules:
+  - id: object-input-stream
+    title: "`ObjectInputStream.readObject` deserializes untrusted bytes"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-502]
+    controls: [NIST-800-218:PW.5]
+    tags: [deserialization]
+    query: |
+      (method_invocation name: (identifier) @m (#eq? @m "readObject")) @hit
+    requires_file: |
+      (object_creation_expression
+        type: [(type_identifier) (scoped_type_identifier)] @t
+        (#match? @t "(^|\\.)ObjectInputStream$")) @x
+    description: "Java deserialization runs constructors and gadgets chosen by whoever wrote the bytes."
+    remediation: "Use a data format (JSON) with an explicit schema, or an ObjectInputFilter allow-list."

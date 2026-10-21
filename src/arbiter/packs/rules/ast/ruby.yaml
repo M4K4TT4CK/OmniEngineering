@@ -1,0 +1,17 @@
+# Ruby rules. Owner: the Ruby agent. Schema: src/arbiter/lang_rules.py.
+pack: ruby
+languages: [ruby]
+rules:
+  - id: marshal-load
+    title: "`Marshal.load` deserializes untrusted bytes"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-502]
+    controls: [NIST-800-218:PW.5]
+    tags: [deserialization]
+    query: |
+      (call receiver: (constant) @r method: (identifier) @m
+        (#eq? @r "Marshal") (#eq? @m "load")) @hit
+    description: "Marshal.load can instantiate arbitrary objects chosen by whoever wrote the bytes."
+    remediation: "Use JSON.parse, or YAML.safe_load with permitted classes."

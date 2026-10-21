@@ -53,6 +53,7 @@ import re
 import sys
 from pathlib import Path
 
+from . import ecosystems as _eco
 from .core import Finding, Location
 from .probes import ProbeContext, _line_of, _read
 
@@ -110,7 +111,7 @@ _MANIFESTS = {
     "requirements.txt", "requirements-dev.txt", "pyproject.toml", "setup.py",
     "setup.cfg", "Pipfile", "environment.yml", "constraints.txt",
     "package.json", "package-lock.json", "yarn.lock", "pnpm-lock.yaml",
-}
+} | _eco.MANIFESTS
 
 # Names that look like third-party imports and are not: the repository's own
 # packages, and the conventional local-source roots.
@@ -352,14 +353,19 @@ def probe_authored(ctx: ProbeContext) -> list[Finding]:
         declared, has_manifest = _declared_dependencies(ctx, repo.id)
         local = _local_modules(ctx, repo.id)
         workspace = _workspace_packages(ctx, repo.id)
+        facts: dict = {}
         for f in ctx.inventory.text_files():
             if f.repo_id != repo.id or f.role in ("generated", "data", "docs"):
                 continue
             text = _read(f)
             if not text:
                 continue
-            out.extend(_undeclared_imports(f, text, declared, local, has_manifest,
-                                           workspace, online))
+            if f.language in _eco.ECOSYSTEM_OF:
+                out.extend(_undeclared_other(f, text, facts.setdefault(
+                    (repo.id, f.language), _ecosystem_facts(ctx, repo.id, f.language))))
+            else:
+                out.extend(_undeclared_imports(f, text, declared, local, has_manifest,
+                                               workspace, online))
             out.extend(_stubs(f, text))
             out.extend(_disabled_checks(f, text))
             out.extend(_unkept_promises(f, text))
@@ -416,6 +422,61 @@ def _undeclared_imports(f, text, declared, local, has_manifest,
                 continue
             out.append(_import_finding(f, text, pkg, "node",
                                        package_exists("node", pkg) if online else None))
+    return out
+
+
+def _ecosystem_facts(ctx: ProbeContext, repo_id: str, language: str) -> dict:
+    """Declared and local names for one Go, Java or Ruby repository."""
+    whole = getattr(ctx.inventory, "whole", None) or ctx.inventory
+    files = [f for f in whole.text_files() if f.repo_id == repo_id]
+    wanted = _eco.MANIFESTS_OF[language]
+    manifests = [f for f in files if Path(f.path).name in wanted]
+    declared: set[str] = set()
+    local: set[str] = set()
+    for m in manifests:
+        text = _read(m) or ""
+        if language == "go":
+            req, own = _eco.go_declared(text)
+            declared |= req
+            local |= own
+        elif language == "java":
+            declared |= _eco.java_declared(text)
+        else:
+            declared |= _eco.ruby_declared(text)
+    if language == "java":
+        for f in files:
+            if f.language == "java":
+                pkg = _eco.java_package(_read(f) or "")
+                if pkg:
+                    local.add(pkg)
+    elif language == "ruby":
+        local |= _eco.ruby_local([f.path for f in files])
+    return {"declared": declared, "local": local, "has_manifest": bool(manifests)}
+
+
+def _undeclared_other(f, text, facts: dict) -> list[Finding]:
+    """Go, Java and Ruby imports nothing declares (see ecosystems.py)."""
+    if not facts["has_manifest"] or _NOT_SHIPPED.search(f.path) or f.role == "test":
+        return []
+    lang, eco = f.language, _eco.ECOSYSTEM_OF[f.language]
+    declared, local = facts["declared"], facts["local"]
+    out: list[Finding] = []
+    seen: set[str] = set()
+    if lang == "go":
+        names = [(n, n) for n in _eco.go_imports(text) if not _eco.go_resolves(n, declared, local)]
+    elif lang == "java":
+        names = [(n, ".".join(n.split(".")[:3])) for n in _eco.java_imports(text)
+                 if not _eco.java_resolves(n, declared, local)]
+    else:
+        names = [(n, n.split("/")[0]) for n in _eco.ruby_imports(text)
+                 if not _eco.ruby_resolves(n, declared, local)]
+    for raw, key in names:
+        if key in seen:
+            continue
+        seen.add(key)
+        finding = _import_finding(f, text, raw, eco)
+        finding.cwe = ["CWE-1357"]
+        out.append(finding)
     return out
 
 

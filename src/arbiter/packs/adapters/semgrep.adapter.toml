@@ -98,6 +98,8 @@ line = "start.line"
 severity = "extra.severity"
 severity_default = "medium"
 dimension = "security"
+# The tool's own weakness classification, normalised by arbiter.cwe.
+cwe = "extra.metadata.cwe"
 # extra.fix is an actual code-level fix when the rule offers one. Most
 # security-audit rules don't (the fix is context-dependent), so fall back to
 # the rule's own first reference (a specific CWE/OWASP/advisory page, not a

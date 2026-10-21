@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from . import cwe as _cwe
 from .core import Finding, Location
 from .probes import Probe, ProbeContext, register
 
@@ -523,6 +524,8 @@ class Adapter:
                 remediation=remediation[:500],
                 remediation_source=remediation_source,
                 evidence=f"{rule}@{path}:{logical}" if logical else f"{rule}@{path}",
+                cwe=_cwe.normalise(m["cwe_const"]) if m.get("cwe_const")
+                else _cwe.normalise(dig(row, m.get("cwe", ""), []) if m.get("cwe") else []),
                 tags=["external-tool", self.name],
             ))
         return out

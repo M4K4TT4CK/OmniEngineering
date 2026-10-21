@@ -1,0 +1,17 @@
+# TypeScript and JavaScript rules. Owner: the TypeScript agent.
+# Schema: src/arbiter/lang_rules.py.
+pack: typescript
+languages: [typescript, javascript]
+rules:
+  - id: eval-call
+    title: "`eval` runs a string as code"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-95]
+    controls: [NIST-800-218:PW.5]
+    tags: [injection]
+    query: |
+      (call_expression function: (identifier) @fn (#eq? @fn "eval")) @hit
+    description: "Anything that reaches the string runs with the process's full rights."
+    remediation: "Parse data with JSON.parse; never build code from input."
