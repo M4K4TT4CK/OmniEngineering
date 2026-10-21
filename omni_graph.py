@@ -108,6 +108,10 @@ NODE_KIND_LAYER = {
     "playbook": LAYER_WORKSPACE,
     "checklist": LAYER_WORKSPACE,
     "finding": LAYER_ASSURANCE,  # REQ-043: one Arbiter finding, read from the newest gate report
+    # ARB-064: what a finding violates and how it is classified. `arbiter_rule` is distinct from `rule` (an
+    # OmniEngineering rulepack rule): one is a scanner check, the other a working agreement.
+    "arbiter_rule": LAYER_ASSURANCE,  # one Arbiter rule id (arbiter/concurrency.check-then-act), with its probe
+    "cwe": LAYER_ASSURANCE,  # one MITRE CWE id (CWE-362), named when the table below knows it
 }
 
 EDGE_LAYER = {
@@ -132,7 +136,78 @@ EDGE_LAYER = {
     "cites": LAYER_ASSURANCE,  # finding -> requirement named by a `req:<ID>` tag (context: being worked when the scan ran)
     "recorded_as": LAYER_ASSURANCE,  # finding -> failure-ledger entry whose how_detected names the finding
     "introduced_by": LAYER_ASSURANCE,  # REQ-051: finding -> the commit git blame holds for its line (the requirement is one `delivers` hop on)
+    # ARB-064: traceability from a finding to the rule it violates and the weakness class it belongs to
+    "violates": LAYER_ASSURANCE,  # finding -> arbiter_rule it was raised by
+    "classified_as": LAYER_ASSURANCE,  # finding -> cwe, and arbiter_rule -> cwe (the rule's declared classification)
 }
+
+# ARB-064: names for the CWE ids Arbiter's own rules declare plus the CWE Top 25, so a `cwe` node reads as more than a
+# number without a network lookup. An id missing here still gets a node; only its summary is empty.
+CWE_NAMES: dict[str, str] = {
+    "CWE-20": "Improper Input Validation",
+    "CWE-22": "Improper Limitation of a Pathname to a Restricted Directory (Path Traversal)",
+    "CWE-77": "Improper Neutralization of Special Elements used in a Command (Command Injection)",
+    "CWE-78": "Improper Neutralization of Special Elements used in an OS Command (OS Command Injection)",
+    "CWE-79": "Improper Neutralization of Input During Web Page Generation (Cross-site Scripting)",
+    "CWE-89": "Improper Neutralization of Special Elements used in an SQL Command (SQL Injection)",
+    "CWE-94": "Improper Control of Generation of Code (Code Injection)",
+    "CWE-95": "Improper Neutralization of Directives in Dynamically Evaluated Code (Eval Injection)",
+    "CWE-119": "Improper Restriction of Operations within the Bounds of a Memory Buffer",
+    "CWE-125": "Out-of-bounds Read",
+    "CWE-190": "Integer Overflow or Wraparound",
+    "CWE-200": "Exposure of Sensitive Information to an Unauthorized Actor",
+    "CWE-269": "Improper Privilege Management",
+    "CWE-276": "Incorrect Default Permissions",
+    "CWE-287": "Improper Authentication",
+    "CWE-295": "Improper Certificate Validation",
+    "CWE-306": "Missing Authentication for Critical Function",
+    "CWE-327": "Use of a Broken or Risky Cryptographic Algorithm",
+    "CWE-338": "Use of Cryptographically Weak Pseudo-Random Number Generator (PRNG)",
+    "CWE-352": "Cross-Site Request Forgery (CSRF)",
+    "CWE-362": "Concurrent Execution using Shared Resource with Improper Synchronization (Race Condition)",
+    "CWE-366": "Race Condition within a Thread",
+    "CWE-391": "Unchecked Error Condition",
+    "CWE-396": "Declaration of Catch for Generic Exception",
+    "CWE-400": "Uncontrolled Resource Consumption",
+    "CWE-416": "Use After Free",
+    "CWE-434": "Unrestricted Upload of File with Dangerous Type",
+    "CWE-470": "Use of Externally-Controlled Input to Select Classes or Code (Unsafe Reflection)",
+    "CWE-476": "NULL Pointer Dereference",
+    "CWE-494": "Download of Code Without Integrity Check",
+    "CWE-502": "Deserialization of Untrusted Data",
+    "CWE-703": "Improper Check or Handling of Exceptional Conditions",
+    "CWE-787": "Out-of-bounds Write",
+    "CWE-798": "Use of Hard-coded Credentials",
+    "CWE-829": "Inclusion of Functionality from Untrusted Control Sphere",
+    "CWE-834": "Excessive Iteration",
+    "CWE-835": "Loop with Unreachable Exit Condition (Infinite Loop)",
+    "CWE-862": "Missing Authorization",
+    "CWE-863": "Incorrect Authorization",
+    "CWE-916": "Use of Password Hash With Insufficient Computational Effort",
+    "CWE-918": "Server-Side Request Forgery (SSRF)",
+    "CWE-1080": "Source Code File with Excessive Number of Lines of Code",
+    "CWE-1121": "Excessive McCabe Cyclomatic Complexity",
+    "CWE-1124": "Excessive McCabe Cyclomatic Complexity (Nesting)",
+    "CWE-1164": "Irrelevant Code",
+    "CWE-1321": "Improperly Controlled Modification of Object Prototype Attributes (Prototype Pollution)",
+    "CWE-1357": "Reliance on Insufficiently Trustworthy Component",
+}
+_CWE_ID = re.compile(r"CWE[-_ ]?(\d+)", re.IGNORECASE)
+
+
+def normalise_cwe(value: Any) -> list[str]:
+    """`"CWE-89"`, `89`, `"cwe_89"`, `["CWE-79", ...]` -> `["CWE-89", ...]`, deduplicated, order kept."""
+    out: list[str] = []
+    items = value if isinstance(value, (list, tuple)) else [value]
+    for item in items:
+        if isinstance(item, bool):
+            continue
+        if isinstance(item, int) or (isinstance(item, str) and item.strip().isdigit()):
+            out.append(f"CWE-{int(item)}")
+            continue
+        out.extend(f"CWE-{number}" for number in _CWE_ID.findall(str(item or "")))
+    seen: set[str] = set()
+    return [c for c in out if not (c in seen or seen.add(c))]
 
 FAILURE_LEDGER_PATH = ".ai/failures/failure-ledger.json"
 REQUIREMENTS_PATHS = (".ai/requirements/requirements.json", ".ai/requirements/requirements-archive.json")
@@ -460,12 +535,29 @@ def load_language(language: str):
 
             return ts.Language(grammar.language_typescript())
     except ImportError as exc:
+        packed = _language_from_pack(language)
+        if packed is not None:
+            return packed
         raise GraphDependencyError(
             f"tree-sitter grammar for '{language}' is not installed. Install it with: "
             'pip install "omniengineering-workspace[graph]"'
         ) from exc
 
     raise GraphDependencyError(f"Unsupported language: {language}")
+
+
+def _language_from_pack(language: str):
+    """The grammar from `tree-sitter-language-pack` when the per-language wheel is absent (ARB-064: Arbiter's own
+    `ast` extra installs the pack, not the wheels, and the graph must build in that environment). None when the pack
+    is missing or does not know the language."""
+    try:
+        import tree_sitter_language_pack as pack
+    except ImportError:
+        return None
+    try:
+        return pack.get_language(language)
+    except Exception:  # noqa: BLE001 -- an unknown language name in the pack is the same as no grammar
+        return None
 
 
 def _text(node) -> str:
@@ -1155,6 +1247,9 @@ def _generic_language(language: str):
         grammar = importlib.import_module(spec["module"])
         return ts.Language(getattr(grammar, spec.get("factory", "language"))())
     except (ImportError, AttributeError) as exc:
+        packed = _language_from_pack(spec.get("pack_name", language))
+        if packed is not None:
+            return packed
         raise GraphDependencyError(
             f"tree-sitter grammar for '{language}' is not installed. Install it with: pip install {spec['package']}"
         ) from exc
