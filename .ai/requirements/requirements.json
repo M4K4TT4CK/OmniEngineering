@@ -1519,7 +1519,8 @@
         "findings per KLOC per rule with budgets from a data file and a non-zero exit on breach",
         "recall per CWE on at least one labelled benchmark",
         "harness logic tested without network",
-        "first measurement triaged into a prioritised list of rule fixes"
+        "first measurement triaged into a prioritised list of rule fixes",
+        "java and typescript pack rules over budget on the gold set brought under budget, each fix with a planted pair and a pinned test that keeps a still-reported case, and OWASP Benchmark Java in-scope recall raised with its false-positive rate reported per CWE"
       ],
       "validation_required": [
         "pytest",

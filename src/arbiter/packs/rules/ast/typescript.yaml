@@ -326,11 +326,16 @@ rules:
     unless_in_scope: |
       [((identifier) @t (#match? @t "^(AbortController|AbortSignal|setTimeout)$"))
        ((member_expression property: (property_identifier) @p) (#match? @p "^(race|timeout)$"))]
+    # Browser code (tomcat's manager webapp, the otel-js web examples): the
+    # page that waits is one user's, who can reload it, not a server worker.
+    unless_in_file: |
+      ((member_expression object: (identifier) @o) (#match? @o "^(document|window)$"))
     description: >
       `fetch` has no default timeout. A peer that accepts the connection and
       never answers holds this request, and the caller waiting on it, forever;
       under load that is every worker. Only a literal options object without
-      `signal` is reported; one passed by name is left alone.
+      `signal` is reported; one passed by name is left alone, and so is a
+      file that touches `document` or `window`, which runs in a browser.
     remediation: "Pass `signal: AbortSignal.timeout(ms)` (Node 17.3+), or an AbortController you abort from a timer."
 
   - id: axios-no-timeout
@@ -649,7 +654,22 @@ rules:
            (arrow_function parameters: (formal_parameters (_)) body: (statement_block) @b)]))
        (#match? @fn "^(it|test)$")
        (#not-match? @b "(?i)\\b(expect|assert\\w*|should|verify|check|validate|snapshot|throws?|rejects|resolves|toHaveBeenCalled|fail)\\b|\\b(expect|assert|verify|check|validate|ensure)(?-i:[A-Z_])\\w*\\s*\\(|[(,:]\\s*done\\s*[,)}]")
-       (#not-match? @hit "(?i)(\\bnot|\\bnever|n't|\\bwithout) throw"))
+       ; node:test and AVA. A plan-counted assertion object from tspl, whose
+       ; methods are destructured and called bare in undici; AVA's `t.is` and
+       ; `t.throwsAsync` in jose; node:assert functions imported by name; a
+       ; `runClient`/`testX`-named helper handed the test context `t`; and a
+       ; Promise whose reject fails the test.
+       (#not-match? @b "(?i)\\btspl\\s*\\x28|\\bplan\\s*[:\\x28]|\\bt\\.(is|not|deepEqual|notDeepEqual|true|false|truthy|falsy|like|regex|notRegex|pass|equal|notEqual|strictEqual|notStrictEqual|deepStrictEqual|notDeepStrictEqual|ok|notOk|same|match|ifError|error|throws\\w*|notThrows\\w*)\\s*\\x28|(?<![.\\w])(strictEqual|deepStrictEqual|deepEqual|notStrictEqual|notDeepStrictEqual|notDeepEqual|notEqual|equal|ok|doesNotMatch|ifError)\\s*\\x28|\\b(test|run|check|verify|assert|expect|ensure|validate)(?-i:[A-Z])\\w*\\x28t\\s*[,\\x29]|\\breject\\b")
+       ; the title says not throwing is the check: "does not throw", "should
+       ; not crash", "should forceFlush without error" (otel-js)
+       (#not-match? @hit "(?i)(\\bnot|\\bnever|n't|\\bwithout) (throw|crash|hang|error|fail)"))
+    # A Playwright test (`async ({ page }) => ...`, keycloak admin-ui): every
+    # locator action waits for its element and fails the test when it never
+    # appears or cannot be clicked, so a click-through flow is checked.
+    unless_inside: |
+      ((call_expression function: (identifier) @f
+         arguments: (arguments (arrow_function parameters: (formal_parameters) @p))) @c
+       (#match? @f "^(it|test)$") (#match? @p "^\\x28\\s*\\{[^}]*\\bpage\\b"))
     description: >
       The test body has nothing that can fail: no `expect`, `assert` or
       `should`, and `done` is not handed to anything that could call it with
@@ -657,7 +677,8 @@ rules:
       with no parameters are covered by `assurance.test-asserts-nothing`;
       this catches `function () {}` and `(done) => {}` callbacks.) A test
       whose title says it checks that nothing throws, or that hands `done`
-      on as a callback (`{ end: done }`), is not reported.
+      on as a callback (`{ end: done }`), is not reported, nor are node:test
+      plans (tspl), AVA's `t.*` assertions and Playwright `({ page })` flows.
     remediation: "Assert the behaviour, or say in a comment that not throwing is the assertion."
 
   - id: skipped-test
