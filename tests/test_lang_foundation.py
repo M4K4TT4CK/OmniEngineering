@@ -73,13 +73,17 @@ def test_tsx_files_parse_with_the_tsx_grammar():
 @pytest.mark.parametrize("path", [
     "src/foo.test.ts", "web/a.spec.js", "lib/user_spec.rb", "spec/a_spec.rb",
     "src/test/java/a/FooTest.java", "pkg/x_test.go", "tests/test_a.py",
+    "_test/closure0.go", "interp/_test/a/b.go",
 ])
 def test_every_ide_languages_test_files_are_tests(path):
     assert classify(path, "x") == "test"
 
 
 @pytest.mark.parametrize("path", ["src/main/java/a/Foo.java", "lib/app.rb", "src/attest.py",
-                                  "cmd/main.go", "src/latest.ts"])
+                                  "cmd/main.go", "src/latest.ts",
+                                  # `_test/` must be the whole directory name
+                                  "pkg/foo_test/a.go", "_testdata/a.go", "my_test_dir/a.go",
+                                  "src/_test.go/x.go"])
 def test_source_files_are_not_mistaken_for_tests(path):
     assert classify(path, "x") == "source"
 
