@@ -239,6 +239,17 @@ rules:
         (#match? @v "(?i)attempt|retr|tries|count") (#match? @m "^(positive\\?|zero\\?|nonzero\\?|<|>|>=|<=)$")) @cap
       (if_modifier body: (retry) condition: (binary)) @cap
       (unless_modifier body: (retry) condition: (binary)) @cap
+    unless_inside: |
+      ; a one-shot retry: a literal flag set right before `retry` and tested on
+      ; the way in (sidekiq capsule.rb `retryable = false; retry`,
+      ; current_attributes.rb `retried = true; retry`) runs at most twice.
+      ((then (assignment left: (identifier) right: [(true) (false)]) . (retry)) @once)
+      ; repair-then-retry behind a guard that re-raises every other error
+      ; (sidekiq scheduled.rb `raise unless e.message.start_with?("NOSCRIPT")`
+      ; then `@sha = nil; retry`; web/helpers.rb re-encodes the text). The
+      ; failure is local state the handler fixed, not a dependency outage.
+      ((rescue body: (then . [(unless_modifier) (if_modifier)] @g (_) . (retry) .)) @repair
+        (#match? @g "^raise\\b"))
     description: >-
       `retry` re-runs the begin block on every rescue, and nothing in this
       method counts attempts or compares them with a limit. A dependency that
@@ -261,6 +272,17 @@ rules:
       (call method: (identifier) @m (#match? @m "^(sleep|backoff|wait|delay|pause)$")) @sleep
       (call method: (identifier) @m (#match? @m "(backoff|_delay|_wait|jitter)")) @sleep
       ((identifier) @m (#match? @m "^(sleep|backoff)$"))
+    unless_inside: |
+      ; a one-shot retry: a literal flag set right before `retry` and tested on
+      ; the way in (sidekiq capsule.rb `retryable = false; retry`,
+      ; current_attributes.rb `retried = true; retry`) runs at most twice.
+      ((then (assignment left: (identifier) right: [(true) (false)]) . (retry)) @once)
+      ; repair-then-retry behind a guard that re-raises every other error
+      ; (sidekiq scheduled.rb `raise unless e.message.start_with?("NOSCRIPT")`
+      ; then `@sha = nil; retry`; web/helpers.rb re-encodes the text). The
+      ; failure is local state the handler fixed, not a dependency outage.
+      ((rescue body: (then . [(unless_modifier) (if_modifier)] @g (_) . (retry) .)) @repair
+        (#match? @g "^raise\\b"))
     description: >-
       The retry fires again immediately. Against an overloaded or restarting
       dependency that is the worst possible timing: every client retries at
@@ -323,6 +345,19 @@ rules:
       ; and SystemExit are delivered to the main thread, not the request.
       ((method name: (identifier) @n parameters: (method_parameters . (identifier) @p .)) @boundary
         (#match? @n "^call!?$") (#eq? @p "env"))
+      ; isolating one callback: the protected body is a single `x.call(...)`
+      ; (sidekiq cli.rb chained signal handler, config.rb error handlers), so a
+      ; broken plug-in cannot take the host down.
+      (begin . (call method: (identifier) @c (#eq? @c "call")) . (rescue) @isolate)
+      (do_block body: (body_statement . (call method: (identifier) @c (#eq? @c "call")) . (rescue) @isolate))
+      ; the caught exception is handed to a supervisor hook, not dropped
+      ; (sidekiq processor.rb `@callback.call(self, ex)`, job_retry.rb
+      ; `handle_exception(e, ...)`). Only logging it (`logger.error(e)`) is
+      ; still reported.
+      ((rescue (exception_variable (identifier) @v)
+         (then (call method: (identifier) @m arguments: (argument_list (identifier) @a)))) @handoff
+        (#match? @m "^(call|handle_exception|handle_error|on_error|report_exception|notify)$")
+        (#eq? @a @v))
     description: >-
       Exception is the root of Interrupt, SignalException, SystemExit and
       NoMemoryError. Rescuing it makes Ctrl-C and `exit` no-ops inside this
@@ -466,6 +501,12 @@ rules:
     query: |
       (call receiver: (constant) @r method: (identifier) @m
         (#eq? @r "Marshal") (#match? @m "^(load|restore)$")) @hit
+    unless_inside: |
+      ; `Marshal.load(Marshal.dump(obj))` is a deep copy of an object this
+      ; process built (sidekiq redis_connection.rb); no foreign bytes involved.
+      ((call receiver: (constant) @r method: (identifier) @m
+         arguments: (argument_list . (call receiver: (constant) @r2 method: (identifier) @d) .)) @clone
+        (#eq? @r "Marshal") (#eq? @r2 "Marshal") (#eq? @d "dump"))
     description: "Marshal.load can instantiate arbitrary objects chosen by whoever wrote the bytes."
     remediation: "Use JSON.parse, or YAML.safe_load with permitted classes."
 
@@ -548,6 +589,14 @@ rules:
          block: (do_block body: (body_statement (call !receiver method: (identifier) @h) .)))
         @delegated
         (#not-match? @h "^(get|post|put|patch|delete|head|options|visit|click|fill_in|sleep|puts|p|pp|print|run|call|subject|described_class|send|request|follow_redirect!)$"))
+      ; the group's `after { expect(...) }` / `after { stubs.verify_stubbed_calls }`
+      ; asserts for every example in it (faraday connection_spec.rb)
+      ((call method: (identifier) @g
+         block: (do_block body: (body_statement (call !receiver method: (identifier) @a block: (_) @ab))))
+        @checked_after
+        (#match? @g "^(describe|context|feature|shared_examples|shared_examples_for|shared_context)$")
+        (#eq? @a "after")
+        (#match? @ab "\\bexpect\\s*[({]|\\bis_expected\\b|\\bshould\\b|\\bassert|\\bverify"))
     description: >-
       The example body contains no `expect`, `should`, `assert` or
       `is_expected`, so it passes whatever the code does, and counts toward

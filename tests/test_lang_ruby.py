@@ -541,3 +541,134 @@ def test_nil_as_the_value_of_an_assigned_begin_is_a_fallback(tmp_path):
     end
     '''
     assert _rules(tmp_path, code)["swallowed-error"] == [10, 14]
+
+
+# --- second precision pass: sidekiq and faraday (ARB-061) -------------------
+
+def test_one_shot_and_guarded_repair_retries_are_silent(tmp_path):
+    # sidekiq capsule.rb / client.rb / config.rb, current_attributes.rb,
+    # scheduled.rb (NOSCRIPT), web/helpers.rb (re-encode).
+    code = '''
+    def a
+      retryable = true
+      begin
+        conn.call
+      rescue RedisClient::CommandError => ex
+        if retryable && ex.message =~ /READONLY/
+          conn.close
+          retryable = false
+          retry
+        end
+        raise
+      end
+    end
+
+    def b
+      conn.call("EVALSHA", @sha)
+    rescue RedisClient::CommandError => e
+      raise unless e.message.start_with?("NOSCRIPT")
+
+      @sha = nil
+      retry
+    end
+    '''
+    got = _rules(tmp_path, code)
+    assert "retry-unbounded" not in got and "retry-without-backoff" not in got
+
+
+def test_retry_after_a_reconnect_assignment_is_still_reported(tmp_path):
+    # `conn = reconnect; retry` is not a one-shot: it hammers forever.
+    code = '''
+    def a
+      begin
+        conn.get("/")
+      rescue Timeout::Error
+        conn = reconnect
+        retry
+      end
+    end
+    '''
+    got = _rules(tmp_path, code)
+    assert got["retry-unbounded"] == [7] and got["retry-without-backoff"] == [7]
+
+
+def test_rescue_exception_isolating_a_callback_or_handing_off_is_silent(tmp_path):
+    # sidekiq cli.rb, config.rb (isolate one callback); processor.rb,
+    # job_retry.rb (hand the exception to a supervisor hook).
+    code = '''
+    def a
+      begin
+        old_handler.call
+      rescue Exception => exc
+        puts exc.inspect
+      end
+      handlers.each do |handler|
+        handler.call(ex)
+      rescue Exception => e
+        logger.error(e)
+      end
+    end
+
+    def run
+      process_one until @done
+    rescue Exception => ex
+      @callback.call(self, ex)
+    end
+
+    def delay(block)
+      block&.call(1)
+    rescue Exception => e
+      handle_exception(e, {context: "retry_in"})
+      nil
+    end
+    '''
+    assert "rescue-exception" not in _rules(tmp_path, code)
+
+
+def test_rescue_exception_that_only_logs_is_still_reported(tmp_path):
+    code = '''
+    def run
+      loop { process_one }
+    rescue Exception => e
+      logger.error(e)
+    end
+    '''
+    assert _rules(tmp_path, code)["rescue-exception"] == [4]
+
+
+def test_marshal_deep_copy_is_silent_but_marshal_of_input_is_not(tmp_path):
+    # sidekiq redis_connection.rb: Marshal.load(Marshal.dump(options))
+    code = '''
+    def a(options, raw)
+      copy = Marshal.load(Marshal.dump(options))
+      Marshal.load(Base64.decode64(raw))
+    end
+    '''
+    assert _rules(tmp_path, code)["marshal-load"] == [4]
+
+
+def test_expectation_in_a_group_after_hook_covers_its_examples(tmp_path):
+    # faraday connection_spec.rb: `after { stubs.verify_stubbed_calls }`
+    code = '''
+    RSpec.describe "conn" do
+      context "with prefix" do
+        after { expect(subject.path).to eq("/sake.html") }
+        it { conn.path_prefix = "/fish" }
+      end
+
+      context "with stubs" do
+        after { stubs.verify_stubbed_calls }
+        it "overrides params" do
+          conn.get("?p=2", p: 3)
+        end
+      end
+
+      context "with a cleanup hook only" do
+        after { conn.close }
+        it "gets" do
+          conn.get("/")
+        end
+      end
+    end
+    '''
+    assert _rules(tmp_path, code, "spec/conn_spec.rb")["vacuous-spec"] == [17]

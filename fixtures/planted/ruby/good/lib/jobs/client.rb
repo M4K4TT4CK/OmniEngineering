@@ -67,6 +67,32 @@ module Jobs
       false
     end
 
+    # One-shot retry: a stale keep-alive socket is reopened once, then the error stands.
+    def status_once_more(id)
+      reconnected = false
+      begin
+        status(id)
+      rescue EOFError
+        raise if reconnected
+
+        @conn = nil
+        reconnected = true
+        retry
+      end
+    end
+
+    def snapshot(options)
+      Marshal.load(Marshal.dump(options))
+    end
+
+    def on_error(handlers, err)
+      handlers.each do |handler|
+        handler.call(err)
+      rescue Exception => e # rubocop:disable Lint/RescueException
+        warn("error handler failed: #{e.message}")
+      end
+    end
+
     def close
       @conn&.close
     rescue IOError

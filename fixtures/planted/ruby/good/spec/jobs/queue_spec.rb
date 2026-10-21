@@ -51,4 +51,13 @@ RSpec.describe Jobs::Queue do
   def expect_state(id, state)
     expect(Jobs::Queue::JOBS[id]["state"]).to eq(state)
   end
+
+  context "with the shared check in an after hook" do
+    after { expect(Jobs::Queue::JOBS["d"]["state"]).to eq("running") }
+
+    it "claims through enqueue" do
+      queue.enqueue("d", "{}")
+      queue.claim("d")
+    end
+  end
 end
