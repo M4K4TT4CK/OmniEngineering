@@ -1,0 +1,32 @@
+{
+  "_about": "Per-rule false-positive budgets for tools/gold_benchmark.py (ARB-065), in findings per thousand non-blank lines. A language-pack rule is divided by the KLOC of its own language across the gold set, a shared rule by all five languages. Lookup: exact entry in `rules`, else the longest matching entry in `prefixes`, else `default_per_kloc`. A rule with fewer than `min_count` findings is never a breach. On this code nearly every finding is a false positive, so a defect rule's budget is small: 0.03/KLOC is one finding per 33,000 lines. Budgets are targets, not a ratchet of today's numbers: a breach is a rule to fix, not a number to raise. Raising one needs a reason that names the evidence.",
+  "default_per_kloc": 0.03,
+  "min_count": 5,
+  "prefixes": {
+    "arbiter/ast.": {
+      "per_kloc": 0.5,
+      "reason": "Maintainability metrics (length, complexity, nesting) with fixed thresholds. Correct by construction on any code; reported for trend, budgeted only against a regression that multiplies them."
+    },
+    "arbiter/quality.": {
+      "per_kloc": 0.5,
+      "reason": "Size and TODO-density metrics, same as arbiter/ast.*: not defect claims."
+    },
+    "arbiter/supply.": {
+      "per_kloc": 0.1,
+      "reason": "Repository hygiene (floating ranges, unpinned actions) counted per manifest or workflow line, not per code line; gold projects deliberately use ranges in libraries."
+    },
+    "arbiter/drift.": {
+      "per_kloc": 0.1,
+      "reason": "Documentation drift scales with docs, not code; a docs site built by a generator legitimately links to pages that exist only after the build."
+    },
+    "arbiter/resource.": {
+      "per_kloc": 0.1,
+      "reason": "Kubernetes manifest hygiene: fires per manifest in examples and test deployments."
+    },
+    "arbiter/assurance.suppression-census": {
+      "per_kloc": 1.0,
+      "reason": "One informational census row per repository by design."
+    }
+  },
+  "rules": {}
+}

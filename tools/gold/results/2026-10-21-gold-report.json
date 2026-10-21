@@ -1,0 +1,3848 @@
+{
+ "schema_version": 1,
+ "kind": "gold-precision",
+ "arbiter_commit": "d57e479",
+ "adapters": false,
+ "generated": "2026-10-21T06:15:47Z",
+ "budgets_file": "tools/gold/budgets.json",
+ "totals": {
+  "repos": 24,
+  "kloc": 6085.9,
+  "findings": 12468,
+  "per_kloc": 2.049,
+  "rules_fired": 97,
+  "rules_over_budget": 16
+ },
+ "lines": {
+  "typescript": {
+   "prod": 332414,
+   "test": 323060
+  },
+  "python": {
+   "prod": 236716,
+   "test": 508152
+  },
+  "java": {
+   "prod": 1826905,
+   "test": 1184869
+  },
+  "go": {
+   "prod": 492710,
+   "test": 491170
+  },
+  "ruby": {
+   "prod": 258734,
+   "test": 431187
+  }
+ },
+ "missing": [],
+ "repos": [
+  {
+   "name": "py-urllib3",
+   "language": "python",
+   "pinned_sha": "ef8b211bc9cc688a7d68242fbfb583f545793293",
+   "head": "ef8b211bc9cc688a7d68242fbfb583f545793293",
+   "at_pin": true,
+   "lines": {
+    "typescript": {
+     "prod": 117,
+     "test": 0
+    },
+    "python": {
+     "prod": 11724,
+     "test": 17619
+    }
+   },
+   "kloc": 29.5,
+   "findings": 71,
+   "per_kloc": 2.41,
+   "seconds": 5.7
+  },
+  {
+   "name": "py-celery",
+   "language": "python",
+   "pinned_sha": "d6d754e21e353629c22803edfc2093f3deeffe9d",
+   "head": "d6d754e21e353629c22803edfc2093f3deeffe9d",
+   "at_pin": true,
+   "lines": {
+    "python": {
+     "prod": 42584,
+     "test": 59775
+    }
+   },
+   "kloc": 102.4,
+   "findings": 364,
+   "per_kloc": 3.556,
+   "seconds": 29.1
+  },
+  {
+   "name": "py-django",
+   "language": "python",
+   "pinned_sha": "2fff3e9f493a9c85fb8a2294358c6751575ee4bf",
+   "head": "2fff3e9f493a9c85fb8a2294358c6751575ee4bf",
+   "at_pin": true,
+   "lines": {
+    "typescript": {
+     "prod": 4078,
+     "test": 1483
+    },
+    "python": {
+     "prod": 140470,
+     "test": 318485
+    }
+   },
+   "kloc": 464.5,
+   "findings": 713,
+   "per_kloc": 1.535,
+   "seconds": 129.9
+  },
+  {
+   "name": "py-aiohttp",
+   "language": "python",
+   "pinned_sha": "72a735c6a43fb6b846ad67e53a042b7bfb9556ab",
+   "head": "72a735c6a43fb6b846ad67e53a042b7bfb9556ab",
+   "at_pin": true,
+   "lines": {
+    "python": {
+     "prod": 25452,
+     "test": 59525
+    }
+   },
+   "kloc": 85.0,
+   "findings": 139,
+   "per_kloc": 1.636,
+   "seconds": 14.0
+  },
+  {
+   "name": "py-cryptography",
+   "language": "python",
+   "pinned_sha": "1b01d635193fe41c697418d3be80fbb45bc3519d",
+   "head": "1b01d635193fe41c697418d3be80fbb45bc3519d",
+   "at_pin": true,
+   "lines": {
+    "python": {
+     "prod": 16233,
+     "test": 52748
+    },
+    "java": {
+     "prod": 328,
+     "test": 0
+    },
+    "go": {
+     "prod": 543,
+     "test": 0
+    }
+   },
+   "kloc": 69.9,
+   "findings": 266,
+   "per_kloc": 3.808,
+   "seconds": 98.5
+  },
+  {
+   "name": "ts-undici",
+   "language": "typescript",
+   "pinned_sha": "25543f5bd5744ff673016ed89b4bb09455e4875a",
+   "head": "25543f5bd5744ff673016ed89b4bb09455e4875a",
+   "at_pin": true,
+   "lines": {
+    "typescript": {
+     "prod": 44704,
+     "test": 91336
+    }
+   },
+   "kloc": 136.0,
+   "findings": 836,
+   "per_kloc": 6.145,
+   "seconds": 34.2
+  },
+  {
+   "name": "ts-nest",
+   "language": "typescript",
+   "pinned_sha": "d5d7e2c89f46b7f0f76e1d588bb092b41b4b926e",
+   "head": "d5d7e2c89f46b7f0f76e1d588bb092b41b4b926e",
+   "at_pin": true,
+   "lines": {
+    "typescript": {
+     "prod": 71502,
+     "test": 96118
+    }
+   },
+   "kloc": 167.6,
+   "findings": 254,
+   "per_kloc": 1.515,
+   "seconds": 363.5
+  },
+  {
+   "name": "ts-jose",
+   "language": "typescript",
+   "pinned_sha": "2cddc59c0592a851876a717ae39c59d41751cd72",
+   "head": "2cddc59c0592a851876a717ae39c59d41751cd72",
+   "at_pin": true,
+   "lines": {
+    "typescript": {
+     "prod": 13725,
+     "test": 8730
+    }
+   },
+   "kloc": 22.5,
+   "findings": 344,
+   "per_kloc": 15.32,
+   "seconds": 18.1
+  },
+  {
+   "name": "ts-otel-js",
+   "language": "typescript",
+   "pinned_sha": "12a5817ad147c186a0e45a6637abd5abf423727a",
+   "head": "12a5817ad147c186a0e45a6637abd5abf423727a",
+   "at_pin": true,
+   "lines": {
+    "typescript": {
+     "prod": 75535,
+     "test": 69857
+    }
+   },
+   "kloc": 145.4,
+   "findings": 384,
+   "per_kloc": 2.641,
+   "seconds": 159.4
+  },
+  {
+   "name": "ts-axios",
+   "language": "typescript",
+   "pinned_sha": "fceeb10997ea71778ad8bc9671ad53e9195a707c",
+   "head": "fceeb10997ea71778ad8bc9671ad53e9195a707c",
+   "at_pin": true,
+   "lines": {
+    "typescript": {
+     "prod": 10181,
+     "test": 31491
+    }
+   },
+   "kloc": 41.7,
+   "findings": 262,
+   "per_kloc": 6.287,
+   "seconds": 12.7
+  },
+  {
+   "name": "go-caddy",
+   "language": "go",
+   "pinned_sha": "bfdbeb4a1bf7e267b0b93070ed854b847beef581",
+   "head": "bfdbeb4a1bf7e267b0b93070ed854b847beef581",
+   "at_pin": true,
+   "lines": {
+    "go": {
+     "prod": 66988,
+     "test": 47642
+    },
+    "typescript": {
+     "prod": 1,
+     "test": 0
+    }
+   },
+   "kloc": 114.6,
+   "findings": 245,
+   "per_kloc": 2.137,
+   "seconds": 21.8
+  },
+  {
+   "name": "go-containerd",
+   "language": "go",
+   "pinned_sha": "2c2a63f43253bda805d83b6f31c70443ffe783ec",
+   "head": "2c2a63f43253bda805d83b6f31c70443ffe783ec",
+   "at_pin": true,
+   "lines": {
+    "go": {
+     "prod": 166423,
+     "test": 79684
+    }
+   },
+   "kloc": 246.1,
+   "findings": 411,
+   "per_kloc": 1.67,
+   "seconds": 109.9
+  },
+  {
+   "name": "go-coredns",
+   "language": "go",
+   "pinned_sha": "3cbe6b5269be2eae6d4d2404d7371c9a24660f85",
+   "head": "3cbe6b5269be2eae6d4d2404d7371c9a24660f85",
+   "at_pin": true,
+   "lines": {
+    "go": {
+     "prod": 37985,
+     "test": 67904
+    }
+   },
+   "kloc": 105.9,
+   "findings": 371,
+   "per_kloc": 3.504,
+   "seconds": 29.1
+  },
+  {
+   "name": "go-grpc",
+   "language": "go",
+   "pinned_sha": "679b224109d3373eb0e4d80b6e41aafc8d295b6d",
+   "head": "679b224109d3373eb0e4d80b6e41aafc8d295b6d",
+   "at_pin": true,
+   "lines": {
+    "go": {
+     "prod": 127952,
+     "test": 194215
+    }
+   },
+   "kloc": 322.2,
+   "findings": 539,
+   "per_kloc": 1.673,
+   "seconds": 84.3
+  },
+  {
+   "name": "go-etcd",
+   "language": "go",
+   "pinned_sha": "7ff040cb84c9944d0c38a9f0dc9f12ed9c58223b",
+   "head": "7ff040cb84c9944d0c38a9f0dc9f12ed9c58223b",
+   "at_pin": true,
+   "lines": {
+    "go": {
+     "prod": 92819,
+     "test": 101725
+    }
+   },
+   "kloc": 194.5,
+   "findings": 274,
+   "per_kloc": 1.408,
+   "seconds": 80.1
+  },
+  {
+   "name": "java-netty",
+   "language": "java",
+   "pinned_sha": "154e87c6b8fdacd7510fbe01d45bbce7018bc604",
+   "head": "154e87c6b8fdacd7510fbe01d45bbce7018bc604",
+   "at_pin": true,
+   "lines": {
+    "java": {
+     "prod": 388440,
+     "test": 193189
+    },
+    "typescript": {
+     "prod": 464,
+     "test": 0
+    }
+   },
+   "kloc": 582.1,
+   "findings": 529,
+   "per_kloc": 0.909,
+   "seconds": 568.9
+  },
+  {
+   "name": "java-httpclient",
+   "language": "java",
+   "pinned_sha": "acb0cd33fd77d1f4164c4848ae607000b557ac8c",
+   "head": "acb0cd33fd77d1f4164c4848ae607000b557ac8c",
+   "at_pin": true,
+   "lines": {
+    "java": {
+     "prod": 94307,
+     "test": 79417
+    }
+   },
+   "kloc": 173.7,
+   "findings": 149,
+   "per_kloc": 0.858,
+   "seconds": 96.2
+  },
+  {
+   "name": "java-tomcat",
+   "language": "java",
+   "pinned_sha": "6ba25c848c84f4b076220c5e0578a1cbb9063ed0",
+   "head": "6ba25c848c84f4b076220c5e0578a1cbb9063ed0",
+   "at_pin": true,
+   "lines": {
+    "java": {
+     "prod": 470329,
+     "test": 169539
+    },
+    "typescript": {
+     "prod": 5130,
+     "test": 0
+    }
+   },
+   "kloc": 645.0,
+   "findings": 964,
+   "per_kloc": 1.495,
+   "seconds": 477.5
+  },
+  {
+   "name": "java-spring-security",
+   "language": "java",
+   "pinned_sha": "2ad2ec631b52c2f6318c4f186e599b93cc711bee",
+   "head": "2ad2ec631b52c2f6318c4f186e599b93cc711bee",
+   "at_pin": true,
+   "lines": {
+    "java": {
+     "prod": 267729,
+     "test": 276874
+    },
+    "python": {
+     "prod": 5,
+     "test": 0
+    },
+    "typescript": {
+     "prod": 469,
+     "test": 1171
+    }
+   },
+   "kloc": 546.2,
+   "findings": 2140,
+   "per_kloc": 3.918,
+   "seconds": 623.1
+  },
+  {
+   "name": "java-keycloak",
+   "language": "java",
+   "pinned_sha": "d7b7d660babd29495322bca8c65f528872dad18b",
+   "head": "d7b7d660babd29495322bca8c65f528872dad18b",
+   "at_pin": true,
+   "lines": {
+    "java": {
+     "prod": 604443,
+     "test": 465850
+    },
+    "typescript": {
+     "prod": 94454,
+     "test": 22273
+    },
+    "python": {
+     "prod": 248,
+     "test": 0
+    }
+   },
+   "kloc": 1187.3,
+   "findings": 2229,
+   "per_kloc": 1.877,
+   "seconds": 2044.6
+  },
+  {
+   "name": "ruby-rails",
+   "language": "ruby",
+   "pinned_sha": "3f0b675158e8284241bb1213c00375bc1fb9c52f",
+   "head": "3f0b675158e8284241bb1213c00375bc1fb9c52f",
+   "at_pin": true,
+   "lines": {
+    "typescript": {
+     "prod": 12054,
+     "test": 599
+    },
+    "ruby": {
+     "prod": 187872,
+     "test": 299276
+    }
+   },
+   "kloc": 499.8,
+   "findings": 711,
+   "per_kloc": 1.423,
+   "seconds": 1066.3
+  },
+  {
+   "name": "ruby-rack",
+   "language": "ruby",
+   "pinned_sha": "412b7e5250612e8b23095eee65ee3268addb4776",
+   "head": "412b7e5250612e8b23095eee65ee3268addb4776",
+   "at_pin": true,
+   "lines": {
+    "ruby": {
+     "prod": 7745,
+     "test": 11051
+    },
+    "typescript": {
+     "prod": 0,
+     "test": 2
+    }
+   },
+   "kloc": 18.8,
+   "findings": 20,
+   "per_kloc": 1.064,
+   "seconds": 39.3
+  },
+  {
+   "name": "ruby-puma",
+   "language": "ruby",
+   "pinned_sha": "d53529399bc250915374eebe3ae54dd9fd9a6cb0",
+   "head": "d53529399bc250915374eebe3ae54dd9fd9a6cb0",
+   "at_pin": true,
+   "lines": {
+    "ruby": {
+     "prod": 10849,
+     "test": 13870
+    },
+    "java": {
+     "prod": 1329,
+     "test": 0
+    }
+   },
+   "kloc": 26.0,
+   "findings": 83,
+   "per_kloc": 3.186,
+   "seconds": 49.8
+  },
+  {
+   "name": "ruby-rubygems",
+   "language": "ruby",
+   "pinned_sha": "f033df93676007227d1ae0bd7326008e6396b3e9",
+   "head": "f033df93676007227d1ae0bd7326008e6396b3e9",
+   "at_pin": true,
+   "lines": {
+    "ruby": {
+     "prod": 52268,
+     "test": 106990
+    }
+   },
+   "kloc": 159.3,
+   "findings": 170,
+   "per_kloc": 1.067,
+   "seconds": 298.9
+  }
+ ],
+ "rules": [
+  {
+   "rule": "arbiter/typescript.test-without-assertion",
+   "pack": "typescript",
+   "count": 729,
+   "in_tests": 729,
+   "kloc_denominator": 655.5,
+   "per_kloc": 1.1122,
+   "repos_hit": 4,
+   "by_repo": {
+    "ts-undici": 472,
+    "ts-jose": 239,
+    "java-keycloak": 12,
+    "ts-otel-js": 6
+   },
+   "by_language": {
+    "typescript": 729
+   },
+   "cwe": [
+    "CWE-1164"
+   ],
+   "samples": [
+    "ts-undici:test/agent-connection-management.js:41",
+    "ts-undici:test/busboy/issue-4671.js:7",
+    "ts-undici:test/cache-interceptor/cache-utils.js:7",
+    "ts-jose:test/jwe/compact.decrypt.test.ts:5",
+    "ts-jose:test/jwe/compact.decrypt.test.ts:16",
+    "ts-jose:test/jwe/compact.decrypt.test.ts:30",
+    "ts-otel-js:api/test/common/metrics/Metric.test.ts:10",
+    "ts-otel-js:api/test/common/metrics/Metric.test.ts:47",
+    "ts-otel-js:api/test/common/noop-implementations/noop-meter.test.ts:140",
+    "java-keycloak:js/apps/admin-ui/test/clients/authorization.spec.ts:258",
+    "java-keycloak:js/apps/admin-ui/test/groups/role.spec.ts:64",
+    "java-keycloak:js/apps/admin-ui/test/permissions/policy.spec.ts:30"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": true
+  },
+  {
+   "rule": "arbiter/authored.undeclared-import",
+   "pack": "shared",
+   "count": 2325,
+   "in_tests": 53,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.382,
+   "repos_hit": 18,
+   "by_repo": {
+    "java-spring-security": 1311,
+    "java-keycloak": 678,
+    "py-celery": 88,
+    "ts-nest": 79,
+    "ruby-rails": 44,
+    "py-django": 23,
+    "java-netty": 23,
+    "go-grpc": 17,
+    "ts-axios": 14,
+    "py-urllib3": 11,
+    "ts-jose": 9,
+    "ts-otel-js": 6,
+    "java-httpclient": 6,
+    "ruby-puma": 5,
+    "py-cryptography": 3,
+    "java-tomcat": 3,
+    "ruby-rack": 3,
+    "ruby-rubygems": 2
+   },
+   "by_language": {
+    "java": 2020,
+    "python": 123,
+    "typescript": 113,
+    "ruby": 52,
+    "go": 17
+   },
+   "cwe": [
+    "CWE-1357"
+   ],
+   "samples": [
+    "py-urllib3:dummyserver/socketserver.py:26",
+    "py-urllib3:eslint.config.cjs:1",
+    "py-urllib3:eslint.config.cjs:2",
+    "py-celery:celery/app/autoretry.py:2",
+    "py-celery:celery/app/base.py:17",
+    "py-celery:celery/app/base.py:18",
+    "py-django:django/contrib/gis/db/backends/mysql/introspection.py:1",
+    "py-django:django/contrib/gis/db/backends/oracle/adapter.py:1",
+    "py-django:django/contrib/gis/db/backends/oracle/introspection.py:1",
+    "py-cryptography:.github/bin/merge_rust_coverage.py:9",
+    "py-cryptography:release.py:8",
+    "py-cryptography:release.py:23",
+    "ts-nest:integration/file-upload/e2e/fastify.spec.ts:26",
+    "ts-nest:integration/file-upload/e2e/parity.spec.ts:2",
+    "ts-nest:integration/file-upload/e2e/parity.spec.ts:5"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": true
+  },
+  {
+   "rule": "arbiter/secrets.assigned-credential",
+   "pack": "shared",
+   "count": 1696,
+   "in_tests": 589,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.2787,
+   "repos_hit": 23,
+   "by_repo": {
+    "java-keycloak": 677,
+    "java-spring-security": 498,
+    "java-tomcat": 104,
+    "ruby-rails": 56,
+    "py-cryptography": 46,
+    "java-netty": 40,
+    "py-django": 39,
+    "ts-nest": 29,
+    "ts-otel-js": 28,
+    "ruby-rubygems": 27,
+    "go-etcd": 24,
+    "java-httpclient": 24,
+    "go-coredns": 22,
+    "go-grpc": 22,
+    "ts-axios": 15,
+    "go-containerd": 12,
+    "py-aiohttp": 10,
+    "ts-undici": 5,
+    "py-urllib3": 4,
+    "py-celery": 4,
+    "ruby-puma": 4,
+    "ts-jose": 3,
+    "go-caddy": 3
+   },
+   "by_language": {
+    "java": 1081,
+    "other": 280,
+    "typescript": 108,
+    "ruby": 83,
+    "python": 72,
+    "go": 72
+   },
+   "cwe": [
+    "CWE-798"
+   ],
+   "samples": [
+    "py-urllib3:src/urllib3/connection.py:747",
+    "py-urllib3:src/urllib3/connectionpool.py:1041",
+    "py-urllib3:src/urllib3/contrib/emscripten/connection.py:224",
+    "py-celery:celery/backends/dynamodb.py:101",
+    "py-celery:celery/backends/dynamodb.py:157",
+    "py-celery:examples/django/proj/settings.py:40",
+    "py-django:django/contrib/auth/base_user.py:95",
+    "py-django:django/contrib/auth/views.py:229",
+    "py-django:django/contrib/auth/views.py:246",
+    "py-aiohttp:docs/code/client_middleware_cookbook.py:48",
+    "py-aiohttp:docs/code/client_middleware_cookbook.py:49",
+    "py-aiohttp:docs/code/client_middleware_cookbook.py:56",
+    "py-cryptography:src/cryptography/hazmat/primitives/hpke.py:12",
+    "py-cryptography:src/cryptography/hazmat/primitives/hpke.py:14",
+    "py-cryptography:src/cryptography/x509/__init__.py:119"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": true
+  },
+  {
+   "rule": "arbiter/ast.function-too-long",
+   "pack": "shared",
+   "count": 1572,
+   "in_tests": 769,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.2583,
+   "repos_hit": 24,
+   "by_repo": {
+    "go-grpc": 301,
+    "java-tomcat": 201,
+    "java-keycloak": 188,
+    "go-containerd": 178,
+    "go-caddy": 99,
+    "go-etcd": 99,
+    "java-netty": 97,
+    "py-django": 91,
+    "go-coredns": 70,
+    "ts-undici": 51,
+    "java-httpclient": 42,
+    "py-cryptography": 37,
+    "py-celery": 17,
+    "java-spring-security": 17,
+    "py-aiohttp": 16,
+    "ts-otel-js": 15,
+    "ts-nest": 12,
+    "ruby-rails": 9,
+    "ts-axios": 8,
+    "ruby-puma": 7,
+    "py-urllib3": 5,
+    "ts-jose": 5,
+    "ruby-rubygems": 5,
+    "ruby-rack": 2
+   },
+   "by_language": {
+    "go": 746,
+    "java": 490,
+    "python": 145,
+    "typescript": 143,
+    "other": 32,
+    "ruby": 16
+   },
+   "cwe": [
+    "CWE-1080"
+   ],
+   "samples": [
+    "py-urllib3:src/urllib3/connection.py:809",
+    "py-urllib3:src/urllib3/connection.py:1023",
+    "py-urllib3:src/urllib3/connectionpool.py:383",
+    "py-celery:celery/app/amqp.py:487",
+    "py-celery:celery/app/base.py:169",
+    "py-celery:celery/app/base.py:1033",
+    "py-django:django/apps/config.py:100",
+    "py-django:django/contrib/admin/options.py:1574",
+    "py-django:django/contrib/admin/options.py:2068",
+    "py-aiohttp:aiohttp/_websocket/reader_py.py:251",
+    "py-aiohttp:aiohttp/_websocket/reader_py.py:405",
+    "py-aiohttp:aiohttp/client.py:317",
+    "py-cryptography:src/cryptography/hazmat/asn1/asn1.py:168",
+    "py-cryptography:src/cryptography/hazmat/primitives/serialization/ssh.py:1485",
+    "py-cryptography:src/rust/cryptography-cffi/build.rs:11"
+   ],
+   "budget_per_kloc": 0.5,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/ast.high-complexity",
+   "pack": "shared",
+   "count": 1185,
+   "in_tests": 159,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.1947,
+   "repos_hit": 21,
+   "by_repo": {
+    "java-tomcat": 238,
+    "py-django": 158,
+    "go-containerd": 110,
+    "go-grpc": 100,
+    "java-keycloak": 83,
+    "java-netty": 78,
+    "go-caddy": 75,
+    "go-coredns": 52,
+    "ts-otel-js": 47,
+    "py-aiohttp": 36,
+    "ts-undici": 35,
+    "go-etcd": 35,
+    "py-celery": 34,
+    "java-httpclient": 33,
+    "py-cryptography": 18,
+    "py-urllib3": 14,
+    "ts-nest": 10,
+    "java-spring-security": 10,
+    "ts-jose": 9,
+    "ts-axios": 7,
+    "ruby-puma": 3
+   },
+   "by_language": {
+    "java": 420,
+    "go": 369,
+    "python": 251,
+    "typescript": 128,
+    "other": 17
+   },
+   "cwe": [
+    "CWE-1121"
+   ],
+   "samples": [
+    "py-urllib3:src/urllib3/connection.py:809",
+    "py-urllib3:src/urllib3/connection.py:1023",
+    "py-urllib3:src/urllib3/connectionpool.py:383",
+    "py-celery:celery/app/amqp.py:326",
+    "py-celery:celery/app/amqp.py:420",
+    "py-celery:celery/app/amqp.py:487",
+    "py-django:django/apps/config.py:100",
+    "py-django:django/contrib/admin/options.py:503",
+    "py-django:django/contrib/admin/options.py:1304",
+    "py-aiohttp:aiohttp/_cookie_helpers.py:180",
+    "py-aiohttp:aiohttp/_cookie_helpers.py:288",
+    "py-aiohttp:aiohttp/_cookie_helpers.py:363",
+    "py-cryptography:src/cryptography/hazmat/asn1/asn1.py:168",
+    "py-cryptography:src/cryptography/hazmat/primitives/serialization/ssh.py:1029",
+    "py-cryptography:src/cryptography/x509/extensions.py:574"
+   ],
+   "budget_per_kloc": 0.5,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/java.test-without-assertion",
+   "pack": "java",
+   "count": 446,
+   "in_tests": 446,
+   "kloc_denominator": 3011.8,
+   "per_kloc": 0.1481,
+   "repos_hit": 5,
+   "by_repo": {
+    "java-spring-security": 192,
+    "java-keycloak": 102,
+    "java-netty": 81,
+    "java-tomcat": 61,
+    "java-httpclient": 10
+   },
+   "by_language": {
+    "java": 446
+   },
+   "cwe": [
+    "CWE-1164"
+   ],
+   "samples": [
+    "java-netty:buffer/src/test/java/io/netty/buffer/AbstractAdaptiveByteBufTest.java:37",
+    "java-netty:buffer/src/test/java/io/netty/buffer/AbstractAdaptiveByteBufTest.java:43",
+    "java-netty:buffer/src/test/java/io/netty/buffer/AbstractByteBufTest.java:206",
+    "java-httpclient:httpclient5-websocket/src/test/java/org/apache/hc/client5/http/websocket/transport/WsInboundBufferTest.java:40",
+    "java-httpclient:httpclient5/src/test/java/org/apache/hc/client5/http/config/TestRequestConfig.java:43",
+    "java-httpclient:httpclient5/src/test/java/org/apache/hc/client5/http/impl/auth/TestBasicScheme.java:170",
+    "java-tomcat:modules/jdbc-pool/src/test/java/org/apache/tomcat/jdbc/bugs/Bug54978.java:51",
+    "java-tomcat:modules/jdbc-pool/src/test/java/org/apache/tomcat/jdbc/test/Bug50571.java:35",
+    "java-tomcat:modules/jdbc-pool/src/test/java/org/apache/tomcat/jdbc/test/CreateTestTable.java:34",
+    "java-spring-security:access/src/test/java/org/springframework/security/access/vote/AffirmativeBasedTests.java:73",
+    "java-spring-security:access/src/test/java/org/springframework/security/access/vote/AffirmativeBasedTests.java:81",
+    "java-spring-security:access/src/test/java/org/springframework/security/access/vote/AffirmativeBasedTests.java:88",
+    "java-keycloak:core/src/test/java/org/keycloak/JsonParserTest.java:63",
+    "java-keycloak:core/src/test/java/org/keycloak/JsonParserTest.java:103",
+    "java-keycloak:core/src/test/java/org/keycloak/SkeletonKeyTokenTest.java:153"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": true
+  },
+  {
+   "rule": "arbiter/quality.file-too-long",
+   "pack": "shared",
+   "count": 595,
+   "in_tests": 0,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.0978,
+   "repos_hit": 24,
+   "by_repo": {
+    "java-tomcat": 145,
+    "java-netty": 80,
+    "java-keycloak": 70,
+    "ruby-rails": 40,
+    "go-containerd": 34,
+    "py-django": 32,
+    "go-caddy": 27,
+    "go-grpc": 27,
+    "java-spring-security": 18,
+    "py-cryptography": 17,
+    "py-celery": 15,
+    "ts-undici": 15,
+    "go-etcd": 15,
+    "py-aiohttp": 11,
+    "ruby-rubygems": 11,
+    "ts-otel-js": 9,
+    "java-httpclient": 9,
+    "ts-nest": 7,
+    "py-urllib3": 3,
+    "ts-axios": 3,
+    "ruby-puma": 3,
+    "ruby-rack": 2,
+    "ts-jose": 1,
+    "go-coredns": 1
+   },
+   "by_language": {
+    "java": 303,
+    "go": 101,
+    "python": 62,
+    "ruby": 48,
+    "typescript": 45,
+    "other": 36
+   },
+   "cwe": [],
+   "samples": [
+    "py-urllib3:src/urllib3/connection.py:1",
+    "py-urllib3:src/urllib3/connectionpool.py:1",
+    "py-urllib3:src/urllib3/response.py:1",
+    "py-celery:celery/app/base.py:1",
+    "py-celery:celery/app/task.py:1",
+    "py-celery:celery/app/trace.py:1",
+    "py-django:django/contrib/admin/checks.py:1",
+    "py-django:django/contrib/admin/options.py:1",
+    "py-django:django/contrib/admin/static/admin/css/base.css:1",
+    "py-aiohttp:aiohttp/client.py:1",
+    "py-aiohttp:aiohttp/client_reqrep.py:1",
+    "py-aiohttp:aiohttp/connector.py:1",
+    "py-cryptography:src/cryptography/hazmat/primitives/serialization/ssh.py:1",
+    "py-cryptography:src/cryptography/x509/base.py:1",
+    "py-cryptography:src/cryptography/x509/extensions.py:1"
+   ],
+   "budget_per_kloc": 0.5,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/drift.broken-doc-link",
+   "pack": "shared",
+   "count": 582,
+   "in_tests": 2,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.0956,
+   "repos_hit": 12,
+   "by_repo": {
+    "ruby-rails": 294,
+    "go-coredns": 135,
+    "ts-axios": 84,
+    "ts-nest": 37,
+    "ts-otel-js": 8,
+    "ts-undici": 6,
+    "java-keycloak": 6,
+    "go-etcd": 4,
+    "go-containerd": 3,
+    "ruby-puma": 3,
+    "java-netty": 1,
+    "ruby-rack": 1
+   },
+   "by_language": {
+    "other": 582
+   },
+   "cwe": [],
+   "samples": [
+    "ts-undici:deps/milo/README.md:5",
+    "ts-undici:deps/milo/README.md:5",
+    "ts-undici:deps/milo/README.md:5",
+    "ts-nest:packages/common/Readme.md:38",
+    "ts-nest:packages/common/Readme.md:39",
+    "ts-nest:packages/common/Readme.md:40",
+    "ts-otel-js:doc/3.x/migration-guide.md:31",
+    "ts-otel-js:doc/3.x/migration-guide.md:32",
+    "ts-otel-js:doc/3.x/migration-guide.md:33",
+    "ts-axios:docs/es/pages/advanced/adapters.md:28",
+    "ts-axios:docs/es/pages/advanced/api-reference.md:7",
+    "ts-axios:docs/es/pages/advanced/create-an-instance.md:15",
+    "go-containerd:core/runtime/v2/README.md:176",
+    "go-containerd:core/runtime/v2/README.md:200",
+    "go-containerd:core/runtime/v2/README.md:222"
+   ],
+   "budget_per_kloc": 0.1,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/python.sql-injection",
+   "pack": "python",
+   "count": 65,
+   "in_tests": 0,
+   "kloc_denominator": 744.9,
+   "per_kloc": 0.0873,
+   "repos_hit": 2,
+   "by_repo": {
+    "py-django": 64,
+    "py-celery": 1
+   },
+   "by_language": {
+    "python": 65
+   },
+   "cwe": [
+    "CWE-89"
+   ],
+   "samples": [
+    "py-celery:celery/backends/database/session.py:125",
+    "py-django:django/contrib/gis/db/backends/mysql/introspection.py:17",
+    "py-django:django/contrib/gis/db/backends/postgis/operations.py:334",
+    "py-django:django/contrib/gis/db/backends/spatialite/operations.py:161"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": true
+  },
+  {
+   "rule": "arbiter/supply.unpinned-npm-dep",
+   "pack": "shared",
+   "count": 417,
+   "in_tests": 8,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.0685,
+   "repos_hit": 9,
+   "by_repo": {
+    "java-keycloak": 139,
+    "ts-otel-js": 104,
+    "ts-axios": 49,
+    "ruby-rails": 35,
+    "ts-undici": 31,
+    "ts-nest": 23,
+    "ts-jose": 20,
+    "java-spring-security": 12,
+    "py-django": 4
+   },
+   "by_language": {
+    "other": 417
+   },
+   "cwe": [
+    "CWE-1357",
+    "CWE-494"
+   ],
+   "samples": [
+    "py-django:package.json:0",
+    "py-django:package.json:0",
+    "py-django:package.json:0",
+    "ts-undici:benchmarks/package.json:0",
+    "ts-undici:benchmarks/package.json:0",
+    "ts-undici:benchmarks/package.json:0",
+    "ts-nest:package.json:0",
+    "ts-nest:package.json:0",
+    "ts-nest:sample/05-sql-typeorm/package.json:0",
+    "ts-jose:package.json:0",
+    "ts-jose:package.json:0",
+    "ts-jose:package.json:0",
+    "ts-otel-js:api/package.json:0",
+    "ts-otel-js:bundler-tests/browser/jest-jsdom/package.json:0",
+    "ts-otel-js:bundler-tests/browser/jest-jsdom/package.json:0"
+   ],
+   "budget_per_kloc": 0.1,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/ruby.stub-method",
+   "pack": "ruby",
+   "count": 46,
+   "in_tests": 0,
+   "kloc_denominator": 689.9,
+   "per_kloc": 0.0667,
+   "repos_hit": 2,
+   "by_repo": {
+    "ruby-rails": 36,
+    "ruby-rubygems": 10
+   },
+   "by_language": {
+    "ruby": 46
+   },
+   "cwe": [
+    "CWE-1164"
+   ],
+   "samples": [
+    "ruby-rails:actioncable/lib/action_cable/subscription_adapter/base.rb:16",
+    "ruby-rails:actionpack/lib/action_dispatch/journey/nodes/node.rb:101",
+    "ruby-rails:actionview/lib/action_view/helpers/tags/datetime_field.rb:27",
+    "ruby-rubygems:lib/rubygems/basic_specification.rb:49",
+    "ruby-rubygems:lib/rubygems/gemcutter_utilities/webauthn_listener/response.rb:53",
+    "ruby-rubygems:lib/rubygems/resolver/set.rb:34"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": true
+  },
+  {
+   "rule": "arbiter/ruby.vacuous-spec",
+   "pack": "ruby",
+   "count": 43,
+   "in_tests": 43,
+   "kloc_denominator": 689.9,
+   "per_kloc": 0.0623,
+   "repos_hit": 1,
+   "by_repo": {
+    "ruby-rubygems": 43
+   },
+   "by_language": {
+    "ruby": 43
+   },
+   "cwe": [
+    "CWE-1164"
+   ],
+   "samples": [
+    "ruby-rubygems:spec/bundler/dsl_spec.rb:206",
+    "ruby-rubygems:spec/bundler/gem_helper_spec.rb:348",
+    "ruby-rubygems:spec/bundler/gem_helper_spec.rb:414"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": true
+  },
+  {
+   "rule": "arbiter/ast.deep-nesting",
+   "pack": "shared",
+   "count": 377,
+   "in_tests": 34,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.0619,
+   "repos_hit": 19,
+   "by_repo": {
+    "java-tomcat": 150,
+    "ts-otel-js": 57,
+    "java-netty": 56,
+    "java-keycloak": 32,
+    "ts-undici": 13,
+    "go-caddy": 11,
+    "py-django": 10,
+    "java-httpclient": 9,
+    "go-coredns": 8,
+    "go-containerd": 7,
+    "py-cryptography": 5,
+    "py-celery": 4,
+    "java-spring-security": 4,
+    "ts-axios": 3,
+    "py-aiohttp": 2,
+    "ruby-rails": 2,
+    "ruby-puma": 2,
+    "py-urllib3": 1,
+    "go-grpc": 1
+   },
+   "by_language": {
+    "java": 251,
+    "typescript": 77,
+    "go": 25,
+    "python": 17,
+    "other": 7
+   },
+   "cwe": [
+    "CWE-1124"
+   ],
+   "samples": [
+    "py-urllib3:src/urllib3/http2/connection.py:227",
+    "py-celery:celery/backends/base.py:796",
+    "py-celery:celery/concurrency/asynpool.py:1074",
+    "py-celery:t/smoke/tests/test_beat_shutdown.py:19",
+    "py-django:django/contrib/admin/options.py:1574",
+    "py-django:django/contrib/staticfiles/storage.py:408",
+    "py-django:django/db/migrations/autodetector.py:289",
+    "py-aiohttp:aiohttp/web_protocol.py:718",
+    "py-aiohttp:aiohttp/web_request.py:787",
+    "py-cryptography:src/rust/src/backend/utils.rs:42",
+    "py-cryptography:src/rust/src/declarative_asn1/types.rs:576",
+    "py-cryptography:src/rust/src/x509/common.rs:146",
+    "ts-undici:deps/milo/parser/src/parse.rs:27",
+    "ts-undici:lib/core/request.js:98",
+    "ts-undici:lib/core/request.js:472"
+   ],
+   "budget_per_kloc": 0.5,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/authored.stub-on-production-path",
+   "pack": "shared",
+   "count": 309,
+   "in_tests": 0,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.0508,
+   "repos_hit": 5,
+   "by_repo": {
+    "py-django": 176,
+    "py-celery": 98,
+    "py-urllib3": 22,
+    "py-aiohttp": 11,
+    "py-cryptography": 2
+   },
+   "by_language": {
+    "python": 309
+   },
+   "cwe": [
+    "CWE-1164"
+   ],
+   "samples": [
+    "py-urllib3:src/urllib3/_collections.py:136",
+    "py-urllib3:src/urllib3/connectionpool.py:348",
+    "py-urllib3:src/urllib3/contrib/emscripten/connection.py:73",
+    "py-celery:celery/app/task.py:544",
+    "py-celery:celery/apps/worker.py:521",
+    "py-celery:celery/backends/asynchronous.py:73",
+    "py-django:django/contrib/auth/hashers.py:251",
+    "py-django:django/core/files/storage/base.py:181",
+    "py-django:django/db/models/constraints.py:75",
+    "py-aiohttp:aiohttp/connector.py:878",
+    "py-aiohttp:aiohttp/cookiejar.py:909",
+    "py-aiohttp:aiohttp/cookiejar.py:912",
+    "py-cryptography:release.py:32",
+    "py-cryptography:src/cryptography/x509/extensions.py:103"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": true
+  },
+  {
+   "rule": "arbiter/ruby.check-then-act-unlocked",
+   "pack": "ruby",
+   "count": 34,
+   "in_tests": 0,
+   "kloc_denominator": 689.9,
+   "per_kloc": 0.0493,
+   "repos_hit": 3,
+   "by_repo": {
+    "ruby-rails": 18,
+    "ruby-rubygems": 12,
+    "ruby-puma": 4
+   },
+   "by_language": {
+    "ruby": 34
+   },
+   "cwe": [
+    "CWE-362",
+    "CWE-366"
+   ],
+   "samples": [
+    "ruby-rails:actionview/lib/action_view/template.rb:456",
+    "ruby-rails:actionview/lib/action_view/template.rb:457",
+    "ruby-rails:activerecord/lib/active_record/connection_adapters/abstract/connection_pool.rb:402",
+    "ruby-puma:lib/puma/error_logger.rb:106",
+    "ruby-puma:lib/puma/log_writer.rb:63",
+    "ruby-puma:lib/puma/log_writer.rb:80",
+    "ruby-rubygems:lib/bundler.rb:506",
+    "ruby-rubygems:lib/bundler/fetcher/connection_pools.rb:122",
+    "ruby-rubygems:lib/bundler/fetcher/connection_pools.rb:134"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": true
+  },
+  {
+   "rule": "arbiter/assurance.blanket-suppression",
+   "pack": "shared",
+   "count": 248,
+   "in_tests": 118,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.0407,
+   "repos_hit": 13,
+   "by_repo": {
+    "go-coredns": 62,
+    "ts-axios": 43,
+    "ts-jose": 33,
+    "py-celery": 32,
+    "ts-otel-js": 32,
+    "ts-nest": 16,
+    "ts-undici": 11,
+    "py-django": 6,
+    "java-keycloak": 5,
+    "go-containerd": 3,
+    "py-aiohttp": 2,
+    "py-cryptography": 2,
+    "py-urllib3": 1
+   },
+   "by_language": {
+    "typescript": 140,
+    "go": 65,
+    "python": 43
+   },
+   "cwe": [],
+   "samples": [
+    "py-urllib3:src/urllib3/__init__.py:209",
+    "py-celery:celery/__init__.py:76",
+    "py-celery:celery/app/base.py:47",
+    "py-celery:celery/backends/base.py:651",
+    "py-django:tests/runtests.py:333",
+    "py-django:tests/sphinx_tests/testdata/package/import_error.py:1",
+    "py-django:tests/sphinx_tests/testdata/package/module.py:6",
+    "py-aiohttp:aiohttp/helpers.py:50",
+    "py-aiohttp:aiohttp/http_writer.py:6",
+    "py-cryptography:tests/hazmat/asn1/test_api.py:266",
+    "py-cryptography:tests/hazmat/primitives/test_kbkdf.py:352",
+    "ts-undici:benchmarks/websocket-benchmark.mjs:96",
+    "ts-undici:benchmarks/websocket-echo-server.mjs:25",
+    "ts-undici:lib/dispatcher/client-h2.js:77",
+    "ts-nest:integration/injector/e2e/multiple-providers.spec.ts:19"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": true
+  },
+  {
+   "rule": "arbiter/assurance.test-asserts-nothing",
+   "pack": "shared",
+   "count": 244,
+   "in_tests": 244,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.0401,
+   "repos_hit": 13,
+   "by_repo": {
+    "ts-undici": 96,
+    "py-cryptography": 44,
+    "ts-otel-js": 33,
+    "ts-axios": 16,
+    "java-keycloak": 13,
+    "py-django": 11,
+    "ts-nest": 10,
+    "go-coredns": 7,
+    "py-celery": 4,
+    "go-etcd": 4,
+    "go-containerd": 3,
+    "go-caddy": 2,
+    "java-spring-security": 1
+   },
+   "by_language": {
+    "typescript": 169,
+    "python": 59,
+    "go": 16
+   },
+   "cwe": [
+    "CWE-1164"
+   ],
+   "samples": [
+    "py-celery:t/integration/test_connection_recovery.py:234",
+    "py-celery:t/unit/app/test_trace.py:104",
+    "py-celery:t/unit/contrib/test_pytest.py:15",
+    "py-django:django/test/runner.py:1331",
+    "py-django:tests/gis_tests/test_gis_tests_utils.py:35",
+    "py-django:tests/gis_tests/test_gis_tests_utils.py:39",
+    "py-cryptography:tests/bench/test_aead.py:29",
+    "py-cryptography:tests/bench/test_aead.py:38",
+    "py-cryptography:tests/bench/test_aead.py:42",
+    "ts-undici:test/cache-interceptor/issue-4209.js:14",
+    "ts-undici:test/cache-interceptor/issue-4209.js:52",
+    "ts-undici:test/cache-interceptor/issue-4209.js:104",
+    "ts-nest:integration/hello-world/e2e/fastify-multiple.spec.ts:3",
+    "ts-nest:integration/microservices/e2e/concurrent-kafka.spec.ts:61",
+    "ts-nest:integration/microservices/e2e/concurrent-kafka.spec.ts:144"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": true
+  },
+  {
+   "rule": "arbiter/secrets.private-key",
+   "pack": "shared",
+   "count": 240,
+   "in_tests": 91,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.0394,
+   "repos_hit": 21,
+   "by_repo": {
+    "py-cryptography": 84,
+    "go-grpc": 38,
+    "go-etcd": 16,
+    "ruby-rubygems": 16,
+    "java-keycloak": 14,
+    "java-netty": 13,
+    "ts-otel-js": 11,
+    "java-tomcat": 11,
+    "ruby-puma": 10,
+    "java-spring-security": 8,
+    "py-celery": 3,
+    "ts-undici": 3,
+    "go-caddy": 3,
+    "py-urllib3": 2,
+    "go-coredns": 2,
+    "py-aiohttp": 1,
+    "ts-nest": 1,
+    "ts-jose": 1,
+    "ts-axios": 1,
+    "go-containerd": 1,
+    "java-httpclient": 1
+   },
+   "by_language": {
+    "other": 229,
+    "python": 6,
+    "go": 3,
+    "typescript": 1,
+    "ruby": 1
+   },
+   "cwe": [
+    "CWE-798"
+   ],
+   "samples": [
+    "py-urllib3:dummyserver/certs/cacert.key:1",
+    "py-urllib3:dummyserver/certs/server.key:1",
+    "py-celery:t/unit/security/__init__.py:9",
+    "py-celery:t/unit/security/__init__.py:133",
+    "py-celery:examples/security/ssl/worker.key:1",
+    "py-aiohttp:examples/server.key:1",
+    "py-cryptography:vectors/cryptography_vectors/asymmetric/DH/dh_key_256.pem:1",
+    "py-cryptography:vectors/cryptography_vectors/asymmetric/DH/dhkey.pem:1",
+    "py-cryptography:vectors/cryptography_vectors/asymmetric/DH/dhkey_rfc5114_2.pem:1",
+    "ts-undici:test/fixtures/key.pem:1",
+    "ts-undici:test/fixtures/tls-renegotiation/matching-key.pem:1",
+    "ts-undici:test/fixtures/tls-renegotiation/wrong-key.pem:1",
+    "ts-nest:integration/microservices/src/tcp-tls/privkey.pem:1",
+    "ts-jose:tap/fixtures.ts:221",
+    "ts-otel-js:examples/https/server-key.pem:1"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": true
+  },
+  {
+   "rule": "arbiter/typescript.fetch-no-timeout",
+   "pack": "typescript",
+   "count": 25,
+   "in_tests": 0,
+   "kloc_denominator": 655.5,
+   "per_kloc": 0.0381,
+   "repos_hit": 8,
+   "by_repo": {
+    "ts-nest": 7,
+    "ts-otel-js": 5,
+    "ts-undici": 4,
+    "java-tomcat": 3,
+    "go-caddy": 2,
+    "java-keycloak": 2,
+    "ts-jose": 1,
+    "ruby-rails": 1
+   },
+   "by_language": {
+    "typescript": 25
+   },
+   "cwe": [
+    "CWE-400"
+   ],
+   "samples": [
+    "ts-undici:benchmarks/benchmark-http2.js:256",
+    "ts-undici:benchmarks/benchmark-https.js:265",
+    "ts-undici:benchmarks/benchmark.js:251",
+    "ts-nest:integration/nest-application/sse/e2e/utils.ts:15",
+    "ts-nest:integration/nest-application/sse/e2e/utils.ts:20",
+    "ts-nest:integration/nest-application/sse/e2e/utils.ts:83",
+    "ts-jose:tap/jwks.ts:11",
+    "ts-otel-js:examples/opentelemetry-web/examples/fetch-proto/index.js:44",
+    "ts-otel-js:examples/opentelemetry-web/examples/fetch/index.js:43",
+    "ts-otel-js:examples/opentelemetry-web/examples/fetchXhr/index.js:48",
+    "go-caddy:modules/caddyhttp/encode/testdata/caddy_asciinema_player.js:1",
+    "go-caddy:modules/caddyhttp/encode/testdata/caddy_asciinema_player.js:1",
+    "java-tomcat:modules/manager2/webapp/js/api.js:58",
+    "java-tomcat:modules/manager2/webapp/js/i18n.js:37",
+    "java-tomcat:modules/manager2/webapp/js/main.js:174"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": true
+  },
+  {
+   "rule": "arbiter/supply.unpinned-action",
+   "pack": "shared",
+   "count": 195,
+   "in_tests": 0,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.032,
+   "repos_hit": 14,
+   "by_repo": {
+    "py-django": 37,
+    "py-aiohttp": 31,
+    "py-celery": 19,
+    "java-tomcat": 19,
+    "ruby-rails": 18,
+    "go-grpc": 16,
+    "ruby-puma": 14,
+    "java-netty": 13,
+    "ruby-rack": 10,
+    "java-httpclient": 8,
+    "ts-nest": 4,
+    "go-containerd": 2,
+    "go-coredns": 2,
+    "ruby-rubygems": 2
+   },
+   "by_language": {
+    "other": 195
+   },
+   "cwe": [
+    "CWE-1357",
+    "CWE-494"
+   ],
+   "samples": [
+    "py-celery:.github/workflows/codeql-analysis.yml:42",
+    "py-celery:.github/workflows/codeql-analysis.yml:46",
+    "py-celery:.github/workflows/codeql-analysis.yml:57",
+    "py-django:.github/workflows/benchmark.yml:17",
+    "py-django:.github/workflows/benchmark.yml:31",
+    "py-django:.github/workflows/check-migrations.yml:44",
+    "py-aiohttp:.github/workflows/agent-scan.yml:16",
+    "py-aiohttp:.github/workflows/auto-merge.yml:15",
+    "py-aiohttp:.github/workflows/ci-cd.yml:62",
+    "ts-nest:.github/workflows/codeql-analysis.yml:24",
+    "ts-nest:.github/workflows/codeql-analysis.yml:28",
+    "ts-nest:.github/workflows/codeql-analysis.yml:38",
+    "go-containerd:.github/workflows/windows-hyperv-periodic-trigger.yml:25",
+    "go-containerd:.github/workflows/windows-periodic-trigger.yml:25",
+    "go-coredns:.github/workflows/cifuzz.yml:17"
+   ],
+   "budget_per_kloc": 0.1,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/ruby.sql-injection",
+   "pack": "ruby",
+   "count": 22,
+   "in_tests": 0,
+   "kloc_denominator": 689.9,
+   "per_kloc": 0.0319,
+   "repos_hit": 1,
+   "by_repo": {
+    "ruby-rails": 22
+   },
+   "by_language": {
+    "ruby": 22
+   },
+   "cwe": [
+    "CWE-89"
+   ],
+   "samples": [
+    "ruby-rails:actioncable/lib/action_cable/subscription_adapter/postgresql.rb:22",
+    "ruby-rails:actioncable/lib/action_cable/subscription_adapter/postgresql.rb:46",
+    "ruby-rails:actioncable/lib/action_cable/subscription_adapter/postgresql.rb:103"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": true
+  },
+  {
+   "rule": "arbiter/ruby.rescue-exception",
+   "pack": "ruby",
+   "count": 21,
+   "in_tests": 0,
+   "kloc_denominator": 689.9,
+   "per_kloc": 0.0304,
+   "repos_hit": 3,
+   "by_repo": {
+    "ruby-puma": 11,
+    "ruby-rails": 9,
+    "ruby-rubygems": 1
+   },
+   "by_language": {
+    "ruby": 21
+   },
+   "cwe": [
+    "CWE-396"
+   ],
+   "samples": [
+    "ruby-rails:actioncable/lib/action_cable/connection/internal_channel.rb:42",
+    "ruby-rails:actioncable/lib/action_cable/server/socket.rb:86",
+    "ruby-rails:actioncable/lib/action_cable/server/worker.rb:61",
+    "ruby-puma:lib/puma/cluster/worker.rb:63",
+    "ruby-puma:lib/puma/launcher.rb:434",
+    "ruby-puma:lib/puma/launcher.rb:444",
+    "ruby-rubygems:lib/bundler/worker.rb:72"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": true
+  },
+  {
+   "rule": "arbiter/ruby.swallowed-error",
+   "pack": "ruby",
+   "count": 21,
+   "in_tests": 0,
+   "kloc_denominator": 689.9,
+   "per_kloc": 0.0304,
+   "repos_hit": 4,
+   "by_repo": {
+    "ruby-rails": 10,
+    "ruby-rubygems": 9,
+    "ruby-rack": 1,
+    "ruby-puma": 1
+   },
+   "by_language": {
+    "ruby": 21
+   },
+   "cwe": [
+    "CWE-391",
+    "CWE-703"
+   ],
+   "samples": [
+    "ruby-rails:actionpack/lib/action_dispatch/middleware/callbacks.rb:32",
+    "ruby-rails:activerecord/lib/active_record/connection_adapters/abstract/connection_pool.rb:847",
+    "ruby-rails:activerecord/lib/active_record/connection_adapters/abstract/database_statements.rb:778",
+    "ruby-rack:lib/rack/show_exceptions.rb:105",
+    "ruby-puma:lib/puma/client.rb:376",
+    "ruby-rubygems:lib/bundler/cli.rb:819",
+    "ruby-rubygems:lib/rubygems/bundler_settings.rb:133",
+    "ruby-rubygems:lib/rubygems/commands/owner_command.rb:104"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": true
+  },
+  {
+   "rule": "arbiter/assurance.permanently-skipped-test",
+   "pack": "shared",
+   "count": 157,
+   "in_tests": 157,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.0258,
+   "repos_hit": 15,
+   "by_repo": {
+    "java-keycloak": 56,
+    "java-netty": 26,
+    "go-containerd": 15,
+    "java-spring-security": 15,
+    "py-celery": 10,
+    "py-aiohttp": 7,
+    "ts-nest": 6,
+    "java-httpclient": 5,
+    "go-caddy": 4,
+    "py-django": 3,
+    "ts-undici": 3,
+    "ts-otel-js": 3,
+    "py-urllib3": 2,
+    "go-etcd": 1,
+    "java-tomcat": 1
+   },
+   "by_language": {
+    "java": 94,
+    "python": 22,
+    "typescript": 21,
+    "go": 20
+   },
+   "cwe": [],
+   "samples": [
+    "py-urllib3:test/with_dummyserver/test_connection.py:175",
+    "py-urllib3:test/with_dummyserver/test_https.py:1008",
+    "py-celery:t/integration/test_canvas.py:214",
+    "py-celery:t/integration/test_security.py:108",
+    "py-celery:t/integration/test_tasks.py:131",
+    "py-django:tests/sessions_tests/tests.py:1328",
+    "py-django:tests/test_utils/test_simpletestcase.py:18",
+    "py-django:tests/test_utils/tests.py:1304",
+    "py-aiohttp:tests/test_client_exceptions.py:41",
+    "py-aiohttp:tests/test_client_functional.py:3314",
+    "py-aiohttp:tests/test_connector.py:240",
+    "ts-undici:test/node-fetch/headers.js:70",
+    "ts-undici:test/node-fetch/main.js:1445",
+    "ts-undici:test/node-fetch/request.js:57",
+    "ts-nest:integration/cors/e2e/fastify.spec.ts:10"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/authored.security-check-disabled",
+   "pack": "shared",
+   "count": 146,
+   "in_tests": 116,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.024,
+   "repos_hit": 15,
+   "by_repo": {
+    "ts-undici": 61,
+    "py-django": 32,
+    "go-grpc": 8,
+    "ts-axios": 7,
+    "go-caddy": 7,
+    "go-coredns": 7,
+    "go-containerd": 5,
+    "py-celery": 4,
+    "ts-otel-js": 4,
+    "py-urllib3": 3,
+    "java-netty": 3,
+    "go-etcd": 2,
+    "py-aiohttp": 1,
+    "ts-nest": 1,
+    "java-keycloak": 1
+   },
+   "by_language": {
+    "typescript": 73,
+    "python": 36,
+    "go": 25,
+    "other": 12
+   },
+   "cwe": [
+    "CWE-295"
+   ],
+   "samples": [
+    "py-urllib3:src/urllib3/contrib/pyopenssl.py:443",
+    "py-urllib3:src/urllib3/util/ssl_.py:316",
+    "py-urllib3:src/urllib3/connection.py:1073",
+    "py-celery:celery/backends/arangodb.py:48",
+    "py-celery:t/integration/django_settings.py:5",
+    "py-celery:examples/celery_http_gateway/settings.py:6",
+    "py-django:django/views/csrf.py:67",
+    "py-django:django/views/templates/csrf_403.html:74",
+    "py-django:django/views/templates/default_urlconf.html:201",
+    "py-aiohttp:aiohttp/connector.py:947",
+    "ts-undici:benchmarks/benchmark-http2.js:60",
+    "ts-undici:benchmarks/benchmark.js:114",
+    "ts-undici:benchmarks/post-benchmark.js:123",
+    "ts-nest:packages/microservices/test/client/client-tcp-tls.spec.ts:120",
+    "ts-otel-js:examples/https/client.js:12"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/ruby.command-injection",
+   "pack": "ruby",
+   "count": 16,
+   "in_tests": 0,
+   "kloc_denominator": 689.9,
+   "per_kloc": 0.0232,
+   "repos_hit": 3,
+   "by_repo": {
+    "ruby-rails": 9,
+    "ruby-rubygems": 5,
+    "ruby-puma": 2
+   },
+   "by_language": {
+    "ruby": 16
+   },
+   "cwe": [
+    "CWE-78"
+   ],
+   "samples": [
+    "ruby-rails:.github/workflows/scripts/check-markdown-api.rb:5",
+    "ruby-rails:activesupport/lib/active_support/dot_env_configuration.rb:95",
+    "ruby-rails:guides/rails_guides/generator.rb:147",
+    "ruby-puma:benchmarks/local/bench_base.rb:187",
+    "ruby-puma:benchmarks/local/response_time_wrk.rb:66",
+    "ruby-rubygems:tool/release.rb:346",
+    "ruby-rubygems:tool/release.rb:363",
+    "ruby-rubygems:tool/release.rb:532"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/ruby.retry-without-backoff",
+   "pack": "ruby",
+   "count": 16,
+   "in_tests": 0,
+   "kloc_denominator": 689.9,
+   "per_kloc": 0.0232,
+   "repos_hit": 3,
+   "by_repo": {
+    "ruby-rails": 8,
+    "ruby-rubygems": 6,
+    "ruby-puma": 2
+   },
+   "by_language": {
+    "ruby": 16
+   },
+   "cwe": [
+    "CWE-400"
+   ],
+   "samples": [
+    "ruby-rails:actioncable/lib/action_cable/subscription_adapter/redis.rb:192",
+    "ruby-rails:actionpack/lib/action_dispatch/middleware/session/abstract_store.rb:63",
+    "ruby-rails:activerecord/lib/active_record/connection_adapters/abstract_adapter.rb:1221",
+    "ruby-puma:lib/puma/reactor.rb:103",
+    "ruby-puma:lib/puma/response.rb:272",
+    "ruby-rubygems:lib/bundler/cli/console.rb:34",
+    "ruby-rubygems:lib/bundler/inline.rb:128",
+    "ruby-rubygems:lib/bundler/resolver.rb:126"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/ruby.marshal-load",
+   "pack": "ruby",
+   "count": 14,
+   "in_tests": 0,
+   "kloc_denominator": 689.9,
+   "per_kloc": 0.0203,
+   "repos_hit": 2,
+   "by_repo": {
+    "ruby-rails": 12,
+    "ruby-rubygems": 2
+   },
+   "by_language": {
+    "ruby": 14
+   },
+   "cwe": [
+    "CWE-502"
+   ],
+   "samples": [
+    "ruby-rails:actionpack/lib/action_dispatch/http/rack_cache.rb:23",
+    "ruby-rails:activerecord/lib/active_record/connection_adapters/ractor_connection_handler/abstract_proxy_adapter.rb:136",
+    "ruby-rails:activerecord/lib/active_record/connection_adapters/ractor_connection_handler/abstract_proxy_adapter/query_request.rb:24",
+    "ruby-rubygems:lib/bundler.rb:631",
+    "ruby-rubygems:lib/rubygems/safe_marshal/visitors/to_ruby.rb:121"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/ruby.retry-unbounded",
+   "pack": "ruby",
+   "count": 14,
+   "in_tests": 0,
+   "kloc_denominator": 689.9,
+   "per_kloc": 0.0203,
+   "repos_hit": 3,
+   "by_repo": {
+    "ruby-rails": 7,
+    "ruby-rubygems": 5,
+    "ruby-puma": 2
+   },
+   "by_language": {
+    "ruby": 14
+   },
+   "cwe": [
+    "CWE-400",
+    "CWE-834"
+   ],
+   "samples": [
+    "ruby-rails:actioncable/lib/action_cable/subscription_adapter/redis.rb:192",
+    "ruby-rails:actionpack/lib/action_dispatch/middleware/session/abstract_store.rb:63",
+    "ruby-rails:activerecord/lib/active_record/connection_adapters/abstract_adapter.rb:848",
+    "ruby-puma:lib/puma/reactor.rb:103",
+    "ruby-puma:lib/puma/response.rb:272",
+    "ruby-rubygems:lib/bundler/cli/console.rb:34",
+    "ruby-rubygems:lib/bundler/inline.rb:128",
+    "ruby-rubygems:lib/bundler/resolver.rb:126"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/ruby.dynamic-eval",
+   "pack": "ruby",
+   "count": 12,
+   "in_tests": 0,
+   "kloc_denominator": 689.9,
+   "per_kloc": 0.0174,
+   "repos_hit": 4,
+   "by_repo": {
+    "ruby-rails": 5,
+    "ruby-rubygems": 5,
+    "ruby-rack": 1,
+    "ruby-puma": 1
+   },
+   "by_language": {
+    "ruby": 12
+   },
+   "cwe": [
+    "CWE-95"
+   ],
+   "samples": [
+    "ruby-rails:activesupport/lib/active_support/testing/assertions.rb:421",
+    "ruby-rails:activesupport/lib/active_support/testing/stream.rb:27",
+    "ruby-rails:railties/lib/rails/commands/query/query_command.rb:85",
+    "ruby-rack:lib/rack/builder.rb:108",
+    "ruby-puma:lib/puma/rack/builder.rb:18",
+    "ruby-rubygems:lib/bundler.rb:659",
+    "ruby-rubygems:lib/bundler/endpoint_specification.rb:142",
+    "ruby-rubygems:lib/rubygems.rb:1499"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/secrets.jwt",
+   "pack": "shared",
+   "count": 94,
+   "in_tests": 81,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.0154,
+   "repos_hit": 3,
+   "by_repo": {
+    "java-keycloak": 46,
+    "java-spring-security": 34,
+    "ts-jose": 14
+   },
+   "by_language": {
+    "other": 64,
+    "java": 16,
+    "typescript": 14
+   },
+   "cwe": [
+    "CWE-798"
+   ],
+   "samples": [
+    "ts-jose:cookbook/jwe.mjs:40",
+    "ts-jose:cookbook/jwe.mjs:402",
+    "ts-jose:cookbook/jwe.mjs:462",
+    "java-spring-security:config/src/test/java/org/springframework/security/config/web/server/OAuth2ResourceServerSpecTests.java:108",
+    "java-spring-security:config/src/test/java/org/springframework/security/config/web/server/OAuth2ResourceServerSpecTests.java:112",
+    "java-spring-security:config/src/test/kotlin/org/springframework/security/config/web/server/ServerJwtDslTests.kt:61",
+    "java-keycloak:core/src/test/java/org/keycloak/SkeletonKeyTokenTest.java:156",
+    "java-keycloak:core/src/test/java/org/keycloak/jose/JWETest.java:228",
+    "java-keycloak:core/src/test/resources/sdjwt/a1.example2-sdjwt.txt:1"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/typescript.skipped-test",
+   "pack": "typescript",
+   "count": 10,
+   "in_tests": 10,
+   "kloc_denominator": 655.5,
+   "per_kloc": 0.0153,
+   "repos_hit": 2,
+   "by_repo": {
+    "java-keycloak": 8,
+    "ts-undici": 2
+   },
+   "by_language": {
+    "typescript": 10
+   },
+   "cwe": [
+    "CWE-1164"
+   ],
+   "samples": [
+    "ts-undici:test/socks5-proxy-agent.js:304",
+    "ts-undici:test/util.js:158",
+    "java-keycloak:js/apps/account-ui/test/support/oid4vci.ts:28",
+    "java-keycloak:js/apps/admin-ui/test/client-scope/oid4vci-client-scope.spec.ts:405",
+    "java-keycloak:js/apps/admin-ui/test/clients/authorization.spec.ts:206"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/java.sql-string-built",
+   "pack": "java",
+   "count": 45,
+   "in_tests": 0,
+   "kloc_denominator": 3011.8,
+   "per_kloc": 0.0149,
+   "repos_hit": 2,
+   "by_repo": {
+    "java-keycloak": 43,
+    "java-tomcat": 2
+   },
+   "by_language": {
+    "java": 45
+   },
+   "cwe": [
+    "CWE-89"
+   ],
+   "samples": [
+    "java-tomcat:java/org/apache/catalina/ant/JMXQueryTask.java:95",
+    "java-tomcat:java/org/apache/catalina/session/DataSourceStore.java:478",
+    "java-keycloak:model/jpa/src/main/java/org/keycloak/cluster/jpa/JpaClusterEventStoreProvider.java:55",
+    "java-keycloak:model/jpa/src/main/java/org/keycloak/cluster/jpa/JpaClusterEventStoreProvider.java:66",
+    "java-keycloak:model/jpa/src/main/java/org/keycloak/cluster/jpa/JpaClusterEventStoreProvider.java:152"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/ruby.yaml-unsafe-load",
+   "pack": "ruby",
+   "count": 10,
+   "in_tests": 0,
+   "kloc_denominator": 689.9,
+   "per_kloc": 0.0145,
+   "repos_hit": 2,
+   "by_repo": {
+    "ruby-rails": 9,
+    "ruby-rubygems": 1
+   },
+   "by_language": {
+    "ruby": 10
+   },
+   "cwe": [
+    "CWE-502"
+   ],
+   "samples": [
+    "ruby-rails:activerecord/lib/active_record/coders/yaml_column.rb:35",
+    "ruby-rails:activerecord/lib/active_record/connection_adapters/schema_cache.rb:239",
+    "ruby-rails:activesupport/lib/active_support/configuration_file.rb:26",
+    "ruby-rubygems:tool/changelog.rb:7"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/typescript.http-request-no-timeout",
+   "pack": "typescript",
+   "count": 9,
+   "in_tests": 0,
+   "kloc_denominator": 655.5,
+   "per_kloc": 0.0137,
+   "repos_hit": 3,
+   "by_repo": {
+    "ts-undici": 6,
+    "ts-otel-js": 2,
+    "ts-nest": 1
+   },
+   "by_language": {
+    "typescript": 9
+   },
+   "cwe": [
+    "CWE-400"
+   ],
+   "samples": [
+    "ts-undici:benchmarks/benchmark-https.js:181",
+    "ts-undici:benchmarks/benchmark-https.js:196",
+    "ts-undici:benchmarks/benchmark.js:167",
+    "ts-nest:integration/nest-application/observable-response/e2e/utils.ts:65",
+    "ts-otel-js:examples/http/client.js:14",
+    "ts-otel-js:examples/https/client.js:20"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/drift.doc-references-missing-file",
+   "pack": "shared",
+   "count": 82,
+   "in_tests": 6,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.0135,
+   "repos_hit": 12,
+   "by_repo": {
+    "ruby-rails": 43,
+    "go-etcd": 10,
+    "ts-undici": 5,
+    "ts-otel-js": 5,
+    "ts-axios": 5,
+    "java-keycloak": 4,
+    "go-containerd": 3,
+    "py-aiohttp": 2,
+    "ruby-puma": 2,
+    "go-coredns": 1,
+    "java-tomcat": 1,
+    "ruby-rubygems": 1
+   },
+   "by_language": {
+    "other": 82
+   },
+   "cwe": [],
+   "samples": [
+    "py-aiohttp:THREAT_MODEL.md:183",
+    "py-aiohttp:THREAT_MODEL.md:482",
+    "ts-undici:CONTRIBUTING.md:262",
+    "ts-undici:CONTRIBUTING.md:262",
+    "ts-undici:CONTRIBUTING.md:342",
+    "ts-otel-js:doc/contributing/benchmark-tests.md:47",
+    "ts-otel-js:doc/frequently-asked-questions.md:20",
+    "ts-otel-js:doc/metrics.md:52",
+    "ts-axios:README.md:1918",
+    "ts-axios:docs/es/pages/advanced/x-www-form-urlencoded-format.md:84",
+    "ts-axios:docs/fr/pages/advanced/x-www-form-urlencoded-format.md:84",
+    "go-containerd:docs/cri/config.md:45",
+    "go-containerd:docs/cri/crictl.md:20",
+    "go-containerd:docs/cri/registry.md:60",
+    "go-coredns:notes/coredns-1.0.3.md:23"
+   ],
+   "budget_per_kloc": 0.1,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/python.unsafe-deserialization",
+   "pack": "python",
+   "count": 9,
+   "in_tests": 0,
+   "kloc_denominator": 744.9,
+   "per_kloc": 0.0121,
+   "repos_hit": 2,
+   "by_repo": {
+    "py-django": 5,
+    "py-celery": 4
+   },
+   "by_language": {
+    "python": 9
+   },
+   "cwe": [
+    "CWE-502"
+   ],
+   "samples": [
+    "py-celery:celery/backends/database/__init__.py:273",
+    "py-celery:celery/utils/serialization.py:132",
+    "py-celery:celery/utils/serialization.py:164",
+    "py-django:django/core/cache/backends/db.py:102",
+    "py-django:django/core/cache/backends/filebased.py:38",
+    "py-django:django/core/cache/backends/filebased.py:154"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/ruby.unsynchronised-counter",
+   "pack": "ruby",
+   "count": 8,
+   "in_tests": 0,
+   "kloc_denominator": 689.9,
+   "per_kloc": 0.0116,
+   "repos_hit": 2,
+   "by_repo": {
+    "ruby-puma": 6,
+    "ruby-rails": 2
+   },
+   "by_language": {
+    "ruby": 8
+   },
+   "cwe": [
+    "CWE-362",
+    "CWE-366"
+   ],
+   "samples": [
+    "ruby-rails:actioncable/lib/action_cable/subscription_adapter/redis.rb:209",
+    "ruby-rails:activerecord/lib/active_record/connection_adapters/abstract/connection_pool.rb:398",
+    "ruby-puma:lib/puma/reactor.rb:114",
+    "ruby-puma:lib/puma/reactor.rb:126",
+    "ruby-puma:lib/puma/server.rb:519"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/typescript.empty-catch-in-loop",
+   "pack": "typescript",
+   "count": 7,
+   "in_tests": 0,
+   "kloc_denominator": 655.5,
+   "per_kloc": 0.0107,
+   "repos_hit": 4,
+   "by_repo": {
+    "ts-jose": 3,
+    "ts-nest": 2,
+    "ts-undici": 1,
+    "java-keycloak": 1
+   },
+   "by_language": {
+    "typescript": 7
+   },
+   "cwe": [
+    "CWE-391",
+    "CWE-703"
+   ],
+   "samples": [
+    "ts-undici:lib/handler/deduplication-handler.js:234",
+    "ts-nest:packages/platform-express/multer/multer/multer.utils.ts:94",
+    "ts-nest:tools/benchmarks/src/main.ts:131",
+    "ts-jose:src/jwe/general/decrypt.ts:171",
+    "ts-jose:src/jwks/local.ts:210",
+    "ts-jose:src/jws/general/verify.ts:194",
+    "java-keycloak:js/apps/admin-ui/src/user/verifiable-credentials/IssuedCredentialsDetailCell.tsx:59"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/typescript.promise-catch-noop",
+   "pack": "typescript",
+   "count": 7,
+   "in_tests": 0,
+   "kloc_denominator": 655.5,
+   "per_kloc": 0.0107,
+   "repos_hit": 3,
+   "by_repo": {
+    "ts-nest": 5,
+    "ts-jose": 1,
+    "java-keycloak": 1
+   },
+   "by_language": {
+    "typescript": 7
+   },
+   "cwe": [
+    "CWE-391",
+    "CWE-703"
+   ],
+   "samples": [
+    "ts-nest:packages/platform-fastify/multipart/multipart/multipart-interceptor.factory.ts:157",
+    "ts-nest:packages/platform-fastify/multipart/multipart/multipart.parser.ts:199",
+    "ts-nest:packages/platform-fastify/multipart/multipart/multipart.parser.ts:214",
+    "ts-jose:src/lib/deflate.ts:37",
+    "java-keycloak:js/apps/admin-ui/src/components/dynamic/GroupComponent.tsx:66"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/typescript.shell-command-built",
+   "pack": "typescript",
+   "count": 7,
+   "in_tests": 0,
+   "kloc_denominator": 655.5,
+   "per_kloc": 0.0107,
+   "repos_hit": 2,
+   "by_repo": {
+    "ts-jose": 4,
+    "ts-otel-js": 3
+   },
+   "by_language": {
+    "typescript": 7
+   },
+   "cwe": [
+    "CWE-78"
+   ],
+   "samples": [
+    "ts-jose:tools/docs.cjs:32",
+    "ts-jose:tools/postbump.cjs:37",
+    "ts-jose:tools/postbump.cjs:41",
+    "ts-otel-js:experimental/packages/configuration/scripts/generate-config.js:289",
+    "ts-otel-js:scripts/create-or-update-release-pr.mjs:61",
+    "ts-otel-js:scripts/create-or-update-release-pr.mjs:65"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/python.code-injection",
+   "pack": "python",
+   "count": 7,
+   "in_tests": 0,
+   "kloc_denominator": 744.9,
+   "per_kloc": 0.0094,
+   "repos_hit": 4,
+   "by_repo": {
+    "py-django": 4,
+    "py-celery": 1,
+    "py-aiohttp": 1,
+    "py-cryptography": 1
+   },
+   "by_language": {
+    "python": 7
+   },
+   "cwe": [
+    "CWE-95"
+   ],
+   "samples": [
+    "py-celery:celery/utils/functional.py:436",
+    "py-django:django/core/management/commands/shell.py:262",
+    "py-django:django/core/management/commands/shell.py:272",
+    "py-django:django/db/migrations/questioner.py:168",
+    "py-aiohttp:tools/gen.py:18",
+    "py-cryptography:src/_cffi_src/utils.py:17"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/typescript.empty-catch",
+   "pack": "typescript",
+   "count": 6,
+   "in_tests": 0,
+   "kloc_denominator": 655.5,
+   "per_kloc": 0.0092,
+   "repos_hit": 2,
+   "by_repo": {
+    "ts-undici": 5,
+    "ts-axios": 1
+   },
+   "by_language": {
+    "typescript": 6
+   },
+   "cwe": [
+    "CWE-391",
+    "CWE-703"
+   ],
+   "samples": [
+    "ts-undici:benchmarks/fetch/isomorphic-encode.mjs:68",
+    "ts-undici:lib/dispatcher/client-h1.js:102",
+    "ts-undici:lib/dispatcher/client-h2.js:120",
+    "ts-axios:lib/adapters/http.js:951"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/go.worker-loop-no-stop",
+   "pack": "go",
+   "count": 9,
+   "in_tests": 0,
+   "kloc_denominator": 983.9,
+   "per_kloc": 0.0091,
+   "repos_hit": 3,
+   "by_repo": {
+    "go-containerd": 4,
+    "go-etcd": 4,
+    "go-caddy": 1
+   },
+   "by_language": {
+    "go": 9
+   },
+   "cwe": [
+    "CWE-835"
+   ],
+   "samples": [
+    "go-caddy:modules/caddyhttp/reverseproxy/hosts.go:168",
+    "go-containerd:cmd/containerd/command/main_windows.go:88",
+    "go-containerd:cmd/ctr/commands/tasks/tasks_windows.go:43",
+    "go-containerd:internal/cri/server/images/snapshots.go:63",
+    "go-etcd:etcdctl/ctlv3/command/make_mirror_command.go:151",
+    "go-etcd:etcdctl/ctlv3/command/watch_command.go:100",
+    "go-etcd:tools/benchmark/cmd/put.go:126"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/quality.todo-density",
+   "pack": "shared",
+   "count": 50,
+   "in_tests": 0,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.0082,
+   "repos_hit": 13,
+   "by_repo": {
+    "go-containerd": 12,
+    "go-etcd": 8,
+    "py-celery": 5,
+    "java-tomcat": 5,
+    "java-keycloak": 5,
+    "go-grpc": 4,
+    "ts-undici": 3,
+    "go-caddy": 3,
+    "py-urllib3": 1,
+    "ts-otel-js": 1,
+    "java-netty": 1,
+    "ruby-rails": 1,
+    "ruby-rubygems": 1
+   },
+   "by_language": {
+    "go": 26,
+    "java": 11,
+    "python": 6,
+    "typescript": 4,
+    "ruby": 2,
+    "other": 1
+   },
+   "cwe": [],
+   "samples": [
+    "py-urllib3:src/urllib3/http2/connection.py:145",
+    "py-celery:celery/app/base.py:360",
+    "py-celery:celery/canvas.py:661",
+    "py-celery:celery/result.py:399",
+    "ts-undici:lib/core/util.js:36",
+    "ts-undici:lib/web/fetch/index.js:348",
+    "ts-undici:lib/web/fetch/util.js:214",
+    "ts-otel-js:experimental/packages/opentelemetry-sdk-node/src/create-from-config.ts:466",
+    "go-caddy:modules/caddyhttp/reverseproxy/httptransport.go:57",
+    "go-caddy:modules/caddyhttp/server.go:166",
+    "go-caddy:modules/caddytls/connpolicy.go:102",
+    "go-containerd:cmd/ctr/commands/content/content.go:130",
+    "go-containerd:cmd/ctr/commands/images/pull.go:139",
+    "go-containerd:core/mount/manager/manager.go:272",
+    "go-grpc:clientconn.go:591"
+   ],
+   "budget_per_kloc": 0.5,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/go.http-client-no-timeout",
+   "pack": "go",
+   "count": 8,
+   "in_tests": 0,
+   "kloc_denominator": 983.9,
+   "per_kloc": 0.0081,
+   "repos_hit": 3,
+   "by_repo": {
+    "go-containerd": 5,
+    "go-etcd": 2,
+    "go-caddy": 1
+   },
+   "by_language": {
+    "go": 8
+   },
+   "cwe": [
+    "CWE-400"
+   ],
+   "samples": [
+    "go-caddy:cmd/commandfuncs.go:1007",
+    "go-containerd:cmd/ctr/commands/pprof/pprof.go:275",
+    "go-containerd:cmd/ctr/commands/shim/pprof.go:172",
+    "go-containerd:core/remotes/docker/config/hosts.go:152",
+    "go-etcd:server/etcdmain/grpc_proxy.go:630",
+    "go-etcd:tools/etcd-dump-metrics/metrics.go:35"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/typescript.axios-no-timeout",
+   "pack": "typescript",
+   "count": 5,
+   "in_tests": 0,
+   "kloc_denominator": 655.5,
+   "per_kloc": 0.0076,
+   "repos_hit": 2,
+   "by_repo": {
+    "ts-axios": 3,
+    "ts-undici": 2
+   },
+   "by_language": {
+    "typescript": 5
+   },
+   "cwe": [
+    "CWE-400"
+   ],
+   "samples": [
+    "ts-undici:benchmarks/benchmark.js:292",
+    "ts-undici:benchmarks/post-benchmark.js:295",
+    "ts-axios:gulpfile.js:18",
+    "ts-axios:gulpfile.js:29",
+    "ts-axios:sandbox/client.js:17"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/go.http-default-client",
+   "pack": "go",
+   "count": 7,
+   "in_tests": 0,
+   "kloc_denominator": 983.9,
+   "per_kloc": 0.0071,
+   "repos_hit": 2,
+   "by_repo": {
+    "go-etcd": 5,
+    "go-caddy": 2
+   },
+   "by_language": {
+    "go": 7
+   },
+   "cwe": [
+    "CWE-400"
+   ],
+   "samples": [
+    "go-caddy:caddytest/caddytest.go:145",
+    "go-caddy:cmd/packagesfuncs.go:298",
+    "go-etcd:contrib/lock/client/client.go:63",
+    "go-etcd:etcdctl/ctlv3/command/util.go:116",
+    "go-etcd:tools/etcd-dump-metrics/install_darwin.go:35"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/typescript.inner-html-assigned",
+   "pack": "typescript",
+   "count": 4,
+   "in_tests": 0,
+   "kloc_denominator": 655.5,
+   "per_kloc": 0.0061,
+   "repos_hit": 3,
+   "by_repo": {
+    "ruby-rails": 2,
+    "go-caddy": 1,
+    "java-tomcat": 1
+   },
+   "by_language": {
+    "typescript": 4
+   },
+   "cwe": [
+    "CWE-79"
+   ],
+   "samples": [
+    "go-caddy:modules/caddyhttp/encode/testdata/caddy_asciinema_player.js:1",
+    "java-tomcat:modules/manager2/webapp/js/ui.js:49",
+    "ruby-rails:guides/assets/javascripts/@hotwired--turbo.js:339",
+    "ruby-rails:guides/assets/javascripts/guides.js:297"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/ruby.http-no-timeout",
+   "pack": "ruby",
+   "count": 4,
+   "in_tests": 0,
+   "kloc_denominator": 689.9,
+   "per_kloc": 0.0058,
+   "repos_hit": 2,
+   "by_repo": {
+    "ruby-rails": 3,
+    "ruby-rubygems": 1
+   },
+   "by_language": {
+    "ruby": 4
+   },
+   "cwe": [
+    "CWE-400"
+   ],
+   "samples": [
+    "ruby-rails:.github/workflows/scripts/test-container.rb:16",
+    "ruby-rails:activerecord/lib/active_record/connection_adapters/postgresql/oid/well_known_generator.rb:227",
+    "ruby-rails:tools/cve_announcement.rb:60",
+    "ruby-rubygems:tool/update_bundled_ca_certificates.rb:20"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/ruby.skipped-spec",
+   "pack": "ruby",
+   "count": 4,
+   "in_tests": 4,
+   "kloc_denominator": 689.9,
+   "per_kloc": 0.0058,
+   "repos_hit": 1,
+   "by_repo": {
+    "ruby-rubygems": 4
+   },
+   "by_language": {
+    "ruby": 4
+   },
+   "cwe": [
+    "CWE-1164"
+   ],
+   "samples": [
+    "ruby-rubygems:spec/bundler/fetcher/gem_remote_fetcher_local_ssl_server_spec.rb:78",
+    "ruby-rubygems:spec/commands/show_spec.rb:247",
+    "ruby-rubygems:spec/other/major_deprecation_spec.rb:306"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/go.retry-no-backoff",
+   "pack": "go",
+   "count": 5,
+   "in_tests": 0,
+   "kloc_denominator": 983.9,
+   "per_kloc": 0.0051,
+   "repos_hit": 2,
+   "by_repo": {
+    "go-etcd": 4,
+    "go-caddy": 1
+   },
+   "by_language": {
+    "go": 5
+   },
+   "cwe": [
+    "CWE-400",
+    "CWE-834"
+   ],
+   "samples": [
+    "go-caddy:modules/logging/filewriter.go:328",
+    "go-etcd:client/v3/experimental/recipes/key.go:49",
+    "go-etcd:client/v3/lease.go:327",
+    "go-etcd:server/etcdserver/bootstrap.go:658"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/java.stub-method",
+   "pack": "java",
+   "count": 15,
+   "in_tests": 0,
+   "kloc_denominator": 3011.8,
+   "per_kloc": 0.005,
+   "repos_hit": 4,
+   "by_repo": {
+    "java-netty": 6,
+    "java-keycloak": 6,
+    "java-spring-security": 2,
+    "java-httpclient": 1
+   },
+   "by_language": {
+    "java": 15
+   },
+   "cwe": [
+    "CWE-1164"
+   ],
+   "samples": [
+    "java-netty:jfr-stub/src/main/java/jdk/jfr/EventType.java:20",
+    "java-netty:jfr-stub/src/main/java/jdk/jfr/FlightRecorder.java:24",
+    "java-netty:jfr-stub/src/main/java/jdk/jfr/consumer/RecordedEvent.java:26",
+    "java-httpclient:httpclient5/src/main/java/org/apache/hc/client5/http/impl/auth/NTLMEngineImpl.java:1227",
+    "java-spring-security:acl/src/main/java/org/springframework/security/acls/jdbc/BasicLookupStrategy.java:651",
+    "java-spring-security:core/src/main/java/org/springframework/security/util/SimpleMethodInvocation.java:65",
+    "java-keycloak:core/src/main/java/org/keycloak/Config.java:154",
+    "java-keycloak:model/infinispan/src/main/java/org/keycloak/models/sessions/infinispan/changes/JpaChangesPerformer.java:167",
+    "java-keycloak:server-spi-private/src/main/java/org/keycloak/component/ComponentModelScope.java:77"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/java.swallowed-exception",
+   "pack": "java",
+   "count": 14,
+   "in_tests": 0,
+   "kloc_denominator": 3011.8,
+   "per_kloc": 0.0046,
+   "repos_hit": 3,
+   "by_repo": {
+    "java-keycloak": 8,
+    "java-spring-security": 5,
+    "java-tomcat": 1
+   },
+   "by_language": {
+    "java": 14
+   },
+   "cwe": [
+    "CWE-391",
+    "CWE-703"
+   ],
+   "samples": [
+    "java-tomcat:java/org/apache/el/parser/ELParser.java:4444",
+    "java-spring-security:acl/src/main/java/org/springframework/security/acls/domain/DefaultPermissionFactory.java:91",
+    "java-spring-security:oauth2/oauth2-authorization-server/src/main/java/org/springframework/security/oauth2/server/authorization/authentication/OAuth2AuthorizationCodeRequestAuthenticationValidator.java:139",
+    "java-spring-security:taglibs/src/main/java/org/springframework/security/taglibs/authz/AccessControlListTag.java:112",
+    "java-keycloak:common/src/main/java/org/keycloak/common/util/Base64.java:695",
+    "java-keycloak:common/src/main/java/org/keycloak/common/util/reflections/Reflections.java:275",
+    "java-keycloak:federation/ldap/src/main/java/org/keycloak/storage/ldap/idm/store/ldap/LDAPOperationManager.java:521"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/ruby.code-injection",
+   "pack": "ruby",
+   "count": 3,
+   "in_tests": 0,
+   "kloc_denominator": 689.9,
+   "per_kloc": 0.0043,
+   "repos_hit": 1,
+   "by_repo": {
+    "ruby-rails": 3
+   },
+   "by_language": {
+    "ruby": 3
+   },
+   "cwe": [
+    "CWE-470",
+    "CWE-95"
+   ],
+   "samples": [
+    "ruby-rails:actionpack/lib/action_dispatch/middleware/actionable_exceptions.rb:20",
+    "ruby-rails:actionpack/lib/action_dispatch/middleware/cookies.rb:373",
+    "ruby-rails:activerecord/lib/active_record/delegated_type.rb:295"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/python.http-no-timeout",
+   "pack": "python",
+   "count": 3,
+   "in_tests": 0,
+   "kloc_denominator": 744.9,
+   "per_kloc": 0.004,
+   "repos_hit": 2,
+   "by_repo": {
+    "py-celery": 2,
+    "py-django": 1
+   },
+   "by_language": {
+    "python": 3
+   },
+   "cwe": [
+    "CWE-400"
+   ],
+   "samples": [
+    "py-celery:examples/eventlet/webcrawler.py:54",
+    "py-celery:examples/gevent/tasks.py:10",
+    "py-django:scripts/manage_translations.py:76"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/assurance.suppression-census",
+   "pack": "shared",
+   "count": 21,
+   "in_tests": 0,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.0035,
+   "repos_hit": 21,
+   "by_repo": {
+    "py-urllib3": 1,
+    "py-celery": 1,
+    "py-django": 1,
+    "py-aiohttp": 1,
+    "py-cryptography": 1,
+    "ts-undici": 1,
+    "ts-nest": 1,
+    "ts-jose": 1,
+    "ts-otel-js": 1,
+    "ts-axios": 1,
+    "go-caddy": 1,
+    "go-containerd": 1,
+    "go-coredns": 1,
+    "go-etcd": 1,
+    "java-netty": 1,
+    "java-httpclient": 1,
+    "java-tomcat": 1,
+    "java-spring-security": 1,
+    "java-keycloak": 1,
+    "ruby-rails": 1,
+    "ruby-rubygems": 1
+   },
+   "by_language": {
+    "other": 21
+   },
+   "cwe": [],
+   "samples": [
+    "py-urllib3::0",
+    "py-celery::0",
+    "py-django::0",
+    "py-aiohttp::0",
+    "py-cryptography::0",
+    "ts-undici::0",
+    "ts-nest::0",
+    "ts-jose::0",
+    "ts-otel-js::0",
+    "ts-axios::0",
+    "go-caddy::0",
+    "go-containerd::0",
+    "go-coredns::0",
+    "go-etcd::0",
+    "java-netty::0"
+   ],
+   "budget_per_kloc": 1.0,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/secrets.pg-url",
+   "pack": "shared",
+   "count": 19,
+   "in_tests": 10,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.0031,
+   "repos_hit": 4,
+   "by_repo": {
+    "ruby-rails": 11,
+    "py-celery": 6,
+    "ts-nest": 1,
+    "java-keycloak": 1
+   },
+   "by_language": {
+    "ruby": 7,
+    "python": 6,
+    "other": 5,
+    "typescript": 1
+   },
+   "cwe": [
+    "CWE-798"
+   ],
+   "samples": [
+    "py-celery:t/unit/app/test_utils.py:333",
+    "py-celery:t/unit/app/test_utils.py:332",
+    "py-celery:t/unit/backends/test_mongodb.py:79",
+    "ts-nest:sample/37-outbox/e2e/support/postgres.ts:3",
+    "java-keycloak:docs/guides/high-availability/partials/aurora/aurora-verify-peering-connections.adoc:18",
+    "ruby-rails:activerecord/lib/active_record.rb:597",
+    "ruby-rails:activerecord/lib/active_record/connection_handling.rb:47",
+    "ruby-rails:railties/lib/rails/generators/rails/app/templates/config/databases/postgresql.yml.tt:74"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/typescript.stub-returns-constant",
+   "pack": "typescript",
+   "count": 2,
+   "in_tests": 0,
+   "kloc_denominator": 655.5,
+   "per_kloc": 0.0031,
+   "repos_hit": 1,
+   "by_repo": {
+    "ts-undici": 2
+   },
+   "by_language": {
+    "typescript": 2
+   },
+   "cwe": [
+    "CWE-1164"
+   ],
+   "samples": [
+    "ts-undici:lib/web/fetch/util.js:215",
+    "ts-undici:lib/web/fetch/util.js:227"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/typescript.stub-throws-not-implemented",
+   "pack": "typescript",
+   "count": 2,
+   "in_tests": 0,
+   "kloc_denominator": 655.5,
+   "per_kloc": 0.0031,
+   "repos_hit": 2,
+   "by_repo": {
+    "ts-undici": 1,
+    "ts-nest": 1
+   },
+   "by_language": {
+    "typescript": 2
+   },
+   "cwe": [
+    "CWE-1164"
+   ],
+   "samples": [
+    "ts-undici:lib/dispatcher/dispatcher.js:7",
+    "ts-nest:packages/microservices/client/client-proxy.ts:72"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/go.check-then-act-map",
+   "pack": "go",
+   "count": 3,
+   "in_tests": 0,
+   "kloc_denominator": 983.9,
+   "per_kloc": 0.003,
+   "repos_hit": 2,
+   "by_repo": {
+    "go-grpc": 2,
+    "go-containerd": 1
+   },
+   "by_language": {
+    "go": 3
+   },
+   "cwe": [
+    "CWE-362",
+    "CWE-367"
+   ],
+   "samples": [
+    "go-containerd:core/metadata/gc.go:519",
+    "go-grpc:balancer/grpclb/grpclb_remote_balancer.go:182",
+    "go-grpc:balancer/grpclb/grpclb_remote_balancer.go:192"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/go.command-injection",
+   "pack": "go",
+   "count": 3,
+   "in_tests": 0,
+   "kloc_denominator": 983.9,
+   "per_kloc": 0.003,
+   "repos_hit": 3,
+   "by_repo": {
+    "go-containerd": 1,
+    "go-grpc": 1,
+    "go-etcd": 1
+   },
+   "by_language": {
+    "go": 3
+   },
+   "cwe": [
+    "CWE-78"
+   ],
+   "samples": [
+    "go-containerd:cmd/ctr/commands/content/content.go:615",
+    "go-grpc:interop/grpclb_fallback/client_linux.go:124",
+    "go-etcd:tools/etcd-dump-metrics/install_darwin.go:51"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/go.stub-not-implemented",
+   "pack": "go",
+   "count": 3,
+   "in_tests": 0,
+   "kloc_denominator": 983.9,
+   "per_kloc": 0.003,
+   "repos_hit": 2,
+   "by_repo": {
+    "go-grpc": 2,
+    "go-caddy": 1
+   },
+   "by_language": {
+    "go": 3
+   },
+   "cwe": [
+    "CWE-1164"
+   ],
+   "samples": [
+    "go-caddy:modules/caddyhttp/celmatcher.go:323",
+    "go-grpc:internal/testutils/balancer.go:218",
+    "go-grpc:internal/transport/readyreader/raw_conn_nonlinux.go:29"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/go.test-skipped-unconditionally",
+   "pack": "go",
+   "count": 3,
+   "in_tests": 3,
+   "kloc_denominator": 983.9,
+   "per_kloc": 0.003,
+   "repos_hit": 2,
+   "by_repo": {
+    "go-etcd": 2,
+    "go-containerd": 1
+   },
+   "by_language": {
+    "go": 3
+   },
+   "cwe": [
+    "CWE-1164"
+   ],
+   "samples": [
+    "go-containerd:pkg/sys/oom_linux_test.go:52",
+    "go-etcd:tests/integration/clientv3/lease/lease_test.go:211",
+    "go-etcd:tests/integration/clientv3/txn_test.go:105"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/supply.pull-request-target",
+   "pack": "shared",
+   "count": 18,
+   "in_tests": 0,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.003,
+   "repos_hit": 9,
+   "by_repo": {
+    "py-django": 3,
+    "py-aiohttp": 3,
+    "java-netty": 3,
+    "ts-otel-js": 2,
+    "go-etcd": 2,
+    "java-keycloak": 2,
+    "ts-undici": 1,
+    "ts-nest": 1,
+    "ruby-rails": 1
+   },
+   "by_language": {
+    "other": 18
+   },
+   "cwe": [
+    "CWE-829"
+   ],
+   "samples": [
+    "py-django:.github/workflows/check_pr_limit.yml:4",
+    "py-django:.github/workflows/check_pr_quality.yml:4",
+    "py-django:.github/workflows/labels.yml:4",
+    "py-aiohttp:.github/workflows/agent-scan.yml:4",
+    "py-aiohttp:.github/workflows/auto-merge.yml:2",
+    "py-aiohttp:.github/workflows/label-remove.yml:3",
+    "ts-undici:.github/workflows/backport.yml:3",
+    "ts-nest:.github/workflows/pr-content-guard.yml:8",
+    "ts-otel-js:.github/workflows/first-time-pr.yml:4",
+    "ts-otel-js:.github/workflows/survey-on-merged-pr.yml:4",
+    "go-etcd:.github/workflows/cherrypick-bot-ok-to-test.yaml:6",
+    "go-etcd:.github/workflows/gh-workflow-approve.yaml:6",
+    "java-netty:.github/workflows/autoport-41.yml:3",
+    "java-netty:.github/workflows/autoport-42.yml:3",
+    "java-netty:.github/workflows/autoport-50.yml:3"
+   ],
+   "budget_per_kloc": 0.1,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/java.jackson-default-typing",
+   "pack": "java",
+   "count": 8,
+   "in_tests": 0,
+   "kloc_denominator": 3011.8,
+   "per_kloc": 0.0027,
+   "repos_hit": 1,
+   "by_repo": {
+    "java-spring-security": 8
+   },
+   "by_language": {
+    "java": 8
+   },
+   "cwe": [
+    "CWE-502"
+   ],
+   "samples": [
+    "java-spring-security:cas/src/main/java/org/springframework/security/cas/jackson2/CasJackson2Module.java:56",
+    "java-spring-security:core/src/main/java/org/springframework/security/jackson2/CoreJackson2Module.java:64",
+    "java-spring-security:ldap/src/main/java/org/springframework/security/ldap/jackson2/LdapJackson2Module.java:61"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/python.swallowed-error-in-worker-loop",
+   "pack": "python",
+   "count": 2,
+   "in_tests": 0,
+   "kloc_denominator": 744.9,
+   "per_kloc": 0.0027,
+   "repos_hit": 1,
+   "by_repo": {
+    "py-celery": 2
+   },
+   "by_language": {
+    "python": 2
+   },
+   "cwe": [
+    "CWE-391",
+    "CWE-703"
+   ],
+   "samples": [
+    "py-celery:celery/events/cursesmon.py:170",
+    "py-celery:celery/utils/threads.py:93"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/java.object-input-stream",
+   "pack": "java",
+   "count": 7,
+   "in_tests": 0,
+   "kloc_denominator": 3011.8,
+   "per_kloc": 0.0023,
+   "repos_hit": 4,
+   "by_repo": {
+    "java-keycloak": 3,
+    "java-tomcat": 2,
+    "java-netty": 1,
+    "java-spring-security": 1
+   },
+   "by_language": {
+    "java": 7
+   },
+   "cwe": [
+    "CWE-502"
+   ],
+   "samples": [
+    "java-netty:resolver-dns/src/main/java/io/netty/resolver/dns/DefaultDnsCache.java:286",
+    "java-tomcat:java/org/apache/catalina/tribes/io/XByteBuffer.java:736",
+    "java-tomcat:java/org/apache/tomcat/dbcp/dbcp2/datasources/InstanceKeyDataSourceFactory.java:89",
+    "java-spring-security:saml2/saml2-service-provider/src/main/java/org/springframework/security/saml2/provider/service/registration/JdbcAssertingPartyMetadataRepository.java:274",
+    "java-keycloak:common/src/main/java/org/keycloak/common/util/KerberosSerializationUtils.java:122",
+    "java-keycloak:services/src/main/java/org/keycloak/social/twitter/TwitterIdentityProvider.java:121",
+    "java-keycloak:test-framework/remote-providers/src/main/java/org/keycloak/testframework/remote/providers/runonserver/SerializationUtil.java:41"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/go.stub-returns-nil",
+   "pack": "go",
+   "count": 2,
+   "in_tests": 0,
+   "kloc_denominator": 983.9,
+   "per_kloc": 0.002,
+   "repos_hit": 1,
+   "by_repo": {
+    "go-containerd": 2
+   },
+   "by_language": {
+    "go": 2
+   },
+   "cwe": [
+    "CWE-1164"
+   ],
+   "samples": [
+    "go-containerd:pkg/sys/oom_unsupported.go:33",
+    "go-containerd:pkg/sys/oom_unsupported.go:47"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/java.trust-all-certificates",
+   "pack": "java",
+   "count": 6,
+   "in_tests": 0,
+   "kloc_denominator": 3011.8,
+   "per_kloc": 0.002,
+   "repos_hit": 2,
+   "by_repo": {
+    "java-keycloak": 5,
+    "java-tomcat": 1
+   },
+   "by_language": {
+    "java": 6
+   },
+   "cwe": [
+    "CWE-295"
+   ],
+   "samples": [
+    "java-tomcat:java/org/apache/catalina/tribes/membership/cloud/AbstractStreamProvider.java:65",
+    "java-keycloak:adapters/saml/core/src/main/java/org/keycloak/adapters/cloned/HttpClientBuilder.java:95",
+    "java-keycloak:services/src/main/java/org/keycloak/connections/httpclient/HttpClientBuilder.java:67",
+    "java-keycloak:test-framework/core/src/main/java/org/keycloak/testframework/server/DistributionKeycloakServer.java:425"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/java.unsynchronized-counter",
+   "pack": "java",
+   "count": 6,
+   "in_tests": 0,
+   "kloc_denominator": 3011.8,
+   "per_kloc": 0.002,
+   "repos_hit": 2,
+   "by_repo": {
+    "java-netty": 3,
+    "java-tomcat": 3
+   },
+   "by_language": {
+    "java": 6
+   },
+   "cwe": [
+    "CWE-362",
+    "CWE-366"
+   ],
+   "samples": [
+    "java-netty:codec-http2/src/main/java/io/netty/handler/codec/http2/Http2FrameCodec.java:425",
+    "java-netty:common/src/main/java/io/netty/util/HashedWheelTimer.java:516",
+    "java-netty:common/src/main/java/io/netty/util/concurrent/ScheduledFutureTask.java:169",
+    "java-tomcat:java/org/apache/catalina/tribes/membership/McastServiceImpl.java:715",
+    "java-tomcat:java/org/apache/catalina/tribes/membership/McastServiceImpl.java:826",
+    "java-tomcat:webapps/examples/WEB-INF/classes/async/Stockticker.java:105"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/assurance.analysis-excluded",
+   "pack": "shared",
+   "count": 11,
+   "in_tests": 0,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.0018,
+   "repos_hit": 9,
+   "by_repo": {
+    "py-aiohttp": 3,
+    "py-urllib3": 1,
+    "py-celery": 1,
+    "py-django": 1,
+    "py-cryptography": 1,
+    "go-caddy": 1,
+    "go-containerd": 1,
+    "go-coredns": 1,
+    "go-etcd": 1
+   },
+   "by_language": {
+    "other": 11
+   },
+   "cwe": [],
+   "samples": [
+    "py-urllib3:setup.cfg:3",
+    "py-celery:setup.cfg:29",
+    "py-django:.flake8:2",
+    "py-aiohttp:pyproject.toml:184",
+    "py-aiohttp:requirements/pyproject.toml:184",
+    "py-aiohttp:setup.cfg:17",
+    "py-cryptography:pyproject.toml:134",
+    "go-caddy:.golangci.yml:1",
+    "go-containerd:.golangci.yml:1",
+    "go-coredns:.golangci.yml:1",
+    "go-etcd:tools/.golangci.yaml:1"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/concurrency.check-then-act-unlocked",
+   "pack": "shared",
+   "count": 10,
+   "in_tests": 0,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.0016,
+   "repos_hit": 3,
+   "by_repo": {
+    "py-celery": 5,
+    "py-django": 4,
+    "py-aiohttp": 1
+   },
+   "by_language": {
+    "python": 10
+   },
+   "cwe": [
+    "CWE-362"
+   ],
+   "samples": [
+    "py-celery:celery/app/base.py:742",
+    "py-celery:celery/backends/redis.py:308",
+    "py-celery:celery/backends/redis.py:492",
+    "py-django:django/db/backends/base/base.py:224",
+    "py-django:django/utils/autoreload.py:78",
+    "py-django:django/utils/autoreload.py:78",
+    "py-aiohttp:aiohttp/connector.py:1201"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/typescript.retry-no-backoff",
+   "pack": "typescript",
+   "count": 1,
+   "in_tests": 0,
+   "kloc_denominator": 655.5,
+   "per_kloc": 0.0015,
+   "repos_hit": 1,
+   "by_repo": {
+    "ts-undici": 1
+   },
+   "by_language": {
+    "typescript": 1
+   },
+   "cwe": [
+    "CWE-400",
+    "CWE-834"
+   ],
+   "samples": [
+    "ts-undici:lib/web/fetch/index.js:2110"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/typescript.shell-spawn-built",
+   "pack": "typescript",
+   "count": 1,
+   "in_tests": 0,
+   "kloc_denominator": 655.5,
+   "per_kloc": 0.0015,
+   "repos_hit": 1,
+   "by_repo": {
+    "java-keycloak": 1
+   },
+   "by_language": {
+    "typescript": 1
+   },
+   "cwe": [
+    "CWE-78"
+   ],
+   "samples": [
+    "java-keycloak:js/apps/keycloak-server/scripts/start-server.js:59"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/ruby.tls-verify-off",
+   "pack": "ruby",
+   "count": 1,
+   "in_tests": 0,
+   "kloc_denominator": 689.9,
+   "per_kloc": 0.0014,
+   "repos_hit": 1,
+   "by_repo": {
+    "ruby-puma": 1
+   },
+   "by_language": {
+    "ruby": 1
+   },
+   "cwe": [
+    "CWE-295"
+   ],
+   "samples": [
+    "ruby-puma:lib/puma/minissl/context_builder.rb:75"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/java.command-injection",
+   "pack": "java",
+   "count": 4,
+   "in_tests": 0,
+   "kloc_denominator": 3011.8,
+   "per_kloc": 0.0013,
+   "repos_hit": 2,
+   "by_repo": {
+    "java-keycloak": 3,
+    "java-netty": 1
+   },
+   "by_language": {
+    "java": 4
+   },
+   "cwe": [
+    "CWE-78"
+   ],
+   "samples": [
+    "java-netty:common/src/main/java/io/netty/util/internal/NativeLibraryLoader.java:344",
+    "java-keycloak:integration/client-cli/admin-cli/src/main/java/org/keycloak/client/admin/cli/v2/KcAdmV2EditCmd.java:135",
+    "java-keycloak:integration/client-cli/admin-cli/src/main/java/org/keycloak/client/admin/cli/v2/KcAdmV2EditCmd.java:137",
+    "java-keycloak:testsuite/integration-arquillian/util/src/main/java/org/keycloak/testsuite/utils/io/IOUtil.java:321"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/python.command-injection",
+   "pack": "python",
+   "count": 1,
+   "in_tests": 0,
+   "kloc_denominator": 744.9,
+   "per_kloc": 0.0013,
+   "repos_hit": 1,
+   "by_repo": {
+    "py-django": 1
+   },
+   "by_language": {
+    "python": 1
+   },
+   "cwe": [
+    "CWE-78"
+   ],
+   "samples": [
+    "py-django:scripts/manage_translations.py:199"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/python.thread-not-daemon-never-joined",
+   "pack": "python",
+   "count": 1,
+   "in_tests": 0,
+   "kloc_denominator": 744.9,
+   "per_kloc": 0.0013,
+   "repos_hit": 1,
+   "by_repo": {
+    "py-celery": 1
+   },
+   "by_language": {
+    "python": 1
+   },
+   "cwe": [
+    "CWE-835"
+   ],
+   "samples": [
+    "py-celery:celery/bin/graph.py:197"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/python.weak-password-hash",
+   "pack": "python",
+   "count": 1,
+   "in_tests": 0,
+   "kloc_denominator": 744.9,
+   "per_kloc": 0.0013,
+   "repos_hit": 1,
+   "by_repo": {
+    "py-django": 1
+   },
+   "by_language": {
+    "python": 1
+   },
+   "cwe": [
+    "CWE-327",
+    "CWE-916"
+   ],
+   "samples": [
+    "py-django:django/contrib/auth/hashers.py:665"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/resource.k8s-capabilities-not-dropped",
+   "pack": "shared",
+   "count": 8,
+   "in_tests": 2,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.0013,
+   "repos_hit": 4,
+   "by_repo": {
+    "go-etcd": 5,
+    "go-containerd": 1,
+    "java-tomcat": 1,
+    "java-keycloak": 1
+   },
+   "by_language": {
+    "other": 8
+   },
+   "cwe": [],
+   "samples": [
+    "go-containerd:contrib/checkpoint/testdata/sleep.yaml:0",
+    "go-etcd:hack/kubernetes-deploy/etcd.yml:0",
+    "go-etcd:hack/kubernetes-deploy/etcd.yml:0",
+    "go-etcd:hack/kubernetes-deploy/etcd.yml:0",
+    "java-tomcat:modules/stuffed/tomcat.yaml:0",
+    "java-keycloak:operator/src/test/resources/example-postgres.yaml:0"
+   ],
+   "budget_per_kloc": 0.1,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/resource.k8s-no-resource-limits",
+   "pack": "shared",
+   "count": 8,
+   "in_tests": 2,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.0013,
+   "repos_hit": 4,
+   "by_repo": {
+    "go-etcd": 5,
+    "go-containerd": 1,
+    "java-tomcat": 1,
+    "java-keycloak": 1
+   },
+   "by_language": {
+    "other": 8
+   },
+   "cwe": [],
+   "samples": [
+    "go-containerd:contrib/checkpoint/testdata/sleep.yaml:0",
+    "go-etcd:hack/kubernetes-deploy/etcd.yml:0",
+    "go-etcd:hack/kubernetes-deploy/etcd.yml:0",
+    "go-etcd:hack/kubernetes-deploy/etcd.yml:0",
+    "java-tomcat:modules/stuffed/tomcat.yaml:0",
+    "java-keycloak:operator/src/test/resources/example-postgres.yaml:0"
+   ],
+   "budget_per_kloc": 0.1,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/resource.k8s-no-security-context",
+   "pack": "shared",
+   "count": 8,
+   "in_tests": 2,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.0013,
+   "repos_hit": 4,
+   "by_repo": {
+    "go-etcd": 5,
+    "go-containerd": 1,
+    "java-tomcat": 1,
+    "java-keycloak": 1
+   },
+   "by_language": {
+    "other": 8
+   },
+   "cwe": [],
+   "samples": [
+    "go-containerd:contrib/checkpoint/testdata/sleep.yaml:0",
+    "go-etcd:hack/kubernetes-deploy/etcd.yml:0",
+    "go-etcd:hack/kubernetes-deploy/etcd.yml:0",
+    "go-etcd:hack/kubernetes-deploy/etcd.yml:0",
+    "java-tomcat:modules/stuffed/tomcat.yaml:0",
+    "java-keycloak:operator/src/test/resources/example-postgres.yaml:0"
+   ],
+   "budget_per_kloc": 0.1,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/resource.k8s-not-run-as-non-root",
+   "pack": "shared",
+   "count": 8,
+   "in_tests": 2,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.0013,
+   "repos_hit": 4,
+   "by_repo": {
+    "go-etcd": 5,
+    "go-containerd": 1,
+    "java-tomcat": 1,
+    "java-keycloak": 1
+   },
+   "by_language": {
+    "other": 8
+   },
+   "cwe": [],
+   "samples": [
+    "go-containerd:contrib/checkpoint/testdata/sleep.yaml:0",
+    "go-etcd:hack/kubernetes-deploy/etcd.yml:0",
+    "go-etcd:hack/kubernetes-deploy/etcd.yml:0",
+    "go-etcd:hack/kubernetes-deploy/etcd.yml:0",
+    "java-tomcat:modules/stuffed/tomcat.yaml:0",
+    "java-keycloak:operator/src/test/resources/example-postgres.yaml:0"
+   ],
+   "budget_per_kloc": 0.1,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/resource.k8s-privilege-escalation-not-disabled",
+   "pack": "shared",
+   "count": 8,
+   "in_tests": 2,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.0013,
+   "repos_hit": 4,
+   "by_repo": {
+    "go-etcd": 5,
+    "go-containerd": 1,
+    "java-tomcat": 1,
+    "java-keycloak": 1
+   },
+   "by_language": {
+    "other": 8
+   },
+   "cwe": [],
+   "samples": [
+    "go-containerd:contrib/checkpoint/testdata/sleep.yaml:0",
+    "go-etcd:hack/kubernetes-deploy/etcd.yml:0",
+    "go-etcd:hack/kubernetes-deploy/etcd.yml:0",
+    "go-etcd:hack/kubernetes-deploy/etcd.yml:0",
+    "java-tomcat:modules/stuffed/tomcat.yaml:0",
+    "java-keycloak:operator/src/test/resources/example-postgres.yaml:0"
+   ],
+   "budget_per_kloc": 0.1,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/resource.k8s-writable-root-filesystem",
+   "pack": "shared",
+   "count": 8,
+   "in_tests": 2,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.0013,
+   "repos_hit": 4,
+   "by_repo": {
+    "go-etcd": 5,
+    "go-containerd": 1,
+    "java-tomcat": 1,
+    "java-keycloak": 1
+   },
+   "by_language": {
+    "other": 8
+   },
+   "cwe": [],
+   "samples": [
+    "go-containerd:contrib/checkpoint/testdata/sleep.yaml:0",
+    "go-etcd:hack/kubernetes-deploy/etcd.yml:0",
+    "go-etcd:hack/kubernetes-deploy/etcd.yml:0",
+    "go-etcd:hack/kubernetes-deploy/etcd.yml:0",
+    "java-tomcat:modules/stuffed/tomcat.yaml:0",
+    "java-keycloak:operator/src/test/resources/example-postgres.yaml:0"
+   ],
+   "budget_per_kloc": 0.1,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/supply.unpinned-python-dep",
+   "pack": "shared",
+   "count": 8,
+   "in_tests": 0,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.0013,
+   "repos_hit": 2,
+   "by_repo": {
+    "py-django": 5,
+    "py-celery": 3
+   },
+   "by_language": {
+    "other": 8
+   },
+   "cwe": [
+    "CWE-1357",
+    "CWE-494"
+   ],
+   "samples": [
+    "py-celery:examples/django/requirements.txt:1",
+    "py-celery:examples/django/requirements.txt:2",
+    "py-celery:examples/django/requirements.txt:3",
+    "py-django:docs/requirements.txt:1",
+    "py-django:docs/requirements.txt:2",
+    "py-django:docs/requirements.txt:3"
+   ],
+   "budget_per_kloc": 0.1,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/drift.documented-env-var-absent",
+   "pack": "shared",
+   "count": 7,
+   "in_tests": 0,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.0012,
+   "repos_hit": 3,
+   "by_repo": {
+    "java-keycloak": 3,
+    "ts-otel-js": 2,
+    "ts-axios": 2
+   },
+   "by_language": {
+    "other": 7
+   },
+   "cwe": [],
+   "samples": [
+    "ts-otel-js:experimental/packages/exporter-trace-otlp-grpc/README.md:155",
+    "ts-otel-js:experimental/packages/opentelemetry-exporter-metrics-otlp-grpc/README.md:111",
+    "ts-axios:PRE_RELEASE_DOCS.md:97",
+    "ts-axios:THREATMODEL.md:201",
+    "java-keycloak:js/apps/admin-ui/README.md:58",
+    "java-keycloak:js/apps/admin-ui/README.md:59",
+    "java-keycloak:js/apps/admin-ui/README.md:60"
+   ],
+   "budget_per_kloc": 0.1,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/java.rest-template-no-timeout",
+   "pack": "java",
+   "count": 3,
+   "in_tests": 0,
+   "kloc_denominator": 3011.8,
+   "per_kloc": 0.001,
+   "repos_hit": 1,
+   "by_repo": {
+    "java-spring-security": 3
+   },
+   "by_language": {
+    "java": 3
+   },
+   "cwe": [
+    "CWE-400"
+   ],
+   "samples": [
+    "java-spring-security:config/src/main/java/org/springframework/security/config/annotation/web/configurers/oauth2/client/OidcBackChannelLogoutHandler.java:67",
+    "java-spring-security:oauth2/oauth2-client/src/main/java/org/springframework/security/oauth2/client/userinfo/DefaultOAuth2UserService.java:87",
+    "java-spring-security:oauth2/oauth2-resource-server/src/main/java/org/springframework/security/oauth2/server/resource/introspection/SpringOpaqueTokenIntrospector.java:96"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/java.url-connection-no-timeout",
+   "pack": "java",
+   "count": 3,
+   "in_tests": 0,
+   "kloc_denominator": 3011.8,
+   "per_kloc": 0.001,
+   "repos_hit": 1,
+   "by_repo": {
+    "java-tomcat": 3
+   },
+   "by_language": {
+    "java": 3
+   },
+   "cwe": [
+    "CWE-400"
+   ],
+   "samples": [
+    "java-tomcat:java/org/apache/catalina/ant/AbstractCatalinaTask.java:254",
+    "java-tomcat:java/org/apache/catalina/tribes/membership/cloud/AbstractStreamProvider.java:137",
+    "java-tomcat:java/org/apache/tomcat/util/buf/CloseableURLConnection.java:75"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/resource.k8s-mutable-image-tag",
+   "pack": "shared",
+   "count": 6,
+   "in_tests": 2,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.001,
+   "repos_hit": 3,
+   "by_repo": {
+    "go-etcd": 4,
+    "go-containerd": 1,
+    "java-keycloak": 1
+   },
+   "by_language": {
+    "other": 6
+   },
+   "cwe": [],
+   "samples": [
+    "go-containerd:contrib/checkpoint/testdata/sleep.yaml:0",
+    "go-etcd:hack/kubernetes-deploy/etcd.yml:0",
+    "go-etcd:hack/kubernetes-deploy/etcd.yml:0",
+    "go-etcd:hack/kubernetes-deploy/etcd.yml:0",
+    "java-keycloak:operator/src/test/resources/example-postgres.yaml:0"
+   ],
+   "budget_per_kloc": 0.1,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/authored.docstring-promises-absent-behaviour",
+   "pack": "shared",
+   "count": 5,
+   "in_tests": 0,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.0008,
+   "repos_hit": 1,
+   "by_repo": {
+    "py-cryptography": 5
+   },
+   "by_language": {
+    "python": 5
+   },
+   "cwe": [],
+   "samples": [
+    "py-cryptography:src/cryptography/hazmat/primitives/asymmetric/dsa.py:135",
+    "py-cryptography:src/cryptography/hazmat/primitives/asymmetric/ec.py:170",
+    "py-cryptography:src/cryptography/hazmat/primitives/asymmetric/rsa.py:87"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/java.check-then-act-unsynchronized",
+   "pack": "java",
+   "count": 2,
+   "in_tests": 0,
+   "kloc_denominator": 3011.8,
+   "per_kloc": 0.0007,
+   "repos_hit": 1,
+   "by_repo": {
+    "java-tomcat": 2
+   },
+   "by_language": {
+    "java": 2
+   },
+   "cwe": [
+    "CWE-362",
+    "CWE-366"
+   ],
+   "samples": [
+    "java-tomcat:java/org/apache/catalina/tribes/transport/nio/ParallelNioSender.java:392",
+    "java-tomcat:modules/jdbc-pool/src/main/java/org/apache/tomcat/jdbc/pool/ConnectionPool.java:415"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/java.retry-without-backoff",
+   "pack": "java",
+   "count": 2,
+   "in_tests": 0,
+   "kloc_denominator": 3011.8,
+   "per_kloc": 0.0007,
+   "repos_hit": 1,
+   "by_repo": {
+    "java-netty": 2
+   },
+   "by_language": {
+    "java": 2
+   },
+   "cwe": [
+    "CWE-400",
+    "CWE-834"
+   ],
+   "samples": [
+    "java-netty:transport/src/main/java/io/netty/channel/group/CombinedIterator.java:54",
+    "java-netty:transport/src/main/java/io/netty/channel/nio/NioIoHandler.java:398"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/contract.documented-route-not-registered",
+   "pack": "shared",
+   "count": 2,
+   "in_tests": 0,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.0003,
+   "repos_hit": 1,
+   "by_repo": {
+    "java-keycloak": 2
+   },
+   "by_language": {
+    "other": 2
+   },
+   "cwe": [],
+   "samples": [
+    "java-keycloak:js/libs/keycloak-admin-client/openapi.json:243",
+    "java-keycloak:js/libs/keycloak-admin-client/openapi.json:243"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/java.hostname-verifier-disabled",
+   "pack": "java",
+   "count": 1,
+   "in_tests": 0,
+   "kloc_denominator": 3011.8,
+   "per_kloc": 0.0003,
+   "repos_hit": 1,
+   "by_repo": {
+    "java-keycloak": 1
+   },
+   "by_language": {
+    "java": 1
+   },
+   "cwe": [
+    "CWE-295"
+   ],
+   "samples": [
+    "java-keycloak:test-framework/core/src/main/java/org/keycloak/testframework/server/ReadinessProbe.java:45"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  },
+  {
+   "rule": "arbiter/contract.dropped-column-still-referenced",
+   "pack": "shared",
+   "count": 1,
+   "in_tests": 0,
+   "kloc_denominator": 6085.9,
+   "per_kloc": 0.0002,
+   "repos_hit": 1,
+   "by_repo": {
+    "py-django": 1
+   },
+   "by_language": {
+    "other": 1
+   },
+   "cwe": [],
+   "samples": [
+    "py-django:package.json:2"
+   ],
+   "budget_per_kloc": 0.03,
+   "over_budget": false
+  }
+ ],
+ "breaches": [
+  {
+   "rule": "arbiter/typescript.test-without-assertion",
+   "per_kloc": 1.1122,
+   "budget": 0.03,
+   "count": 729
+  },
+  {
+   "rule": "arbiter/authored.undeclared-import",
+   "per_kloc": 0.382,
+   "budget": 0.03,
+   "count": 2325
+  },
+  {
+   "rule": "arbiter/secrets.assigned-credential",
+   "per_kloc": 0.2787,
+   "budget": 0.03,
+   "count": 1696
+  },
+  {
+   "rule": "arbiter/java.test-without-assertion",
+   "per_kloc": 0.1481,
+   "budget": 0.03,
+   "count": 446
+  },
+  {
+   "rule": "arbiter/python.sql-injection",
+   "per_kloc": 0.0873,
+   "budget": 0.03,
+   "count": 65
+  },
+  {
+   "rule": "arbiter/ruby.stub-method",
+   "per_kloc": 0.0667,
+   "budget": 0.03,
+   "count": 46
+  },
+  {
+   "rule": "arbiter/ruby.vacuous-spec",
+   "per_kloc": 0.0623,
+   "budget": 0.03,
+   "count": 43
+  },
+  {
+   "rule": "arbiter/authored.stub-on-production-path",
+   "per_kloc": 0.0508,
+   "budget": 0.03,
+   "count": 309
+  },
+  {
+   "rule": "arbiter/ruby.check-then-act-unlocked",
+   "per_kloc": 0.0493,
+   "budget": 0.03,
+   "count": 34
+  },
+  {
+   "rule": "arbiter/assurance.blanket-suppression",
+   "per_kloc": 0.0407,
+   "budget": 0.03,
+   "count": 248
+  },
+  {
+   "rule": "arbiter/assurance.test-asserts-nothing",
+   "per_kloc": 0.0401,
+   "budget": 0.03,
+   "count": 244
+  },
+  {
+   "rule": "arbiter/secrets.private-key",
+   "per_kloc": 0.0394,
+   "budget": 0.03,
+   "count": 240
+  },
+  {
+   "rule": "arbiter/typescript.fetch-no-timeout",
+   "per_kloc": 0.0381,
+   "budget": 0.03,
+   "count": 25
+  },
+  {
+   "rule": "arbiter/ruby.sql-injection",
+   "per_kloc": 0.0319,
+   "budget": 0.03,
+   "count": 22
+  },
+  {
+   "rule": "arbiter/ruby.rescue-exception",
+   "per_kloc": 0.0304,
+   "budget": 0.03,
+   "count": 21
+  },
+  {
+   "rule": "arbiter/ruby.swallowed-error",
+   "per_kloc": 0.0304,
+   "budget": 0.03,
+   "count": 21
+  }
+ ]
+}

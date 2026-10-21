@@ -1,0 +1,38 @@
+{
+  "owasp-benchmark-java": {
+    "language": "java",
+    "url": "https://github.com/OWASP-Benchmark/BenchmarkJava",
+    "license": "GPL-2.0 (fetched at a pinned commit, never redistributed or built)",
+    "expected_results": "expectedresults-1.2.csv",
+    "test_dir": "src/main/java/org/owasp/benchmark/testcode",
+    "cases_note": "2,740 servlets, each labelled real or safe, over 11 CWEs",
+    "cwe_aliases": {
+      "CWE-330": ["CWE-338"],
+      "CWE-89": ["CWE-564"],
+      "CWE-78": ["CWE-77"],
+      "CWE-22": ["CWE-23", "CWE-36", "CWE-73"],
+      "CWE-79": ["CWE-80"],
+      "CWE-327": ["CWE-326"],
+      "CWE-328": ["CWE-327", "CWE-916"]
+    },
+    "min_recall": null
+  },
+  "owasp-benchmark-python": {
+    "language": "python",
+    "url": "https://github.com/OWASP-Benchmark/BenchmarkPython",
+    "license": "GPL-3.0 (fetched at a pinned commit, never redistributed or run)",
+    "expected_results": "expectedresults-0.1.csv",
+    "test_dir": "testcode",
+    "cases_note": "1,230 Flask handlers, each labelled real or safe, over 14 CWEs",
+    "cwe_aliases": {
+      "CWE-330": ["CWE-338"],
+      "CWE-89": ["CWE-564"],
+      "CWE-78": ["CWE-77"],
+      "CWE-22": ["CWE-23", "CWE-36", "CWE-73"],
+      "CWE-79": ["CWE-80"],
+      "CWE-94": ["CWE-95"],
+      "CWE-328": ["CWE-327", "CWE-916"]
+    },
+    "min_recall": null
+  }
+}
