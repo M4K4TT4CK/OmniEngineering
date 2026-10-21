@@ -1,7 +1,389 @@
 # Java rules. Owner: the Java agent. Schema: src/arbiter/lang_rules.py.
+#
+# Corpus: fixtures/planted/java/{bad,good}. Every rule here has a planted
+# defect and a correct twin there; tests/test_lang_java.py adds focused cases.
+#
+# Two query idioms this pack leans on, because a tree-sitter pattern cannot
+# say "not" or "at any depth":
+#
+#   * `unless_in_scope` with a NEGATED predicate, e.g. a method whose name is
+#     not `run`: the hit's enclosing function encloses itself, so capturing
+#     "every function that is not a worker" skips every hit outside a worker.
+#   * `requires_file` with a `#match?` on a whole class, using a regex
+#     back-reference to tie a field's name to its later use, which no pattern
+#     can do across nesting depths.
 pack: java
 languages: [java]
 rules:
+  # ---------------------------------------------------------------- races --
+  - id: check-then-act-unsynchronized
+    title: "Check-then-act on a shared collection with no lock held: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-362, CWE-366]
+    controls: [NIST-800-218:PW.5]
+    tags: [concurrency, race]
+    query: |
+      ; if (!map.containsKey(k)) map.put(k, v);   if (!list.isEmpty()) return list.remove(0);
+      ; if (map.get(k) == null) { map.put(k, v); }  if (q.size() > MAX) q.clear();
+      ; One regex over the whole statement, because the back-reference (\1) is
+      ; what ties the checked collection to the changed one.
+      ((if_statement) @hit
+        (#match? @hit "^if\\s*\\(\\s*!?\\s*(\\w+)\\.(containsKey|contains|isEmpty|get|size)\\s*\\((?:[^()]|\\([^()]*\\))*\\)(?:\\s*(?:==|!=|<=|>=|<|>)\\s*[\\w.-]+)?\\s*\\)\\s*\\{?\\s*(?://[^\\n]*\\n\\s*)?(?:return\\s+|(?:final\\s+)?[\\w.<>\\[\\], ?]+\\s+\\w+\\s*=\\s*)?\\1\\.(put|add|remove|poll|pop|clear|addAll|putAll|removeFirst|removeLast|addFirst|addLast|offer|push)\\s*\\("))
+    # A class that (a) runs on more than one thread and (b) declares a
+    # collection field whose name is later checked in an `if`. The
+    # back-reference ties the field to the check; a local or a parameter
+    # with the same name is ruled out by `unless_in_scope` below.
+    requires_file: |
+      ((class_declaration) @c
+        (#match? @c "(?s)\\b(Map|HashMap|LinkedHashMap|TreeMap|List|ArrayList|LinkedList|Set|HashSet|LinkedHashSet|TreeSet|Deque|ArrayDeque|Queue|PriorityQueue)<[^;=()]*>\\s+(\\w+)\\s*(=[^;]*)?;.*\\bif\\s*\\(\\s*!?\\s*\\2\\.(containsKey|contains|isEmpty|get|size)\\s*\\(")
+        (#match? @c "\\b(Thread|Runnable|Callable|ExecutorService|Executors|ScheduledExecutorService|CompletableFuture|ForkJoinPool|TimerTask|parallelStream)\\b|@Async|@Scheduled"))
+    unless_inside: |
+      (synchronized_statement) @s
+      ((method_declaration (modifiers) @m) @d (#match? @m "\\bsynchronized\\b"))
+    unless_in_scope: |
+      ; a lock taken in this method
+      (method_invocation name: (identifier) @n (#match? @n "^(lock|lockInterruptibly|tryLock|acquire|acquireUninterruptibly)$"))
+      ; the collection is a local or a parameter here, not the shared field
+      (local_variable_declaration type: (generic_type (type_identifier) @t
+        (#match? @t "^(Map|HashMap|LinkedHashMap|TreeMap|List|ArrayList|LinkedList|Set|HashSet|LinkedHashSet|TreeSet|Deque|ArrayDeque|Queue|PriorityQueue|Collection)$")))
+      (formal_parameter type: (generic_type (type_identifier) @t
+        (#match? @t "^(Map|HashMap|LinkedHashMap|TreeMap|List|ArrayList|LinkedList|Set|HashSet|LinkedHashSet|TreeSet|Deque|ArrayDeque|Queue|PriorityQueue|Collection)$")))
+    description: >
+      Between the check and the change another thread can run, so two workers
+      both see "absent" and both insert, or both see "not empty" and the
+      second `remove(0)` throws or takes a different element. The single-
+      threaded test passes. Even a ConcurrentHashMap only makes each call
+      atomic, not the pair.
+    remediation: >
+      Make the pair one atomic step: `putIfAbsent`/`computeIfAbsent`, a
+      `BlockingQueue.poll()`, or hold one lock (a `synchronized` block or a
+      `ReentrantLock`) around both the check and the act.
+
+  - id: unsynchronized-counter
+    title: "`{text}` on a shared field from worker code with no lock or atomic"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-362, CWE-366]
+    controls: [NIST-800-218:PW.5]
+    tags: [concurrency, race]
+    query: |
+      (update_expression (identifier)) @hit
+      (assignment_expression left: (identifier) operator: ["+=" "-="]) @hit
+    # A class that runs on more than one thread and has an integral field
+    # whose name is later incremented.
+    requires_file: |
+      ((class_declaration) @c
+        (#match? @c "(?s)\\b(int|long)\\s+(\\w+)\\s*(=[^;]*)?;.*\\b\\2\\s*(\\+\\+|--|\\+=|-=)")
+        (#match? @c "\\b(Thread|Runnable|Callable|ExecutorService|Executors|ScheduledExecutorService|CompletableFuture|ForkJoinPool|TimerTask|parallelStream)\\b|@Async|@Scheduled"))
+    unless_inside: |
+      (synchronized_statement) @s
+      ((method_declaration (modifiers) @m) @d (#match? @m "\\bsynchronized\\b"))
+      (for_statement update: (_) @u)
+    unless_in_scope: |
+      ; the hit is not in worker code: a method that is not run()/call(),
+      ; or a lambda that is not handed to a thread or an executor
+      ((method_declaration name: (identifier) @n (#not-match? @n "^(run|call)$")) @m)
+      (constructor_declaration) @ctor
+      (method_invocation name: (identifier) @n
+        (#not-match? @n "^(submit|execute|runAsync|supplyAsync|schedule|scheduleAtFixedRate|scheduleWithFixedDelay|invokeAll|invokeAny|start|startVirtualThread|thenRunAsync|thenApplyAsync|thenAcceptAsync|thenComposeAsync|whenCompleteAsync)$")
+        arguments: (argument_list (lambda_expression) @l))
+      (object_creation_expression type: (_) @t (#not-match? @t "^Thread$")
+        arguments: (argument_list (lambda_expression) @l))
+      (local_variable_declaration type: (_) @t (#not-match? @t "^(Runnable|Callable|Thread)(<.*>)?$")
+        declarator: (variable_declarator value: (lambda_expression) @l))
+      (field_declaration type: (_) @t (#not-match? @t "^(Runnable|Callable)(<.*>)?$")
+        declarator: (variable_declarator value: (lambda_expression) @l))
+      (return_statement (lambda_expression) @l)
+      ; a lock taken in this scope
+      (method_invocation name: (identifier) @n (#match? @n "^(lock|lockInterruptibly|tryLock|acquire|acquireUninterruptibly)$"))
+      ; the counter is a local of this scope, not the shared field
+      (local_variable_declaration type: (integral_type)) @local
+    description: >
+      `count++` is a read, an add and a write. Two threads that run it at
+      once lose one increment, and `volatile` does not help: it makes the
+      write visible, not the three steps atomic.
+    remediation: >
+      Use an `AtomicInteger`/`AtomicLong` (`incrementAndGet`, `addAndGet`),
+      a `LongAdder`, or guard the update with the same lock every reader uses.
+
+  # ------------------------------------------------------------- timeouts --
+  - id: http-client-no-timeout
+    title: "`{text}` builds an HttpClient with no connect timeout"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [timeout, http]
+    query: |
+      (method_invocation object: (identifier) @o name: (identifier) @n
+        (#eq? @o "HttpClient") (#match? @n "^(newHttpClient|newBuilder)$")) @hit
+    unless_in_scope: |
+      (method_invocation name: (identifier) @n (#eq? @n "connectTimeout"))
+    # Every request in this file carries its own timeout, which also bounds
+    # the connect phase.
+    unless_in_file: |
+      (method_invocation name: (identifier) @n (#eq? @n "timeout"))
+    description: >
+      `java.net.http.HttpClient` has no default connect timeout. A peer that
+      accepts the TCP handshake and then says nothing holds the calling
+      thread forever; under load every worker ends up parked there.
+    remediation: >
+      `HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(n))`, and
+      `.timeout(...)` on each `HttpRequest`.
+
+  - id: http-request-no-timeout
+    title: "`HttpRequest.newBuilder` with no `.timeout(...)`"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [timeout, http]
+    query: |
+      (method_invocation object: (identifier) @o name: (identifier) @n
+        (#eq? @o "HttpRequest") (#eq? @n "newBuilder")) @hit
+    unless_in_scope: |
+      (method_invocation name: (identifier) @n (#eq? @n "timeout"))
+    description: >
+      An `HttpRequest` without a timeout waits for the response for as long
+      as the server cares to take. The client's connect timeout does not
+      cover this phase.
+    remediation: "Add `.timeout(Duration.ofSeconds(n))` to the request builder."
+
+  - id: url-connection-no-timeout
+    title: "`openConnection()` with neither connect nor read timeout set"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [timeout, http]
+    query: |
+      (method_invocation name: (identifier) @n (#eq? @n "openConnection")) @hit
+    requires_file: |
+      ((program) @p (#match? @p "\\bHttps?URLConnection\\b"))
+    unless_in_scope: |
+      (method_invocation name: (identifier) @n (#match? @n "^set(Connect|Read)Timeout$"))
+    description: >
+      `HttpURLConnection` defaults to an infinite connect and read timeout.
+    remediation: >
+      Call `setConnectTimeout(ms)` and `setReadTimeout(ms)` on the connection
+      before reading from it.
+
+  - id: rest-template-no-timeout
+    title: "`new RestTemplate()` uses a request factory with no timeouts"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [timeout, http, spring]
+    query: |
+      (object_creation_expression type: (type_identifier) @t arguments: (argument_list) @a
+        (#eq? @t "RestTemplate") (#match? @a "^\\(\\s*\\)$")) @hit
+    unless_in_scope: |
+      (method_invocation name: (identifier) @n
+        (#match? @n "^(setConnectTimeout|setReadTimeout|setRequestFactory|connectTimeout|readTimeout)$"))
+    description: >
+      The no-argument constructor uses `SimpleClientHttpRequestFactory` with
+      connect and read timeouts of zero, meaning none.
+    remediation: >
+      Build it from a request factory with timeouts, or from
+      `RestTemplateBuilder.setConnectTimeout(...).setReadTimeout(...)`.
+
+  # ------------------------------------------------------ retries & loops --
+  - id: retry-without-backoff
+    title: "Retry loop with no backoff and no attempt cap"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400, CWE-834]
+    controls: [NIST-800-218:PW.5]
+    tags: [retry, resilience]
+    query: |
+      ; while (true) { try { ...; return x; } catch (E e) { log } }
+      (while_statement condition: (parenthesized_expression (true))
+        body: (block (try_statement body: (block [(return_statement) (break_statement)]) (catch_clause)))) @hit
+      (for_statement !condition
+        body: (block (try_statement body: (block [(return_statement) (break_statement)]) (catch_clause)))) @hit
+    unless_in_scope: |
+      (method_invocation name: (identifier) @n
+        (#match? @n "(?i)^(sleep|wait|await|backoff|delay|park\\w*|pause|retry\\w*|nextDelay|exponential\\w*)$"))
+      (method_invocation object: (_) @o (#match? @o "(?i)backoff|retry"))
+    description: >
+      The loop retries the moment the call fails, forever. Against a peer
+      that is down it is a busy loop; against one that is overloaded it is a
+      denial of service by the client.
+    remediation: >
+      Cap the attempts and sleep between them with exponential backoff and
+      jitter, then fail with the last error.
+
+  - id: worker-loop-no-stop
+    title: "`while (true)` worker loop with no stop signal"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-835]
+    controls: [NIST-800-218:PW.5]
+    tags: [concurrency, shutdown]
+    query: |
+      (while_statement condition: (parenthesized_expression (true))) @hit
+    requires_file: |
+      ((program) @p (#match? @p "\\b(Thread|Runnable|ExecutorService|Executors|CompletableFuture)\\b"))
+    unless_in_scope: |
+      ; a way out of the loop, or a check of the interrupt flag
+      (return_statement) @r
+      (break_statement) @b
+      (throw_statement) @t
+      (method_invocation name: (identifier) @n
+        (#match? @n "^(isInterrupted|interrupted|isShutdown|isTerminated|exit|halt)$"))
+      ; not worker code (see unsynchronized-counter)
+      ((method_declaration name: (identifier) @n (#not-match? @n "^(run|call)$")) @m)
+      (constructor_declaration) @ctor
+      (method_invocation name: (identifier) @n
+        (#not-match? @n "^(submit|execute|runAsync|supplyAsync|schedule|scheduleAtFixedRate|scheduleWithFixedDelay|invokeAll|invokeAny|start|startVirtualThread|thenRunAsync|thenApplyAsync|thenAcceptAsync|thenComposeAsync|whenCompleteAsync)$")
+        arguments: (argument_list (lambda_expression) @l))
+      (object_creation_expression type: (_) @t (#not-match? @t "^Thread$")
+        arguments: (argument_list (lambda_expression) @l))
+      (local_variable_declaration type: (_) @t (#not-match? @t "^(Runnable|Callable|Thread)(<.*>)?$")
+        declarator: (variable_declarator value: (lambda_expression) @l))
+      (field_declaration type: (_) @t (#not-match? @t "^(Runnable|Callable)(<.*>)?$")
+        declarator: (variable_declarator value: (lambda_expression) @l))
+      (return_statement (lambda_expression) @l)
+    description: >
+      Nothing in the worker checks a running flag or the interrupt status,
+      and nothing breaks or returns, so `shutdown()` and `interrupt()` are
+      ignored. The JVM cannot exit cleanly and the test suite hangs.
+    remediation: >
+      Loop on `while (running)` with a `volatile boolean`, or on
+      `!Thread.currentThread().isInterrupted()`, and return from the
+      `InterruptedException` handler after re-setting the flag.
+
+  # ----------------------------------------------------------- exceptions --
+  - id: swallowed-exception
+    title: "Empty `catch` swallows the error: `{text}`"
+    severity: medium
+    confidence: high
+    dimension: quality
+    cwe: [CWE-391, CWE-703]
+    controls: [NIST-800-218:PW.5]
+    tags: [error-handling]
+    query: |
+      ; catch (Exception e) {}  or  catch (Throwable t) { // nothing }  anywhere
+      (catch_clause (catch_formal_parameter (catch_type (type_identifier) @t) name: (identifier) @id)
+        body: (block) @b
+        (#match? @b "(?s)^\\{(\\s|//[^\\n]*|/\\*.*?\\*/)*\\}$")
+        (#match? @t "^(Exception|Throwable|RuntimeException|Error)$")
+        (#not-match? @id "^(ignored?|expected|unused|_+)$")) @hit
+      ; any truly empty catch when the try sits directly in a loop body
+      ; (one pattern per loop type: a predicate inside an alternation is
+      ; evaluated on a partial match by the engine's captures())
+      (while_statement body: (block (try_statement
+        (catch_clause (catch_formal_parameter name: (identifier) @id) body: (block) @b
+          (#match? @b "^\\{\\s*\\}$") (#not-match? @id "^(ignored?|expected|unused|_+)$")) @hit)))
+      (for_statement body: (block (try_statement
+        (catch_clause (catch_formal_parameter name: (identifier) @id) body: (block) @b
+          (#match? @b "^\\{\\s*\\}$") (#not-match? @id "^(ignored?|expected|unused|_+)$")) @hit)))
+      (enhanced_for_statement body: (block (try_statement
+        (catch_clause (catch_formal_parameter name: (identifier) @id) body: (block) @b
+          (#match? @b "^\\{\\s*\\}$") (#not-match? @id "^(ignored?|expected|unused|_+)$")) @hit)))
+      (do_statement body: (block (try_statement
+        (catch_clause (catch_formal_parameter name: (identifier) @id) body: (block) @b
+          (#match? @b "^\\{\\s*\\}$") (#not-match? @id "^(ignored?|expected|unused|_+)$")) @hit)))
+    description: >
+      The failure is discarded with no log, no metric and no rethrow. The
+      caller sees success; the operator sees nothing; in a loop the same
+      error repeats silently on every iteration.
+    remediation: >
+      Log it with context and decide: rethrow, return a failure, or, if
+      ignoring it is right, catch the specific type and say why in a comment.
+      For `InterruptedException`, call `Thread.currentThread().interrupt()`.
+
+  # ------------------------------------------------------------ injection --
+  - id: sql-string-built
+    title: "SQL built from a string expression reaches `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-89]
+    controls: [NIST-800-218:PW.5]
+    tags: [injection, sql]
+    query: |
+      ; executeQuery("... " + name + " ...")  /  executeQuery(String.format(...))
+      ; A built string is one that splices in a lower-case name, field or
+      ; call next to a `+`, or is a String.format; literal + literal and
+      ; CONSTANT + literal are not reported.
+      (method_invocation name: (identifier) @n arguments: (argument_list . (binary_expression) @val)
+        (#match? @val "^String\\.format\\s*\\(|\\+\\s*[a-z_][\\w.]*\\s*(\\(|\\[|\\+|$)|^\\s*[a-z_][\\w.]*\\s*\\+") (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|queryForObject|queryForList|queryForMap|queryForRowSet|batchUpdate|nativeQuery)$")) @hit
+      (method_invocation name: (identifier) @n
+        arguments: (argument_list . (method_invocation object: (identifier) @so name: (identifier) @sf))
+        (#eq? @so "String") (#eq? @sf "format") (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|queryForObject|queryForList|queryForMap|queryForRowSet|batchUpdate|nativeQuery)$")) @hit
+      ; String sql = "... " + name; ... executeQuery(sql) in the same block,
+      ; one pattern per statement shape the sink can sit in
+      (block
+        (local_variable_declaration declarator: (variable_declarator name: (identifier) @v value: (_) @val))
+        (expression_statement (method_invocation name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit)
+        (#eq? @v @a) (#match? @val "^String\\.format\\s*\\(|\\+\\s*[a-z_][\\w.]*\\s*(\\(|\\[|\\+|$)|^\\s*[a-z_][\\w.]*\\s*\\+")
+        (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|queryForObject|queryForList|queryForMap|queryForRowSet|batchUpdate|nativeQuery)$"))
+      (block
+        (local_variable_declaration declarator: (variable_declarator name: (identifier) @v value: (_) @val))
+        (return_statement (method_invocation name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit)
+        (#eq? @v @a) (#match? @val "^String\\.format\\s*\\(|\\+\\s*[a-z_][\\w.]*\\s*(\\(|\\[|\\+|$)|^\\s*[a-z_][\\w.]*\\s*\\+")
+        (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|queryForObject|queryForList|queryForMap|queryForRowSet|batchUpdate|nativeQuery)$"))
+      (block
+        (local_variable_declaration declarator: (variable_declarator name: (identifier) @v value: (_) @val))
+        (local_variable_declaration declarator: (variable_declarator
+            value: (method_invocation name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit))
+        (#eq? @v @a) (#match? @val "^String\\.format\\s*\\(|\\+\\s*[a-z_][\\w.]*\\s*(\\(|\\[|\\+|$)|^\\s*[a-z_][\\w.]*\\s*\\+")
+        (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|queryForObject|queryForList|queryForMap|queryForRowSet|batchUpdate|nativeQuery)$"))
+      (block
+        (local_variable_declaration declarator: (variable_declarator name: (identifier) @v value: (_) @val))
+        (try_with_resources_statement resources: (resource_specification (resource
+            value: (method_invocation name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit)))
+        (#eq? @v @a) (#match? @val "^String\\.format\\s*\\(|\\+\\s*[a-z_][\\w.]*\\s*(\\(|\\[|\\+|$)|^\\s*[a-z_][\\w.]*\\s*\\+")
+        (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|queryForObject|queryForList|queryForMap|queryForRowSet|batchUpdate|nativeQuery)$"))
+    description: >
+      The statement text includes a value spliced in at run time, so whoever
+      controls that value controls the query. Concatenating constants or
+      literals is not reported; a lower-case name, field or call is.
+    remediation: >
+      Use a `PreparedStatement` (or JPA `setParameter`) with `?`/`:name`
+      placeholders, and keep identifiers (table, column) to an allow-list.
+
+  - id: command-injection
+    title: "Shell command built from a run-time value: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-78]
+    controls: [NIST-800-218:PW.5]
+    tags: [injection, command]
+    query: |
+      ; Runtime.getRuntime().exec(<anything but a literal, a CONSTANT or a literal array>)
+      (method_invocation
+        object: (method_invocation object: (identifier) @r name: (identifier) @g)
+        name: (identifier) @x
+        arguments: (argument_list . (_) @a)
+        (#eq? @r "Runtime") (#eq? @g "getRuntime") (#eq? @x "exec")
+        (#not-match? @a "(?s)^(\"|[A-Z][A-Z0-9_]*$|new\\s+String\\s*\\[\\s*\\]\\s*\\{\\s*(\"[^\"]*\"\\s*,?\\s*)*\\}$)")) @hit
+      ; new ProcessBuilder("sh", "-c", <non-literal>)  /  ("cmd", "/c", <non-literal>)
+      (object_creation_expression type: (type_identifier) @t
+        arguments: (argument_list (string_literal) @c . (_) @a)
+        (#eq? @t "ProcessBuilder") (#match? @c "^\"(-c|/c|-e)\"$") (#not-match? @a "^\"")) @hit
+    description: >
+      `Runtime.exec(String)` splits on whitespace and `sh -c` interprets
+      metacharacters, so a value that reaches either from outside runs
+      whatever it likes.
+    remediation: >
+      Pass the program and each argument as separate array elements with no
+      shell, validate against an allow-list, and prefer a library call over
+      a child process.
+
+  # ------------------------------------------------------ deserialization --
   - id: object-input-stream
     title: "`ObjectInputStream.readObject` deserializes untrusted bytes"
     severity: high
@@ -14,7 +396,184 @@ rules:
       (method_invocation name: (identifier) @m (#eq? @m "readObject")) @hit
     requires_file: |
       (object_creation_expression
-        type: [(type_identifier) (scoped_type_identifier)] @t
+        type: (_) @t
         (#match? @t "(^|\\.)ObjectInputStream$")) @x
     description: "Java deserialization runs constructors and gadgets chosen by whoever wrote the bytes."
     remediation: "Use a data format (JSON) with an explicit schema, or an ObjectInputFilter allow-list."
+
+  - id: xml-decoder
+    title: "`XMLDecoder.readObject` instantiates whatever classes the XML names"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-502]
+    controls: [NIST-800-218:PW.5]
+    tags: [deserialization]
+    query: |
+      (method_invocation name: (identifier) @m (#eq? @m "readObject")) @hit
+    requires_file: |
+      (object_creation_expression
+        type: (_) @t
+        (#match? @t "(^|\\.)XMLDecoder$")) @x
+    description: >
+      `java.beans.XMLDecoder` is a scripting engine: the document can call
+      any public constructor or method, including `ProcessBuilder.start`.
+    remediation: "Parse the XML with a schema-bound binder (JAXB, Jackson XML) into known types."
+
+  - id: jackson-default-typing
+    title: "Jackson default typing lets the JSON choose the class to instantiate"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-502]
+    controls: [NIST-800-218:PW.5]
+    tags: [deserialization, jackson]
+    query: |
+      (method_invocation name: (identifier) @m (#eq? @m "enableDefaultTyping")) @hit
+      (method_invocation name: (identifier) @m arguments: (argument_list) @a
+        (#eq? @m "activateDefaultTyping") (#match? @a "LaissezFaire")) @hit
+    description: >
+      With default typing on, a `@class` property in the input picks the
+      concrete type; with the laissez-faire validator every gadget class on
+      the classpath is allowed.
+    remediation: >
+      Use `activateDefaultTyping` with a `BasicPolymorphicTypeValidator`
+      that allows only your own base types, or `@JsonTypeInfo` with named
+      subtypes.
+
+  # ---------------------------------------------------------------- stubs --
+  - id: stub-method
+    title: "Method body is a placeholder: `{text}`"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-1164]
+    controls: [NIST-800-218:PW.5]
+    tags: [stub, incomplete]
+    query: |
+      ; throw new UnsupportedOperationException();  / ("not implemented yet")
+      (method_declaration body: (block . (throw_statement (object_creation_expression
+        type: (type_identifier) @t arguments: (argument_list) @a)) @hit . (line_comment)? .)
+        (#eq? @t "UnsupportedOperationException")
+        (#match? @a "(?i)^\\(\\s*\\)$|not (yet )?(implemented|supported)|todo|fixme|stub|implement"))
+      ; throw new RuntimeException("TODO ...") / IllegalStateException("not implemented")
+      (method_declaration body: (block . (throw_statement (object_creation_expression
+        type: (type_identifier) @t arguments: (argument_list) @a)) @hit . (line_comment)? .)
+        (#match? @t "^(RuntimeException|IllegalStateException|Error|AssertionError)$")
+        (#match? @a "(?i)not (yet )?implemented|todo|fixme|stub"))
+      ; return null; // TODO
+      (method_declaration body: (block . (return_statement (null_literal)) @hit . (line_comment) @c .)
+        (#match? @c "(?i)todo|fixme|stub|implement"))
+    description: >
+      The method compiles and the class wires up, but calling it fails or
+      returns nothing. Generated scaffolds leave these behind and the caller
+      only finds out in production.
+    remediation: "Implement it, or remove the method so the gap fails at compile time."
+
+  # ---------------------------------------------------------------- tests --
+  - id: test-without-assertion
+    title: "`@Test {text}` asserts nothing"
+    severity: low
+    confidence: medium
+    dimension: assurance
+    cwe: [CWE-1164]
+    controls: [NIST-800-218:PW.8]
+    tags: [test, assurance]
+    roles: [test]
+    query: |
+      (method_declaration (modifiers (marker_annotation name: (identifier) @a (#eq? @a "Test")))
+        name: (identifier) @hit)
+    unless_in_scope: |
+      (method_invocation name: (identifier) @n
+        (#match? @n "^(assert\\w*|verify\\w*|fail|expect\\w*|andExpect\\w*|should\\w*|then\\w*|check\\w*|validate\\w*|assume\\w*|is[A-Z]\\w*|has[A-Z]\\w*|contains\\w*|doesNotContain\\w*|isEqualTo|isNotEqualTo|matches|satisfies|inOrder|andDo|expectStatus|exchange)$"))
+      (method_invocation object: (identifier) @o
+        (#match? @o "^(Assertions|Assert|Mockito|BDDMockito|MatcherAssert|Truth|StepVerifier|Verify|Awaitility|SoftAssertions)$"))
+    description: >
+      The test passes as long as nothing throws, which is not what it looks
+      like it checks. A method that only calls the code under test proves
+      the call does not crash on this input and nothing else.
+    remediation: >
+      Assert the outcome (`assertEquals`, `assertThat`, `verify(...)`), or
+      name it `...DoesNotThrow` and wrap it in `assertDoesNotThrow`.
+
+  # ------------------------------------------------------------------ TLS --
+  - id: trust-all-certificates
+    title: "`checkServerTrusted` is empty: every certificate is accepted"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-295]
+    controls: [NIST-800-218:PW.5]
+    tags: [tls, crypto]
+    query: |
+      (method_declaration name: (identifier) @hit body: (block) @b
+        (#eq? @hit "checkServerTrusted")
+        (#match? @b "(?s)^\\{(\\s|//[^\\n]*|/\\*.*?\\*/)*\\}$"))
+    description: >
+      A `TrustManager` that does not throw from `checkServerTrusted`
+      accepts any certificate, including one minted by whoever sits between
+      this process and the server; TLS then encrypts the traffic to the
+      attacker.
+    remediation: >
+      Delete the custom trust manager and use the platform default. For a
+      private CA, load it into a `KeyStore` and init a `TrustManagerFactory`
+      from that.
+
+  - id: hostname-verifier-disabled
+    title: "HostnameVerifier that always returns true"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-295]
+    controls: [NIST-800-218:PW.5]
+    tags: [tls, crypto]
+    query: |
+      (method_invocation name: (identifier) @n
+        (#match? @n "^(setDefaultHostnameVerifier|setHostnameVerifier|hostnameVerifier)$")
+        arguments: (argument_list (lambda_expression body: (true)) @hit))
+      (local_variable_declaration type: (type_identifier) @t (#eq? @t "HostnameVerifier")
+        declarator: (variable_declarator value: (lambda_expression body: (true)) @hit))
+      (field_declaration type: (type_identifier) @t (#eq? @t "HostnameVerifier")
+        declarator: (variable_declarator value: (lambda_expression body: (true)) @hit))
+      ; new HostnameVerifier() { public boolean verify(String h, SSLSession s) { return true; } }
+      (object_creation_expression type: (type_identifier) @t (#eq? @t "HostnameVerifier")
+        (class_body (method_declaration name: (identifier) @n (#eq? @n "verify")
+          body: (block . (return_statement (true)) .)) @hit))
+    description: >
+      The certificate may be valid, but for some other host. Accepting every
+      hostname lets any certificate holder impersonate this server.
+    remediation: >
+      Remove the verifier and use the default. If the certificate's name is
+      wrong, fix the certificate.
+
+  # ----------------------------------------------------------- randomness --
+  - id: weak-random-for-secret
+    title: "`{text}` is not a cryptographic source, but this value is a secret"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-338, CWE-330]
+    controls: [NIST-800-218:PW.5]
+    tags: [crypto, randomness]
+    query: |
+      (object_creation_expression type: (type_identifier) @t (#eq? @t "Random")) @hit
+      (method_invocation object: (identifier) @o name: (identifier) @n
+        (#eq? @o "Math") (#eq? @n "random")) @hit
+      ; RANDOM.nextLong() where RANDOM is a java.util.Random field of this file
+      ((method_invocation object: (identifier) @o name: (identifier) @n
+        (#match? @o "^[A-Z][A-Z0-9_]*$") (#not-match? @o "SECURE")
+        (#match? @n "^next(Int|Long|Bytes|Double|Float|Boolean|Gaussian)$")) @hit
+        (#match? @o "RAND|RNG"))
+    requires_file: |
+      (object_creation_expression type: (type_identifier) @t (#eq? @t "Random")) @x
+    # Skip unless the enclosing method is about a secret: by its name, or
+    # because the random value is assigned to a secret-shaped variable.
+    unless_in_scope: |
+      ((method_declaration name: (identifier) @n
+         (#not-match? @n "(?i)token|secret|password|passwd|nonce|key|session|salt|otp|csrf|credential|verif")) @m
+        (#not-match? @m "(?s)(?i)\\w*(token|secret|password|passwd|nonce|salt|otp|session|api_?key|csrf|credential)\\w*\\s*=[^;]*(Math\\.random|new Random|\\b[A-Z_]*(RAND|RNG)[A-Z_]*\\.next)"))
+    description: >
+      `java.util.Random` is a 48-bit linear congruential generator: a few
+      outputs reveal its state and every future value. For a token, key,
+      password or session id that means the next one can be predicted.
+    remediation: "Use `SecureRandom` (and `UUID.randomUUID()` for ids)."
