@@ -3440,7 +3440,9 @@ def find_findings_reports(root: Path, cfg: dict[str, Any] | None = None) -> list
         return [candidate] if candidate.is_file() else []
     gate_dir = root / _arbiter_out_dir(root, cfg)
     gate_candidates = _report_candidates(gate_dir)
-    gate = gate_candidates[0] if gate_candidates else None
+    # the newest partial report in the gate directory; when none is partial (a gate that scanned everything, or a
+    # gate directory that is `arbiter-out/` itself), simply the newest one there
+    gate = next((c for c in gate_candidates if _report_scope_mode(c) == "partial"), gate_candidates[0] if gate_candidates else None)
     pool = _report_candidates(root / FINDINGS_DEFAULT_OUT)
     for extra in gate_candidates:
         if extra not in pool:
