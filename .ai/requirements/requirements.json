@@ -1430,14 +1430,16 @@
       "id": "ARB-062",
       "category": "capability",
       "title": "CWE Top 25 coverage per IDE language, with what is not assessed stated",
-      "description": "For each IDE language, every applicable CWE Top 25 weakness has a planted pair caught by a native rule or a pinned analyzer; weaknesses out of reach of single-file structural checks (authorization, data flow without taint tracking) are listed as not assessed per language.",
+      "description": "For each IDE language, every applicable 2024 CWE Top 25 weakness has a planted bad/good pair, scored native-only and with the pinned analyzers (semgrep, bandit, gitleaks). Integration first: the applicability matrix, measured coverage and ranked gap list are in docs/cwe-top25.md (measured 2026-10-21: 47 new pairs; 32 planted defects caught by nothing). Native rules are then written only for the ranked gaps. Weaknesses that do not apply (memory safety; 190 in Python/Ruby/TS; 94 and 502 in Go) or are out of reach of single-file checks (862, 863, 306, 269, 20, 476 in Go/Java, 352 in Go, 918 beyond one function) are listed as not assessed per language.",
       "priority": "medium",
       "status": "pending",
       "minimum_access_scope": [],
       "acceptance_criteria": [
-        "per-language CWE table in docs/probes.md",
-        "each in-scope CWE has a passing planted pair",
-        "not-assessed CWEs appear in the controls coverage output"
+        "per-language CWE table in docs/probes.md (not assessed / gap) and the matrix in docs/cwe-top25.md",
+        "each applicable cell has a planted pair under fixtures/planted/<lang>/; a caught defect carries expect: or expect-ext:, an uncaught one carries gap: CWE-N",
+        "planted_score.py stays fully caught with 0 on good twins and 0 unmarked, native-only and with --adapters",
+        "the ranked gaps from docs/cwe-top25.md get native rules, each turning its gap: comment into an expect: marker",
+        "not-assessed CWEs appear in the controls coverage output: needs a CWE Top 25 control pack with per-language applicability (a control today has one automatable value and no language), a state or reason for 'does not apply in this language' distinct from not_automatable, and controls._probe_of mapping arbiter/<lang>.* to the lang_<lang> probe (today it returns '<lang>', so a language-pack check would always read as not assessed)"
       ],
       "validation_required": [
         "pytest",
@@ -1447,7 +1449,10 @@
       "documentation_required": [
         "changelog"
       ],
-      "risk_notes": []
+      "risk_notes": [
+        "semgrep rules that fire on the fixed twin too (Ruby missing-csrf-protection, check-send-file and dangerous-exec, Flask ssrf-requests, bandit B603/B607) are not counted as coverage",
+        "918 is planted in its same-function form only; interprocedural SSRF stays out of reach"
+      ]
     },
     {
       "id": "ARB-063",

@@ -6,6 +6,16 @@ under `[Unreleased]` (there are no release tags yet) and reference the
 
 ## [Unreleased]
 ### 2026-10-21
+- ARB-062 | CWE Top 25 (2024) measured before any new rule: an
+applicability matrix for Python, TypeScript/JavaScript, Go, Java and Ruby
+(`docs/cwe-top25.md`), 47 new planted pairs, one per applicable cell not
+already in the corpus, and a ranked gap list. Each defect is marked with what
+reports it, native or semgrep/bandit. 32 defects nothing reports are tagged
+`gap: CWE-N` in the source (TS JWT `decode`, Java `csrf.disable()`, error
+detail returned to the client, uploads under the client's filename, SSRF
+outside Python...). `docs/probes.md` lists, per language, the CWEs that do not
+apply, are out of reach for single-file checks, or are gaps. One marker
+comment can now carry both `expect:` and `expect-ext:`.
 - ARB-061 | Rule packs for Python, TypeScript/JavaScript, Go, Java and Ruby:
 races, outbound calls with no timeout (and Go DB calls with no deadline),
 retry loops with no backoff or cap, swallowed errors and unstoppable worker
