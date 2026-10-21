@@ -53,7 +53,10 @@ LANG_BY_EXT = {
 }
 
 TEST_HINTS = re.compile(r"(^|/)(tests?|spec|__tests__)(/|$)|(^|/)test_[^/]+$|_test\.[a-z]+$"
-                        r"|\.(spec|test)\.[a-z]+$|_spec\.rb$|(^|/)src/test/")
+                        r"|\.(spec|test)\.[a-z]+$|_spec\.rb$|(^|/)src/test/"
+                        # Gradle/Maven test source sets: integration tests, JMH
+                        # benchmarks, test fixtures, and `src/<name>Test/` suites.
+                        r"|(^|/)src/(it|jmh|testFixtures|[A-Za-z0-9]+Test)/")
 DOC_HINTS = re.compile(r"(^|/)(docs?|\.ai)(/|$)|\.(md|rst|adoc)$", re.IGNORECASE)
 # `cdk\.out[^/]*` rather than `cdk\.out`: CDK_OUTDIR lets a project redirect
 # synth output to a renamed directory (`cdk.out.chk`, seen on a real system),
