@@ -1,6 +1,6 @@
 # What to work on next
 
-Generated 2026-10-20T17:35:03+00:00 by `tools/worklist.py` from the last training cycle.
+Generated 2026-10-21T19:32:23+00:00 by `tools/worklist.py` from the last training cycle.
 
 Nothing here is a decision. Each entry says what the measurement shows and what question it raises.
 
@@ -10,11 +10,11 @@ Nothing here is a decision. Each entry says what the measurement shows and what 
 
 A language that appears only in well-maintained repositories cannot be measured. There is nothing to compare its rules against, so they can be asserted but never tested.
 
-- **go** — 819,986 lines of good code, 15,256 broken
-- **cpp** — 148,538 lines of good code, 0 broken
+- **go** — 844,993 lines of good code, 15,256 broken
+- **cpp** — 212,772 lines of good code, 0 broken
 - **rust** — 56,386 lines of good code, 0 broken
-- **rst** — 23,251 lines of good code, 0 broken
-- **c** — 8,660 lines of good code, 7 broken
+- **rst** — 23,759 lines of good code, 0 broken
+- **c** — 7,186 lines of good code, 7 broken
 - **r** — 5,616 lines of good code, 0 broken
 
 Add a deliberately-vulnerable repository for each, to `tools/fetch_corpus.sh` and `tools/corpus.py`. Closing eight of these gaps is what surfaced three false criticals that had survived every injection trial ever run.
@@ -82,7 +82,6 @@ Not a defect — a gap. Fewer than five findings in total, so the ratio beside e
 - `arbiter/resource.privileged-container` — 0 good, 4 broken
 - `arbiter/resource.public-object-store` — 0 good, 1 broken
 - `arbiter/resource.unencrypted-queue` — 1 good, 1 broken
-- `arbiter/secrets.slack-token` — 1 good, 0 broken
 
 More repetitions will not help. Effective sample size is bounded by how many different kinds of code and fault exist, not by trial count. These need more varied code.
 
