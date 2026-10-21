@@ -1569,7 +1569,8 @@
       "acceptance_criteria": [
         "why and why-not work for every native pack rule",
         "a recorded false-positive verdict lowers that rule's reported confidence on the next scan, with the verdict cited",
-        "precision per rule over the clean and gold corpora is published in docs/"
+        "precision per rule over the clean and gold corpora is published in docs/",
+        "gaps and next-steps report written (docs/gaps-and-next-steps.md)"
       ],
       "validation_required": [
         "pytest",
