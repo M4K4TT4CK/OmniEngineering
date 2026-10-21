@@ -1414,7 +1414,8 @@
       "acceptance_criteria": [
         "every interview-slice defect in the planted corpus is caught in python typescript go java ruby",
         "no rule fires on a good twin",
-        "precision run on each language's corpus repos reviewed"
+        "precision run on each language's corpus repos reviewed",
+        "false positives the language runs found in shared files fixed, each pinned by a test that also keeps a still-reported case, and a pack query that does not compile fails the load naming its rule"
       ],
       "validation_required": [
         "pytest",

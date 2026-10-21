@@ -19,6 +19,15 @@ Java undeclared-import reads Gradle version catalogs, maps packages to
 groupIds and treats Gradle test source sets as tests (2,295 findings to 117
 on seven Java repos); a skip annotation inside a comment is no longer a
 skipped test.
+- ARB-061 | Precision follow-ups in shared files, from the language runs.
+A Go test handing `t` to a helper in any argument position delegates its
+assertion (cobra 34 to 2 tests-assert-nothing); `//go:build ignore` generators
+may import undeclared modules (client_golang 2 to 0); `InsecureSkipVerify`
+beside its own `VerifyPeerCertificate`/`VerifyConnection`/`PeerCertSANs` in the
+same literal is custom verification, not off (traefik 25 to 20); a `_test/`
+directory holds tests (yaegi 19 source findings under it to 0). Pack queries
+are compiled when a pack loads, and one that does not compile raises a
+`PackError` naming pack, rule and reason instead of silently emptying a scan.
 - ARB-064 | Findings traceable in OmniGraph: rule and CWE nodes, `violates`
 and `classified_as` edges, full and gate reports merged, `--if-stale`
 rebuild, `omni graph findings --cwe/--rule`, impact by file or CWE.
