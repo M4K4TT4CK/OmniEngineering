@@ -390,9 +390,9 @@ _EXPRESSION_LANGUAGES = frozenset({
 #     lower-case kebab (`super-secret-key`) is how weak secrets are written,
 #     and stays reported;
 #   - a short lowerCamelCase identifier, two to four words: `keyPassword`,
-#     `accessToken`. A longer camel phrase is a passphrase, and WebGoat's
-#     `PASSWORD_TOM_9 = "somethingVeryRandomWhichNoOneWillEverTypeIn..."` is
-#     exactly that, so it is still reported.
+#     `accessToken`. A longer camel phrase is a passphrase: WebGoat's
+#     password for Tom in ResetLinkAssignment.java is one ("somethingVery
+#     RandomWhich..."), so it is still reported.
 _KEY_NAME_VALUE = re.compile(
     r"^(?:[A-Za-z][A-Za-z_-]*(?:[.:/][A-Za-z][A-Za-z_-]*)+"
     r"|[A-Z][a-z]*(?:-[A-Z][a-z]*)+"
@@ -590,7 +590,7 @@ def _credential_finding(f, text: str, offset: int, name: str, value: str,
     # part of it counts too: `ELT_ENCRYPTION_CREDENTIAL = "encryption-credential"`
     # and `INVALID_ID_TOKEN_ERROR_CODE = "invalid_id_token"` name an XML element
     # and an error code (spring-security, ARB-065). A value with a word of its
-    # own (`JWT_SECRET = "super-secret-key"`) is still judged below.
+    # own (a JWT secret of "super-secret-key") is still judged below.
     if re.sub(r"[^a-z0-9]", "", val_s.lower()) == re.sub(r"[^a-z0-9]", "", name.lower()):
         return None
     value_words = _words(val_s)
@@ -631,7 +631,8 @@ def _credential_finding(f, text: str, offset: int, name: str, value: str,
     if ent < 2.6 or classes < 2:
         return None
     # Under a test or fixture path a credential-named literal is test data by
-    # design: `password="some-gibbberish"`, `token="test-token"` -- about 600 of
+    # design (django's auth tests pass "some-gibbberish" as a password, and
+    # "test-token" as a token) -- about 600 of
     # the gold reports. Only a value that looks generated is reported there:
     # three character classes and the entropy of a real password, or a long
     # high-entropy blob (juice-shop's hex wallet keys in checkKeys.test.ts). A
