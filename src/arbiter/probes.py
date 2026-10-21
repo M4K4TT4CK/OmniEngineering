@@ -429,7 +429,10 @@ _TEST_MATERIAL = re.compile(
     # under integration/resources/tls -- material committed on purpose so the
     # integration suite has something to serve. Same category as the keys under
     # psf/requests' tests/certs, different word for the directory.
-    r"|integration|e2e|acceptance|conformance|hack|scripts?/dev)(/|$)"
+    r"|integration|e2e|acceptance|conformance|hack|scripts?/dev"
+    # Test vectors: pyca/cryptography ships its key corpus as the
+    # `vectors/cryptography_vectors` package.
+    r"|vectors|test[-_]?vectors)(/|$)"
     r"|(^|/)[^/]*\.(test|spec)\.[a-z]+$"
 )
 
@@ -684,6 +687,13 @@ def probe_secrets(ctx: ProbeContext) -> list[Finding]:
                             "than a leaked credential.")
                 elif test_material:
                     eff_sev = "medium" if sev in ("critical", "high") else sev
+                    # A key under a test or fixture path is almost always the
+                    # TLS or crypto library's own test material: grpc-go's
+                    # testdata/x509, cryptography's vectors (240 on gold,
+                    # ARB-065). Still reported, never silenced, but low, and
+                    # tagged so a budget or a policy can treat it on its own.
+                    if suffix == "private-key":
+                        eff_sev = "low"
                     eff_conf = "low"
                     note = (" This file sits under a test or fixture path, so the material is "
                             "probably deliberate — confirm it is not a production credential.")
@@ -701,7 +711,7 @@ def probe_secrets(ctx: ProbeContext) -> list[Finding]:
                     remediation="Remove the literal, rotate the credential, and load it from a secret store at runtime.",
                     evidence=f"{suffix}:{_mask(val)}",
                     controls=["NIST-800-53r5:IA-5", "NIST-800-53r5:SC-28"],
-                    tags=["secret"],
+                    tags=["secret"] + (["test-fixture"] if test_material else []),
                 ))
         # The name heuristic is for code and configuration. In documentation
         # (`docs/`, `.adoc`, release notes) a credential-named assignment is an
