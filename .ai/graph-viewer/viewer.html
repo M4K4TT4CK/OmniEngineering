@@ -284,15 +284,16 @@
     assurance: 'The project\'s tests and test suites, the failure ledger (what broke, why, and the test that guards it) and the Arbiter findings from the newest gate report.',
     workspace: 'OmniEngineering itself in this project: rulepacks, rules, playbooks, checklists and its own tooling.' };
   var KIND_COLORS = { module: '#3d8bfd', 'class': '#5aa6ff', 'interface': '#8cc0ff', 'function': '#2f6fd0', method: '#2559b0', table: '#00c2ff', file: '#7f9fc9', external: '#7a8594',
-    requirement: '#ffb000', changelog: '#ffd166', commit: '#a06cff', failure: '#ff4d4d', suite: '#ff8a5c', rule: '#14c8b0', rulepack: '#0fa08c', playbook: '#5eead4', checklist: '#99f6e4', finding: '#ff8a3d' };
+    requirement: '#ffb000', changelog: '#ffd166', commit: '#a06cff', failure: '#ff4d4d', suite: '#ff8a5c', rule: '#14c8b0', rulepack: '#0fa08c', playbook: '#5eead4', checklist: '#99f6e4', finding: '#ff8a3d', arbiter_rule: '#d98cff', cwe: '#ff5ca8' };
   var KIND_SHAPE = { module: 'square', file: 'square', 'class': 'rsquare', 'interface': 'rsquare', 'function': 'circle', method: 'circle', table: 'hexagon', external: 'circle',
-    requirement: 'diamond', changelog: 'page', commit: 'triangle', failure: 'hexagon', suite: 'rsquare', rule: 'circle', rulepack: 'square', playbook: 'page', checklist: 'page', finding: 'tridown' };
-  var KIND_SCALE = { module: 1.5, file: 1.2, 'class': 1.25, 'interface': 1.25, table: 1.4, 'function': 0.9, method: 0.8, external: 0.6, requirement: 1.6, changelog: 1.15, commit: 1.0, failure: 1.7, suite: 1.5, rule: 1.0, rulepack: 1.4, playbook: 1.2, checklist: 1.1, finding: 1.1 };
-  var KIND_ORDER = ['requirement', 'commit', 'changelog', 'failure', 'finding', 'suite', 'rule', 'rulepack', 'playbook', 'checklist', 'module', 'file', 'class', 'interface', 'function', 'method', 'table'];
+    requirement: 'diamond', changelog: 'page', commit: 'triangle', failure: 'hexagon', suite: 'rsquare', rule: 'circle', rulepack: 'square', playbook: 'page', checklist: 'page', finding: 'tridown', arbiter_rule: 'circle', cwe: 'hexagon' };
+  var KIND_SCALE = { module: 1.5, file: 1.2, 'class': 1.25, 'interface': 1.25, table: 1.4, 'function': 0.9, method: 0.8, external: 0.6, requirement: 1.6, changelog: 1.15, commit: 1.0, failure: 1.7, suite: 1.5, rule: 1.0, rulepack: 1.4, playbook: 1.2, checklist: 1.1, finding: 1.1, arbiter_rule: 1.0, cwe: 1.4 };
+  var KIND_ORDER = ['requirement', 'commit', 'changelog', 'failure', 'finding', 'cwe', 'arbiter_rule', 'suite', 'rule', 'rulepack', 'playbook', 'checklist', 'module', 'file', 'class', 'interface', 'function', 'method', 'table'];
   var KIND_TIP = {
     requirement: 'A recorded requirement with a status and a declared scope of files.', changelog: 'One dated entry from the change log.', commit: 'One commit in the version-control history.',
     failure: 'A recorded defect with its symptom, root cause, regression test and prevention.', suite: 'A named group of tests with a framework and a run command.',
-    finding: 'One Arbiter finding from the newest gate report: a rule, a severity and a category, raised on one line of one file.',
+    finding: 'One Arbiter finding from the newest full or gate report: a rule, a severity and a category, raised on one line of one file.',
+    arbiter_rule: 'One Arbiter rule id (ARB-064): the check that raised its findings, with its probe.', cwe: 'One MITRE CWE weakness class (ARB-064): every finding and rule classified as it points here.',
     rule: 'One rule from a rulepack.', rulepack: 'A file of rules.', playbook: 'A written procedure for one kind of task.', checklist: 'A completion checklist.',
     module: 'A source file.', file: 'A file that is not parsed for symbols (documents, configuration, directories).', 'class': 'A class.', 'interface': 'An interface.',
     'function': 'A function.', method: 'A method.', table: 'A database table rebuilt from the SQL migrations.', external: 'A call the graph could not resolve to project code.' };
@@ -309,7 +310,8 @@
     affects: 'A failure affected this code.', arose_in: 'A failure surfaced while working on this requirement.', guards: 'A regression test (or suite) guards against a failure returning.', prevented_by: 'A failure produced this rule or playbook.',
     fixed_by: 'A commit fixed this failure.', recurs: 'A failure repeats an earlier one.',
     flags: 'An Arbiter finding was raised on this file, or inside this function, class or method.', cites: 'Context: this requirement was being worked when the scan ran (the finding\'s req:<ID> tag). It did not necessarily write the line.', recorded_as: 'A finding was adjudicated into this failure-ledger entry (its how_detected names the finding).',
-    introduced_by: 'REQ-051: git blame holds this commit for the finding\'s line; the requirement that commit delivers is the one that introduced it.' };
+    introduced_by: 'REQ-051: git blame holds this commit for the finding\'s line; the requirement that commit delivers is the one that introduced it.',
+    violates: 'ARB-064: the Arbiter rule that raised this finding.', classified_as: 'ARB-064: the CWE weakness class this finding (or rule) is classified as.' };
   var THEMES = {
     dark: { stage: '#0f0f12', text: '#e8e8e8', dim: '#3a3a48', select: '#ffffff', chain: '#ffc300', up: '#35d0e6', path: '#ff4fd8', halo: '#0f0f12', edge: '#6b7280' },
     light: { stage: '#dde1e6', text: '#23272e', dim: '#b3b9c3', select: '#101318', chain: '#b07d00', up: '#0b7d92', path: '#c2189c', halo: '#dde1e6', edge: '#7b8492' } };
@@ -405,7 +407,8 @@
   var LFLOW = { defines: 'down', contains: 'down', touches: 'down', modifies: 'down', mentions: 'down', delivers: 'up', records: 'up', logged_in: 'down',
     arose_in: 'up', affects: 'up', guards: 'up', prevented_by: 'down', fixed_by: 'down', covers: 'up', verifies: 'up',
     flags: 'up', cites: 'up', recorded_as: 'down',       // REQ-043: a finding comes from code and a requirement, and becomes a ledger entry
-    introduced_by: 'up' };                                 // REQ-051: a finding comes from the commit that wrote its line
+    introduced_by: 'up',                                   // REQ-051: a finding comes from the commit that wrote its line
+    violates: 'up', classified_as: 'up' };                 // ARB-064: a finding comes from a rule and a weakness class
   var LCODE = { calls: 'up', imports: 'up', inherits: 'up', implements: 'up', uses: 'up', references: 'up', maps_to: 'up' };
   var LHOP = { follows: 'up', recurs: 'up' };            // sequence links: shown one step from the node asked about, never walked on
   var lineageOpts = { dir: 'both', depth: 4, code: false }, LINEAGE_CAP = 400;
@@ -1021,7 +1024,7 @@
   // ---- filters ---------------------------------------------------------------------------------------------------------------------
   function surfaceLayer(y) {
     var added = 0;
-    nodes.forEach(function (n) { if (layerName(n) === y && ['requirement', 'changelog', 'failure', 'finding', 'suite', 'rulepack', 'playbook', 'checklist', 'commit'].indexOf(n.kind) > -1 && !visible.has(n.id) && added < 800) { visible.add(n.id); added++; } });
+    nodes.forEach(function (n) { if (layerName(n) === y && ['requirement', 'changelog', 'failure', 'finding', 'cwe', 'arbiter_rule', 'suite', 'rulepack', 'playbook', 'checklist', 'commit'].indexOf(n.kind) > -1 && !visible.has(n.id) && added < 800) { visible.add(n.id); added++; } });
   }
   function customView() { if (currentView !== 'custom') { currentView = 'custom'; renderViews(); } }
   function syncChecks() {
