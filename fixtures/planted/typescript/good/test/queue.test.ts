@@ -45,4 +45,18 @@ describe("queue", () => {
     const second = await getJob("1");
     expect(second).toBe(first);
   });
+
+  it("reports progress", async function (t?: unknown) {
+    const events: number[] = [];
+    await drain([job]);
+    checkEvents(t, events);
+  });
 });
+
+function checkEvents(_t: unknown, events: number[]): void {
+  expect(events.length).toBeGreaterThanOrEqual(0);
+}
+
+if (!process.versions.bun) {
+  test.skip("bun-only transport is not available on this runtime", () => {});
+}

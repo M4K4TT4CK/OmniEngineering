@@ -116,11 +116,14 @@ rules:
           . [(template_string (template_substitution))
              (binary_expression operator: "+")] @sql
           (#match? @sql "(?i)\\b(select|insert|update|delete|from|where|into|values|set|drop|create|alter)\\b")
-          (#match? @sql "\\$\\{|\\+\\s*[A-Za-z_$(]"))) @hit
+          (#match? @sql "\\$\\{(?!\\s*([A-Z][A-Z0-9_]*|(quoted|escaped)[A-Z_][\\w]*|[\\w]*(Quoted|Escaped|Ident)|[\\w.]*escape(Identifier|Literal)\\([^}]*\\))\\s*\\})|\\+\\s*[A-Za-z_$(]"))) @hit
     description: >
       The first argument to `.query`/`.execute`/`.raw` is a template or
       concatenation that splices a value into SQL text. Whoever controls the
-      value controls the statement.
+      value controls the statement. A substitution that is an ALL_CAPS
+      constant or an already-quoted identifier (`quotedSchema`,
+      `client.escapeIdentifier(x)`) is not reported: DDL identifiers cannot
+      be bound as parameters.
     remediation: "Use placeholders: `query(\"... WHERE id = $1\", [id])`, or the driver's parameter binding."
 
   - id: shell-command-built
@@ -268,7 +271,7 @@ rules:
     remediation: "Allow-list the keys you accept, or store in a `Map` (`map.set(key, value)`)."
 
   - id: insecure-random-secret
-    title: "`Math.random()` used for a secret or identifier"
+    title: "`Math.random()` used for a secret or token"
     severity: medium
     confidence: medium
     dimension: security
@@ -277,23 +280,23 @@ rules:
     tags: [crypto, randomness]
     query: |
       ((variable_declarator name: (identifier) @n value: (_) @v) @hit
-       (#match? @n "(?i:token|secret|passw|nonce|session|salt|otp|apikey|api_key|csrf|^id$|_id$|^key$|_key$|^code$|_code$)|Id$|ID$|Key$|Code$")
+       (#match? @n "(?i:token|secret|passw|nonce|session|salt|otp|apikey|api_?key|csrf|private_?key|signing_?key|(reset|verif|invite|confirm|auth|activation|recovery|magic)\\w*(code|key|id|link))")
        (#match? @v "\\bMath\\.random\\s*\\("))
       ((assignment_expression left: [(identifier) (member_expression)] @n right: (_) @v) @hit
-       (#match? @n "(?i:token|secret|passw|nonce|session|salt|otp|apikey|api_key|csrf|^id$|_id$|^key$|_key$|^code$|_code$)|Id$|ID$|Key$|Code$")
+       (#match? @n "(?i:token|secret|passw|nonce|session|salt|otp|apikey|api_?key|csrf|private_?key|signing_?key|(reset|verif|invite|confirm|auth|activation|recovery|magic)\\w*(code|key|id|link))")
        (#match? @v "\\bMath\\.random\\s*\\("))
       ((pair key: (property_identifier) @n
              value: [(call_expression function: [(identifier) (member_expression)])
                     (binary_expression) (member_expression) (template_string)] @v) @hit
-       (#match? @n "(?i:token|secret|passw|nonce|session|salt|otp|apikey|api_key|csrf|^id$|_id$|^key$|_key$|^code$|_code$)|Id$|ID$|Key$|Code$")
+       (#match? @n "(?i:token|secret|passw|nonce|session|salt|otp|apikey|api_?key|csrf|private_?key|signing_?key|(reset|verif|invite|confirm|auth|activation|recovery|magic)\\w*(code|key|id|link))")
        (#match? @v "\\bMath\\.random\\s*\\("))
       ((function_declaration name: (identifier) @n
          body: (statement_block . (return_statement) @hit . (comment)? .))
-       (#match? @n "(?i:token|secret|passw|nonce|session|salt|otp|apikey|api_key|csrf|^id$|_id$|^key$|_key$|^code$|_code$)|Id$|ID$|Key$|Code$")
+       (#match? @n "(?i:token|secret|passw|nonce|session|salt|otp|apikey|api_?key|csrf|private_?key|signing_?key|(reset|verif|invite|confirm|auth|activation|recovery|magic)\\w*(code|key|id|link))")
        (#match? @hit "\\bMath\\.random\\s*\\("))
       ((method_definition name: (property_identifier) @n
          body: (statement_block . (return_statement) @hit . (comment)? .))
-       (#match? @n "(?i:token|secret|passw|nonce|session|salt|otp|apikey|api_key|csrf|^id$|_id$|^key$|_key$|^code$|_code$)|Id$|ID$|Key$|Code$")
+       (#match? @n "(?i:token|secret|passw|nonce|session|salt|otp|apikey|api_?key|csrf|private_?key|signing_?key|(reset|verif|invite|confirm|auth|activation|recovery|magic)\\w*(code|key|id|link))")
        (#match? @hit "\\bMath\\.random\\s*\\("))
     description: >
       `Math.random` is a seeded PRNG whose output is predictable from a few
@@ -472,6 +475,7 @@ rules:
        (#match? @q "^(has|includes|get|hasOwnProperty)$")
        (#match? @pre "\\bawait\\b")
        (#not-match? @pre "^//")
+       (#not-match? @pre "^(const|let|var)\\s+[\\w$]+\\s*=\\s*\\(?\\s*async\\b")
        (#match? @mut "^(set|add|delete|push|splice|unshift|clear)$")
        (#eq? @obj @obj2))
       ((if_statement
@@ -484,6 +488,7 @@ rules:
            (expression_statement (assignment_expression left: (member_expression) @obj2)))) @hit
        (#match? @pre "\\bawait\\b")
        (#not-match? @pre "^//")
+       (#not-match? @pre "^(const|let|var)\\s+[\\w$]+\\s*=\\s*\\(?\\s*async\\b")
        (#eq? @obj @obj2))
     description: >
       The `if` reads shared state, the body awaits, then changes that same
@@ -515,12 +520,18 @@ rules:
        (for_in_statement body: (statement_block (try_statement handler: (catch_clause) @c)))
        (while_statement body: (statement_block (try_statement handler: (catch_clause) @c)))
        (do_statement body: (statement_block (try_statement handler: (catch_clause) @c)))]
+      ((comment) . (try_statement) @c)
+      (try_statement body: (statement_block (comment) @k .) handler: (catch_clause) @c
+        (#match? @k "eslint-disable[^\\n]*no-empty"))
+      ((catch_clause body: (statement_block (comment) @k)) @c
+        (#match? @k "eslint-disable[^\\n]*no-empty"))
     description: >
       The error is caught and dropped: no log, no rethrow, no fallback. When
       this fails in production nothing records that it did, and the caller
       carries on with whatever half-state the failed call left behind.
-      A block with a comment saying why, or an error bound as `_...`, is
-      taken as a deliberate choice and not reported.
+      A block with a comment saying why, a comment right before the `try`,
+      an `eslint-disable no-empty`, or an error bound as `_...`, is taken as
+      a deliberate choice and not reported.
     remediation: "Log it with context, rethrow, or return a documented fallback; if ignoring is right, say why in the block."
 
   - id: empty-catch-in-loop
@@ -537,6 +548,12 @@ rules:
         (while_statement body: (statement_block (try_statement handler: (catch_clause body: (statement_block) @b) @hit)))
         (do_statement body: (statement_block (try_statement handler: (catch_clause body: (statement_block) @b) @hit)))]
        (#match? @b "^\\{\\s*(//[^\\n]*\\s*|/\\*[\\s\\S]*?\\*/\\s*)*\\}"))
+    # An explicit lint suppression is a reviewed decision; a bare comment is not.
+    unless_inside: |
+      (try_statement body: (statement_block (comment) @k .) handler: (catch_clause) @c
+        (#match? @k "eslint-disable[^\\n]*no-empty"))
+      ((catch_clause body: (statement_block (comment) @k)) @c
+        (#match? @k "eslint-disable[^\\n]*no-empty"))
     description: >
       A loop body that catches and drops every error keeps going as if each
       iteration succeeded: a worker that fails every job and reports nothing,
@@ -546,7 +563,7 @@ rules:
   - id: promise-catch-noop
     title: "Promise rejection swallowed: `{text}`"
     severity: low
-    confidence: high
+    confidence: medium
     dimension: quality
     cwe: [CWE-391, CWE-703]
     controls: [NIST-800-218:PW.5]
@@ -557,10 +574,19 @@ rules:
         arguments: (arguments
           . [(arrow_function body: [(undefined) (null) (statement_block)])
              (function_expression body: (statement_block))] .)) @hit
+       (#not-match? @hit "\\.(quit|end|close|disconnect|destroy|terminate|kill|release|unsubscribe)\\x28\\s*\\x29\\s*\\.catch\\x28")
        (#match? @hit "=>\\s*(undefined|null|\\{\\s*\\})\\s*\\)$|\\)\\s*\\{\\s*\\}\\s*\\)$"))
+    # Deliberate suppression: `void p.catch(...)` (the no-floating-promises
+    # idiom), or a comment right before the statement saying why.
+    unless_inside: |
+      (unary_expression operator: "void" argument: (_) @c)
+      ((comment) . [(expression_statement) (lexical_declaration) (return_statement)] @c)
     description: >
       `.catch(() => {})` turns every failure of the chain into silent
       success. The rejection is gone and nothing records that it happened.
+      Not reported: teardown calls (`quit()`, `end()`, `close()` ...), whose
+      failure leaves nothing to recover; `void p.catch(...)`; and a statement
+      with a comment right above it saying why.
     remediation: "Log the error in the handler, or let it propagate to a handler that does."
 
   # ------------------------------------------------------------------ stubs
@@ -622,7 +648,7 @@ rules:
           [(function_expression body: (statement_block) @b)
            (arrow_function parameters: (formal_parameters (_)) body: (statement_block) @b)]))
        (#match? @fn "^(it|test)$")
-       (#not-match? @b "(?i)\\b(expect|assert\\w*|should|verify|check|validate|snapshot|throws?|rejects|resolves|toHaveBeenCalled|fail)\\b|[(,:]\\s*done\\s*[,)}]")
+       (#not-match? @b "(?i)\\b(expect|assert\\w*|should|verify|check|validate|snapshot|throws?|rejects|resolves|toHaveBeenCalled|fail)\\b|\\b(expect|assert|verify|check|validate|ensure)(?-i:[A-Z_])\\w*\\s*\\(|[(,:]\\s*done\\s*[,)}]")
        (#not-match? @hit "(?i)(\\bnot|\\bnever|n't|\\bwithout) throw"))
     description: >
       The test body has nothing that can fail: no `expect`, `assert` or
@@ -652,6 +678,10 @@ rules:
        (#match? @p "^(skip|todo)$"))
       ((call_expression function: (identifier) @x) @hit
        (#eq? @x "xtest"))
+    # `if (!supported) test.skip(...)` is a skip with a condition.
+    unless_inside: |
+      (if_statement [consequence: (_) @c alternative: (_) @c])
+      (ternary_expression [consequence: (_) @c alternative: (_) @c])
     description: >
       `test.skip`/`test.todo`/`xtest` passes forever and protects nothing.
       (`it.skip`, `describe.skip`, `xit` and `xdescribe` are reported by

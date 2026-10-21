@@ -303,7 +303,7 @@ def test_deliberate_empty_catch_is_not_reported(tmp_path):
     assert {f.confidence for f in found} == {"medium"}
 
 
-def test_random_names_need_a_secret_word_not_a_suffix_lookalike(tmp_path):
+def test_random_names_need_a_secret_word_not_an_id_suffix(tmp_path):
     # three.js `generateUUID: function () {...}` and `(function () {...})()`
     # are helper bodies, not values drawn for a secret; `valid` and `decode`
     # only end in "id" / "code".
@@ -317,8 +317,13 @@ def test_random_names_need_a_secret_word_not_a_suffix_lookalike(tmp_path):
         "const decode = Math.random() > 0.5;\n"
         "const userId = Math.random().toString(36);\n"
         "const api_key = Math.random().toString(36);\n"
+        "const requestId = Math.random().toString(36).substring(2, 15);\n"
+        "const resetCode = Math.random().toString(36);\n"
     )
-    assert _lines(_scan(tmp_path, {"a.ts": src}, "insecure-random-secret")) == [4, 8, 9]
+    # bullmq child-processor: an IPC correlation id (`requestId`, `userId`)
+    # is an identifier, not a secret; only secret words and reset/verify/
+    # invite codes, keys and ids count.
+    assert _lines(_scan(tmp_path, {"a.ts": src}, "insecure-random-secret")) == [4, 9, 11]
 
 
 def test_done_handed_on_or_a_does_not_throw_title_counts_as_an_assertion(tmp_path):
@@ -332,6 +337,97 @@ def test_done_handed_on_or_a_does_not_throw_title_counts_as_an_assertion(tmp_pat
         "it('waits', function (done) { setTimeout(function () { done(); }, 1); });\n"
     )
     assert _lines(_scan(tmp_path, {"a.test.js": src}, "test-without-assertion")) == [4, 5]
+
+
+# ------------------------- precision on clean libraries: got, bullmq (ARB-061)
+
+def test_sql_with_a_constant_or_quoted_identifier_is_not_reported(tmp_path):
+    # bullmq migrator: DDL identifiers cannot be bound, so they are quoted first.
+    src = (
+        "export async function m(c, schema, name) {\n"
+        "  const quotedSchema = c.escapeIdentifier(schema);\n"
+        "  await c.query(`CREATE SCHEMA IF NOT EXISTS ${quotedSchema}`);\n"
+        "  await c.query(`SET search_path TO ${c.escapeIdentifier(schema)}`);\n"
+        "  await c.query(`DROP SCHEMA IF EXISTS \"${DEFAULT_SCHEMA}\" CASCADE`);\n"
+        "  await c.query(`SELECT * FROM t WHERE name = '${name}'`);\n"
+        "  await c.query(`DROP SCHEMA ${schema}`);\n"
+        "}\n"
+    )
+    assert _lines(_scan(tmp_path, {"a.ts": src}, "sql-string-built")) == [6, 7]
+
+
+def test_await_inside_a_nested_async_function_does_not_split_check_and_act(tmp_path):
+    # bullmq postgres-connection: the memoised promise is stored synchronously.
+    src = (
+        "export class C {\n"
+        "  get() {\n"
+        "    if (!this.p) {\n"
+        "      const establishing = (async () => { await open(); })();\n"
+        "      this.p = establishing;\n"
+        "    }\n"
+        "    return this.p;\n"
+        "  }\n"
+        "  async listen(c) {\n"
+        "    if (!this.listening) {\n"
+        "      await c.query('LISTEN x');\n"
+        "      this.listening = true;\n"
+        "    }\n"
+        "  }\n"
+        "}\n"
+    )
+    assert _lines(_scan(tmp_path, {"a.ts": src}, "async-check-then-act")) == [10]
+
+
+def test_deliberate_promise_suppression_is_not_reported(tmp_path):
+    src = (
+        "export function a(p, client) {\n"
+        "  client.quit().catch(() => {});\n"
+        "  void p.catch(() => {});\n"
+        "  // a late rejection from an abandoned wait must not surface\n"
+        "  p.catch((): null => null);\n"
+        "  p.catch(() => {});\n"
+        "}\n"
+    )
+    found = _scan(tmp_path, {"a.ts": src}, "promise-catch-noop")
+    assert _lines(found) == [6]
+    assert {f.confidence for f in found} == {"medium"}
+
+
+def test_eslint_no_empty_or_a_comment_before_the_try_marks_a_deliberate_catch(tmp_path):
+    src = (
+        "export function a(paths) {\n"
+        "  for (const p of paths) {\n"
+        "    try { return load(p);\n"
+        "      // eslint-disable-next-line no-empty\n"
+        "    } catch (e) {}\n"
+        "  }\n"
+        "  for (const p of paths) {\n"
+        "    try { load(p); } catch (e) {}\n"
+        "  }\n"
+        "  // keep the original error; this is only a fallback\n"
+        "  try { x(); } catch {}\n"
+        "  try { x(); } catch {}\n"
+        "}\n"
+    )
+    found = _scan(tmp_path, {"a.ts": src})
+    got = sorted((f.rule_id.rsplit(".", 1)[1], f.location.start_line) for f in found
+                 if "empty-catch" in f.rule_id)
+    assert got == [("empty-catch", 12), ("empty-catch-in-loop", 8)]
+
+
+def test_assertion_helpers_and_conditional_skips_are_not_reported(tmp_path):
+    # got test/progress.ts: `checkEvents(t, events)` asserts in a helper;
+    # test/zstd.ts: `test.skip` in the else branch of a feature check.
+    src = (
+        "test('progress', withServer, async (t, server) => { await run(); checkEvents(t, []); });\n"
+        "test('progress 2', withServer, async (t, server) => { await run(); checkout(t); });\n"
+        "if (supported) { test('z', () => { expect(1).toBe(1); }); } else { test.skip('needs zstd', () => {}); }\n"
+        "test.skip('flaky upstream', () => {});\n"
+    )
+    found = _scan(tmp_path, {"a.test.ts": src})
+    got = sorted((f.rule_id.rsplit(".", 1)[1], f.location.start_line) for f in found
+                 if f.rule_id.startswith("arbiter/typescript."))
+    assert got == [("skipped-test", 4), ("test-without-assertion", 2)]
 
 
 # ---------------------------------------------------------------- the corpus

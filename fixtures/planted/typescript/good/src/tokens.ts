@@ -78,3 +78,9 @@ export function pickValid(options: string[]): string {
   const valid = options[Math.floor(Math.random() * options.length)];
   return valid;
 }
+
+export function ipcRequest(): { requestId: string } {
+  // A correlation id for a parent/child message, not a secret.
+  const requestId = Math.random().toString(36).substring(2, 15);
+  return { requestId };
+}

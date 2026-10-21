@@ -110,3 +110,65 @@ export async function closeQuietly(): Promise<void> {
 export function fireAndForget(job: Job): void {
   handle(job).catch((err) => log(`background job ${job.id} failed`, err));
 }
+
+// --- Deliberate suppressions and identifiers that cannot be bound (bullmq, got).
+
+const SCHEMA = "jobs";
+
+export async function migrate(schema: string): Promise<void> {
+  const client = await pool.connect();
+  const quotedSchema = client.escapeIdentifier(schema);
+  await client.query(`CREATE SCHEMA IF NOT EXISTS ${quotedSchema}`);
+  await client.query(`SET LOCAL search_path TO ${client.escapeIdentifier(schema)}`);
+  await client.query(`DROP SCHEMA IF EXISTS "${SCHEMA}_old" CASCADE`);
+  client.release();
+}
+
+class Listener {
+  private clientPromise?: Promise<unknown>;
+  private pending?: Promise<unknown>;
+
+  getClient(): Promise<unknown> {
+    // The promise is stored before anything awaits, so two callers share it.
+    if (!this.clientPromise) {
+      const establishing = (async () => {
+        const c = await pool.connect();
+        return c;
+      })();
+      this.clientPromise = establishing;
+    }
+    return this.clientPromise;
+  }
+
+  shutdown(): void {
+    pool.end().catch(() => {});
+    void this.pending?.catch(() => {});
+    // A late rejection from an abandoned wait must not surface as unhandled.
+    this.pending?.catch((): null => null);
+  }
+}
+
+export function packageRoot(paths: string[]): string {
+  for (const p of paths) {
+    try {
+      return require.resolve(p);
+      // eslint-disable-next-line no-empty
+    } catch (e) {}
+  }
+  return "";
+}
+
+export function parseOrRaw(raw: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch (err) {
+    log("bad body", err);
+    // Keep the original error; the raw text is the fallback.
+    try {
+      return Buffer.from(raw).toString("utf8");
+    } catch {}
+  }
+  return undefined;
+}
+
+export const listener = new Listener();
