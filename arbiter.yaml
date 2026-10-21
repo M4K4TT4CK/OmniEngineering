@@ -20,6 +20,10 @@ suppress:
     path: "fixtures/**"
     reason: "planted defects — this is the golden-fixture test corpus"
     expires: 2099-01-01
+  - rule: "arbiter/python.command-injection"
+    path: "make_ai.py"
+    reason: "by design (ARB-061 precision review): `omni test` runs the suite command the user registered, with shell=True so pipes and env assignments work; the command never comes from untrusted input"
+    expires: 2027-10-21
   - rule: "checkov/*"
     path: "fixtures/**"
     reason: "planted defects — this is the golden-fixture test corpus"

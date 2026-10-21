@@ -5,6 +5,23 @@ under `[Unreleased]` (there are no release tags yet) and reference the
 `REQ-###` they serve. Rationale belongs in `.ai/project-context.md`.
 
 ## [Unreleased]
+### 2026-10-21
+- ARB-061 | Rule packs for Python, TypeScript/JavaScript, Go, Java and Ruby:
+races, outbound calls with no timeout (and Go DB calls with no deadline),
+retry loops with no backoff or cap, swallowed errors and unstoppable worker
+loops, SQL and command injection, stubs, tests that cannot fail, TLS off,
+weak randomness for secrets. Planted corpus: every defect caught in all five
+languages (41/39/38/45/50), nothing on the good twins. Each pack was checked
+for precision on real code (21 deliberately insecure and carefully maintained
+repositories, 13 of them added to `tools/fetch_corpus.sh`) and every false
+positive found was fixed and pinned by a test. Shared fixes from those runs:
+Java undeclared-import reads Gradle version catalogs, maps packages to
+groupIds and treats Gradle test source sets as tests (2,295 findings to 117
+on seven Java repos); a skip annotation inside a comment is no longer a
+skipped test.
+- ARB-064 | Findings traceable in OmniGraph: rule and CWE nodes, `violates`
+and `classified_as` edges, full and gate reports merged, `--if-stale`
+rebuild, `omni graph findings --cwe/--rule`, impact by file or CWE.
 
 ### 2026-10-20
 

@@ -1409,7 +1409,7 @@
       "title": "Interview slice: reliability and injection rules in all five IDE languages",
       "description": "Per-language rules with planted defects and silent twins: check-then-act and counters without a lock, outbound calls with no timeout, retry with no backoff or cap, swallowed errors and no stop signal in worker loops, SQL and command injection, stubs, tests that assert nothing or are permanently skipped, TLS verification off, insecure randomness. Subsumes ARB-055 to ARB-058.",
       "priority": "high",
-      "status": "pending",
+      "status": "completed",
       "minimum_access_scope": [],
       "acceptance_criteria": [
         "every interview-slice defect in the planted corpus is caught in python typescript go java ruby",
