@@ -35,9 +35,12 @@ def test_markers_parse_every_comment_style(tmp_path):
     (tmp_path / "a.go").write_text("x() // expect: arbiter/go.a, arbiter/go.b\n", encoding="utf-8")
     (tmp_path / "b.rb").write_text("y # expect-ext: semgrep/x\n", encoding="utf-8")
     (tmp_path / "c.py").write_text("z = 1\n", encoding="utf-8")
+    (tmp_path / "d.rb").write_text(
+        "w # expect: arbiter/ruby.a expect-ext: semgrep/y.z-1, bandit/B2\n", encoding="utf-8")
     got = sorted((e.rule, e.path, e.line, e.external) for e in planted.markers(tmp_path))
     assert got == [("arbiter/go.a", "a.go", 1, False), ("arbiter/go.b", "a.go", 1, False),
-                   ("semgrep/x", "b.rb", 1, True)]
+                   ("arbiter/ruby.a", "d.rb", 1, False), ("bandit/B2", "d.rb", 1, True),
+                   ("semgrep/x", "b.rb", 1, True), ("semgrep/y.z-1", "d.rb", 1, True)]
 
 
 def test_a_broken_pack_fails_loudly():
