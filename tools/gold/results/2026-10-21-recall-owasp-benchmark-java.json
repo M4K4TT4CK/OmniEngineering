@@ -1,0 +1,239 @@
+{
+ "per_cwe": [
+  {
+   "cwe": "CWE-22",
+   "categories": [
+    "pathtraver"
+   ],
+   "real": 133,
+   "safe": 135,
+   "tp": 0,
+   "fn": 133,
+   "fp": 0,
+   "tn": 135,
+   "recall": 0.0,
+   "false_positive_rate": 0.0,
+   "score": 0.0,
+   "caught_examples": [],
+   "in_scope": false
+  },
+  {
+   "cwe": "CWE-78",
+   "categories": [
+    "cmdi"
+   ],
+   "real": 126,
+   "safe": 125,
+   "tp": 0,
+   "fn": 126,
+   "fp": 0,
+   "tn": 125,
+   "recall": 0.0,
+   "false_positive_rate": 0.0,
+   "score": 0.0,
+   "caught_examples": [],
+   "in_scope": true
+  },
+  {
+   "cwe": "CWE-79",
+   "categories": [
+    "xss"
+   ],
+   "real": 246,
+   "safe": 209,
+   "tp": 0,
+   "fn": 246,
+   "fp": 0,
+   "tn": 209,
+   "recall": 0.0,
+   "false_positive_rate": 0.0,
+   "score": 0.0,
+   "caught_examples": [],
+   "in_scope": false
+  },
+  {
+   "cwe": "CWE-89",
+   "categories": [
+    "sqli"
+   ],
+   "real": 272,
+   "safe": 232,
+   "tp": 28,
+   "fn": 244,
+   "fp": 27,
+   "tn": 205,
+   "recall": 0.103,
+   "false_positive_rate": 0.116,
+   "score": -0.013,
+   "caught_examples": [
+    "BenchmarkTest00032",
+    "BenchmarkTest00194",
+    "BenchmarkTest00195"
+   ],
+   "in_scope": true
+  },
+  {
+   "cwe": "CWE-90",
+   "categories": [
+    "ldapi"
+   ],
+   "real": 27,
+   "safe": 32,
+   "tp": 0,
+   "fn": 27,
+   "fp": 0,
+   "tn": 32,
+   "recall": 0.0,
+   "false_positive_rate": 0.0,
+   "score": 0.0,
+   "caught_examples": [],
+   "in_scope": false
+  },
+  {
+   "cwe": "CWE-327",
+   "categories": [
+    "crypto"
+   ],
+   "real": 130,
+   "safe": 116,
+   "tp": 0,
+   "fn": 130,
+   "fp": 0,
+   "tn": 116,
+   "recall": 0.0,
+   "false_positive_rate": 0.0,
+   "score": 0.0,
+   "caught_examples": [],
+   "in_scope": false
+  },
+  {
+   "cwe": "CWE-328",
+   "categories": [
+    "hash"
+   ],
+   "real": 129,
+   "safe": 107,
+   "tp": 0,
+   "fn": 129,
+   "fp": 0,
+   "tn": 107,
+   "recall": 0.0,
+   "false_positive_rate": 0.0,
+   "score": 0.0,
+   "caught_examples": [],
+   "in_scope": false
+  },
+  {
+   "cwe": "CWE-330",
+   "categories": [
+    "weakrand"
+   ],
+   "real": 218,
+   "safe": 275,
+   "tp": 0,
+   "fn": 218,
+   "fp": 0,
+   "tn": 275,
+   "recall": 0.0,
+   "false_positive_rate": 0.0,
+   "score": 0.0,
+   "caught_examples": [],
+   "in_scope": true
+  },
+  {
+   "cwe": "CWE-501",
+   "categories": [
+    "trustbound"
+   ],
+   "real": 83,
+   "safe": 43,
+   "tp": 0,
+   "fn": 83,
+   "fp": 0,
+   "tn": 43,
+   "recall": 0.0,
+   "false_positive_rate": 0.0,
+   "score": 0.0,
+   "caught_examples": [],
+   "in_scope": false
+  },
+  {
+   "cwe": "CWE-614",
+   "categories": [
+    "securecookie"
+   ],
+   "real": 36,
+   "safe": 31,
+   "tp": 0,
+   "fn": 36,
+   "fp": 0,
+   "tn": 31,
+   "recall": 0.0,
+   "false_positive_rate": 0.0,
+   "score": 0.0,
+   "caught_examples": [],
+   "in_scope": false
+  },
+  {
+   "cwe": "CWE-643",
+   "categories": [
+    "xpathi"
+   ],
+   "real": 15,
+   "safe": 20,
+   "tp": 0,
+   "fn": 15,
+   "fp": 0,
+   "tn": 20,
+   "recall": 0.0,
+   "false_positive_rate": 0.0,
+   "score": 0.0,
+   "caught_examples": [],
+   "in_scope": false
+  }
+ ],
+ "overall": {
+  "cwe": "all",
+  "categories": [],
+  "real": 1415,
+  "safe": 1325,
+  "tp": 28,
+  "fn": 1387,
+  "fp": 27,
+  "tn": 1298,
+  "recall": 0.02,
+  "false_positive_rate": 0.02,
+  "score": -0.001,
+  "caught_examples": []
+ },
+ "other_cwes_in_test_files": {
+  "CWE-1080": 41
+ },
+ "in_scope": {
+  "cwe": "in-scope",
+  "categories": [],
+  "real": 616,
+  "safe": 632,
+  "tp": 28,
+  "fn": 588,
+  "fp": 27,
+  "tn": 605,
+  "recall": 0.045,
+  "false_positive_rate": 0.043,
+  "score": 0.003,
+  "caught_examples": []
+ },
+ "schema_version": 1,
+ "kind": "recall",
+ "benchmark": "owasp-benchmark-java",
+ "arbiter_commit": "d57e479",
+ "adapters": false,
+ "seconds": 465.3,
+ "source": {
+  "url": "https://github.com/OWASP-Benchmark/BenchmarkJava.git",
+  "sha": "a0f07b8451902de4e3ff37aa03e40f4aeb3b4dbe",
+  "head": "a0f07b8451902de4e3ff37aa03e40f4aeb3b4dbe",
+  "license": "GPL-2.0 (fetched at a pinned commit, never redistributed or built)"
+ },
+ "cases": 2740
+}

@@ -1494,6 +1494,39 @@
         "changelog"
       ],
       "risk_notes": []
+    },
+    {
+      "id": "ARB-065",
+      "category": "measurement",
+      "title": "Gold-standard benchmark: precision budgets per rule on exemplary code, recall on ground-truth benchmarks",
+      "description": "A repeatable measurement of Arbiter against the best-run code in each IDE language. 24 repositories (python typescript go java ruby) chosen by recorded evidence (OpenSSF Scorecard, Best Practices badge, foundation stewardship, security policy) and pinned to one commit each in tools/fetch_corpus.sh. tools/gold_benchmark.py counts findings per rule per KLOC on them against per-rule budgets kept as data in tools/gold/budgets.json and exits non-zero when a rule is over budget; --recall scores OWASP Benchmark (Java, Python) per CWE: recall, false-positive rate and TPR-FPR.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "tools/fetch_corpus.sh",
+        "tools/gold_benchmark.py",
+        "tools/gold/",
+        "tests/test_gold_benchmark.py"
+      ],
+      "acceptance_criteria": [
+        "3 to 5 pinned gold repositories per language with evidence recorded",
+        "findings per KLOC per rule with budgets from a data file and a non-zero exit on breach",
+        "recall per CWE on at least one labelled benchmark",
+        "harness logic tested without network",
+        "first measurement triaged into a prioritised list of rule fixes"
+      ],
+      "validation_required": [
+        "pytest",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": [
+        "gold repositories are untrusted: scanned only never built or run",
+        "OWASP Benchmark is GPL: fetched never redistributed",
+        "first measurement 2026-10-21: 16 rules over budget; rule fixes are follow-up work, listed in tools/gold/results/2026-10-21-triage.md"
+      ]
     }
   ]
 }

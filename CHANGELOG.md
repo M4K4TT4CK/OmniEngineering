@@ -6,6 +6,26 @@ under `[Unreleased]` (there are no release tags yet) and reference the
 
 ## [Unreleased]
 ### 2026-10-21
+- ARB-065 | Gold-standard benchmark. A fourth group in
+`tools/fetch_corpus.sh` (`GOLD_ONLY=1`) pins 24 exemplary repositories, 4 or 5
+per language (urllib3, Django, Celery, aiohttp, cryptography; undici, Nest,
+jose, OpenTelemetry JS, axios; Caddy, containerd, CoreDNS, grpc-go, etcd;
+Netty, HttpClient 5, Tomcat, Spring Security, Keycloak; Rails, Rack, Puma,
+RubyGems). Each is pinned to one commit and chosen on evidence recorded in
+`tools/gold/repos.json`: OpenSSF Scorecard checks, the Best Practices badge,
+and stewardship. OWASP Benchmark for Java and Python is pinned too, as
+labelled ground truth. `tools/gold_benchmark.py` counts findings per rule
+per KLOC against per-rule budgets in `tools/gold/budgets.json` and exits 1
+on a breach. `--recall` scores a labelled benchmark per CWE: recall,
+false-positive rate and TPR-FPR, with the CWEs Arbiter claims kept apart
+from those it does not. First measurement (`tools/gold/results/`): 6,086
+KLOC, 2.05 findings/KLOC, 16 rules over budget, led by TypeScript
+test-without-assertion (1.11/KLOC, from tspl plans and AVA `t.*`),
+undeclared-import (0.38) and assigned-credential (0.28). In-scope recall
+is 0.045 on OWASP Java (command injection and weak randomness 0%) and 0.22
+on OWASP Python. The triage, with a file:line for each verdict and a
+prioritised fix list, is in `tools/gold/results/2026-10-21-triage.md`.
+No rule changed.
 - ARB-061 | Rule packs for Python, TypeScript/JavaScript, Go, Java and Ruby:
 races, outbound calls with no timeout (and Go DB calls with no deadline),
 retry loops with no backoff or cap, swallowed errors and unstoppable worker
