@@ -1,4 +1,14 @@
 # Changelog
+## 2026-10-21
+### Completed
+- `REQ-053` | Code understanding | Arbiter Phase 1 pulled into `arbiter/`: rule
+packs for Python, TypeScript/JavaScript, Go, Java and Ruby (every planted
+defect caught in all five, nothing on the correct twins), plus precision fixes
+from real repositories. Graph: findings now `violates` an `arbiter_rule` node and
+are `classified_as` `cwe` nodes; full and gate reports are merged;
+`omni graph build --if-stale`; `omni graph findings --cwe/--rule`; `omni graph
+impact <file|CWE>`; MCP `graph_cwe`. The rebuild note prints forward slashes on
+every OS.
 
 ## 2026-10-09
 

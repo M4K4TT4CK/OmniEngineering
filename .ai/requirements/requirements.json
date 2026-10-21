@@ -1785,6 +1785,43 @@
         "never code",
         "Vendored workspaces' registries and ledgers join the graph with a directory prefix (arbiter/ARB-048, arbiter/FAIL-042), recorded_as resolves across workspaces by finding id in how_detected or symptom, viewer and CLI show the workspace; the how_detected convention is in the handbook. 26 requirements and 41 failures of arbiter/ joined here. Validated: 450 unit tests OK, doctor 0 errors, gate PASS."
       ]
+    },
+    {
+      "id": "REQ-053",
+      "category": "Code understanding",
+      "title": "Arbiter Phase 1 pulled in: rule packs for all five languages, and every finding traceable to its rule and CWE in the graph",
+      "description": "Pulls Arbiter main (paukennick/arbiter PR #9, ARB-061 and ARB-064) into the arbiter/ subtree: tree-sitter rule packs for Python, TypeScript/JavaScript, Go, Java and Ruby, a planted corpus with correct twins, and precision fixes from runs on real repositories. Replays ARB-064's graph changes onto this workspace's omni_graph.py, make_ai.py, omni_mcp.py and viewer: arbiter_rule and cwe nodes, violates and classified_as edges, full and gate reports merged, omni graph build --if-stale, findings --cwe/--rule, impact by file or CWE, MCP graph_cwe.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "arbiter/",
+        "omni_graph.py",
+        "make_ai.py",
+        "omni_mcp.py",
+        ".ai/graph-viewer/viewer.html",
+        ".ai/context-brief.md",
+        ".ai/project-configuration.md",
+        "tests/"
+      ],
+      "acceptance_criteria": [
+        "arbiter/src matches paukennick/arbiter main exactly",
+        "omni graph why f:<id> shows the finding's rule and CWE",
+        "omni graph impact <file> lists findings",
+        "tests/test_omni_graph_findings.py and tests/test_graph_findings.py pass"
+      ],
+      "validation_required": [
+        "./omni doctor",
+        "./omni gate",
+        "python3 -m unittest discover -s tests"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md",
+        ".ai/project-configuration.md"
+      ],
+      "risk_notes": [
+        "Two existing graph-findings tests were updated: a finding now also has its rule one step away, and the no-report hint mentions arbiter scan.",
+        "tests/test_gate_hook post-commit rebuild test fails on this WSL machine on untouched main as well (passes in CI); not changed here."
+      ]
     }
   ]
 }

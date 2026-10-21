@@ -116,10 +116,10 @@ class TestFindingNodes(FindingsFixture):
         self.assertEqual(self.finding_ids(), set())
         self.assertTrue(any(og.FINDINGS_NO_REPORT_NOTE in note for note in self.graph.notes))
         sources = og.describe_sources(self.root)
-        self.assertEqual(sources["layers"]["assurance"]["findings"]["note"], "findings: no Arbiter report found (run ./omni gate)")
-        self.assertIn("findings: no Arbiter report found (run ./omni gate)", sources["hints"])
+        self.assertEqual(sources["layers"]["assurance"]["findings"]["note"], "findings: no Arbiter report found (run `arbiter scan` or ./omni gate)")
+        self.assertIn("findings: no Arbiter report found (run `arbiter scan` or ./omni gate)", sources["hints"])
         result = subprocess.run([sys.executable, str(ROOT / "make_ai.py"), "graph", "sources"], cwd=self.root, capture_output=True, text=True, encoding="utf-8")
-        self.assertIn("findings: no Arbiter report found (run ./omni gate)", result.stdout)
+        self.assertIn("findings: no Arbiter report found (run `arbiter scan` or ./omni gate)", result.stdout)
 
     def test_sources_names_the_report_it_would_read(self) -> None:
         sources = og.describe_sources(self.root)["layers"]["assurance"]["findings"]
@@ -223,7 +223,8 @@ class TestFindingQueries(FindingsFixture):
 
     def test_lineage_stops_at_the_file_at_depth_one_and_reaches_the_requirement_deeper(self) -> None:
         one = {n["id"] for n in og.lineage(self.path, "f:bbb222", depth=1)["upstream"]}
-        self.assertEqual(one, {"src/other.py"})
+        # Since ARB-064 a finding also `violates` its rule, one step away.
+        self.assertEqual(one, {"src/other.py", "arbiter_rule:arbiter/quality.long-function"})
         three = {n["id"] for n in og.lineage(self.path, "f:bbb222", depth=3)["upstream"]}
         self.assertIn("req:REQ-002", three)
         self.assertIn("file:src", three)
