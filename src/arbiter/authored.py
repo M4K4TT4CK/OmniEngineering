@@ -454,9 +454,24 @@ def _ecosystem_facts(ctx: ProbeContext, repo_id: str, language: str) -> dict:
     return {"declared": declared, "local": local, "has_manifest": bool(manifests)}
 
 
+# A Go file excluded from every build: `//go:build ignore` (or the legacy
+# `// +build ignore`) before the package clause. These are `go run` scripts --
+# client_golang's collector code generators -- and may import modules the
+# go.mod deliberately does not declare, because nothing ever compiles them in.
+_GO_BUILD_IGNORE = re.compile(r"(?m)^//(?:go:build|\s*\+build)\s+ignore\s*$")
+_GO_PACKAGE_CLAUSE = re.compile(r"(?m)^package\s")
+
+
+def _go_build_ignored(text: str) -> bool:
+    m = _GO_PACKAGE_CLAUSE.search(text)
+    return bool(_GO_BUILD_IGNORE.search(text[:m.start()] if m else text))
+
+
 def _undeclared_other(f, text, facts: dict) -> list[Finding]:
     """Go, Java and Ruby imports nothing declares (see ecosystems.py)."""
     if not facts["has_manifest"] or _NOT_SHIPPED.search(f.path) or f.role == "test":
+        return []
+    if f.language == "go" and _go_build_ignored(text):
         return []
     lang, eco = f.language, _eco.ECOSYSTEM_OF[f.language]
     declared, local = facts["declared"], facts["local"]

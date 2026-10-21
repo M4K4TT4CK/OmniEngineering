@@ -91,3 +91,24 @@ def test_java_ruby_and_go_stacks_are_detected(tmp_path, manifest, stack):
     (tmp_path / manifest).write_text("x\n")
     inv = build_inventory([type("R", (), {"id": "root", "path": str(tmp_path)})()])
     assert stack in inv.stacks
+
+
+@pytest.mark.parametrize("header,reported", [
+    ("//go:build ignore\n\n", False),
+    ("//go:build ignore\n// +build ignore\n\n", False),
+    ("// +build ignore\n\n", False),
+    ("// Code generator.\n//go:build ignore\n\n", False),
+    ("//go:build linux\n\n", True),     # an ordinary constraint still builds
+    ("", True),
+])
+def test_go_build_ignore_files_may_import_undeclared_modules(tmp_path, header, reported):
+    """client_golang's collector generators are `//go:build ignore` scripts that
+    import github.com/hashicorp/go-version, which its go.mod does not declare."""
+    (tmp_path / "go.mod").write_text("module example.com/m\n\ngo 1.22\n")
+    (tmp_path / "gen.go").write_text(
+        header + 'package main\n\nimport "github.com/hashicorp/go-version"\n\n'
+        'func main() { _ = version.Must }\n')
+    rep = run_scan([str(tmp_path)], load_config(None), only=["authored"], use_adapters=False,
+                   use_cache=False)
+    hits = [f for f in rep.active() if "go-version" in f.title]
+    assert bool(hits) == reported, [f.title for f in hits]
