@@ -4,7 +4,9 @@ import DOMPurify from "dompurify";
 export function Preview({ markdown, html }: { markdown: string; html: string }) {
   return (
     <section>
-      <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }} />
+      <div
+        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }}
+      />
       <pre>{markdown}</pre>
     </section>
   );
