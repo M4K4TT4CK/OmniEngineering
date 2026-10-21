@@ -6,8 +6,8 @@
 #   * child patterns must appear in tree order (`operator:` before `right:`);
 #   * `expression_statement` is transparent: match `(block (call))` and
 #     `(block (assignment))` directly;
-#   * `#not-match?` is silently ignored by the binding, so exclusions go in
-#     `unless_inside` / `unless_in_scope` instead;
+#   * `#not-match?` filters captures as expected; for exclusions that depend on
+#     an enclosing node, use `unless_inside` / `unless_in_scope`;
 #   * `#match?` takes Rust-style regex: `(?i)`, `\\b`, `\\s` all work.
 pack: python
 languages: [python]
