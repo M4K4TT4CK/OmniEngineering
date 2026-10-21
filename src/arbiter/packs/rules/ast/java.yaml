@@ -39,9 +39,23 @@ rules:
       ((class_declaration) @c
         (#match? @c "(?s)\\b(Map|HashMap|LinkedHashMap|TreeMap|List|ArrayList|LinkedList|Set|HashSet|LinkedHashSet|TreeSet|Deque|ArrayDeque|Queue|PriorityQueue)<[^;=()]*>\\s+(\\w+)\\s*(=[^;]*)?;.*\\bif\\s*\\(\\s*!?\\s*\\2\\.(containsKey|contains|isEmpty|get|size)\\s*\\(")
         (#match? @c "\\b(Thread|Runnable|Callable|ExecutorService|Executors|ScheduledExecutorService|CompletableFuture|ForkJoinPool|TimerTask|parallelStream)\\b|@Async|@Scheduled"))
+    # Test support the inventory files as source (src/jmh, src/testFixtures,
+    # src/jsr166Test, ...): anything importing a test, benchmark or fuzz
+    # framework. Reused by the source-only rules below.
+    unless_in_file: &test_support |
+      ((import_declaration) @i
+        (#match? @i "\\b(org\\.junit|junit\\.framework|org\\.testng|org\\.assertj|org\\.hamcrest|org\\.mockito|com\\.google\\.common\\.truth|com\\.google\\.common\\.testing|org\\.openjdk\\.jmh|com\\.code_intelligence\\.jazzer)\\."))
     unless_inside: |
       (synchronized_statement) @s
       ((method_declaration (modifiers) @m) @d (#match? @m "\\bsynchronized\\b"))
+      ; `if (m.get(k) == v) m.remove(k, v)`: the act is ConcurrentMap's own
+      ; conditional remove, so the check is only an optimisation
+      ((if_statement consequence: (block . (expression_statement (method_invocation
+          name: (identifier) @n arguments: (argument_list (_) (_)))) .)) @i
+        (#match? @n "^(remove|replace)$"))
+      ((if_statement consequence: (expression_statement (method_invocation
+          name: (identifier) @n arguments: (argument_list (_) (_))))) @i
+        (#match? @n "^(remove|replace)$"))
     unless_in_scope: |
       ; a lock taken in this method
       (method_invocation name: (identifier) @n (#match? @n "^(lock|lockInterruptibly|tryLock|acquire|acquireUninterruptibly)$"))
@@ -78,6 +92,7 @@ rules:
       ((class_declaration) @c
         (#match? @c "(?s)\\b(int|long)\\s+(\\w+)\\s*(=[^;]*)?;.*\\b\\2\\s*(\\+\\+|--|\\+=|-=)")
         (#match? @c "\\b(Thread|Runnable|Callable|ExecutorService|Executors|ScheduledExecutorService|CompletableFuture|ForkJoinPool|TimerTask|parallelStream)\\b|@Async|@Scheduled"))
+    unless_in_file: *test_support
     unless_inside: |
       (synchronized_statement) @s
       ((method_declaration (modifiers) @m) @d (#match? @m "\\bsynchronized\\b"))
@@ -100,7 +115,11 @@ rules:
       ; a lock taken in this scope
       (method_invocation name: (identifier) @n (#match? @n "^(lock|lockInterruptibly|tryLock|acquire|acquireUninterruptibly)$"))
       ; the counter is a local of this scope, not the shared field
-      (local_variable_declaration type: (integral_type)) @local
+      ; (`var maxToRemove = n; ... maxToRemove--;` in HikariPool's housekeeper)
+      ((method_declaration) @m
+        (#match? @m "(?s)(?<!for \\()(?<!for\\()\\b(var|int|long|short|byte)\\s+(\\w+)\\s*(=[^;]*)?;.*\\b\\2\\s*(\\+\\+|--|\\+=|-=)"))
+      ((lambda_expression) @m
+        (#match? @m "(?s)(?<!for \\()(?<!for\\()\\b(var|int|long|short|byte)\\s+(\\w+)\\s*(=[^;]*)?;.*\\b\\2\\s*(\\+\\+|--|\\+=|-=)"))
     description: >
       `count++` is a read, an add and a write. Two threads that run it at
       once lose one increment, and `volatile` does not help: it makes the
@@ -212,8 +231,12 @@ rules:
         body: (block (try_statement body: (block [(return_statement) (break_statement)]) (catch_clause)))) @hit
     unless_in_scope: |
       (method_invocation name: (identifier) @n
-        (#match? @n "(?i)^(sleep|wait|await|backoff|delay|park\\w*|pause|retry\\w*|nextDelay|exponential\\w*)$"))
+        (#match? @n "(?i)^(sleep|wait|await|backoff|delay|park\\w*|pause|retry\\w*|nextDelay|exponential\\w*|tryLock)$"))
       (method_invocation object: (_) @o (#match? @o "(?i)backoff|retry"))
+      ; the loop re-enters a blocking wait (lock, Future.get) after an
+      ; interrupt or a cancelled future: not a call that failed
+      (catch_type (_) @ct (#match? @ct "^(InterruptedException|CancellationException)$"))
+    unless_in_file: *test_support
     description: >
       The loop retries the moment the call fails, forever. Against a peer
       that is down it is a busy loop; against one that is overloaded it is a
@@ -273,12 +296,21 @@ rules:
     controls: [NIST-800-218:PW.5]
     tags: [error-handling]
     query: |
-      ; catch (Exception e) {}  or  catch (Throwable t) { // nothing }  anywhere
+      ; catch (Exception e) {}  anywhere. A comment in the block is the
+      ; author saying why (HikariCP, commons-lang): reported only in a
+      ; worker-shaped while/do loop, below.
       (catch_clause (catch_formal_parameter (catch_type (type_identifier) @t) name: (identifier) @id)
         body: (block) @b
-        (#match? @b "(?s)^\\{(\\s|//[^\\n]*|/\\*.*?\\*/)*\\}$")
+        (#match? @b "^\\{\\s*\\}$")
         (#match? @t "^(Exception|Throwable|RuntimeException|Error)$")
         (#not-match? @id "^(ignored?|expected|unused|_+)$")) @hit
+      ; while (...) { try { ... } catch (Exception e) { // ignore } }
+      (while_statement body: (block (try_statement
+        (catch_clause (catch_formal_parameter (catch_type (type_identifier) @t) name: (identifier) @id)
+          body: (block) @b
+          (#match? @b "(?s)^\\{(\\s|//[^\\n]*|/\\*.*?\\*/)*\\}$")
+          (#match? @t "^(Exception|Throwable|RuntimeException|Error)$")
+          (#not-match? @id "^(ignored?|expected|unused|_+)$")) @hit)))
       ; any truly empty catch when the try sits directly in a loop body
       ; (one pattern per loop type: a predicate inside an alternation is
       ; evaluated on a partial match by the engine's captures())
@@ -398,6 +430,7 @@ rules:
       (object_creation_expression
         type: (_) @t
         (#match? @t "(^|\\.)ObjectInputStream$")) @x
+    unless_in_file: *test_support
     description: "Java deserialization runs constructors and gadgets chosen by whoever wrote the bytes."
     remediation: "Use a data format (JSON) with an explicit schema, or an ObjectInputFilter allow-list."
 
@@ -451,11 +484,21 @@ rules:
     controls: [NIST-800-218:PW.5]
     tags: [stub, incomplete]
     query: |
-      ; throw new UnsupportedOperationException();  / ("not implemented yet")
+      ; throw new UnsupportedOperationException("not implemented yet")
       (method_declaration body: (block . (throw_statement (object_creation_expression
         type: (type_identifier) @t arguments: (argument_list) @a)) @hit . (line_comment)? .)
         (#eq? @t "UnsupportedOperationException")
-        (#match? @a "(?i)^\\(\\s*\\)$|not (yet )?(implemented|supported)|todo|fixme|stub|implement"))
+        (#match? @a "(?i)not (yet )?implemented|\\btodo\\b|fixme|\\bstub\\b|implement (me|this|later)"))
+      ; a bare `throw new UnsupportedOperationException();` is the JDK idiom
+      ; for an optional operation (Iterator.remove, Entry.setValue): only a
+      ; plain public method that overrides nothing is a stub. Interface
+      ; defaults and abstract-class hooks are excluded by unless_inside.
+      (method_declaration (modifiers) @mods body: (block . (throw_statement (object_creation_expression
+        type: (type_identifier) @t arguments: (argument_list) @a)) @hit . (line_comment)? .)
+        (#eq? @t "UnsupportedOperationException")
+        (#match? @a "^\\(\\s*\\)$")
+        (#match? @mods "^public\\b")
+        (#not-match? @mods "@Override|\\b(protected|abstract|default|static)\\b"))
       ; throw new RuntimeException("TODO ...") / IllegalStateException("not implemented")
       (method_declaration body: (block . (throw_statement (object_creation_expression
         type: (type_identifier) @t arguments: (argument_list) @a)) @hit . (line_comment)? .)
@@ -464,6 +507,10 @@ rules:
       ; return null; // TODO
       (method_declaration body: (block . (return_statement (null_literal)) @hit . (line_comment) @c .)
         (#match? @c "(?i)todo|fixme|stub|implement"))
+    unless_in_file: *test_support
+    unless_inside: |
+      (interface_declaration) @i
+      ((class_declaration (modifiers) @m) @c (#match? @m "\\babstract\\b"))
     description: >
       The method compiles and the class wires up, but calling it fails or
       returns nothing. Generated scaffolds leave these behind and the caller
@@ -488,6 +535,11 @@ rules:
         (#match? @n "^(assert\\w*|verify\\w*|fail|expect\\w*|andExpect\\w*|should\\w*|then\\w*|check\\w*|validate\\w*|assume\\w*|is[A-Z]\\w*|has[A-Z]\\w*|contains\\w*|doesNotContain\\w*|isEqualTo|isNotEqualTo|matches|satisfies|inOrder|andDo|expectStatus|exchange)$"))
       (method_invocation object: (identifier) @o
         (#match? @o "^(Assertions|Assert|Mockito|BDDMockito|MatcherAssert|Truth|StepVerifier|Verify|Awaitility|SoftAssertions)$"))
+      ; delegates to a helper of this class (`checkRoundTrip(x)`) or a
+      ; tester (`npeTester.testAllPublicInstanceMethods`), which is where the
+      ; assertion lives: seen across commons-lang, gson and caffeine
+      (method_invocation !object name: (identifier) @n (#not-match? @n "^(println|print|printf)$"))
+      (method_invocation name: (identifier) @n (#match? @n "^(test[A-Z]\\w*|await\\w*|run[A-Z]\\w*Test\\w*)$"))
     description: >
       The test passes as long as nothing throws, which is not what it looks
       like it checks. A method that only calls the code under test proves
@@ -572,6 +624,13 @@ rules:
       ((method_declaration name: (identifier) @n
          (#not-match? @n "(?i)token|secret|password|passwd|nonce|key|session|salt|otp|csrf|credential|verif")) @m
         (#not-match? @m "(?s)(?i)\\w*(token|secret|password|passwd|nonce|salt|otp|session|api_?key|csrf|credential)\\w*\\s*=[^;]*(Math\\.random|new Random|\\b[A-Z_]*(RAND|RNG)[A-Z_]*\\.next)"))
+      ; a constructor or lambda is judged by what it assigns: the caffeine
+      ; simulator seeds `this.random = new Random(seed)` in dozens of them
+      ((constructor_declaration) @m
+        (#not-match? @m "(?s)(?i)\\w*(token|secret|password|passwd|nonce|salt|otp|session|api_?key|csrf|credential)\\w*\\s*=[^;]*(Math\\.random|new Random|\\b[A-Z_]*(RAND|RNG)[A-Z_]*\\.next)"))
+      ((lambda_expression) @m
+        (#not-match? @m "(?s)(?i)\\w*(token|secret|password|passwd|nonce|salt|otp|session|api_?key|csrf|credential)\\w*\\s*=[^;]*(Math\\.random|new Random|\\b[A-Z_]*(RAND|RNG)[A-Z_]*\\.next)"))
+    unless_in_file: *test_support
     description: >
       `java.util.Random` is a 48-bit linear congruential generator: a few
       outputs reveal its state and every future value. For a token, key,
