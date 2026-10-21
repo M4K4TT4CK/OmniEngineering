@@ -206,6 +206,17 @@ def test_sql_built_into_a_variable_is_reported_wherever_it_is_built(tmp_path):
     assert "sql-injection" in rules_in(tmp_path, "def q(n):\n    return 'DELETE FROM t WHERE id = ' + str(n)\n")
 
 
+def test_a_regex_that_parses_sql_is_not_a_query(tmp_path):
+    # omni_graph.py builds SQL-shaped regexes to read schema files; no query runs.
+    assert "sql-injection" not in rules_in(tmp_path, (
+        "import re\n"
+        "NAME = r'(\\w+)'\n"
+        "def f(stmt):\n"
+        "    return re.match(r'CREATE\\s+TABLE\\s+' + NAME + r'\\s*(.*)$', stmt)\n"))
+    # The same string handed to a cursor is still reported.
+    assert "sql-injection" in rules_in(tmp_path, "def f(cur, n):\n    cur.execute('CREATE TABLE ' + n)\n")
+
+
 def test_shell_with_literal_or_quoted_command_is_fine(tmp_path):
     assert "command-injection" not in rules_in(tmp_path, (
         "import os, shlex, subprocess\n"

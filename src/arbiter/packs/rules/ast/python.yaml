@@ -267,6 +267,12 @@ rules:
       (call function: (attribute object: (string (string_start) . (string_content) @sc
         (#match? @sc "(?s)^\\s*((SELECT|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|TRUNCATE|MERGE)\\b|(?i:select\\s.*\\sfrom\\s|insert\\s+into\\s|update\\s+\\S+\\s+set\\s|delete\\s+from\\s))"))
         attribute: (identifier) @fm (#eq? @fm "format"))) @hit
+    # A regex that parses SQL (`re.match(r"CREATE\s+TABLE" + NAME, ...)`) is
+    # not a query: skip SQL-shaped strings built inside an `re` call.
+    unless_inside: |
+      (call function: (attribute object: (identifier) @re (#eq? @re "re")
+          attribute: (identifier) @rf
+          (#match? @rf "^(match|fullmatch|search|compile|findall|finditer|sub|subn|split)$"))) @x
     description: >-
       The value is spliced into the statement text, so whoever controls it
       controls the query. This is the shape every SQL-injection exploit
