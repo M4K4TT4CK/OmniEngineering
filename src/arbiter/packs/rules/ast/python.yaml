@@ -101,6 +101,9 @@ rules:
       (call function: (_) @f (#match? @f "(?i)(sleep|backoff|wait|wait_for|retry|timeout|settimeout|recv|recv_into|accept|poll|select|readline|receive|input|getpass)$")) @x
       (keyword_argument name: (identifier) @k (#match? @k "^(wait|delay|backoff)$")) @x
       ((identifier) @d (#match? @d "(?i)^(deadline|monotonic|perf_counter|time_ns|expires?|expiry|expires_at|until|give_up_at)$"))
+      ((identifier) @w (#eq? @w "WatchError"))
+    # Redis WATCH/MULTI (rq's worker): a WatchError means another writer moved
+    # a watched key, and retrying at once is the protocol, not a busy loop.
     description: >-
       A loop that retries on every exception with no delay and no limit turns
       one failing upstream into a busy loop that hammers it and burns CPU.

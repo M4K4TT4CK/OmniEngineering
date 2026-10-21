@@ -101,6 +101,30 @@ def test_queue_poll_loop_is_not_a_retry_loop(tmp_path):
         "        handle(item)\n"))
 
 
+def test_redis_optimistic_transaction_retry_is_not_flagged(tmp_path):
+    # rq/worker/base.py: WATCH/MULTI retried at once on WatchError, as Redis intends.
+    assert "retry-loop-no-backoff" not in rules_in(tmp_path, (
+        "from redis import WatchError\n"
+        "def save(pipe, key):\n"
+        "    while True:\n"
+        "        try:\n"
+        "            pipe.watch(key)\n"
+        "            pipe.multi()\n"
+        "            pipe.execute()\n"
+        "            break\n"
+        "        except WatchError:\n"
+        "            continue\n"))
+    # The same loop catching anything else is still a busy retry.
+    assert "retry-loop-no-backoff" in rules_in(tmp_path, (
+        "def save(pipe, key):\n"
+        "    while True:\n"
+        "        try:\n"
+        "            pipe.execute()\n"
+        "            break\n"
+        "        except ConnectionError:\n"
+        "            continue\n"))
+
+
 def test_deadline_bounded_blocking_wait_is_not_a_retry_loop(tmp_path):
     # make_ai.py `wait_for` in probe_mcp_server: a deadline, a blocking
     # `get(timeout=remaining)`, an except that re-raises and one that skips a
