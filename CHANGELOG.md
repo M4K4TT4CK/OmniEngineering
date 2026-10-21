@@ -13,6 +13,30 @@ assumptions (claims need evidence, assumption ledger, generated briefs,
 environment preflight, independent re-verification, verified/inferred/assumed
 labels, ask instead of guessing).
 ### 2026-10-21
+- ARB-065 | Java and TypeScript packs fixed against the gold triage and
+OWASP Benchmark Java. TypeScript test-without-assertion recognises node:test
+plans (`tspl`) and their destructured methods, AVA's `t.*` assertions
+(`t.throwsAsync`), node:assert functions called bare, `runClient(t)`-style
+helpers, a Promise's `reject`, "should not crash / without error" titles and
+Playwright `({ page })` flows: 729 to 18 on the gold set (1.11 to 0.027 per
+KLOC). fetch-no-timeout skips browser files (`document`/`window`): 25 to 14.
+Java test-without-assertion skips `@Disabled`/`@Ignore` and empty `@Override`
+tests, tests whose name or `@DisplayName` says nothing throws (the TypeScript
+rule's convention), a conditional `throw`, and a method reference handed to
+a runner (keycloak run-on-server): 446 to 276, still over budget; the rest
+only call the code. Java sql-string-built needs a receiver (not Ant's
+`execute`), SQL words in the string, and a splice that is not
+identifier-shaped (`tableName`, `getTableName(...)`; a bare `column` stays),
+and tracks `String sql = ...` into a following `try`: gold 45 to 7. Java
+command-injection adds `Runtime r = Runtime.getRuntime(); r.exec(...)`,
+`exec("echo " + x)`, and a ProcessBuilder list in a method that adds a shell
+`-c`; weak-random-for-secret adds `new java.util.Random()`,
+`java.lang.Math.random()` and one hop through a local or a `nextBytes`
+buffer into a `rememberMe`/reset/auth key. OWASP Java in-scope recall 0.045
+to 1.0, false-positive rate 0.043 to 0.565, score 0.003 to 0.435: weak
+randomness 218/218 with no false positive; SQL and command injection flag
+every safe case too, because the safe cases differ only by constant
+propagation.
 - ARB-062 | CWE Top 25 (2024) measured before any new rule: an
 applicability matrix for Python, TypeScript/JavaScript, Go, Java and Ruby
 (`docs/cwe-top25.md`), 47 new planted pairs, one per applicable cell not

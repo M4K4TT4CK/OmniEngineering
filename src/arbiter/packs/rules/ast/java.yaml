@@ -347,37 +347,57 @@ rules:
     query: |
       ; executeQuery("... " + name + " ...")  /  executeQuery(String.format(...))
       ; A built string is one that splices in a lower-case name, field or
-      ; call next to a `+`, or is a String.format; literal + literal and
-      ; CONSTANT + literal are not reported.
-      (method_invocation name: (identifier) @n arguments: (argument_list . (binary_expression) @val)
-        (#match? @val "^String\\.format\\s*\\(|\\+\\s*[a-z_][\\w.]*\\s*(\\(|\\[|\\+|$)|^\\s*[a-z_][\\w.]*\\s*\\+") (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|queryForObject|queryForList|queryForMap|queryForRowSet|batchUpdate|nativeQuery)$")) @hit
-      (method_invocation name: (identifier) @n
-        arguments: (argument_list . (method_invocation object: (identifier) @so name: (identifier) @sf))
-        (#eq? @so "String") (#eq? @sf "format") (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|queryForObject|queryForList|queryForMap|queryForRowSet|batchUpdate|nativeQuery)$")) @hit
-      ; String sql = "... " + name; ... executeQuery(sql) in the same block,
-      ; one pattern per statement shape the sink can sit in
+      ; call next to a `+`, or is a String.format, and that reads as SQL; literal +
+      ; literal and CONSTANT + literal are not reported, and neither is a string
+      ; whose only splices are identifiers (`" FROM " + tableName + " WHERE id = ?"`,
+      ; `getTableName("REALM")`, keycloak and tomcat), which cannot be bound as `?`.
+      ; Every sink has a receiver: Ant's inherited `execute(String)` is not JDBC.
+      (method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (binary_expression) @val)
+        (#match? @val "^String\\.format\\s*\\(|\\+\\s*[a-z_][\\w.]*\\s*(\\(|\\[|\\+|$)|^\\s*[a-z_][\\w.]*\\s*\\+") (#match? @val "(?i)\\b(select|insert|update|delete|from|where|into|values|call|drop|create|alter|truncate|merge|join|order\\s+by|set|grant|revoke|schema|table)\\b") (#not-match? @val "^(?:\\s|\\+|\"(?:[^\"\\\\]|\\\\.)*\"|\\b(?:[A-Z]\\w*\\.)*[A-Z][A-Z0-9_]*\\b|(?:this\\.)?(?:[\\w.]*?[a-z0-9](?:Table|Column|Col|Schema|Catalog|Index|Identifier|Sequence)s?(?:Name|Names)?|(?:table|column|schema|catalog|sequence)(?:Name|Names))\\b|(?:[\\w.]*\\.)?(?:get|quote|escape)\\w*?(?:Table|Column|Schema|Identifier|Index)\\w*\\x28[^\\x28\\x29]*\\x29)+$")
+        (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|query|queryForObject|queryForList|queryForMap|queryForRowSet|queryForLong|queryForInt|queryForStream|batchUpdate|update|nativeQuery)$")) @hit
+      (method_invocation object: (_) name: (identifier) @n
+        arguments: (argument_list . (method_invocation object: (identifier) @so name: (identifier) @sf arguments: (argument_list) @fa))
+        (#eq? @so "String") (#eq? @sf "format") (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|query|queryForObject|queryForList|queryForMap|queryForRowSet|queryForLong|queryForInt|queryForStream|batchUpdate|update|nativeQuery)$")
+        (#match? @fa "(?i)\\b(select|insert|update|delete|from|where|into|values|call|drop|create|alter|truncate|merge|join|order\\s+by|set|grant|revoke|schema|table)\\b") (#not-match? @fa "^\\x28(?:\\s|,|\\+|\"(?:[^\"\\\\]|\\\\.)*\"|\\b(?:[A-Z]\\w*\\.)*[A-Z][A-Z0-9_]*\\b|(?:this\\.)?(?:[\\w.]*?[a-z0-9](?:Table|Column|Col|Schema|Catalog|Index|Identifier|Sequence)s?(?:Name|Names)?|(?:table|column|schema|catalog|sequence)(?:Name|Names))\\b|(?:[\\w.]*\\.)?(?:get|quote|escape)\\w*?(?:Table|Column|Schema|Identifier|Index)\\w*\\x28[^\\x28\\x29]*\\x29)+\\x29$")) @hit
+      ; String sql = "... " + name; ... executeQuery(sql), later in the same
+      ; block, or inside a `try` / try-with-resources that follows it there
+      ; (OWASP Benchmark declares the query and executes it inside `try { }`)
       (block
         (local_variable_declaration declarator: (variable_declarator name: (identifier) @v value: (_) @val))
-        (expression_statement (method_invocation name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit)
-        (#eq? @v @a) (#match? @val "^String\\.format\\s*\\(|\\+\\s*[a-z_][\\w.]*\\s*(\\(|\\[|\\+|$)|^\\s*[a-z_][\\w.]*\\s*\\+")
-        (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|queryForObject|queryForList|queryForMap|queryForRowSet|batchUpdate|nativeQuery)$"))
+        [
+          (expression_statement (method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit)
+          (expression_statement (assignment_expression right: (method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit))
+          (local_variable_declaration declarator: (variable_declarator value: (method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit))
+          (return_statement (method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit)
+        ]
+        (#eq? @v @a) (#match? @val "^String\\.format\\s*\\(|\\+\\s*[a-z_][\\w.]*\\s*(\\(|\\[|\\+|$)|^\\s*[a-z_][\\w.]*\\s*\\+") (#match? @val "(?i)\\b(select|insert|update|delete|from|where|into|values|call|drop|create|alter|truncate|merge|join|order\\s+by|set|grant|revoke|schema|table)\\b") (#not-match? @val "^(?:\\s|\\+|\"(?:[^\"\\\\]|\\\\.)*\"|\\b(?:[A-Z]\\w*\\.)*[A-Z][A-Z0-9_]*\\b|(?:this\\.)?(?:[\\w.]*?[a-z0-9](?:Table|Column|Col|Schema|Catalog|Index|Identifier|Sequence)s?(?:Name|Names)?|(?:table|column|schema|catalog|sequence)(?:Name|Names))\\b|(?:[\\w.]*\\.)?(?:get|quote|escape)\\w*?(?:Table|Column|Schema|Identifier|Index)\\w*\\x28[^\\x28\\x29]*\\x29)+$")
+        (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|query|queryForObject|queryForList|queryForMap|queryForRowSet|queryForLong|queryForInt|queryForStream|batchUpdate|update|nativeQuery)$"))
       (block
         (local_variable_declaration declarator: (variable_declarator name: (identifier) @v value: (_) @val))
-        (return_statement (method_invocation name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit)
-        (#eq? @v @a) (#match? @val "^String\\.format\\s*\\(|\\+\\s*[a-z_][\\w.]*\\s*(\\(|\\[|\\+|$)|^\\s*[a-z_][\\w.]*\\s*\\+")
-        (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|queryForObject|queryForList|queryForMap|queryForRowSet|batchUpdate|nativeQuery)$"))
-      (block
-        (local_variable_declaration declarator: (variable_declarator name: (identifier) @v value: (_) @val))
-        (local_variable_declaration declarator: (variable_declarator
-            value: (method_invocation name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit))
-        (#eq? @v @a) (#match? @val "^String\\.format\\s*\\(|\\+\\s*[a-z_][\\w.]*\\s*(\\(|\\[|\\+|$)|^\\s*[a-z_][\\w.]*\\s*\\+")
-        (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|queryForObject|queryForList|queryForMap|queryForRowSet|batchUpdate|nativeQuery)$"))
+        (try_statement body: (block [
+            (expression_statement (method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit)
+            (expression_statement (assignment_expression right: (method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit))
+            (local_variable_declaration declarator: (variable_declarator value: (method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit))
+            (return_statement (method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit)
+          ]))
+        (#eq? @v @a) (#match? @val "^String\\.format\\s*\\(|\\+\\s*[a-z_][\\w.]*\\s*(\\(|\\[|\\+|$)|^\\s*[a-z_][\\w.]*\\s*\\+") (#match? @val "(?i)\\b(select|insert|update|delete|from|where|into|values|call|drop|create|alter|truncate|merge|join|order\\s+by|set|grant|revoke|schema|table)\\b") (#not-match? @val "^(?:\\s|\\+|\"(?:[^\"\\\\]|\\\\.)*\"|\\b(?:[A-Z]\\w*\\.)*[A-Z][A-Z0-9_]*\\b|(?:this\\.)?(?:[\\w.]*?[a-z0-9](?:Table|Column|Col|Schema|Catalog|Index|Identifier|Sequence)s?(?:Name|Names)?|(?:table|column|schema|catalog|sequence)(?:Name|Names))\\b|(?:[\\w.]*\\.)?(?:get|quote|escape)\\w*?(?:Table|Column|Schema|Identifier|Index)\\w*\\x28[^\\x28\\x29]*\\x29)+$")
+        (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|query|queryForObject|queryForList|queryForMap|queryForRowSet|queryForLong|queryForInt|queryForStream|batchUpdate|update|nativeQuery)$"))
       (block
         (local_variable_declaration declarator: (variable_declarator name: (identifier) @v value: (_) @val))
         (try_with_resources_statement resources: (resource_specification (resource
-            value: (method_invocation name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit)))
-        (#eq? @v @a) (#match? @val "^String\\.format\\s*\\(|\\+\\s*[a-z_][\\w.]*\\s*(\\(|\\[|\\+|$)|^\\s*[a-z_][\\w.]*\\s*\\+")
-        (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|queryForObject|queryForList|queryForMap|queryForRowSet|batchUpdate|nativeQuery)$"))
+            value: (method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit)))
+        (#eq? @v @a) (#match? @val "^String\\.format\\s*\\(|\\+\\s*[a-z_][\\w.]*\\s*(\\(|\\[|\\+|$)|^\\s*[a-z_][\\w.]*\\s*\\+") (#match? @val "(?i)\\b(select|insert|update|delete|from|where|into|values|call|drop|create|alter|truncate|merge|join|order\\s+by|set|grant|revoke|schema|table)\\b") (#not-match? @val "^(?:\\s|\\+|\"(?:[^\"\\\\]|\\\\.)*\"|\\b(?:[A-Z]\\w*\\.)*[A-Z][A-Z0-9_]*\\b|(?:this\\.)?(?:[\\w.]*?[a-z0-9](?:Table|Column|Col|Schema|Catalog|Index|Identifier|Sequence)s?(?:Name|Names)?|(?:table|column|schema|catalog|sequence)(?:Name|Names))\\b|(?:[\\w.]*\\.)?(?:get|quote|escape)\\w*?(?:Table|Column|Schema|Identifier|Index)\\w*\\x28[^\\x28\\x29]*\\x29)+$")
+        (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|query|queryForObject|queryForList|queryForMap|queryForRowSet|queryForLong|queryForInt|queryForStream|batchUpdate|update|nativeQuery)$"))
+      (block
+        (local_variable_declaration declarator: (variable_declarator name: (identifier) @v value: (_) @val))
+        (try_with_resources_statement body: (block [
+            (expression_statement (method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit)
+            (expression_statement (assignment_expression right: (method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit))
+            (local_variable_declaration declarator: (variable_declarator value: (method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit))
+            (return_statement (method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit)
+          ]))
+        (#eq? @v @a) (#match? @val "^String\\.format\\s*\\(|\\+\\s*[a-z_][\\w.]*\\s*(\\(|\\[|\\+|$)|^\\s*[a-z_][\\w.]*\\s*\\+") (#match? @val "(?i)\\b(select|insert|update|delete|from|where|into|values|call|drop|create|alter|truncate|merge|join|order\\s+by|set|grant|revoke|schema|table)\\b") (#not-match? @val "^(?:\\s|\\+|\"(?:[^\"\\\\]|\\\\.)*\"|\\b(?:[A-Z]\\w*\\.)*[A-Z][A-Z0-9_]*\\b|(?:this\\.)?(?:[\\w.]*?[a-z0-9](?:Table|Column|Col|Schema|Catalog|Index|Identifier|Sequence)s?(?:Name|Names)?|(?:table|column|schema|catalog|sequence)(?:Name|Names))\\b|(?:[\\w.]*\\.)?(?:get|quote|escape)\\w*?(?:Table|Column|Schema|Identifier|Index)\\w*\\x28[^\\x28\\x29]*\\x29)+$")
+        (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|query|queryForObject|queryForList|queryForMap|queryForRowSet|queryForLong|queryForInt|queryForStream|batchUpdate|update|nativeQuery)$"))
     description: >
       The statement text includes a value spliced in at run time, so whoever
       controls that value controls the query. Concatenating constants or
@@ -401,11 +421,31 @@ rules:
         name: (identifier) @x
         arguments: (argument_list . (_) @a)
         (#eq? @r "Runtime") (#eq? @g "getRuntime") (#eq? @x "exec")
-        (#not-match? @a "(?s)^(\"|[A-Z][A-Z0-9_]*$|new\\s+String\\s*\\[\\s*\\]\\s*\\{\\s*(\"[^\"]*\"\\s*,?\\s*)*\\}$)")) @hit
+        (#not-match? @a "(?s)^(\"([^\"\\\\]|\\\\.)*\"|[A-Z][A-Z0-9_]*|new\\s+String\\s*\\[\\s*\\]\\s*\\{\\s*(\"[^\"]*\"\\s*,?\\s*)*\\})$")) @hit
+      ; Runtime r = Runtime.getRuntime(); ... r.exec(cmd + arg): the local or
+      ; field is tied to the Runtime by requires_file below
+      (method_invocation object: (identifier) @r name: (identifier) @x
+        arguments: (argument_list . (_) @a)
+        (#match? @r "^[a-z]\\w*$") (#eq? @x "exec")
+        (#not-match? @a "(?s)^(\"([^\"\\\\]|\\\\.)*\"|[A-Z][A-Z0-9_]*|new\\s+String\\s*\\[\\s*\\]\\s*\\{\\s*(\"[^\"]*\"\\s*,?\\s*)*\\})$")) @hit
       ; new ProcessBuilder("sh", "-c", <non-literal>)  /  ("cmd", "/c", <non-literal>)
       (object_creation_expression type: (type_identifier) @t
         arguments: (argument_list (string_literal) @c . (_) @a)
         (#eq? @t "ProcessBuilder") (#match? @c "^\"(-c|/c|-e)\"$") (#not-match? @a "^\"")) @hit
+      ; new ProcessBuilder(argList) / pb.command(argList), where the same method
+      ; puts a shell's `-c` (or `/c`) into the list: see unless_inside
+      (object_creation_expression type: (_) @t arguments: (argument_list . (identifier) .)
+        (#match? @t "(^|\\.)ProcessBuilder$")) @hit
+      (method_invocation object: (identifier) name: (identifier) @x arguments: (argument_list . (identifier) .)
+        (#eq? @x "command")) @hit
+    # One of: Runtime.getRuntime().exec, a variable bound to Runtime.getRuntime()
+    # whose exec is called, or a ProcessBuilder.
+    requires_file: |
+      ((program) @p (#match? @p "(?s)getRuntime\\x28\\x29\\s*\\.\\s*exec\\b|\\bProcessBuilder\\b|\\bRuntime\\s+(\\w+)\\s*=\\s*(java\\.lang\\.)?Runtime\\.getRuntime\\x28\\x29.*\\b\\1\\.exec\\s*\\x28"))
+    # A ProcessBuilder given a list in a method with no shell flag and no
+    # exec runs a program with its own arguments: no shell parses them.
+    unless_inside: |
+      ((method_declaration) @m (#not-match? @m "\"(-c|/c|-e)\"|\\.exec\\s*\\x28"))
     description: >
       `Runtime.exec(String)` splits on whitespace and `sh -c` interprets
       metacharacters, so a value that reaches either from outside runs
@@ -540,10 +580,37 @@ rules:
       ; assertion lives: seen across commons-lang, gson and caffeine
       (method_invocation !object name: (identifier) @n (#not-match? @n "^(println|print|printf)$"))
       (method_invocation name: (identifier) @n (#match? @n "^(test[A-Z]\\w*|await\\w*|run[A-Z]\\w*Test\\w*)$"))
+      ; hands one of its own methods to a runner, where the assertions are:
+      ; keycloak `runOnServer.run(UPConfigParserTest::validate)` and
+      ; `testingClient.server().run(PolicyEvaluationTest::testX)`
+      (method_invocation name: (identifier) @n arguments: (argument_list (method_reference))
+        (#match? @n "^(run\\w*|execute|call|invoke)$"))
+      ; `if (cause != null) throw cause;` fails the test on a condition
+      ; (netty DefaultChannelPipelineTest): a hand-written assertion
+      (method_declaration body: (block (if_statement consequence: (throw_statement)) @t))
+      (method_declaration body: (block (if_statement consequence: (block (throw_statement))) @t))
+      ; switched off: `@Disabled`/`@Ignore` is assurance.permanently-skipped-test's
+      ; finding, and an empty `@Override` switches off an inherited test
+      ; (netty AbstractAdaptiveByteBufTest)
+      ((method_declaration (modifiers) @m) @d (#match? @m "@(Disabled|Ignore)\\b"))
+      ((method_declaration (modifiers) @m body: (block) @b) @d
+        (#match? @m "@Override\\b") (#match? @b "(?s)^\\{(\\s|//[^\\n]*|/\\*.*?\\*/)*\\}$"))
+      ; the name or @DisplayName says that not throwing is the check, the
+      ; same as a "does not throw" title in the TypeScript rule
+      ; (`buildWhenScopesIsNullThenDoesNotThrowAnyException`, `contextLoads`,
+      ; spring-security's `...WhenRoleAdminThenPasses`)
+      ((method_declaration name: (identifier) @n) @d
+        (#match? @n "(?i:(doesnt|dont|didnt|wont|cant|not|never|no)_?(throw|crash|fail|blow)|no_?(exception|error)s?(_?thrown)?$|exception_?not_?thrown|without_?(exception|error|throwing)|starts_?cleanly)|(Succeeds|Passes|Loads)$"))
+      ((method_declaration (modifiers (annotation name: (identifier) @a arguments: (annotation_argument_list) @s))) @d
+        (#eq? @a "DisplayName")
+        (#match? @s "(?i)(\\bnot|\\bnever|n't|\\bwithout|\\bno) (throw|exception|error|fail|crash|hang)"))
     description: >
       The test passes as long as nothing throws, which is not what it looks
       like it checks. A method that only calls the code under test proves
-      the call does not crash on this input and nothing else.
+      the call does not crash on this input and nothing else. A test whose
+      name or `@DisplayName` says it checks that nothing throws, one that
+      throws on a condition itself, and one switched off with `@Disabled`,
+      `@Ignore` or an empty `@Override` are not reported.
     remediation: >
       Assert the outcome (`assertEquals`, `assertThat`, `verify(...)`), or
       name it `...DoesNotThrow` and wrap it in `assertDoesNotThrow`.
@@ -609,8 +676,9 @@ rules:
     tags: [crypto, randomness]
     query: |
       (object_creation_expression type: (type_identifier) @t (#eq? @t "Random")) @hit
-      (method_invocation object: (identifier) @o name: (identifier) @n
-        (#eq? @o "Math") (#eq? @n "random")) @hit
+      (object_creation_expression type: (scoped_type_identifier) @t (#eq? @t "java.util.Random")) @hit
+      (method_invocation object: (_) @o name: (identifier) @n
+        (#match? @o "^(java\\.lang\\.)?Math$") (#eq? @n "random")) @hit
       ; RANDOM.nextLong() where RANDOM is a java.util.Random field of this file
       ((method_invocation object: (identifier) @o name: (identifier) @n
         (#match? @o "^[A-Z][A-Z0-9_]*$") (#not-match? @o "SECURE")
@@ -618,18 +686,25 @@ rules:
         (#match? @o "RAND|RNG"))
     requires_file: |
       (object_creation_expression type: (type_identifier) @t (#eq? @t "Random")) @x
+      (object_creation_expression type: (scoped_type_identifier) @t (#eq? @t "java.util.Random")) @x
+      (method_invocation object: (_) @o name: (identifier) @n
+        (#match? @o "^(java\\.lang\\.)?Math$") (#eq? @n "random")) @x
     # Skip unless the enclosing method is about a secret: by its name, or
-    # because the random value is assigned to a secret-shaped variable.
+    # because the random value is assigned to a secret-shaped variable,
+    # directly or through one local (`float rand = new Random().nextFloat();
+    # String rememberMeKey = Float.toString(rand)`, or a buffer filled by
+    # `nextBytes(bytes)` and then encoded), the way OWASP Benchmark's
+    # remember-me cookies are made.
     unless_in_scope: |
       ((method_declaration name: (identifier) @n
-         (#not-match? @n "(?i)token|secret|password|passwd|nonce|key|session|salt|otp|csrf|credential|verif")) @m
-        (#not-match? @m "(?s)(?i)\\w*(token|secret|password|passwd|nonce|salt|otp|session|api_?key|csrf|credential)\\w*\\s*=[^;]*(Math\\.random|new Random|\\b[A-Z_]*(RAND|RNG)[A-Z_]*\\.next)"))
+         (#not-match? @n "(?i)token|secret|password|passwd|nonce|key|session|salt|otp|csrf|credential|verif|remember")) @m
+        (#not-match? @m "(?s)(?i)\\w*(token|secret|password|passwd|nonce|salt|otp|session|api_?key|csrf|credential|remember\\w*|(reset|verif|invite|confirm|auth|activation|recovery|magic|unlock)\\w*(code|key|id|link))\\w*\\s*=[^;]*(Math\\.random|new\\s+(java\\.util\\.)?Random\\b|\\b[A-Z_]*(RAND|RNG)[A-Z_]*\\.next)|\\b(?P<v>\\w+)\\s*=[^;]*(Math\\.random|new\\s+(java\\.util\\.)?Random\\b|\\b[A-Z_]*(RAND|RNG)[A-Z_]*\\.next)[^;]*;.*\\b\\w*(token|secret|password|passwd|nonce|salt|otp|session|api_?key|csrf|credential|remember\\w*|(reset|verif|invite|confirm|auth|activation|recovery|magic|unlock)\\w*(code|key|id|link))\\w*\\s*=[^;]*\\b(?P=v)\\b|(Math\\.random|new\\s+(java\\.util\\.)?Random\\b|\\b[A-Z_]*(RAND|RNG)[A-Z_]*\\.next)[^;]*\\.nextBytes\\s*\\x28\\s*(?P<b>\\w+)\\s*\\x29.*\\b\\w*(token|secret|password|passwd|nonce|salt|otp|session|api_?key|csrf|credential|remember\\w*|(reset|verif|invite|confirm|auth|activation|recovery|magic|unlock)\\w*(code|key|id|link))\\w*\\s*=[^;]*\\b(?P=b)\\b"))
       ; a constructor or lambda is judged by what it assigns: the caffeine
       ; simulator seeds `this.random = new Random(seed)` in dozens of them
       ((constructor_declaration) @m
-        (#not-match? @m "(?s)(?i)\\w*(token|secret|password|passwd|nonce|salt|otp|session|api_?key|csrf|credential)\\w*\\s*=[^;]*(Math\\.random|new Random|\\b[A-Z_]*(RAND|RNG)[A-Z_]*\\.next)"))
+        (#not-match? @m "(?s)(?i)\\w*(token|secret|password|passwd|nonce|salt|otp|session|api_?key|csrf|credential|remember\\w*|(reset|verif|invite|confirm|auth|activation|recovery|magic|unlock)\\w*(code|key|id|link))\\w*\\s*=[^;]*(Math\\.random|new\\s+(java\\.util\\.)?Random\\b|\\b[A-Z_]*(RAND|RNG)[A-Z_]*\\.next)|\\b(?P<v>\\w+)\\s*=[^;]*(Math\\.random|new\\s+(java\\.util\\.)?Random\\b|\\b[A-Z_]*(RAND|RNG)[A-Z_]*\\.next)[^;]*;.*\\b\\w*(token|secret|password|passwd|nonce|salt|otp|session|api_?key|csrf|credential|remember\\w*|(reset|verif|invite|confirm|auth|activation|recovery|magic|unlock)\\w*(code|key|id|link))\\w*\\s*=[^;]*\\b(?P=v)\\b|(Math\\.random|new\\s+(java\\.util\\.)?Random\\b|\\b[A-Z_]*(RAND|RNG)[A-Z_]*\\.next)[^;]*\\.nextBytes\\s*\\x28\\s*(?P<b>\\w+)\\s*\\x29.*\\b\\w*(token|secret|password|passwd|nonce|salt|otp|session|api_?key|csrf|credential|remember\\w*|(reset|verif|invite|confirm|auth|activation|recovery|magic|unlock)\\w*(code|key|id|link))\\w*\\s*=[^;]*\\b(?P=b)\\b"))
       ((lambda_expression) @m
-        (#not-match? @m "(?s)(?i)\\w*(token|secret|password|passwd|nonce|salt|otp|session|api_?key|csrf|credential)\\w*\\s*=[^;]*(Math\\.random|new Random|\\b[A-Z_]*(RAND|RNG)[A-Z_]*\\.next)"))
+        (#not-match? @m "(?s)(?i)\\w*(token|secret|password|passwd|nonce|salt|otp|session|api_?key|csrf|credential|remember\\w*|(reset|verif|invite|confirm|auth|activation|recovery|magic|unlock)\\w*(code|key|id|link))\\w*\\s*=[^;]*(Math\\.random|new\\s+(java\\.util\\.)?Random\\b|\\b[A-Z_]*(RAND|RNG)[A-Z_]*\\.next)|\\b(?P<v>\\w+)\\s*=[^;]*(Math\\.random|new\\s+(java\\.util\\.)?Random\\b|\\b[A-Z_]*(RAND|RNG)[A-Z_]*\\.next)[^;]*;.*\\b\\w*(token|secret|password|passwd|nonce|salt|otp|session|api_?key|csrf|credential|remember\\w*|(reset|verif|invite|confirm|auth|activation|recovery|magic|unlock)\\w*(code|key|id|link))\\w*\\s*=[^;]*\\b(?P=v)\\b|(Math\\.random|new\\s+(java\\.util\\.)?Random\\b|\\b[A-Z_]*(RAND|RNG)[A-Z_]*\\.next)[^;]*\\.nextBytes\\s*\\x28\\s*(?P<b>\\w+)\\s*\\x29.*\\b\\w*(token|secret|password|passwd|nonce|salt|otp|session|api_?key|csrf|credential|remember\\w*|(reset|verif|invite|confirm|auth|activation|recovery|magic|unlock)\\w*(code|key|id|link))\\w*\\s*=[^;]*\\b(?P=b)\\b"))
     unless_in_file: *test_support
     description: >
       `java.util.Random` is a 48-bit linear congruential generator: a few
