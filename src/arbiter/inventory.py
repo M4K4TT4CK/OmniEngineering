@@ -52,7 +52,8 @@ LANG_BY_EXT = {
     ".env": "dotenv",
 }
 
-TEST_HINTS = re.compile(r"(^|/)(tests?|spec|__tests__)(/|$)|(^|/)test_[^/]+$|_test\.[a-z]+$|\.spec\.[a-z]+$")
+TEST_HINTS = re.compile(r"(^|/)(tests?|spec|__tests__)(/|$)|(^|/)test_[^/]+$|_test\.[a-z]+$"
+                        r"|\.(spec|test)\.[a-z]+$|_spec\.rb$|(^|/)src/test/")
 DOC_HINTS = re.compile(r"(^|/)(docs?|\.ai)(/|$)|\.(md|rst|adoc)$", re.IGNORECASE)
 # `cdk\.out[^/]*` rather than `cdk\.out`: CDK_OUTDIR lets a project redirect
 # synth output to a renamed directory (`cdk.out.chk`, seen on a real system),
@@ -295,8 +296,13 @@ def detect_stacks(files: list[FileInfo]) -> set[str]:
         stacks.add("github_actions")
     if ".gitlab-ci.yml" in names or ".gitlab-ci.yaml" in names:
         stacks.add("gitlab_ci")
-    if "go.mod" in names:
+    if "go.mod" in names or any(f.language == "go" for f in files):
         stacks.add("go")
+    if {"pom.xml", "build.gradle", "build.gradle.kts"} & names or any(
+            f.language == "java" for f in files):
+        stacks.add("java")
+    if {"Gemfile", "Rakefile"} & names or any(f.language == "ruby" for f in files):
+        stacks.add("ruby")
     if {"CMakeLists.txt"} & names or any(f.language == "cpp" for f in files):
         stacks.add("cpp")
     if any(f.language == "r" for f in files):

@@ -30,4 +30,6 @@ path = "File"
 line = "StartLine"
 severity_const = "critical"
 dimension = "security"
+# The tool's own weakness classification, normalised by arbiter.cwe.
+cwe_const = "CWE-798"
 remediation_default = "Remove the literal, rotate the credential, and load it from a secret store at runtime."

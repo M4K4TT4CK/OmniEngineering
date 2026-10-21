@@ -1,0 +1,24 @@
+# Python rules. Owner: the Python agent. Schema: src/arbiter/lang_rules.py.
+# The stdlib-ast concurrency probe (src/arbiter/concurrency.py) stays for checks
+# that need alias tracking; rules a query can express belong here.
+pack: python
+languages: [python]
+rules:
+  - id: retry-loop-no-backoff
+    title: "`while True` retry loop with no sleep or backoff"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [retry, reliability]
+    query: |
+      (while_statement
+        condition: (true)
+        body: (block (try_statement (except_clause)))) @hit
+    unless_in_scope: |
+      (call function: (_) @f (#match? @f "(sleep|backoff|wait)$")) @x
+    description: >-
+      A loop that retries on every exception with no delay and no limit turns
+      one failing upstream into a busy loop that hammers it and burns CPU.
+    remediation: "Cap the attempts and sleep with exponential backoff and jitter (or use tenacity/backoff)."

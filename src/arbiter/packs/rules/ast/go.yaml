@@ -1,0 +1,21 @@
+# Go rules. Owner: the Go agent. Schema: src/arbiter/lang_rules.py.
+pack: go
+languages: [go]
+rules:
+  - id: http-default-client
+    title: "`{text}` uses Go's default HTTP client, which never times out"
+    severity: medium
+    confidence: high
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [timeout, reliability]
+    query: |
+      (call_expression
+        function: (selector_expression) @fn
+        (#match? @fn "^http\\.(Get|Post|Head|PostForm)$")) @hit
+    description: >-
+      net/http's package-level helpers use http.DefaultClient, whose Timeout
+      is zero. A slow or hung upstream holds the goroutine and its connection
+      forever.
+    remediation: "Use an http.Client{Timeout: ...}, or a request built with context.WithTimeout."

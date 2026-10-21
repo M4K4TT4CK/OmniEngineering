@@ -229,7 +229,9 @@ def write_sarif(report: Report, path: str, min_severity: str | None = None) -> N
                 "properties": {
                     "dimension": f.dimension,
                     "provenance": f.provenance,
-                    "tags": f.tags + f.controls,
+                    "tags": f.tags + f.controls
+                    + [f"external/cwe/{c.lower()}" for c in f.cwe],
+                    **({"cwe": list(f.cwe)} if f.cwe else {}),
                 },
             }
         loc = {

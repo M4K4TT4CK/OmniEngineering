@@ -485,6 +485,8 @@ def run_scan(
     apply_baseline(findings, baseline)
     apply_suppressions(findings, config)
     apply_scope_notes(findings, inv)
+    from .cwe import apply as apply_cwe
+    apply_cwe(findings)
 
     report = Report(
         system=system_name,

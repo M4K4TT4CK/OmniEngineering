@@ -11,6 +11,8 @@ treated as passes.
 - [Infrastructure as code](#infrastructure-as-code)
 - [The resource graph](#the-resource-graph)
 - [Machine-authored code](#machine-authored-code)
+- [Concurrency](#concurrency)
+- [Language packs](#language-packs)
 - [Contracts between artifacts](#contracts-between-artifacts)
 - [Assurance: is the checking switched on?](#assurance-is-the-checking-switched-on)
 - [The judgement pass](#the-judgement-pass)
@@ -34,6 +36,8 @@ treated as passes.
 | `house_rules` | quality, drift | nothing | Your own rules from `arbiter.yaml` |
 | `assurance` | assurance | nothing | Whether the *checking* is switched on — see below |
 | `authored` | supply chain, security | nothing | Defects characteristic of machine-drafted code — see below |
+| `concurrency` | quality | nothing | Python: shared state changed by concurrent workers with no lock held — see below |
+| `lang_<pack>` | quality, security | tree-sitter + that language's grammar | Shipped structural rules for each IDE language: `lang_python`, `lang_typescript` (TS and JS), `lang_go`, `lang_java`, `lang_ruby` — see below |
 | `contract` | drift | nothing | Contracts declared in one artifact and implemented in another — see below |
 | `governance` | drift | a failure ledger | The ledger held against the change — see [Probe scopes](#probe-scopes). `governance.open-failure-untested`: an open or mitigated entry's affected file changed without any of its regression tests (`--changed` only). `governance.regression-test-missing`: a fixed entry whose regression test file is gone. Not applicable (`n/a`) without `.ai/failures/failure-ledger.json` |
 | `judgement` | drift | a model | Claims in prose the code contradicts. Inferred, never gates |
@@ -145,6 +149,60 @@ That fires on an RDS instance, an Azure PostgreSQL server and a Cloud SQL
 instance without a line of provider-specific code.
 
 ---
+
+## Concurrency
+
+The race model-drafted worker code most often ships with: it reads correctly,
+the single-threaded test passes, and two workers eventually take the same task.
+None of the wrapped analyzers look for it. Python only, from the standard
+library's own parser.
+
+| Check | What it catches |
+|---|---|
+| `concurrency.check-then-act-unlocked` | An `if` that reads a shared collection and then changes it with no lock held: `if self.tasks: return self.tasks.pop(0)`, `if key not in CACHE: CACHE[key] = v`, `job = JOBS[id]` then `if job["state"] == "queued": job["state"] = "running"`. |
+| `concurrency.unsynchronised-counter` | `self.processed += 1` (or a `global`) inside a function the same file starts as a thread, a `Thread` subclass's `run`, or an executor job. |
+
+*Shared* means an attribute of `self` or a collection bound at module level.
+*Lock held* means inside a `with` on a lock (a name bound to `Lock()`, `RLock()`,
+`Condition()`, `Semaphore()`, or containing lock/mutex/cond/sem), or a function
+that calls `.acquire()`. Synchronous code is checked only in files that use
+threads or executors; an `async def` only when an `await` falls between the
+check and the change, since asyncio cannot interleave anywhere else. In a file
+built on an event loop, a plain function counts only if it is started as a
+thread.
+
+Limits: a lock taken by the caller is invisible, and nothing follows calls into
+other functions or files. Both rules report at medium confidence.
+
+## Language packs
+
+Each IDE language has a shipped pack of structural rules in
+`src/arbiter/packs/rules/ast/<pack>.yaml`, and each pack is its own probe, so
+a grammar this machine lacks shows that one language as **not assessed**
+rather than as a clean pass. `tools/install_tools.sh` caches every grammar the
+packs need; scans never download one.
+
+Rules are tree-sitter queries, with four optional context conditions for the
+things a bare pattern cannot say ("no lock held", "no timeout set"):
+`unless_inside`, `unless_in_scope` (the enclosing function, or the file),
+`unless_in_file` and `requires_file`. The schema is documented at the top of
+`src/arbiter/lang_rules.py`, and a pack that breaks it fails at import.
+Rule ids are `arbiter/<pack>.<id>`; each carries its CWE.
+
+Every finding, native or external, carries `cwe` in the JSON report and as
+`external/cwe/cwe-N` tags in SARIF. Native rules declare it in their pack or
+in `src/arbiter/cwe.py`; semgrep, bandit and gitleaks report their own, read
+through each adapter's `cwe` map key.
+
+### The planted corpus
+
+`fixtures/planted/<lang>/bad/` holds known defects, each line marked with the
+rule that must report it (`// expect: arbiter/go.http-default-client`).
+`good/` holds the same code done correctly. `tests/test_planted_corpus.py`
+asserts that every marked defect is reported, nothing fires on a good twin,
+and no owned rule fires on an unmarked line. `python tools/planted_score.py
+[--adapters]` prints the catch rate per language, with or without the external
+analyzers.
 
 ## Machine-authored code
 
