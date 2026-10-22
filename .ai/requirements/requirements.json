@@ -1452,7 +1452,8 @@
       ],
       "risk_notes": [
         "semgrep rules that fire on the fixed twin too (Ruby missing-csrf-protection, check-send-file and dangerous-exec, Flask ssrf-requests, bandit B603/B607) are not counted as coverage",
-        "918 is planted in its same-function form only; interprocedural SSRF stays out of reach"
+        "918 is planted in its same-function form only; interprocedural SSRF stays out of reach",
+        "criterion 5 part done 2026-10-21 (m1-base): controls._probe_of maps arbiter/<lang>.* to lang_<lang>, tested per language with a real scan (tests/test_controls_lang_packs.py, FAIL-053); the CWE Top 25 control pack and the per-language applicability state are still to do"
       ]
     },
     {

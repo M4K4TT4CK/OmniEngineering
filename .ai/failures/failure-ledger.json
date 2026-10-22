@@ -1373,6 +1373,31 @@
       "prevention_rules": [],
       "prevention_notes": "every module is imported first in its own fresh subprocess in the test suite, so a new top-level back-import fails CI whatever the import order of other tests",
       "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-053",
+      "date": "2026-10-21",
+      "title": "controls._probe_of mapped arbiter/<lang>.* to <lang>, so language-pack controls always read not assessed",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "_probe_of('arbiter/python.x') returned 'python'; a control satisfied by a language-pack rule resolved to not_assessed with reason 'probe did not run' even when lang_python ran clean",
+      "how_detected": "code reading for docs/gaps-and-next-steps.md and ARB-062 criterion 5 (2026-10-21)",
+      "root_cause": "_probe_of mapped native rule-id heads through a fixed table and fell back to the head itself; language packs register their probe as lang_<pack>, which the table never knew, and no test evaluated a control backed by a pack rule",
+      "requirement": "ARB-062",
+      "affected": [
+        "src/arbiter/controls.py"
+      ],
+      "fix_summary": "_probe_of returns lang_<pack> for any head that names a shipped language pack, read from lang_rules.load_packs() so a new pack needs no edit",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_controls_lang_packs.py::test_a_language_pack_check_maps_to_its_pack_probe",
+        "tests/test_controls_lang_packs.py::test_every_shipped_pack_maps_to_a_registered_probe",
+        "tests/test_controls_lang_packs.py::test_a_real_scan_reports_a_language_control_as_assessed"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [],
+      "prevention_notes": "every shipped pack rule id is checked to map to a registered probe name, and a real scan per language asserts the control reads satisfied",
+      "recurrence_of": ""
     }
   ]
 }

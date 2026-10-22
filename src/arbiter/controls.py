@@ -176,22 +176,46 @@ def load_frameworks(extra_dirs: list[str] | None = None) -> list[Framework]:
 # Evaluation
 # ---------------------------------------------------------------------------
 
+_NATIVE_PROBES = {
+    "resource": "resource_policy", "secrets": "secrets",
+    "supply": "supply_chain", "drift": "doc_drift",
+    "quality": "quality", "ast": "ast_metrics",
+    "interface": "interface", "house": "house_rules",
+}
+
+
+def _language_packs() -> set[str]:
+    """Names of the shipped language rule packs (`python`, `go`, ...).
+
+    Read from the packs themselves so a new pack needs no edit here. If the
+    packs cannot be loaded, fall back to their file names: a broken pack is
+    reported by the scan, and this mapping must not hide which probe it is.
+    """
+    from . import lang_rules
+    try:
+        return set(lang_rules.load_packs())
+    except Exception:  # noqa: BLE001 - mapping only; a broken pack fails the scan elsewhere
+        return {p.stem for p in lang_rules.AST_PACKS.glob("*.yaml")}
+
+
 def _probe_of(check: str) -> str:
     """Which probe or adapter would produce this check.
 
     `arbiter/resource.foo` comes from a native probe; `checkov/CKV_AWS_1` comes
-    from the checkov adapter. Knowing this is what separates "the check ran and
-    found nothing" from "the check never ran".
+    from the checkov adapter; `arbiter/python.sql-injection` comes from the
+    `lang_python` pack probe. Knowing this is what separates "the check ran
+    and found nothing" from "the check never ran". Returning the bare pack
+    name (`python`) made every language-pack check read as not assessed,
+    because no probe has that name (ARB-062 criterion 5).
     """
     if check.startswith("arbiter/"):
         rest = check.split("/", 1)[1]
         head = rest.split(".", 1)[0]
-        return {
-            "resource": "resource_policy", "secrets": "secrets",
-            "supply": "supply_chain", "drift": "doc_drift",
-            "quality": "quality", "ast": "ast_metrics",
-            "interface": "interface", "house": "house_rules",
-        }.get(head, head)
+        if head in _NATIVE_PROBES:
+            return _NATIVE_PROBES[head]
+        if head in _language_packs():
+            return f"lang_{head}"
+        return head
     return check.split("/", 1)[0]
 
 
