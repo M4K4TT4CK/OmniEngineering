@@ -435,3 +435,92 @@ def test_a_conditional_skip_is_not_permanent(tmp_path):
     '''
     # traefik connpool_test.go: the reasoned unconditional skip is reported.
     assert _rules(tmp_path, code, "app_test.go").get("test-skipped-unconditionally") == [13]
+
+
+# --------------------------------------------------------------- CWE Top 25 (ARB-062)
+
+def test_error_text_is_reported_only_with_a_5xx_in_a_handler(tmp_path):
+    code = '''
+    package main
+
+    import (
+    	"errors"
+    	"fmt"
+    	"net/http"
+    	"os"
+    )
+
+    var ErrBusy = errors.New("busy")
+
+    func h(w http.ResponseWriter, r *http.Request) {
+    	err := r.ParseForm()
+    	if err != nil {
+    		http.Error(w, err.Error(), http.StatusBadRequest)
+    		return
+    	}
+    	http.Error(w, ErrBusy.Error(), http.StatusServiceUnavailable)
+    	fmt.Fprintf(os.Stderr, "x: %v", err)
+    	http.Error(w, err.Error(), http.StatusInternalServerError)
+    }
+
+    func cli(w *os.File, err error) { fmt.Fprintf(w, "failed: %v", err) }
+    '''
+    assert _rules(tmp_path, code).get("error-text-in-response") == [20]
+
+
+def test_parse_unverified_before_a_verify_picks_the_key(tmp_path):
+    code = '''
+    package main
+
+    import "github.com/golang-jwt/jwt/v5"
+
+    func issuer(raw string) string {
+    	c := jwt.MapClaims{}
+    	_, _, _ = jwt.NewParser().ParseUnverified(raw, c)
+    	return c["iss"].(string)
+    }
+
+    func verified(raw string, key []byte) error {
+    	c := jwt.MapClaims{}
+    	_, _, _ = jwt.NewParser().ParseUnverified(raw, c)
+    	_, err := jwt.ParseWithClaims(raw, c, func(*jwt.Token) (any, error) { return key, nil })
+    	return err
+    }
+    '''
+    assert _rules(tmp_path, code).get("jwt-parse-unverified") == [7]
+
+
+def test_a_byte_literal_needs_a_key_name_and_a_crypto_import(tmp_path):
+    code = '''
+    package main
+
+    import "github.com/golang-jwt/jwt/v5"
+
+    var bucketKeyLeases = []byte("leases")
+    var jwtSecret = []byte("short")
+    var signingKey = []byte("a-long-literal-key")
+
+    func tok(t *jwt.Token) (string, error) { return t.SignedString(signingKey) }
+    '''
+    assert _rules(tmp_path, code).get("hardcoded-signing-key") == [7]
+    assert "hardcoded-signing-key" not in _rules(
+        tmp_path / "plain", 'package main\n\nvar signingKey = []byte("a-long-literal-key")\n')
+
+
+def test_a_dsn_with_a_trivial_or_formatted_password_is_silent(tmp_path):
+    code = '''
+    package main
+
+    import (
+    	"database/sql"
+    	"fmt"
+    )
+
+    func open(pw string) {
+    	_, _ = sql.Open("mysql", "root:root@tcp(localhost:3306)/app")
+    	_, _ = sql.Open("mysql", fmt.Sprintf("app:%s@tcp(db:3306)/app", pw))
+    	_, _ = sql.Open("postgres", "host=db user=app password= dbname=app")
+    	_, _ = sql.Open("postgres", "host=db user=app password=Xy9-real-pw dbname=app")
+    }
+    '''
+    assert _rules(tmp_path, code).get("hardcoded-dsn-password") == [12]

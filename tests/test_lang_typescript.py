@@ -481,3 +481,39 @@ def test_the_corpus_exercises_every_rule_in_the_pack():
     bad = ROOT / "fixtures" / "planted" / "typescript" / "bad"
     marked = {e.rule.split(".", 1)[1] for e in planted.markers(bad) if e.rule.startswith("arbiter/typescript.")}
     assert marked == set(RULES), {"unexercised": set(RULES) - marked, "unknown": marked - set(RULES)}
+
+
+# ------------------------------------------------- CWE Top 25 (ARB-062)
+
+def test_jwt_decode_is_silent_when_the_function_verifies_or_reads_the_header(tmp_path):
+    src = (
+        'import jwt from "jsonwebtoken";\n'
+        'export function a(t, keys) {\n'
+        '  const kid = jwt.decode(t, { complete: true })?.header.kid;\n'
+        '  return keys[kid];\n'
+        '}\n'
+        'export function b(t, k) {\n'
+        '  jwt.verify(t, k, { algorithms: ["RS256"] });\n'
+        '  return jwt.decode(t).sub;\n'
+        '}\n'
+        'export function c(t) { return jwt.decode(t).sub; }\n')
+    assert _lines(_scan(tmp_path, {"auth.ts": src}, "jwt-decode-unverified")) == [10]
+    # jwt-simple's decode(token, secret) verifies; without jsonwebtoken or jose
+    # in the file the rule does not run.
+    simple = 'const jwt = require("jwt-simple");\nexport const c = (t, s) => jwt.decode(t, s).sub;\n'
+    assert not _scan(tmp_path, {"simple.js": simple}, "jwt-decode-unverified")
+
+
+def test_error_responses_that_do_not_leak_are_silent(tmp_path):
+    src = (
+        'export function h(err, req, res, next) {\n'
+        '  if (process.env.NODE_ENV !== "production") {\n'
+        '    return res.status(500).json({ stack: err.stack });\n'
+        '  }\n'
+        '  res.status(500).json({ error: "internal" });\n'
+        '}\n'
+        'export function f(err, request, reply) { reply.send(err); }\n'
+        'export function g(err, req, res) { res.status(500).send(err.stack); }\n')
+    found = _scan(tmp_path, {"errors.ts": src})
+    assert [(f.rule_id.split(".")[-1], f.location.start_line) for f in found
+            if "-in-response" in f.rule_id] == [("error-stack-in-response", 8)]

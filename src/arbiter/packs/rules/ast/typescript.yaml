@@ -304,6 +304,191 @@ rules:
       guessed by anyone who has seen a few of them.
     remediation: "Use `crypto.randomUUID()`, `crypto.randomBytes(n)` or `crypto.randomInt()`."
 
+  # ------------------------------------------------- authentication (CWE-287)
+  # jsonwebtoken's `decode` and jose's `decodeJwt` read a token without
+  # checking its signature. Reading the key id or issuer before verifying is
+  # legitimate, so a function that also calls a verifier is left alone, and
+  # `decode(t, { complete: true })` (the header-for-key-lookup form) is not
+  # reported. Bare `decode(...)` is not matched: too many libraries export one.
+  - id: jwt-decode-unverified
+    title: "JWT read without verifying its signature: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-287, CWE-347]
+    controls: [NIST-800-218:PW.5]
+    tags: [auth, jwt]
+    requires_file: |
+      ((string (string_fragment) @s) (#match? @s "^(jsonwebtoken|jose|@nestjs/jwt)$"))
+    # The receiver is whatever the module was bound to (`jwt`, `$jwt`,
+    # `jsonwt`, `jose`, `this.jwtService`), so it is matched by name.
+    query: |
+      ((call_expression
+        function: (member_expression
+          object: [(identifier) (member_expression)] @o
+          property: (property_identifier) @m)
+        arguments: (arguments . (_)) @args) @hit
+       (#match? @o "(?i)(^|\\.)\\$?\\w*(jwt|jsonwebtoken|jsonwt|jose)\\w*$")
+       (#match? @m "^(decode|decodeJwt)$")
+       (#not-match? @args "complete\\s*:\\s*true"))
+      ((call_expression
+        function: (identifier) @fn
+        arguments: (arguments . (_))) @hit
+       (#eq? @fn "decodeJwt"))
+    unless_in_scope: |
+      ((call_expression function: (_) @f) (#match? @f "(?i)verify"))
+    description: >
+      `decode` only base64-decodes the payload; it does not check the
+      signature, the algorithm or the expiry. Anyone can mint a token with
+      `{"sub": "admin"}` and it decodes fine. Trusting its claims for identity
+      or authorization is an authentication bypass.
+    remediation: "Use `jwt.verify(token, key, { algorithms: [\"RS256\"] })` (jsonwebtoken) or `await jwtVerify(token, key)` (jose), and read the claims from its result."
+
+  - id: jwt-verify-insecure-options
+    title: "JWT verification switched off by an option: `{text}`"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-287, CWE-347]
+    controls: [NIST-800-218:PW.5]
+    tags: [auth, jwt]
+    requires_file: |
+      ((string (string_fragment) @s) (#match? @s "^(jsonwebtoken|express-jwt|koa-jwt)$"))
+    # The option names are specific to jsonwebtoken (express-jwt and koa-jwt
+    # pass them through), so any call carrying them in such a file counts.
+    query: |
+      ((call_expression
+        arguments: (arguments (object (pair
+          key: (property_identifier) @k
+          value: (array (string (string_fragment) @alg))) @hit)))
+       (#eq? @k "algorithms")
+       (#match? @alg "^none$"))
+      ((call_expression
+        arguments: (arguments (object (pair
+          key: (property_identifier) @k
+          value: (true)) @hit)))
+       (#eq? @k "ignoreExpiration"))
+    description: >
+      `algorithms: ["none"]` accepts an unsigned token, and
+      `ignoreExpiration: true` accepts a token long after it should have
+      stopped working, including a stolen one. Either turns the verification
+      the call appears to perform into a formality.
+    remediation: "List only the algorithms you sign with (`algorithms: [\"RS256\"]`) and leave expiry checking on; use `clockTolerance` for skew."
+
+  # ------------------------------------------- hard-coded credentials (CWE-798)
+  - id: jwt-hardcoded-secret
+    title: "JWT signed or verified with a literal secret: `{text}`"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-798]
+    controls: [NIST-800-218:PW.5]
+    tags: [secrets, jwt]
+    requires_file: |
+      ((string (string_fragment) @s) (#eq? @s "jsonwebtoken"))
+    query: |
+      ((call_expression
+        function: (member_expression
+          object: (identifier) @o
+          property: (property_identifier) @m)
+        arguments: (arguments . (_) . [(string (string_fragment)) (template_string)] @key)) @hit
+       (#match? @o "(?i)^\\$?\\w*(jwt|jsonwebtoken|jsonwt)\\w*$")
+       (#match? @m "^(sign|verify)$")
+       (#not-match? @key "\\$\\{"))
+    description: >
+      The signing secret is in the source, so everyone with the repository
+      (and every copy of the bundle) can mint valid tokens for any user, and
+      rotating it means a code change and a deploy.
+    remediation: "Load the secret from the environment or a secrets manager (`process.env.JWT_SECRET`) and fail at startup when it is missing."
+
+  # ------------------------------------------ information exposure (CWE-200)
+  # Express-style responses only (`res` / `response`, and Koa's `ctx.body`).
+  # Fastify's `reply.send(err)` hands the error to Fastify's own error
+  # serializer, which does not send the stack, so `reply` is not matched.
+  - id: error-stack-in-response
+    title: "Stack trace sent to the client: `{text}`"
+    severity: medium
+    confidence: high
+    dimension: security
+    cwe: [CWE-200, CWE-209]
+    controls: [NIST-800-218:PW.5]
+    tags: [info-leak, error-handling]
+    query: |
+      ((call_expression
+        function: (member_expression
+          object: (identifier) @o
+          property: (property_identifier) @m)
+        arguments: (arguments (_) @a)) @hit
+       (#match? @o "^(res|response)$")
+       (#match? @m "^(send|json|jsonp|end|write)$")
+       (#match? @a "\\b(e|ex|exc|\\w*(?i:err|error|exception)\\w*)\\??\\.stack\\b")
+       (#not-match? @a "NODE_ENV|(?i:development|production|isDev|isProd|debug)"))
+      ((call_expression
+        function: (member_expression
+          object: (call_expression
+            function: (member_expression object: (identifier) @o property: (property_identifier) @s))
+          property: (property_identifier) @m)
+        arguments: (arguments (_) @a)) @hit
+       (#match? @o "^(res|response)$")
+       (#eq? @s "status")
+       (#match? @m "^(send|json|jsonp|end|write)$")
+       (#match? @a "\\b(e|ex|exc|\\w*(?i:err|error|exception)\\w*)\\??\\.stack\\b")
+       (#not-match? @a "NODE_ENV|(?i:development|production|isDev|isProd|debug)"))
+      ((assignment_expression
+        left: (member_expression object: (identifier) @o property: (property_identifier) @p)
+        right: (_) @a) @hit
+       (#eq? @o "ctx")
+       (#eq? @p "body")
+       (#match? @a "\\b(e|ex|exc|\\w*(?i:err|error|exception)\\w*)\\??\\.stack\\b")
+       (#not-match? @a "NODE_ENV|(?i:development|production|isDev|isProd|debug)"))
+    # A handler that only sends the stack outside production is the
+    # express-generator idiom, not a leak.
+    unless_in_scope: |
+      ((member_expression) @e (#match? @e "\\.env\\.NODE_ENV$"))
+      ((string (string_fragment) @e) (#match? @e "^(development|production)$"))
+    description: >
+      The stack trace names files, line numbers, library versions and often
+      the query or value that failed. Sent to the client it maps the
+      application for an attacker, and the error text may carry data from
+      other users.
+    remediation: "Log the error server-side with a request or incident id and return only that id and a generic message."
+
+  - id: error-object-in-response
+    title: "Raw error object sent to the client: `{text}`"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-200, CWE-209]
+    controls: [NIST-800-218:PW.5]
+    tags: [info-leak, error-handling]
+    query: |
+      ((call_expression
+        function: (member_expression
+          object: (identifier) @o
+          property: (property_identifier) @m)
+        arguments: (arguments . (identifier) @a .)) @hit
+       (#match? @o "^(res|response)$")
+       (#match? @m "^(send|json|jsonp)$")
+       (#match? @a "^(err|error|ex|exc|exception)$"))
+      ((call_expression
+        function: (member_expression
+          object: (call_expression
+            function: (member_expression object: (identifier) @o property: (property_identifier) @s))
+          property: (property_identifier) @m)
+        arguments: (arguments . (identifier) @a .)) @hit
+       (#match? @o "^(res|response)$")
+       (#eq? @s "status")
+       (#match? @m "^(send|json|jsonp)$")
+       (#match? @a "^(err|error|ex|exc|exception)$"))
+    unless_in_scope: |
+      ((member_expression) @e (#match? @e "\\.env\\.NODE_ENV$"))
+      ((string (string_fragment) @e) (#match? @e "^(development|production)$"))
+    description: >
+      `res.json(err)` serialises every enumerable field of the error. Database
+      and HTTP-client errors carry the SQL, the connection string host, the
+      upstream URL and response, or the document that failed validation.
+    remediation: "Log the error and send a fixed shape: `res.status(500).json({ error: \"internal error\", id })`."
+
   # ----------------------------------------------------------- availability
   - id: fetch-no-timeout
     title: "`fetch` with no timeout: `{text}`"

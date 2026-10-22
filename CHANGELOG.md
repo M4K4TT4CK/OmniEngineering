@@ -12,6 +12,25 @@ under `[Unreleased]` (there are no release tags yet) and reference the
 - ARB-080 | Same-evidence findings in one file each count: the distinct sites of one fingerprint get an occurrence ordinal in line order (occurrence 0 keeps its old id, occurrence k gets a derived one). Reports and new baselines say `fingerprint: occurrence-v1` (baseline schema 1.1). A 1.0 baseline still matches every repeat it collapsed, as do suppressions by id and `arbiter diff` from an older report, so upgrading leaves the gate green on unchanged code; `arbiter baseline REPORT --migrate OLD --out OLD` rewrites a 1.0 baseline without accepting anything new and keeps `created`, `commit` and `config_hash`. On this repository's committed 1.0 baseline (native, offline): 86 active (66 existing, 20 new) before, 100 (80 existing, 20 new) after. FAIL-054.
 - ARB-065 | `java.test-without-assertion` lowered to confidence low (reviewer-approved, instead of raising its budget). The gate reads severity only, so it is unaffected (the rule is severity low). The gold harness now records confidence and reports a confidence-weighted rate beside the raw one (low counts 0.5, the scorecard's low/medium factor); budgets stay on the raw rate, because weighting them moved three other rules under budget through their existing low-confidence findings while this one stayed over (276 findings, 0.092 raw, 0.046 weighted, budget 0.03).
 - ARB-065 / ARB-080 | Gold benchmark, all 24 repositories, native checks, `--jobs 4`: at `bd6bf16` (before ARB-080) 7,457 findings, 7 rules over budget, per-repository counts identical to `2026-10-21-gold-report-after.json` on its 23 repositories; at `7dd990c` 8,162 findings, 10 over budget (`authored.security-check-disabled`, `assurance.permanently-skipped-test` and `typescript.test-without-assertion` join, all from counting each same-evidence site). Scan seconds summed 2,308.9 (6,454.9 in the first run), keycloak 1,239.9. (The `7dd990c` run used the same scan code under an earlier, unpublished budget rule; its over-budget count was re-evaluated from the run's JSON with `evaluate` as committed.)
+### 2026-10-21 (CWE Top 25, TypeScript and Go round 1)
+- ARB-062 | Native rules for ranked gaps 1, 2 and 4 in TypeScript and Go.
+TypeScript: `jwt-decode-unverified` (CWE-287/347, medium: `jwt.decode` or
+jose `decodeJwt` in a function that never verifies; `decode(t, {complete:
+true})` is the key-lookup form and is not reported), `jwt-verify-insecure-options`
+(`algorithms: ["none"]`, `ignoreExpiration: true`; high), `jwt-hardcoded-secret`
+(CWE-798, literal secret to `jwt.sign`/`verify`; high), `error-stack-in-response`
+(CWE-200/209, `err.stack` in an Express/Koa response unless the function checks
+`NODE_ENV`; high) and `error-object-in-response` (`res.json(err)`; medium).
+Go: `jwt-parse-unverified` (medium, silent when the function also verifies),
+`jwt-claims-validation-disabled` (high), `hardcoded-signing-key` (`[]byte("…")`
+to `SignedString`, `hmac.New`, a keyfunc, or a key-named variable; high),
+`hardcoded-dsn-password` (mysql `user:pass@` and key=value DSNs; trivial
+passwords skipped as in `pg-url`; high), `error-text-in-response` (err text
+to `http.Error`/gin/echo with a 5xx, or `fmt.Fprint*`/`Write` to the writer
+in a handler; medium) and `pprof-on-default-mux` (medium; silent when the
+server listens on loopback). The pack schema gains `requires_in_scope`. The
+matrix moves TypeScript 287 and 200 and Go 287, 200 and 798 to N: TypeScript
+native 6 to 8 cells, Go 4 (798 part) to 6.
 ### 2026-10-21 (gold re-run)
 - ARB-065 | Gold benchmark re-run after the precision fixes (Arbiter 8cf1ee7, 23 repositories without keycloak, native checks): 6,477 findings, 1.32 per KLOC, 7 rules over budget. The first run (d57e479, 24 repositories) had 12,468 findings, 2.05 per KLOC, 16 over budget. Results in `tools/gold/results/2026-10-21-gold-*-after.*`.
 ### 2026-10-21 (roadmap)

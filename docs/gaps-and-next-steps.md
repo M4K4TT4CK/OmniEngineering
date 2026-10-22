@@ -41,8 +41,8 @@ Two caveats apply to every gold and OWASP number below:
 | Native pack rules | python 12, typescript 25, go 16, java 19, ruby 19 | [M] `- id:` count in `src/arbiter/packs/rules/ast/*.yaml` |
 | Planted corpus, native-only | go 42/42, java 39/39, python 40/40, ruby 46/46, typescript 51/51; 0 on good twins and 0 unmarked in every language | [M] `python tools/planted_score.py`, run for this report |
 | Planted defects nothing reports | 32, each tagged `gap: CWE-N` in the fixture source | [M] `grep -r "gap: CWE-" fixtures/planted` |
-| CWE Top 25: applicable cells caught by anything (native or analyzers) | Python 12/14, TS 8/14, Go 5/12, Java 8/15, Ruby 8/14 | [M] `docs/cwe-top25.md`, "Measured coverage" |
-| CWE Top 25: native-only | Python 6, TS 6, Go 4, Java 4, Ruby 6 | [M] same table |
+| CWE Top 25: applicable cells caught by anything (native or analyzers) | Python 12/14, TS 10/14, Go 7/12, Java 8/15, Ruby 8/14 | [M] `docs/cwe-top25.md`, "Measured coverage" |
+| CWE Top 25: native-only | Python 6, TS 8, Go 6, Java 4, Ruby 6 | [M] same table |
 | Out of reach for single-file checks | 862, 863, 306, 269 and 20 in every language; 476 in Go and Java; 352 in Go; 918 beyond one function | [M] `docs/probes.md`, "CWE Top 25: not assessed" |
 
 The planted corpus is a regression floor, not a recall estimate. Every
