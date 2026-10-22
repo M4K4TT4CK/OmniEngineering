@@ -252,7 +252,7 @@ of the judgement pass:
 |---|---|
 | `undeclared-import` / `import-of-nonexistent-package` | A module nothing declares. See the two modes below. |
 | `stub-on-production-path` | `return True  # TODO`, `raise NotImplementedError`, a `pass` body. Severity keyed to whether the function name says it decides something: a stub in `verify_signature` is not an unfinished feature, it is an always-yes. |
-| `security-check-disabled` | `verify=False`, `InsecureSkipVerify: true`, `StrictHostKeyChecking=no`. Written to make an example work, then never removed. |
+| `security-check-disabled` | `verify=False`, `InsecureSkipVerify: true`, `StrictHostKeyChecking=no`. Written to make an example work, then never removed. Under a test or local-development path it is reported low; in a test file, a TLS check off for the test's own local server (`localhost`, `server.address()`, `httptest`) and Django's `override_settings(DEBUG=True)` are the fixture and are not reported. |
 | `docstring-promises-absent-behaviour` | A docstring saying the function validates or retries, in a body that does neither. |
 
 The import check ships in **two modes**, and the split is the honest part:

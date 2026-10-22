@@ -141,12 +141,98 @@ _SHARED_CONFIGS = ("pyproject.toml", "setup.cfg", "tox.ini", ".flake8",
 # 3. Tests that cannot fail
 # ---------------------------------------------------------------------------
 _SKIPPED_TEST = re.compile(
-    r"@pytest\.mark\.(?:skip|xfail)\b(?!\s*\(\s*condition)"
+    # `xfail(condition=...)` and `xfail(<expr>, reason=...)` are conditional:
+    # a first positional argument is the condition (pytest's signature), as
+    # in urllib3's `xfail(_MISSING_TUNNEL_CONTROL_CHAR_FIX, reason=...)`.
+    r"@pytest\.mark\.skip\b"
+    r"|@pytest\.mark\.xfail\b(?!\s*\(\s*(?:condition\b|(?![\w]+\s*=)[^)\s]))"
     r"|@unittest\.skip\b"
     r"|\bit\.skip\s*\(|\bdescribe\.skip\s*\(|\bxit\s*\(|\bxdescribe\s*\("
     r"|\bt\.Skip\s*\(\s*\)"
     r"|@(?:Disabled|Ignore)\b"
 )
+
+# A skip call under a condition is a conditional skip, which this rule does
+# not report (see the description below). The regex alone cannot see the
+# condition: Go's `if testing.Short() { t.Skip() }` and otel's browser/node
+# helpers `if (isBrowser) { return describe.skip(title, fn) }` were 61 of the
+# gold findings once ARB-080 counted each site. The skip is conditional when
+# code precedes it on its own line (`return`, `?`, `&&`), or when the nearest
+# less-indented line above it opens a branch.
+_CALL_SKIP = re.compile(r"t\.Skip|\.skip\s*\(|\bx(?:it|describe)\s*\(")
+_BRANCH_OPENER = re.compile(
+    r"^\s*(?:\}\s*)?(?:if\b|else\b|case\b|default\s*:|switch\b|select\b|for\b|while\b)")
+
+
+def _conditional_call_skip(text: str, pos: int) -> bool:
+    line_start = text.rfind("\n", 0, pos) + 1
+    before = text[line_start:pos]
+    if before.strip():
+        return True
+    indent = len(before.expandtabs(4))
+    for prev in reversed(text[:line_start].split("\n")):
+        if not prev.strip():
+            continue
+        if len(prev.expandtabs(4)) - len(prev.expandtabs(4).lstrip()) < indent:
+            return bool(_BRANCH_OPENER.match(prev))
+    return False
+
+
+# A skip on an empty test switches an inherited test off in a subclass it does
+# not apply to: netty's `@Disabled("Not applicable for unpooled allocators")
+# @Override public void testX() { }` and SSL-engine variants, keycloak's LDAP
+# no-import variants (Java does not require `@Override` to override), and
+# Django's CookieSession tests (`@unittest.skip("Cookie backend doesn't have
+# an external store") def test_x(self): pass`). The parent's test still runs
+# for every class it applies to, and an empty body protects nothing enabled
+# or not. A skipped test with a body, including an override that still calls
+# `super.test...()`, is a real test switched off and stays reported.
+_JAVA_COMMENTS = re.compile(r"//[^\n]*|/\*.*?\*/", re.S)
+_PY_DEF = re.compile(r"(?m)^([ \t]*)(?:async[ \t]+)?def[ \t]+\w+\s*\([^)]*\)[^:]*:[ \t]*(.*)$")
+_PY_EMPTY_LINE = re.compile(r"^\s*(?:pass|\.\.\.|#.*)?\s*$")
+
+
+def _empty_python_test(text: str, pos: int) -> bool:
+    m = _PY_DEF.search(text, pos)
+    if m is None or text.count("\n", pos, m.start()) > 8:
+        return False
+    same_line = m.group(2).strip()
+    if same_line and not same_line.startswith("#"):
+        # `def test_x(self): pass` -- a one-line body
+        return _PY_EMPTY_LINE.match(same_line) is not None
+    body = re.sub(r'(?s)^\s*("""|\'\'\')(.*?)\1', "", text[m.end():], count=1)
+    indent = len(m.group(1))
+    for line in body.split("\n"):
+        if not line.strip():
+            continue
+        if len(line) - len(line.lstrip()) <= indent:
+            return True
+        if not _PY_EMPTY_LINE.match(line):
+            return False
+    return True
+
+
+def _switched_off_inherited_test(text: str, pos: int) -> bool:
+    if text.startswith(("@pytest", "@unittest"), pos):
+        return _empty_python_test(text, pos)
+    if not text.startswith(("@Disabled", "@Ignore"), pos):
+        return False
+    head_end = text.find("{", pos)
+    if head_end < 0:
+        return False
+    head = _JAVA_COMMENTS.sub(" ", text[pos:head_end])
+    if re.search(r"\b(class|interface|enum|record)\b", head) or "(" not in head:
+        return False
+    depth = 0
+    for i in range(head_end, min(len(text), head_end + 4000)):
+        if text[i] == "{":
+            depth += 1
+        elif text[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return not _JAVA_COMMENTS.sub("", text[head_end + 1:i]).strip()
+    return False
+
 
 def _in_comment(text: str, pos: int) -> bool:
     """True when `pos` sits in a comment line or a Javadoc `{@code ...}` span.
@@ -427,6 +513,10 @@ def _untestable_tests(ctx: ProbeContext, repo_id: str) -> list[Finding]:
 
         for m in _SKIPPED_TEST.finditer(text):
             if _in_comment(text, m.start()):
+                continue
+            if _CALL_SKIP.search(m.group(0)) and _conditional_call_skip(text, m.start()):
+                continue
+            if _switched_off_inherited_test(text, m.start()):
                 continue
             skipped_total += 1
             out.append(Finding(

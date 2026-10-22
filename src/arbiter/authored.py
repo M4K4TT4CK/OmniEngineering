@@ -230,6 +230,35 @@ _DISABLED_CHECK = [
 _DEV_CONTEXT = re.compile(r"(^|/)(tests?|testing|fixtures?|examples?|samples?|"
                           r"local|dev|development|docker-compose\.(?:dev|local))")
 
+# In a test file, two shapes are the fixture itself rather than a check
+# switched off (gold triage, 2026-10-21: 246 of the 297 test-path findings
+# after ARB-080 counted each site). A TLS check turned off for a connection
+# to the test's own local server -- undici's `https://localhost:${
+# server.address().port}` with `rejectUnauthorized: false`, Go's
+# `httptest.NewTLSServer` -- because that server's certificate is
+# self-signed by construction. And Django's `override_settings(DEBUG=True)` /
+# `self.settings(DEBUG=True)`, which is how a test exercises the debug pages.
+# Neither can reach production. Anything else under a test path is still
+# reported, downgraded: a test disabling verification against a real host
+# is the same mistake as in source.
+_LOCAL_TEST_SERVER = re.compile(
+    r"\blocalhost\b|\b127\.0\.0\.1\b|\[::1\]|\.address\(\)|\bhttptest\."
+    r"|\bNew(?:TLS|Unstarted)Server\b|\.StartTLS\(")
+_LOCAL_WINDOW = (12, 6)   # lines before and after the setting
+_SETTINGS_OVERRIDE = re.compile(r"\b(?:override_settings|settings|modify_settings)\s*\(")
+
+
+def _test_fixture_setting(lines: list[str], n: int, title: str) -> bool:
+    """True when a disabled check on line `n` (1-based) of a test file is
+    the test's own fixture: local TLS server, or a Django settings override."""
+    if title == "Debug mode enabled":
+        return bool(_SETTINGS_OVERRIDE.search("\n".join(lines[max(0, n - 4): n])))
+    if "TLS" not in title:
+        return False
+    before, after = _LOCAL_WINDOW
+    return bool(_LOCAL_TEST_SERVER.search("\n".join(lines[max(0, n - 1 - before): n + after])))
+
+
 # Comments, in every syntax these patterns can appear in. Without this, code
 # that has been commented OUT still reports, and so does a comment DISCUSSING
 # the setting. Traefik's healthcheck has a whole commented-out TLS block; it
@@ -925,12 +954,17 @@ def _disabled_checks(f, text) -> list[Finding]:
     dev = bool(_DEV_CONTEXT.search(f.path)) or f.role == "test"
     code = _blank_comments(text, getattr(f, "language", "unknown"))
     lines = code.split("\n")
+    raw_lines = text.split("\n")
     out: list[Finding] = []
     for pattern, title, sev in _DISABLED_CHECK:
         for m in pattern.finditer(code):
             n = _line_of(code, m.start())
             if "InsecureSkipVerify" in m.group(0) and _custom_verification(
                     code, lines, m.start(), n):
+                continue
+            # The raw text, not `code`: comment blanking reads the `//` of
+            # `https://localhost` as a trailing comment.
+            if f.role == "test" and _test_fixture_setting(raw_lines, n, title):
                 continue
             window = "\n".join(lines[max(0, n - 1 - _GUARD_WINDOW): n])
             guarded = bool(_OPT_IN_GUARD.search(window))
