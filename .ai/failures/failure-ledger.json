@@ -1348,6 +1348,31 @@
       "prevention_rules": [],
       "prevention_notes": "A tool's exit code and an empty result are separate facts; check the exit code whenever nothing parsed. Any input an analyzer needs besides its binary is declared in its manifest.",
       "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-052",
+      "date": "2026-10-21",
+      "title": "import arbiter.lang_rules before arbiter.probes raised a circular ImportError",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "ImportError: cannot import name 'register_lang_rules' from partially initialized module 'arbiter.lang_rules' (most likely due to a circular import)",
+      "how_detected": "reproduced while writing docs/gaps-and-next-steps.md (2026-10-21)",
+      "root_cause": "lang_rules imported PACKS and ProbeContext from probes at module level, while probes imports lang_rules at its end to register the packs; importing lang_rules first started probes, which then asked for a name lang_rules had not defined yet. The suite never saw it because conftest and earlier tests imported probes first, and two test files papered over it with an import-order line.",
+      "requirement": "ARB-078",
+      "affected": [
+        "src/arbiter/lang_rules.py",
+        "src/arbiter/probes.py"
+      ],
+      "fix_summary": "lang_rules defines AST_PACKS from its own path and imports ProbeContext under TYPE_CHECKING only; the import-order workaround lines in tests were removed",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_import_order.py::test_lang_rules_imports_first_and_the_packs_still_register",
+        "tests/test_import_order.py::test_every_module_imports_first_in_a_fresh_interpreter"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [],
+      "prevention_notes": "every module is imported first in its own fresh subprocess in the test suite, so a new top-level back-import fails CI whatever the import order of other tests",
+      "recurrence_of": ""
     }
   ]
 }

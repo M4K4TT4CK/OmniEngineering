@@ -1811,6 +1811,33 @@
         "cache bound 4096 entries per process (five packs hold about 120 rules x up to 5 query keys x up to 3 grammars)",
         "correction to the size note: measured 2026-10-21 the five packs hold 91 rules and 254 (grammar, query) pairs, well under the 4096 bound"
       ]
+    },
+    {
+      "id": "ARB-078",
+      "category": "defect",
+      "title": "arbiter.lang_rules imports on its own, before arbiter.probes",
+      "description": "python -c 'import arbiter.lang_rules' raised a circular ImportError: lang_rules imported PACKS and ProbeContext from probes at load time, and probes imports lang_rules at its end to register the packs. Any tool or test that imported the packs first crashed; two test files carried an import-order workaround. lang_rules now names its pack directory itself, imports ProbeContext for annotations only, and keeps its runtime imports of probes inside register_lang_rules.",
+      "priority": "medium",
+      "status": "pending",
+      "minimum_access_scope": [
+        "src/arbiter/lang_rules.py",
+        "tests/test_import_order.py",
+        "tests/test_lang_java.py",
+        "tests/test_lang_python.py"
+      ],
+      "acceptance_criteria": [
+        "import arbiter.lang_rules succeeds first in a fresh interpreter and the packs still register as lang_<pack> probes once probes is imported",
+        "every module under src/arbiter imports first in a fresh interpreter (tested per module in a subprocess with this checkout on PYTHONPATH)",
+        "no caller relies on importing probes before lang_rules"
+      ],
+      "validation_required": [
+        "pytest",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
     }
   ]
 }

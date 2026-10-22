@@ -48,11 +48,19 @@ from __future__ import annotations
 import fnmatch
 from functools import cache
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .core import Finding, Location
-from .probes import PACKS, ProbeContext
 
-AST_PACKS = PACKS / "rules" / "ast"
+if TYPE_CHECKING:  # annotation only: probes imports this module to register the packs
+    from .probes import ProbeContext
+
+# The same directory as `probes.PACKS / "rules" / "ast"`, spelled out here so
+# this module never imports `probes` at load time. `probes` imports this module
+# at its end to register the packs, so a top-level import back made
+# `import arbiter.lang_rules` (before `arbiter.probes`) a circular ImportError
+# (ARB-078). `register_lang_rules` imports `probes` lazily, when it runs.
+AST_PACKS = Path(__file__).parent / "packs" / "rules" / "ast"
 
 # Node types that bound a function body, for `unless_in_scope`.
 FUNCTION_TYPES: dict[str, set[str]] = {

@@ -12,7 +12,6 @@ import pytest
 from helpers import _scan_text
 
 from arbiter import ast as ts
-from arbiter import probes  # noqa: F401 - registers the packs before lang_rules is imported
 from arbiter.lang_rules import load_packs
 
 PACK = "java"
