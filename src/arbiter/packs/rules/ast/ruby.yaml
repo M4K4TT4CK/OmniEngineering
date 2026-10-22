@@ -926,6 +926,9 @@ rules:
       ((call method: (identifier) @a) @x
         (#match? @a "^(authenticate_with_http_token|authenticate_or_request_with_http_token|secure_compare|construct_event|verify_signature|verify_webhook\\w*|valid_signature\\?|verified_request\\?|decode_verified_\\w+|doorkeeper_authorize!|authenticate_api\\w*)$"))
       ((scope_resolution) @x (#match? @x "^(::)?OpenSSL::HMAC$"))
+      ; a helper called without arguments parses as a bare identifier:
+      ; `if token = decode_verified_token` (ActiveStorage::DiskController)
+      ((identifier) @x (#match? @x "^(decode_verified_\\w+|verified_request\\?|valid_signature\\?|verify_signature|verify_webhook\\w*|authenticate_api\\w*|doorkeeper_authorize!)$"))
     description: >-
       Rails checks an authenticity token on every non-GET request so that a
       page on another site cannot submit a form as the logged-in user. Turning

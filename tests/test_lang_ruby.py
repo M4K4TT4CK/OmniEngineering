@@ -989,3 +989,18 @@ def test_error_detail_to_client(tmp_path):
     found = _rules(tmp_path, code)
     assert found.get("error-backtrace-to-client") == [4]
     assert found.get("error-message-to-client") == [9, 25]
+
+
+def test_csrf_skip_beside_a_signed_token_check_is_fine(tmp_path):
+    # activestorage disk_controller.rb: the upload URL carries a signed token
+    code = '''
+    class ActiveStorage::DiskController < ActiveStorage::BaseController
+      skip_forgery_protection
+      def update
+        if token = decode_verified_token
+          upload(token)
+        end
+      end
+    end
+    '''
+    assert "csrf-protection-disabled" not in _rules(tmp_path, code, "app/controllers/disk_controller.rb")
