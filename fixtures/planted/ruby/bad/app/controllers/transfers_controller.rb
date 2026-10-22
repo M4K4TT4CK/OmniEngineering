@@ -2,7 +2,7 @@
 
 # CWE-352: a cookie-session controller that skips Rails' CSRF check "so the form works".
 class TransfersController < ApplicationController
-  skip_before_action :verify_authenticity_token # gap: CWE-352 - nothing in this build reports it (docs/cwe-top25.md)
+  skip_before_action :verify_authenticity_token # expect: arbiter/ruby.csrf-protection-disabled
 
   def create
     current_user.account.transfer_to(params.require(:to), params.require(:amount).to_i)

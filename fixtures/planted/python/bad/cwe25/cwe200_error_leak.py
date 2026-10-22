@@ -8,7 +8,7 @@ app = Flask(__name__)
 
 @app.errorhandler(Exception)
 def handle_error(exc: Exception) -> tuple[dict, int]:
-    return {"error": str(exc), "trace": traceback.format_exc()}, 500  # gap: CWE-200 - nothing in this build reports it (docs/cwe-top25.md)
+    return {"error": str(exc), "trace": traceback.format_exc()}, 500  # expect: arbiter/python.error-traceback-to-client
 
 
 if __name__ == "__main__":
