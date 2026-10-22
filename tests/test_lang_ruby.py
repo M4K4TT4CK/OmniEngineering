@@ -1004,3 +1004,32 @@ def test_csrf_skip_beside_a_signed_token_check_is_fine(tmp_path):
     end
     '''
     assert "csrf-protection-disabled" not in _rules(tmp_path, code, "app/controllers/disk_controller.rb")
+
+
+FORGERY_OFF = '''
+Rails.application.configure do
+  config.eager_load = true
+  config.action_controller.allow_forgery_protection = false
+end
+'''
+
+
+@pytest.mark.parametrize("name", ["config/environments/production.rb",
+                                  "engines/shop/config/environments/production.rb"])
+def test_forgery_protection_off_in_production_is_reported(tmp_path, name):
+    assert _rules(tmp_path, FORGERY_OFF, name).get("csrf-protection-off-in-production") == [4]
+
+
+@pytest.mark.parametrize("name", ["config/environments/test.rb",
+                                  "config/environments/development.rb",
+                                  "config/application.rb",
+                                  "myconfig/environments/production.rb"])
+def test_forgery_protection_off_outside_production_is_not_this_rule(tmp_path, name):
+    # Rails generates test.rb with exactly this line; only production.rb is read.
+    assert "csrf-protection-off-in-production" not in _rules(tmp_path, FORGERY_OFF, name)
+
+
+def test_forgery_protection_on_in_production_is_silent(tmp_path):
+    code = FORGERY_OFF.replace("= false", "= true")
+    assert "csrf-protection-off-in-production" not in _rules(
+        tmp_path, code, "config/environments/production.rb")

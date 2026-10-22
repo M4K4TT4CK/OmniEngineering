@@ -52,3 +52,20 @@ def test_a_broken_pack_fails_loudly():
         validate_pack({"languages": ["go"], "rules": [
             {"id": "x", "title": "t", "remediation": "r", "query": "(_) @hit", "sevrity": "high"}]},
             "t.yaml")
+
+
+def test_files_is_a_glob_or_a_list_of_globs():
+    from arbiter.lang_rules import PackError, _path_selected, validate_pack
+    base = {"id": "x", "title": "t", "remediation": "r", "query": "(_) @hit"}
+    validate_pack({"languages": ["ruby"], "rules": [{**base, "files": "*_spec.rb"}]}, "t.yaml")
+    validate_pack({"languages": ["ruby"], "rules": [{**base, "files": ["a.rb", "*/a.rb"]}]}, "t.yaml")
+    for bad in ([], [""], "", ["a.rb", 3], {"a": 1}):
+        with pytest.raises(PackError, match="files"):
+            validate_pack({"languages": ["ruby"], "rules": [{**base, "files": bad}]}, "t.yaml")
+    rule = {"files": ["config/environments/production.rb", "*/config/environments/production.rb"]}
+    assert _path_selected(rule, "config/environments/production.rb")
+    assert _path_selected(rule, "apps/shop/config/environments/production.rb")
+    assert not _path_selected(rule, "myconfig/environments/production.rb")
+    assert not _path_selected(rule, "config/environments/test.rb")
+    assert _path_selected({}, "anything.rb")
+    assert _path_selected({"files": "*_spec.rb"}, "spec/a_spec.rb")

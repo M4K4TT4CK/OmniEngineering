@@ -116,7 +116,10 @@ semgrep's bundled `generic.secrets.gitleaks.*` rules did report two of them.
   in a controller with a state-changing action, not an `ActionController::API`
   one, not a webhook, not one that authenticates the request itself.
   `protect_from_forgery with: :null_session` is not reported (it is a
-  protection strategy). Ruby 287 and 200 are native too
+  protection strategy). `ruby.csrf-protection-off-in-production` reports
+  `config.action_controller.allow_forgery_protection = false` in
+  `config/environments/production.rb` only (Rails generates that line in
+  `test.rb`). Ruby 287 and 200 are native too
   (`ruby.jwt-unverified-decode`, `ruby.error-backtrace-to-client`,
   `ruby.error-message-to-client`).
 - **Ruby 352 and Ruby 22**: semgrep fires, but on both twins:

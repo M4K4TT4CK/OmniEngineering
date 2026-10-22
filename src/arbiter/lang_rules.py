@@ -27,6 +27,10 @@ rules:
     controls: [NIST-800-218:PW.5]
     tags: [timeout]
     roles: [source]          # inventory roles to read; default [source]
+    files: "*.[jt]sx"        # only files whose repo-relative path matches this
+                             # fnmatch glob (`*` also crosses `/`), or any glob
+                             # of a list: [config/environments/production.rb,
+                             # "*/config/environments/production.rb"]
     query: |                 # tree-sitter query; @hit marks the finding
       (call_expression function: (selector_expression) @fn
         (#match? @fn "^http\\.(Get|Post|Head)$")) @hit
@@ -113,6 +117,12 @@ def validate_pack(data: dict, name: str) -> None:
         for cwe in rule.get("cwe") or []:
             if not str(cwe).startswith("CWE-"):
                 raise PackError(f"{where}: cwe entries look like CWE-89, got {cwe!r}")
+        files = rule.get("files")
+        if files is not None and not (
+                (isinstance(files, str) and files)
+                or (isinstance(files, list) and files
+                    and all(isinstance(g, str) and g for g in files))):
+            raise PackError(f"{where}: `files` is a glob or a non-empty list of globs")
         if "@hit" not in rule["query"]:
             raise PackError(f"{where}: query must capture @hit")
 
@@ -140,7 +150,7 @@ def _grammars(rule: dict, languages) -> set[str]:
                 out.add(ts.ts_name(lang))
             continue
         for sample in samples:
-            if rule.get("files") and not fnmatch.fnmatch(sample, rule["files"]):
+            if not _path_selected(rule, sample):
                 continue
             g = ts.grammar_for(sample, lang)
             if g:
@@ -229,6 +239,19 @@ def _encloses(outer, inner) -> bool:
     return outer.start_byte <= inner.start_byte and inner.end_byte <= outer.end_byte
 
 
+def _file_globs(rule: dict) -> list[str]:
+    files = rule.get("files")
+    if not files:
+        return []
+    return [files] if isinstance(files, str) else list(files)
+
+
+def _path_selected(rule: dict, path: str) -> bool:
+    """True when the rule has no `files:` or `path` matches one of its globs."""
+    globs = _file_globs(rule)
+    return not globs or any(fnmatch.fnmatch(path, g) for g in globs)
+
+
 def _enclosing_function(node, language: str):
     types = FUNCTION_TYPES.get(language, set())
     cur = node.parent
@@ -263,7 +286,7 @@ def run_pack(pack: str, ctx: ProbeContext) -> list[Finding]:
                 continue
             if rule.get("languages") and f.language not in rule["languages"]:
                 continue
-            if rule.get("files") and not fnmatch.fnmatch(f.path, rule["files"]):
+            if not _path_selected(rule, f.path):
                 continue
             if parsed is None:
                 parsed = ts.parse_file(f.abspath, f.language)

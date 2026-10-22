@@ -941,6 +941,38 @@ rules:
       that is really an API should inherit ActionController::API and
       authenticate each request with a token, not a cookie.
 
+  - id: csrf-protection-off-in-production
+    title: "CSRF protection switched off in the production environment: `{text}`"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-352]
+    controls: [NIST-800-53r5:SC-23, OWASP-ASVS:4.2.2]
+    tags: [csrf, rails, security-check-disabled, config]
+    # `config.action_controller.allow_forgery_protection = false` turns the
+    # authenticity-token check off for every controller. Rails' generated
+    # config/environments/test.rb does exactly that, so only the production
+    # environment file is read (`files:`); test.rb and development.rb are
+    # never reported, nor `= true`.
+    files: [config/environments/production.rb, "*/config/environments/production.rb"]
+    query: |
+      (assignment
+        left: (call
+          receiver: (call method: (identifier) @ac (#eq? @ac "action_controller"))
+          method: (identifier) @m (#eq? @m "allow_forgery_protection"))
+        right: (false)) @hit
+    description: >-
+      With `allow_forgery_protection = false` in production, no controller
+      checks the authenticity token, whatever `protect_from_forgery` says:
+      any site the user visits can submit a form or a fetch as the logged-in
+      user. The line is the generated test-environment setting, copied or
+      left behind when an `InvalidAuthenticityToken` error appeared.
+    remediation: >-
+      Delete the line (Rails defaults it to true outside the test
+      environment) and send the token from forms and fetches instead. A
+      token-authenticated API should inherit ActionController::API rather
+      than turn the check off application-wide.
+
   - id: error-backtrace-to-client
     title: "Exception backtrace returned to the client: `{text}`"
     severity: medium

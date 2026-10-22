@@ -185,7 +185,12 @@ packs need; scans never download one.
 Rules are tree-sitter queries, with five optional context conditions for the
 things a bare pattern cannot say ("no lock held", "no timeout set"):
 `unless_inside`, `unless_in_scope` and `requires_in_scope` (the enclosing
-function, or the file), `unless_in_file` and `requires_file`. The schema is documented at the top of
+function, or the file), `unless_in_file` and `requires_file`. `files:`
+restricts a rule to paths matching an fnmatch glob, or any glob of a list
+(`*` also crosses `/`): the JSX rules read `*.[jt]sx`, the RSpec rules
+`*_spec.rb`, and `ruby.csrf-protection-off-in-production` reads
+`config/environments/production.rb` at the root or under any directory,
+because the same line is Rails' generated default in `test.rb`. The schema is documented at the top of
 `src/arbiter/lang_rules.py`, and a pack that breaks it fails at import.
 Rule ids are `arbiter/<pack>.<id>`; each carries its CWE.
 
