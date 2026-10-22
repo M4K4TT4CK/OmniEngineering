@@ -324,11 +324,20 @@ Exit criteria, all measurable:
   `typescript.test-without-assertion` 0.034 and `secrets.assigned-credential`
   0.035 (budget 0.03) are just over, `authored.undeclared-import` 0.039.
   `java.test-without-assertion` is now low confidence and still over (276,
-  0.092; 0.046 confidence-weighted, which is reported and not budgeted).*
+  0.092; 0.046 confidence-weighted, which is reported and not budgeted).
+  Later the same day, at `1047341`: 9 over **[M]**, still above 8.
+  `authored.security-check-disabled` is back within budget (86, 0.014) and
+  `assurance.permanently-skipped-test` is just over (192, 0.0315), both
+  with per-site counting kept; `java.test-without-assertion` 199 (0.066),
+  `typescript.test-without-assertion` 22 (0.034). The remaining findings of
+  those three were triaged (all 22 TypeScript read; Java and skipped tests
+  by category with samples) and are real by each rule's letter **[I]**
+  (see CHANGELOG, round 1 follow-ups).*
 - [ ] The full gold run takes ≤ 50% of 6,454.9 s on the same machine, and
   java-keycloak ≤ 10 min. *2026-10-21: the first half is met (2,308.9 s
   summed, 36%, at `7dd990c`, `--jobs 4`; the jobs setting of the 6,454.9 s run is not recorded) **[M]**, the second is not (keycloak 1,239.9 s,
-  20.7 min; the remaining time is in `authored` and `doc_drift`) **[M]**.*
+  20.7 min; the remaining time is in `authored` and `doc_drift`) **[M]**.
+  At `1047341`: 2,229.7 s summed, keycloak 1,196.3 s (19.9 min) **[M]**.*
 - [x] A test proves each pack query is compiled once per process.
   *`tests/test_query_cache.py` (ARB-076); it fails with the cache disabled
   **[M]**.*
