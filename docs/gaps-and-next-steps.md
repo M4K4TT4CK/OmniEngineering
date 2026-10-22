@@ -175,7 +175,7 @@ gold set now holds 4 or 5 per language (`tools/gold/repos.json`) **[M]**.
   Keycloak is now dominated by shared probes, not packs: on
   `java-keycloak/services` (1,751 Java files) `authored` took 28.4 s,
   `doc_drift` 14.9 s and `lang_java` 6.2 s (`ProbeOutcome.duration_s`)
-  **[M]**. The full 24-repository gold run at `8205249` (`--jobs 4`) summed
+  **[M]**. The full 24-repository gold run at `7dd990c` (`--jobs 4`) summed
   2,308.9 s, 36% of 6,454.9 s, with keycloak at 1,239.9 s **[M]**.
 - **No performance budget exists.** The gold harness records seconds but
   fails only on precision budgets (`tools/gold_benchmark.py`, ARB-065)
@@ -316,7 +316,7 @@ Exit criteria, all measurable:
 
 - [ ] Gold benchmark: the three P1 rules are within budget; total
   over-budget rules ≤ 8 (from 16). *2026-10-21, all 24 repositories: 7
-  over at `bd6bf16`, 10 at `8205249` **[M]**. The rise is ARB-080 counting
+  over at `bd6bf16`, 10 at `7dd990c` **[M]**. The rise is ARB-080 counting
   each same-evidence site (7,457 to 8,162 findings; the only scan change
   between the two) **[I]**: it adds `authored.security-check-disabled`
   (145 to 328), `assurance.permanently-skipped-test` (157 to 311) and
@@ -327,7 +327,7 @@ Exit criteria, all measurable:
   0.092; 0.046 confidence-weighted, which is reported and not budgeted).*
 - [ ] The full gold run takes ≤ 50% of 6,454.9 s on the same machine, and
   java-keycloak ≤ 10 min. *2026-10-21: the first half is met (2,308.9 s
-  summed, 36%, at `8205249`, `--jobs 4`; the jobs setting of the 6,454.9 s run is not recorded) **[M]**, the second is not (keycloak 1,239.9 s,
+  summed, 36%, at `7dd990c`, `--jobs 4`; the jobs setting of the 6,454.9 s run is not recorded) **[M]**, the second is not (keycloak 1,239.9 s,
   20.7 min; the remaining time is in `authored` and `doc_drift`) **[M]**.*
 - [x] A test proves each pack query is compiled once per process.
   *`tests/test_query_cache.py` (ARB-076); it fails with the cache disabled
