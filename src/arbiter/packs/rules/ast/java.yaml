@@ -561,7 +561,10 @@ rules:
   - id: test-without-assertion
     title: "`@Test {text}` asserts nothing"
     severity: low
-    confidence: medium
+    # low, not medium: on the gold set most hits are deliberate "does not
+    # throw" tests (2026-10-21 triage), so the rule is a prompt to look, not a
+    # claim. Chosen over raising its gold budget (tools/gold/budgets.json).
+    confidence: low
     dimension: assurance
     cwe: [CWE-1164]
     controls: [NIST-800-218:PW.8]

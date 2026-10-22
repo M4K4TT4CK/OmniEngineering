@@ -140,7 +140,7 @@ def scan(repo: Path, use_adapters: bool = False) -> list[dict]:
                       use_cache=False)
     return [{"rule": f.rule_id, "path": f.location.path, "line": f.location.start_line,
              "cwe": list(f.cwe), "probe": f.probe, "severity": f.severity,
-             "title": f.title}
+             "confidence": f.confidence, "title": f.title}
             for f in report.active()]
 
 
@@ -171,12 +171,33 @@ def kloc(lines: dict, groups=None, include_tests: bool = True) -> float:
     return total / 1000.0
 
 
+def confidence_weight(finding: dict) -> float:
+    """What one finding would cost if budgets were confidence-weighted.
+
+    Reported as `weighted_per_kloc` beside the raw rate, for information
+    only: budgets are held against the raw rate. A finding its rule marks
+    below the packs' medium default is charged the scorecard's discount for
+    it, `CONFIDENCE_FACTOR` low over medium (0.3 / 0.6 = 0.5); high and
+    medium count 1; a finding recorded without a confidence counts in full.
+    Weighting the budget itself was measured on 2026-10-21 and not adopted:
+    it moved secrets.private-key, authored.security-check-disabled and
+    authored.undeclared-import under budget through their existing
+    low-confidence findings, while java.test-without-assertion stayed over
+    (0.046 weighted against 0.03). That is a policy decision, not a default.
+    """
+    from arbiter.core import CONFIDENCE_FACTOR
+    factor = CONFIDENCE_FACTOR.get(finding.get("confidence") or "high", 1.0)
+    return min(1.0, factor / CONFIDENCE_FACTOR["medium"])
+
+
 def aggregate(repos: list[dict], samples_per_repo: int = 3, max_samples: int = 15) -> dict:
     """Per-rule totals from per-repo scan results.
 
     A language pack rule is divided by the KLOC of its own language across the
     gold set; a shared probe by the KLOC of all five languages. Dividing a Go
-    rule by Java lines would make it look quieter than it is.
+    rule by Java lines would make it look quieter than it is. `per_kloc` is
+    the raw rate the budget is held against; `weighted_per_kloc` charges each
+    finding its confidence weight and is reported for information.
     """
     total_lines: dict[str, dict[str, int]] = defaultdict(lambda: {"prod": 0, "test": 0})
     for r in repos:
@@ -187,9 +208,12 @@ def aggregate(repos: list[dict], samples_per_repo: int = 3, max_samples: int = 1
     for r in repos:
         for f in r["findings"]:
             s = rules.setdefault(f["rule"], {"rule": f["rule"], "count": 0, "in_tests": 0,
+                                             "weighted": 0.0, "confidence": Counter(),
                                              "by_repo": Counter(), "by_language": Counter(),
                                              "cwe": set(), "samples": []})
             s["count"] += 1
+            s["weighted"] += confidence_weight(f)
+            s["confidence"][f.get("confidence") or "high"] += 1
             s["in_tests"] += is_test_path(f["path"])
             s["by_repo"][r["name"]] += 1
             s["by_language"][language_of(f["path"])] += 1
@@ -206,6 +230,8 @@ def aggregate(repos: list[dict], samples_per_repo: int = 3, max_samples: int = 1
             "rule": s["rule"], "pack": pack or "shared", "count": s["count"],
             "in_tests": s["in_tests"], "kloc_denominator": round(denom, 1),
             "per_kloc": round(s["count"] / denom, 4) if denom else None,
+            "weighted_per_kloc": round(s["weighted"] / denom, 4) if denom else None,
+            "confidence": dict(s["confidence"].most_common()),
             "repos_hit": len(s["by_repo"]),
             "by_repo": dict(s["by_repo"].most_common()),
             "by_language": dict(s["by_language"].most_common()),
@@ -231,8 +257,10 @@ def budget_for(rule: str, budgets: dict) -> float:
 def evaluate(rules: list[dict], budgets: dict) -> list[dict]:
     """Attach each rule's budget; return the rules over budget.
 
-    A rule with fewer findings than `min_count` is never a breach: on a few
-    hundred KLOC, two findings are an anecdote, not a rate.
+    The budget is held against the raw rate: every finding counts in full,
+    whatever its confidence (see `confidence_weight` for why). A rule with
+    fewer findings than `min_count` is never a breach: on a few hundred KLOC,
+    two findings are an anecdote, not a rate.
     """
     min_count = int(budgets.get("min_count", 1))
     breaches = []
@@ -284,10 +312,13 @@ def render_markdown(report: dict, top: int = 15) -> str:
     if report.get("missing"):
         out += [f"Not scanned (missing or not at the pinned commit): {', '.join(report['missing'])}", ""]
     out += ["## Rules by findings per KLOC", "",
-            "| rule | findings | /KLOC | budget | in tests | repos | over |",
-            "|---|---:|---:|---:|---:|---:|:-:|"]
+            ("Budgets are held against the raw rate. The weighted rate, for information, "
+             "counts a low-confidence finding 0.5 (the scorecard's low/medium factor)."), "",
+            "| rule | findings | /KLOC | weighted /KLOC | budget | in tests | repos | over |",
+            "|---|---:|---:|---:|---:|---:|---:|:-:|"]
     for r in report["rules"][:top]:
-        out.append(f"| `{r['rule']}` | {r['count']} | {r['per_kloc']} | {r['budget_per_kloc']} "
+        out.append(f"| `{r['rule']}` | {r['count']} | {r['per_kloc']} "
+                   f"| {r.get('weighted_per_kloc', r['per_kloc'])} | {r['budget_per_kloc']} "
                    f"| {r['in_tests']} | {r['repos_hit']} | {'**yes**' if r['over_budget'] else ''} |")
     out += ["", "## Repositories", "", "| repo | lang | KLOC | findings | /KLOC | at pin |",
             "|---|---|---:|---:|---:|:-:|"]
