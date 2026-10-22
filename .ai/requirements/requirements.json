@@ -1782,7 +1782,7 @@
       "title": "Compile each pack query once per process",
       "description": "run_query in src/arbiter/ast.py built Query(lang, src) on every call so a scan paid files x rules tree-sitter compilations (java-keycloak 2044.6 s and every Ruby gold repo at or below 0.53 KLOC/s in the 2026-10-21 gold report). Compiled queries are cached per process keyed by (grammar Language object, query text): tsx and typescript get separate entries and a query that fails to compile is never cached. The on-disk compiled-pack stamp (~/.cache/arbiter/compiled-packs) still decides whether load_packs validates a pack; compile_pack now fills the same in-process cache. Per-run state stays in a fresh QueryCursor so probe threads can share a compiled query.",
       "priority": "high",
-      "status": "pending",
+      "status": "completed",
       "minimum_access_scope": [
         "src/arbiter/ast.py",
         "tests/test_query_cache.py",
@@ -1810,7 +1810,8 @@
       "risk_notes": [
         "a compiled tree-sitter Query is shared across probe threads: safe because captures run through a per-call QueryCursor",
         "cache bound 4096 entries per process (five packs hold about 120 rules x up to 5 query keys x up to 3 grammars)",
-        "correction to the size note: measured 2026-10-21 the five packs hold 91 rules and 254 (grammar, query) pairs, well under the 4096 bound"
+        "correction to the size note: measured 2026-10-21 the five packs hold 91 rules and 254 (grammar, query) pairs, well under the 4096 bound",
+        "verified 2026-10-21 on branch m1-base: full pytest, planted_score for five languages, gold benchmark (24 repositories) and ./omni gate --no-memo with this checkout on PYTHONPATH"
       ]
     },
     {
@@ -1819,7 +1820,7 @@
       "title": "arbiter.lang_rules imports on its own, before arbiter.probes",
       "description": "python -c 'import arbiter.lang_rules' raised a circular ImportError: lang_rules imported PACKS and ProbeContext from probes at load time, and probes imports lang_rules at its end to register the packs. Any tool or test that imported the packs first crashed; two test files carried an import-order workaround. lang_rules now names its pack directory itself, imports ProbeContext for annotations only, and keeps its runtime imports of probes inside register_lang_rules.",
       "priority": "medium",
-      "status": "pending",
+      "status": "completed",
       "minimum_access_scope": [
         "src/arbiter/lang_rules.py",
         "tests/test_import_order.py",
@@ -1838,7 +1839,9 @@
       "documentation_required": [
         "changelog"
       ],
-      "risk_notes": []
+      "risk_notes": [
+        "verified 2026-10-21 on branch m1-base: full pytest, planted_score for five languages, gold benchmark (24 repositories) and ./omni gate --no-memo with this checkout on PYTHONPATH"
+      ]
     },
     {
       "id": "ARB-080",
@@ -1846,7 +1849,7 @@
       "title": "Same-evidence findings in one file each count: occurrence ordinal in the fingerprint, with a baseline migration",
       "description": "Finding.fingerprint hashes rule, repo, path, logical symbol and evidence but no line, so repeated defects with identical evidence in one file shared one id and engine._dedupe kept one: six catch {} counted once. engine.run_scan now calls core.assign_occurrences before _dedupe: the distinct sites (start/end line and column) of one id are numbered in line order; occurrence 0 keeps the old id and occurrence k gets f:sha256(base_id#k)[:12] with occurrence and base_id in the report. Reports and new baselines carry fingerprint occurrence-v1 (baseline schema 1.1). A legacy (1.0) baseline matches every occurrence of an id it lists, as do suppressions by id and arbiter diff from a legacy report, so an upgrade does not turn a green gate red. arbiter baseline --migrate OLD rewrites a legacy baseline in the new format accepting only what the old one accepted and keeping created, commit and config_hash (what omni arbiter baseline records).",
       "priority": "medium",
-      "status": "pending",
+      "status": "completed",
       "minimum_access_scope": [
         "src/arbiter/core.py",
         "src/arbiter/engine.py",
@@ -1883,7 +1886,8 @@
         "inserting a new repeat above an existing one renumbers the sites below it: the new-finding count is right but the finding labelled new may be an old site",
         "verdicts in .arbiter/knowledge.json are keyed by id: occurrence 0 keeps its verdict and occurrences k>0 start unadjudicated",
         "the omni gate runs the arbiter on PATH (the shared install)",
-        "which gets this behaviour only once it is updated"
+        "which gets this behaviour only once it is updated",
+        "verified 2026-10-21 on branch m1-base: full pytest, planted_score for five languages, gold benchmark (24 repositories) and ./omni gate --no-memo with this checkout on PYTHONPATH"
       ]
     }
   ]
