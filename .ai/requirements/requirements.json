@@ -1774,6 +1774,43 @@
         "changelog"
       ],
       "risk_notes": []
+    },
+    {
+      "id": "ARB-076",
+      "category": "performance",
+      "title": "Compile each pack query once per process",
+      "description": "run_query in src/arbiter/ast.py built Query(lang, src) on every call so a scan paid files x rules tree-sitter compilations (java-keycloak 2044.6 s and every Ruby gold repo at or below 0.53 KLOC/s in the 2026-10-21 gold report). Compiled queries are cached per process keyed by (grammar Language object, query text): tsx and typescript get separate entries and a query that fails to compile is never cached. The on-disk compiled-pack stamp (~/.cache/arbiter/compiled-packs) still decides whether load_packs validates a pack; compile_pack now fills the same in-process cache. Per-run state stays in a fresh QueryCursor so probe threads can share a compiled query.",
+      "priority": "high",
+      "status": "pending",
+      "minimum_access_scope": [
+        "src/arbiter/ast.py",
+        "tests/test_query_cache.py",
+        "docs/gaps-and-next-steps.md",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "a test counts real tree-sitter Query compilations during a lang_ruby scan of 1 and 8 files and asserts each pack query is compiled at most once",
+        "the cache is keyed by grammar so typescript and tsx compile separately",
+        "a query that fails to compile raises every time and is never cached",
+        "the compiled-pack stamp cache keeps working unchanged",
+        "scan time measured before and after on java-keycloak ruby-rails go-grpc and ts-nest with the exact commands recorded",
+        "planted score and gold findings unchanged by the cache"
+      ],
+      "validation_required": [
+        "pytest",
+        "planted_score",
+        "gold_benchmark",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog",
+        "docs/gaps-and-next-steps.md"
+      ],
+      "risk_notes": [
+        "a compiled tree-sitter Query is shared across probe threads: safe because captures run through a per-call QueryCursor",
+        "cache bound 4096 entries per process (five packs hold about 120 rules x up to 5 query keys x up to 3 grammars)",
+        "correction to the size note: measured 2026-10-21 the five packs hold 91 rules and 254 (grammar, query) pairs, well under the 4096 bound"
+      ]
     }
   ]
 }
