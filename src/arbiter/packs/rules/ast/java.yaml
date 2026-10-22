@@ -575,7 +575,7 @@ rules:
         name: (identifier) @hit)
     unless_in_scope: |
       (method_invocation name: (identifier) @n
-        (#match? @n "^(assert\\w*|verify\\w*|fail|expect\\w*|andExpect\\w*|should\\w*|then\\w*|check\\w*|validate\\w*|assume\\w*|is[A-Z]\\w*|has[A-Z]\\w*|contains\\w*|doesNotContain\\w*|isEqualTo|isNotEqualTo|matches|satisfies|inOrder|andDo|expectStatus|exchange)$"))
+        (#match? @n "^(assert\\w*|verify\\w*|ensure\\w*|fail|expect\\w*|andExpect\\w*|should\\w*|then\\w*|check\\w*|validate\\w*|assume\\w*|is[A-Z]\\w*|has[A-Z]\\w*|contains\\w*|doesNotContain\\w*|isEqualTo|isNotEqualTo|matches|satisfies|inOrder|andDo|expectStatus|exchange)$"))
       (method_invocation object: (identifier) @o
         (#match? @o "^(Assertions|Assert|Mockito|BDDMockito|MatcherAssert|Truth|StepVerifier|Verify|Awaitility|SoftAssertions)$"))
       ; delegates to a helper of this class (`checkRoundTrip(x)`) or a
@@ -593,27 +593,48 @@ rules:
       (method_declaration body: (block (if_statement consequence: (throw_statement)) @t))
       (method_declaration body: (block (if_statement consequence: (block (throw_statement))) @t))
       ; switched off: `@Disabled`/`@Ignore` is assurance.permanently-skipped-test's
-      ; finding, and an empty `@Override` switches off an inherited test
-      ; (netty AbstractAdaptiveByteBufTest)
+      ; finding. An `@Override` test replaces an inherited one: empty, it
+      ; switches the parent's test off (netty AbstractAdaptiveByteBufTest);
+      ; otherwise it narrows the parent's check to what this subclass
+      ; supports (tomcat's `testNoArgConstructor` overrides). The parent
+      ; owns the assertion, so neither is reported.
       ((method_declaration (modifiers) @m) @d (#match? @m "@(Disabled|Ignore)\\b"))
-      ((method_declaration (modifiers) @m body: (block) @b) @d
-        (#match? @m "@Override\\b") (#match? @b "(?s)^\\{(\\s|//[^\\n]*|/\\*.*?\\*/)*\\}$"))
+      ; (anchored on the @Test method: an anonymous class's `@Override`
+      ; inside the test body is not one)
+      ((method_declaration (modifiers (marker_annotation name: (identifier) @t (#eq? @t "Test"))) @m) @d (#match? @m "@Override\\b"))
+      ; a comment in the body says that not throwing is the check:
+      ; `// no exception` (spring-security Issue50Tests)
+      ((method_declaration (modifiers (marker_annotation name: (identifier) @t (#eq? @t "Test"))) body: (block (line_comment) @c)) @d
+        (#match? @c "(?i)//\\s*(no exception|does(n't| not) throw|should(n't| not) (throw|fail))"))
       ; the name or @DisplayName says that not throwing is the check, the
       ; same as a "does not throw" title in the TypeScript rule
       ; (`buildWhenScopesIsNullThenDoesNotThrowAnyException`, `contextLoads`,
       ; spring-security's `...WhenRoleAdminThenPasses`)
-      ((method_declaration name: (identifier) @n) @d
-        (#match? @n "(?i:(doesnt|dont|didnt|wont|cant|not|never|no)_?(throw|crash|fail|blow)|no_?(exception|error)s?(_?thrown)?$|exception_?not_?thrown|without_?(exception|error|throwing)|starts_?cleanly)|(Succeeds|Passes|Loads)$"))
+      ; Also the outcome words for "the call completes": spring-security's
+      ; `...ThenCreated`, `...AccessGranted`, `...ShouldAllow...` (an
+      ; authorization test passes when AccessDeniedException is not thrown),
+      ; `...ThenScopeNotRequired`, `...DoesNotCauseCircularReference`.
+      ((method_declaration (modifiers (marker_annotation name: (identifier) @t (#eq? @t "Test"))) name: (identifier) @n) @d
+        (#match? @n "(?i:(doesnt|dont|didnt|wont|cant|not|never|no)_?(throw|crash|fail|blow)|no_?(exception|error)s?(_?thrown)?$|none_?exception|no_?assert(ion)?_?error|exception_?not_?thrown|without_?(exception|error|throwing)|starts_?cleanly|(does|do)_?not_?cause|not_?required$|can_?(both_?)?be_?(instanced|instantiated|loaded|created)|is_?serializable$|compiles)|(Succeeds|Passes|Loads|Success|Successful|SuccessFul|Created|Granted|GrantsAccess|Wires|Autowires)$|(^allow|Allow)(s|ed)?([A-Z_]|$)"))
       ((method_declaration (modifiers (annotation name: (identifier) @a arguments: (annotation_argument_list) @s))) @d
         (#eq? @a "DisplayName")
         (#match? @s "(?i)(\\bnot|\\bnever|n't|\\bwithout|\\bno) (throw|exception|error|fail|crash|hang)"))
+    # A performance harness measures time, not results: tomcat's
+    # `Tester*Performance` classes (not run by its default test target) and
+    # `Benchmarks`, JMH-style `*Benchmark` classes.
+    unless_in_file: |
+      (class_declaration name: (identifier) @c
+        (#match? @c "(Performance|Benchmarks?|PerformanceTest|PerfTest)$")) @x
     description: >
       The test passes as long as nothing throws, which is not what it looks
       like it checks. A method that only calls the code under test proves
       the call does not crash on this input and nothing else. A test whose
-      name or `@DisplayName` says it checks that nothing throws, one that
-      throws on a condition itself, and one switched off with `@Disabled`,
-      `@Ignore` or an empty `@Override` are not reported.
+      name, `@DisplayName` or a body comment says it checks that nothing
+      throws (or that the call is allowed, created or completes), one that
+      throws on a condition itself, one that delegates to an
+      `assert*`/`verify*`/`check*`/`expect*`/`ensure*` helper, an
+      `@Override` of an inherited test, one switched off with `@Disabled` or
+      `@Ignore`, and a performance harness class are not reported.
     remediation: >
       Assert the outcome (`assertEquals`, `assertThat`, `verify(...)`), or
       name it `...DoesNotThrow` and wrap it in `assertDoesNotThrow`.

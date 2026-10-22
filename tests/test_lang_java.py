@@ -283,8 +283,10 @@ def test_switched_off_and_does_not_throw_tests_are_not_reported(tmp_path):
     # commons-lang `shouldNotThrowExceptionWhen...`,
     # netty DefaultChannelPipelineTest (`if (cause != null) throw cause`),
     # keycloak `runOnServer.run(SvcTest::validateOnServer)`.
-    # A test that only calls the code is still reported, override or not.
-    assert lines_of(tmp_path, _GOLD_TEST, "test-without-assertion", TEST) == [13, 14, 16]
+    # An `@Override` test replaces an inherited one whose assertion the parent
+    # owns, so it is not reported either way (ARB-065 follow-up). A plain test
+    # that only calls the code is still reported.
+    assert lines_of(tmp_path, _GOLD_TEST, "test-without-assertion", TEST) == [13, 16]
 
 
 _SQL = """package app;
