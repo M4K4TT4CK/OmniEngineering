@@ -10,7 +10,7 @@ import json
 import pytest
 
 from arbiter import ast as ts
-from arbiter import cwe
+from arbiter import cwe, lang_rules
 from arbiter.core import Finding, Location, Report
 from arbiter.engine import run_scan
 from arbiter.inventory import classify
@@ -73,13 +73,17 @@ def test_tsx_files_parse_with_the_tsx_grammar():
 @pytest.mark.parametrize("path", [
     "src/foo.test.ts", "web/a.spec.js", "lib/user_spec.rb", "spec/a_spec.rb",
     "src/test/java/a/FooTest.java", "pkg/x_test.go", "tests/test_a.py",
+    "_test/closure0.go", "interp/_test/a/b.go",
 ])
 def test_every_ide_languages_test_files_are_tests(path):
     assert classify(path, "x") == "test"
 
 
 @pytest.mark.parametrize("path", ["src/main/java/a/Foo.java", "lib/app.rb", "src/attest.py",
-                                  "cmd/main.go", "src/latest.ts"])
+                                  "cmd/main.go", "src/latest.ts",
+                                  # `_test/` must be the whole directory name
+                                  "pkg/foo_test/a.go", "_testdata/a.go", "my_test_dir/a.go",
+                                  "src/_test.go/x.go"])
 def test_source_files_are_not_mistaken_for_tests(path):
     assert classify(path, "x") == "source"
 
@@ -91,3 +95,100 @@ def test_java_ruby_and_go_stacks_are_detected(tmp_path, manifest, stack):
     (tmp_path / manifest).write_text("x\n")
     inv = build_inventory([type("R", (), {"id": "root", "path": str(tmp_path)})()])
     assert stack in inv.stacks
+
+
+@pytest.mark.parametrize("header,reported", [
+    ("//go:build ignore\n\n", False),
+    ("//go:build ignore\n// +build ignore\n\n", False),
+    ("// +build ignore\n\n", False),
+    ("// Code generator.\n//go:build ignore\n\n", False),
+    ("//go:build linux\n\n", True),     # an ordinary constraint still builds
+    ("", True),
+])
+def test_go_build_ignore_files_may_import_undeclared_modules(tmp_path, header, reported):
+    """client_golang's collector generators are `//go:build ignore` scripts that
+    import github.com/hashicorp/go-version, which its go.mod does not declare."""
+    (tmp_path / "go.mod").write_text("module example.com/m\n\ngo 1.22\n")
+    (tmp_path / "gen.go").write_text(
+        header + 'package main\n\nimport "github.com/hashicorp/go-version"\n\n'
+        'func main() { _ = version.Must }\n')
+    rep = run_scan([str(tmp_path)], load_config(None), only=["authored"], use_adapters=False,
+                   use_cache=False)
+    hits = [f for f in rep.active() if "go-version" in f.title]
+    assert bool(hits) == reported, [f.title for f in hits]
+
+
+# ---------------------------------------------------------------------------
+# Packs compile when they load. A query that did not compile used to surface
+# only mid-scan as the whole lang_<pack> probe erroring: a `#` comment inside
+# a `|` query block took the Go planted score from 41/41 to 4/41 unnoticed.
+# ---------------------------------------------------------------------------
+needs_ts = pytest.mark.skipif(not ts.available(), reason="tree-sitter not installed")
+
+
+@needs_ts
+@pytest.mark.parametrize("pack", sorted(lang_rules.load_packs()))
+def test_every_shipped_pack_compiles_for_every_grammar_it_runs_on(pack):
+    data = lang_rules.load_packs()[pack]
+    expected = {"typescript": {"typescript", "tsx", "javascript"}}.get(pack, {pack})
+    grammars = set().union(*(lang_rules._grammars(r, data["languages"]) for r in data["rules"]))
+    assert expected <= grammars, "every grammar the pack can meet is compiled for"
+    missing = expected - ts.cached_grammars()
+    if missing:
+        pytest.skip(f"grammar not cached here: {sorted(missing)}")
+    lang_rules.compile_pack(data, f"{pack}.yaml")  # raises PackError naming the rule
+
+
+_BROKEN = """\
+pack: go
+languages: [go]
+rules:
+  - id: fine
+    title: fine
+    remediation: r
+    query: '(call_expression) @hit'
+  - id: commented-query
+    title: t
+    remediation: r
+    query: |
+      # a comment in the wrong syntax
+      (call_expression) @hit
+"""
+
+
+@needs_ts
+def test_an_uncompilable_query_fails_the_load_naming_pack_rule_and_reason(
+        tmp_path, monkeypatch):
+    if "go" not in ts.cached_grammars():
+        pytest.skip("go grammar not cached")
+    packs = tmp_path / "ast"
+    packs.mkdir()
+    (packs / "go.yaml").write_text(_BROKEN)
+    monkeypatch.setattr(lang_rules, "AST_PACKS", packs)
+    stamps = tmp_path / "stamps"
+    monkeypatch.setattr(lang_rules, "_stamp_dir", lambda: stamps)
+    lang_rules.load_packs.cache_clear()
+    try:
+        with pytest.raises(lang_rules.PackError) as err:
+            lang_rules.load_packs()
+        msg = str(err.value)
+        assert "go.yaml" in msg and "commented-query" in msg and "`query`" in msg
+        assert "for go:" in msg, "tree-sitter's reason is carried through"
+        # Never stamped as good, so the next load fails too.
+        with pytest.raises(lang_rules.PackError):
+            lang_rules.load_packs()
+        # The same pack without the bad rule loads, and is stamped.
+        (packs / "go.yaml").write_text(_BROKEN.split("  - id: commented-query")[0])
+        lang_rules.load_packs.cache_clear()
+        assert [r["id"] for r in lang_rules.load_packs()["go"]["rules"]] == ["fine"]
+        assert list(stamps.iterdir())
+    finally:
+        monkeypatch.undo()
+        lang_rules.load_packs.cache_clear()
+        lang_rules.load_packs()
+
+
+def test_a_jsx_only_rule_is_not_compiled_for_plain_typescript():
+    rule = {"files": "*.[jt]sx"}
+    assert lang_rules._grammars(rule, ["typescript", "javascript"]) == {"tsx", "javascript"}
+    assert lang_rules._grammars({}, ["typescript"]) == {"typescript", "tsx"}

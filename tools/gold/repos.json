@@ -1,0 +1,950 @@
+{
+ "_about": "Evidence for each gold repository (ARB-065). Scorecard fields were read from https://api.securityscorecards.dev on 2026-10-20 (score, date of that Scorecard run, and per-check scores; -1 means the check was inconclusive). best_practices_badge is derived from Scorecard's CII-Best-Practices check (best_practices is the same fact read directly from the bestpractices.dev API): 10 gold, 7 silver, 5 passing, 2 in progress, 0 none. Stars, licence and languages come from the GitHub API on the same day. 'stewardship' is from the projects' own governance pages and is NOT machine-verified here.",
+ "repos": {
+  "py-urllib3": {
+   "github": "urllib3/urllib3",
+   "language": "python",
+   "pinned_sha": "ef8b211bc9cc688a7d68242fbfb583f545793293",
+   "pinned_commit_date": "2026-10-20T19:49:50Z",
+   "exercises": "HTTP client: connection pools, retries with backoff, timeouts, TLS",
+   "stewardship": "independent (Tidelift-supported); dependency of requests/pip",
+   "scorecard": {
+    "score": 8.6,
+    "scorecard_run": "2026-10-20T19:50:08Z",
+    "checks": {
+     "Security-Policy": 10,
+     "CI-Tests": 10,
+     "SAST": 10,
+     "Fuzzing": 10,
+     "Code-Review": 8,
+     "Maintained": 10,
+     "Branch-Protection": 5,
+     "Pinned-Dependencies": 8,
+     "Signed-Releases": 0,
+     "Vulnerabilities": 10,
+     "Dangerous-Workflow": 10,
+     "Token-Permissions": 10
+    }
+   },
+   "best_practices_badge": "passing",
+   "stars": 4076,
+   "license": "MIT",
+   "languages": {
+    "Python": 0.99,
+    "HTML": 0.01,
+    "JavaScript": 0.0
+   },
+   "best_practices": {
+    "project_id": 6227,
+    "badge_level": "passing",
+    "tiered_percentage": 164,
+    "source": "bestpractices.dev API 2026-10-20"
+   }
+  },
+  "py-celery": {
+   "github": "celery/celery",
+   "language": "python",
+   "pinned_sha": "d6d754e21e353629c22803edfc2093f3deeffe9d",
+   "pinned_commit_date": "2026-10-20T13:35:35Z",
+   "exercises": "distributed task worker: retries, brokers, concurrency, shutdown",
+   "stewardship": "independent; widely deployed task queue",
+   "scorecard": {
+    "score": 7,
+    "scorecard_run": "2026-10-19",
+    "checks": {
+     "Security-Policy": 10,
+     "CI-Tests": null,
+     "SAST": 10,
+     "Fuzzing": 0,
+     "Code-Review": 9,
+     "Maintained": 10,
+     "Branch-Protection": -1,
+     "Pinned-Dependencies": 0,
+     "Signed-Releases": -1,
+     "Vulnerabilities": null,
+     "Dangerous-Workflow": 10,
+     "Token-Permissions": 0
+    }
+   },
+   "best_practices_badge": "passing",
+   "stars": 29027,
+   "license": "NOASSERTION",
+   "languages": {
+    "Python": 0.99,
+    "Shell": 0.01,
+    "Makefile": 0.0
+   },
+   "best_practices": {
+    "project_id": 6315,
+    "badge_level": "passing",
+    "tiered_percentage": 107,
+    "source": "bestpractices.dev API 2026-10-20"
+   }
+  },
+  "py-django": {
+   "github": "django/django",
+   "language": "python",
+   "pinned_sha": "2fff3e9f493a9c85fb8a2294358c6751575ee4bf",
+   "pinned_commit_date": "2026-10-20T18:44:09Z",
+   "exercises": "web framework: ORM/SQL building, auth, sessions, CSRF, crypto signing",
+   "stewardship": "Django Software Foundation",
+   "scorecard": {
+    "score": 6.8,
+    "scorecard_run": "2026-10-12",
+    "checks": {
+     "Security-Policy": 9,
+     "CI-Tests": null,
+     "SAST": 0,
+     "Fuzzing": 10,
+     "Code-Review": 10,
+     "Maintained": 10,
+     "Branch-Protection": -1,
+     "Pinned-Dependencies": 0,
+     "Signed-Releases": -1,
+     "Vulnerabilities": null,
+     "Dangerous-Workflow": 10,
+     "Token-Permissions": 0
+    }
+   },
+   "best_practices_badge": "none",
+   "stars": 91473,
+   "license": "BSD-3-Clause",
+   "languages": {
+    "Python": 0.97,
+    "Jinja": 0.01,
+    "JavaScript": 0.01
+   },
+   "best_practices": {
+    "project_id": null,
+    "badge_level": "no entry",
+    "source": "bestpractices.dev API 2026-10-20"
+   }
+  },
+  "py-aiohttp": {
+   "github": "aio-libs/aiohttp",
+   "language": "python",
+   "pinned_sha": "72a735c6a43fb6b846ad67e53a042b7bfb9556ab",
+   "pinned_commit_date": "2026-10-20T11:08:42Z",
+   "exercises": "async HTTP client and server: timeouts, connection handling, websockets",
+   "stewardship": "aio-libs organisation",
+   "scorecard": {
+    "score": 6.5,
+    "scorecard_run": "2026-10-19",
+    "checks": {
+     "Security-Policy": 10,
+     "CI-Tests": null,
+     "SAST": 9,
+     "Fuzzing": 10,
+     "Code-Review": 0,
+     "Maintained": 10,
+     "Branch-Protection": 3,
+     "Pinned-Dependencies": 0,
+     "Signed-Releases": 8,
+     "Vulnerabilities": null,
+     "Dangerous-Workflow": 10,
+     "Token-Permissions": 0
+    }
+   },
+   "best_practices_badge": "none",
+   "stars": 16581,
+   "license": "Apache-2.0",
+   "languages": {
+    "Python": 0.98,
+    "Cython": 0.01,
+    "Makefile": 0.0
+   },
+   "best_practices": {
+    "project_id": null,
+    "badge_level": "no entry",
+    "source": "bestpractices.dev API 2026-10-20"
+   }
+  },
+  "py-cryptography": {
+   "github": "pyca/cryptography",
+   "language": "python",
+   "pinned_sha": "1b01d635193fe41c697418d3be80fbb45bc3519d",
+   "pinned_commit_date": "2026-10-21T02:56:49Z",
+   "exercises": "cryptographic primitives and X.509, TLS-adjacent code",
+   "stewardship": "Python Cryptographic Authority (PyCA)",
+   "scorecard": {
+    "score": 8.5,
+    "scorecard_run": "2026-10-12",
+    "checks": {
+     "Security-Policy": 10,
+     "CI-Tests": null,
+     "SAST": 0,
+     "Fuzzing": 10,
+     "Code-Review": 10,
+     "Maintained": 10,
+     "Branch-Protection": -1,
+     "Pinned-Dependencies": 7,
+     "Signed-Releases": -1,
+     "Vulnerabilities": null,
+     "Dangerous-Workflow": 10,
+     "Token-Permissions": 9
+    }
+   },
+   "best_practices_badge": "none",
+   "stars": 7816,
+   "license": "NOASSERTION",
+   "languages": {
+    "Python": 0.67,
+    "Rust": 0.33,
+    "Shell": 0.0
+   },
+   "best_practices": {
+    "project_id": null,
+    "badge_level": "no entry",
+    "source": "bestpractices.dev API 2026-10-20"
+   }
+  },
+  "ts-undici": {
+   "github": "nodejs/undici",
+   "language": "typescript",
+   "pinned_sha": "25543f5bd5744ff673016ed89b4bb09455e4875a",
+   "pinned_commit_date": "2026-10-20T12:31:31Z",
+   "exercises": "Node.js core HTTP/1.1+2 client: pools, retry handler, timeouts, TLS",
+   "stewardship": "OpenJS Foundation (Node.js project)",
+   "scorecard": {
+    "score": 7.8,
+    "scorecard_run": "2026-10-20T10:27:14Z",
+    "checks": {
+     "Security-Policy": 10,
+     "CI-Tests": 10,
+     "SAST": 10,
+     "Fuzzing": 10,
+     "Code-Review": 5,
+     "Maintained": 10,
+     "Branch-Protection": -1,
+     "Pinned-Dependencies": 6,
+     "Signed-Releases": -1,
+     "Vulnerabilities": 7,
+     "Dangerous-Workflow": 10,
+     "Token-Permissions": 0
+    }
+   },
+   "best_practices_badge": "none",
+   "stars": 7718,
+   "license": "MIT",
+   "languages": {
+    "JavaScript": 0.97,
+    "TypeScript": 0.03,
+    "Shell": 0.0
+   },
+   "best_practices": {
+    "project_id": null,
+    "badge_level": "no entry",
+    "source": "bestpractices.dev API 2026-10-20"
+   }
+  },
+  "ts-nest": {
+   "github": "nestjs/nest",
+   "language": "typescript",
+   "pinned_sha": "d5d7e2c89f46b7f0f76e1d588bb092b41b4b926e",
+   "pinned_commit_date": "2026-10-20T17:51:37Z",
+   "exercises": "TypeScript server framework: HTTP, microservice transports, retries, guards",
+   "stewardship": "independent; enterprise production use",
+   "scorecard": {
+    "score": 7.2,
+    "scorecard_run": "2026-10-19",
+    "checks": {
+     "Security-Policy": 9,
+     "CI-Tests": null,
+     "SAST": 9,
+     "Fuzzing": 0,
+     "Code-Review": 4,
+     "Maintained": 10,
+     "Branch-Protection": -1,
+     "Pinned-Dependencies": 0,
+     "Signed-Releases": -1,
+     "Vulnerabilities": null,
+     "Dangerous-Workflow": 10,
+     "Token-Permissions": 10
+    }
+   },
+   "best_practices_badge": "none",
+   "stars": 76870,
+   "license": "MIT",
+   "languages": {
+    "TypeScript": 1.0,
+    "JavaScript": 0.0,
+    "Shell": 0.0
+   },
+   "best_practices": {
+    "project_id": null,
+    "badge_level": "no entry",
+    "source": "bestpractices.dev API 2026-10-20"
+   }
+  },
+  "ts-jose": {
+   "github": "panva/jose",
+   "language": "typescript",
+   "pinned_sha": "2cddc59c0592a851876a717ae39c59d41751cd72",
+   "pinned_commit_date": "2026-10-20T07:44:25Z",
+   "exercises": "JWT/JWS/JWE/JWK: auth and crypto on Web Crypto",
+   "stewardship": "individual maintainer; OpenID Foundation certified",
+   "scorecard": {
+    "score": 7.5,
+    "scorecard_run": "2026-10-19",
+    "checks": {
+     "Security-Policy": 10,
+     "CI-Tests": null,
+     "SAST": 10,
+     "Fuzzing": 10,
+     "Code-Review": 0,
+     "Maintained": 10,
+     "Branch-Protection": 3,
+     "Pinned-Dependencies": 10,
+     "Signed-Releases": 4,
+     "Vulnerabilities": null,
+     "Dangerous-Workflow": 10,
+     "Token-Permissions": 10
+    }
+   },
+   "best_practices_badge": "none",
+   "stars": 7839,
+   "license": "MIT",
+   "languages": {
+    "TypeScript": 0.81,
+    "JavaScript": 0.19,
+    "Shell": 0.01
+   },
+   "best_practices": {
+    "project_id": null,
+    "badge_level": "no entry",
+    "source": "bestpractices.dev API 2026-10-20"
+   }
+  },
+  "ts-otel-js": {
+   "github": "open-telemetry/opentelemetry-js",
+   "language": "typescript",
+   "pinned_sha": "12a5817ad147c186a0e45a6637abd5abf423727a",
+   "pinned_commit_date": "2026-10-20T17:57:47Z",
+   "exercises": "telemetry SDK and exporters: HTTP/gRPC export with retry and backoff, timers",
+   "stewardship": "CNCF (OpenTelemetry)",
+   "scorecard": {
+    "score": 7.3,
+    "scorecard_run": "2026-08-24T11:57:56Z",
+    "checks": {
+     "Security-Policy": 10,
+     "CI-Tests": 10,
+     "SAST": 10,
+     "Fuzzing": 0,
+     "Code-Review": 10,
+     "Maintained": 10,
+     "Branch-Protection": 4,
+     "Pinned-Dependencies": 8,
+     "Signed-Releases": 0,
+     "Vulnerabilities": 1,
+     "Dangerous-Workflow": 10,
+     "Token-Permissions": 10
+    }
+   },
+   "best_practices_badge": "none",
+   "stars": 3498,
+   "license": "Apache-2.0",
+   "languages": {
+    "TypeScript": 0.95,
+    "JavaScript": 0.05,
+    "Jinja": 0.0
+   },
+   "best_practices": {
+    "project_id": null,
+    "badge_level": "no entry",
+    "source": "bestpractices.dev API 2026-10-20"
+   }
+  },
+  "ts-axios": {
+   "github": "axios/axios",
+   "language": "typescript",
+   "pinned_sha": "fceeb10997ea71778ad8bc9671ad53e9195a707c",
+   "pinned_commit_date": "2026-10-20T18:17:44Z",
+   "exercises": "HTTP client for browser and Node: timeouts, interceptors, proxies",
+   "stewardship": "independent; one of the most-installed npm packages",
+   "scorecard": {
+    "score": 7.5,
+    "scorecard_run": "2026-10-19",
+    "checks": {
+     "Security-Policy": 10,
+     "CI-Tests": null,
+     "SAST": 0,
+     "Fuzzing": 0,
+     "Code-Review": 9,
+     "Maintained": 10,
+     "Branch-Protection": 5,
+     "Pinned-Dependencies": 6,
+     "Signed-Releases": -1,
+     "Vulnerabilities": null,
+     "Dangerous-Workflow": 10,
+     "Token-Permissions": 9
+    }
+   },
+   "best_practices_badge": "none",
+   "stars": 109303,
+   "license": "MIT",
+   "languages": {
+    "JavaScript": 0.91,
+    "TypeScript": 0.08,
+    "HTML": 0.01
+   },
+   "best_practices": {
+    "project_id": null,
+    "badge_level": "no entry",
+    "source": "bestpractices.dev API 2026-10-20"
+   }
+  },
+  "go-caddy": {
+   "github": "caddyserver/caddy",
+   "language": "go",
+   "pinned_sha": "bfdbeb4a1bf7e267b0b93070ed854b847beef581",
+   "pinned_commit_date": "2026-10-20T07:11:30Z",
+   "exercises": "HTTP server and reverse proxy: TLS automation, timeouts, health checks",
+   "stewardship": "independent; commercial sponsors",
+   "scorecard": {
+    "score": 9.4,
+    "scorecard_run": "2026-10-20T07:11:50Z",
+    "checks": {
+     "Security-Policy": 10,
+     "CI-Tests": 10,
+     "SAST": 10,
+     "Fuzzing": 10,
+     "Code-Review": 9,
+     "Maintained": 10,
+     "Branch-Protection": -1,
+     "Pinned-Dependencies": 8,
+     "Signed-Releases": 8,
+     "Vulnerabilities": 9,
+     "Dangerous-Workflow": 10,
+     "Token-Permissions": 10
+    }
+   },
+   "best_practices_badge": "in_progress",
+   "stars": 78207,
+   "license": "Apache-2.0",
+   "languages": {
+    "Go": 0.98,
+    "HTML": 0.02,
+    "Shell": 0.0
+   },
+   "best_practices": {
+    "project_id": 7141,
+    "badge_level": "in_progress",
+    "tiered_percentage": 94,
+    "source": "bestpractices.dev API 2026-10-20"
+   }
+  },
+  "go-containerd": {
+   "github": "containerd/containerd",
+   "language": "go",
+   "pinned_sha": "2c2a63f43253bda805d83b6f31c70443ffe783ec",
+   "pinned_commit_date": "2026-10-20T20:47:46Z",
+   "exercises": "container runtime daemon: gRPC services, concurrency, metadata DB (bolt)",
+   "stewardship": "CNCF graduated",
+   "scorecard": {
+    "score": 9.3,
+    "scorecard_run": "2026-10-19",
+    "checks": {
+     "Security-Policy": 9,
+     "CI-Tests": null,
+     "SAST": 10,
+     "Fuzzing": 10,
+     "Code-Review": 10,
+     "Maintained": 10,
+     "Branch-Protection": 8,
+     "Pinned-Dependencies": 6,
+     "Signed-Releases": 10,
+     "Vulnerabilities": null,
+     "Dangerous-Workflow": 10,
+     "Token-Permissions": 10
+    }
+   },
+   "best_practices_badge": "passing",
+   "stars": 21433,
+   "license": "Apache-2.0",
+   "languages": {
+    "Go": 0.98,
+    "Shell": 0.02,
+    "Makefile": 0.0
+   },
+   "best_practices": {
+    "project_id": 1271,
+    "badge_level": "passing",
+    "tiered_percentage": 140,
+    "source": "bestpractices.dev API 2026-10-20"
+   }
+  },
+  "go-coredns": {
+   "github": "coredns/coredns",
+   "language": "go",
+   "pinned_sha": "3cbe6b5269be2eae6d4d2404d7371c9a24660f85",
+   "pinned_commit_date": "2026-10-21T03:34:41Z",
+   "exercises": "DNS server: plugins, upstream forwarding, health checks, caches",
+   "stewardship": "CNCF graduated",
+   "scorecard": {
+    "score": 8.5,
+    "scorecard_run": "2026-10-21T03:34:59Z",
+    "checks": {
+     "Security-Policy": 10,
+     "CI-Tests": 10,
+     "SAST": 10,
+     "Fuzzing": 10,
+     "Code-Review": 10,
+     "Maintained": 10,
+     "Branch-Protection": 3,
+     "Pinned-Dependencies": 7,
+     "Signed-Releases": 0,
+     "Vulnerabilities": 9,
+     "Dangerous-Workflow": 10,
+     "Token-Permissions": 10
+    }
+   },
+   "best_practices_badge": "passing",
+   "stars": 14389,
+   "license": "Apache-2.0",
+   "languages": {
+    "Go": 1.0,
+    "Makefile": 0.0,
+    "Dockerfile": 0.0
+   },
+   "best_practices": {
+    "project_id": 1250,
+    "badge_level": "passing",
+    "tiered_percentage": 111,
+    "source": "bestpractices.dev API 2026-10-20"
+   }
+  },
+  "go-grpc": {
+   "github": "grpc/grpc-go",
+   "language": "go",
+   "pinned_sha": "679b224109d3373eb0e4d80b6e41aafc8d295b6d",
+   "pinned_commit_date": "2026-10-19T18:30:12Z",
+   "exercises": "gRPC implementation: transports, retries/backoff, keepalive, TLS credentials",
+   "stewardship": "CNCF (gRPC)",
+   "scorecard": {
+    "score": 8.5,
+    "scorecard_run": "2026-10-12",
+    "checks": {
+     "Security-Policy": 9,
+     "CI-Tests": null,
+     "SAST": 7,
+     "Fuzzing": 10,
+     "Code-Review": 10,
+     "Maintained": 10,
+     "Branch-Protection": -1,
+     "Pinned-Dependencies": 0,
+     "Signed-Releases": -1,
+     "Vulnerabilities": null,
+     "Dangerous-Workflow": 10,
+     "Token-Permissions": 10
+    }
+   },
+   "best_practices_badge": "none",
+   "stars": 23094,
+   "license": "Apache-2.0",
+   "languages": {
+    "Go": 1.0,
+    "Shell": 0.0,
+    "Dockerfile": 0.0
+   },
+   "best_practices": {
+    "project_id": null,
+    "badge_level": "no entry",
+    "source": "bestpractices.dev API 2026-10-20"
+   }
+  },
+  "go-etcd": {
+   "github": "etcd-io/etcd",
+   "language": "go",
+   "pinned_sha": "7ff040cb84c9944d0c38a9f0dc9f12ed9c58223b",
+   "pinned_commit_date": "2026-10-20T23:33:03Z",
+   "exercises": "distributed KV store: raft, concurrency, client retries, auth, TLS",
+   "stewardship": "CNCF graduated",
+   "scorecard": {
+    "score": 6.9,
+    "scorecard_run": "2026-10-20T23:33:17Z",
+    "checks": {
+     "Security-Policy": 9,
+     "CI-Tests": 10,
+     "SAST": 10,
+     "Fuzzing": 10,
+     "Code-Review": 10,
+     "Maintained": 10,
+     "Branch-Protection": -1,
+     "Pinned-Dependencies": 6,
+     "Signed-Releases": 0,
+     "Vulnerabilities": 8,
+     "Dangerous-Workflow": 0,
+     "Token-Permissions": 0
+    }
+   },
+   "best_practices_badge": "passing",
+   "stars": 52407,
+   "license": "Apache-2.0",
+   "languages": {
+    "Go": 0.96,
+    "Shell": 0.02,
+    "Jsonnet": 0.01
+   },
+   "best_practices": {
+    "project_id": 3192,
+    "badge_level": "passing",
+    "tiered_percentage": 105,
+    "source": "bestpractices.dev API 2026-10-20"
+   }
+  },
+  "java-netty": {
+   "github": "netty/netty",
+   "language": "java",
+   "pinned_sha": "154e87c6b8fdacd7510fbe01d45bbce7018bc604",
+   "pinned_commit_date": "2026-10-20T15:41:55Z",
+   "exercises": "async network framework: event loops, codecs, TLS, pooled buffers",
+   "stewardship": "independent; under nearly every JVM network stack",
+   "scorecard": {
+    "score": 7.1,
+    "scorecard_run": "2026-10-12",
+    "checks": {
+     "Security-Policy": 10,
+     "CI-Tests": null,
+     "SAST": 10,
+     "Fuzzing": 10,
+     "Code-Review": 6,
+     "Maintained": 10,
+     "Branch-Protection": -1,
+     "Pinned-Dependencies": 7,
+     "Signed-Releases": 0,
+     "Vulnerabilities": null,
+     "Dangerous-Workflow": 10,
+     "Token-Permissions": 0
+    }
+   },
+   "best_practices_badge": "in_progress",
+   "stars": 35060,
+   "license": "Apache-2.0",
+   "languages": {
+    "Java": 0.98,
+    "C": 0.02,
+    "Shell": 0.0
+   },
+   "best_practices": {
+    "project_id": 11228,
+    "badge_level": "in_progress",
+    "tiered_percentage": 88,
+    "source": "bestpractices.dev API 2026-10-20"
+   }
+  },
+  "java-httpclient": {
+   "github": "apache/httpcomponents-client",
+   "language": "java",
+   "pinned_sha": "acb0cd33fd77d1f4164c4848ae607000b557ac8c",
+   "pinned_commit_date": "2026-10-18T06:16:09Z",
+   "exercises": "Apache HttpClient 5: pools, retry strategies, timeouts, TLS",
+   "stewardship": "Apache Software Foundation",
+   "scorecard": {
+    "score": 7,
+    "scorecard_run": "2026-10-19",
+    "checks": {
+     "Security-Policy": 10,
+     "CI-Tests": null,
+     "SAST": 10,
+     "Fuzzing": 10,
+     "Code-Review": 1,
+     "Maintained": 10,
+     "Branch-Protection": 0,
+     "Pinned-Dependencies": 0,
+     "Signed-Releases": -1,
+     "Vulnerabilities": null,
+     "Dangerous-Workflow": 10,
+     "Token-Permissions": 10
+    }
+   },
+   "best_practices_badge": "none",
+   "stars": 1537,
+   "license": "Apache-2.0",
+   "languages": {
+    "Java": 1.0,
+    "Shell": 0.0,
+    "CSS": 0.0
+   },
+   "best_practices": {
+    "project_id": null,
+    "badge_level": "no entry",
+    "source": "bestpractices.dev API 2026-10-20"
+   }
+  },
+  "java-tomcat": {
+   "github": "apache/tomcat",
+   "language": "java",
+   "pinned_sha": "6ba25c848c84f4b076220c5e0578a1cbb9063ed0",
+   "pinned_commit_date": "2026-10-20T21:05:50Z",
+   "exercises": "servlet container: HTTP connectors, sessions, auth realms, JDBC pools",
+   "stewardship": "Apache Software Foundation",
+   "scorecard": {
+    "score": 6.1,
+    "scorecard_run": "2026-10-19",
+    "checks": {
+     "Security-Policy": 10,
+     "CI-Tests": null,
+     "SAST": 10,
+     "Fuzzing": 10,
+     "Code-Review": 0,
+     "Maintained": 10,
+     "Branch-Protection": 3,
+     "Pinned-Dependencies": 1,
+     "Signed-Releases": -1,
+     "Vulnerabilities": null,
+     "Dangerous-Workflow": 10,
+     "Token-Permissions": 9
+    }
+   },
+   "best_practices_badge": "none",
+   "stars": 8258,
+   "license": "Apache-2.0",
+   "languages": {
+    "Java": 0.97,
+    "HTML": 0.01,
+    "JavaScript": 0.01
+   },
+   "best_practices": {
+    "project_id": null,
+    "badge_level": "no entry",
+    "source": "bestpractices.dev API 2026-10-20"
+   }
+  },
+  "java-spring-security": {
+   "github": "spring-projects/spring-security",
+   "language": "java",
+   "pinned_sha": "2ad2ec631b52c2f6318c4f186e599b93cc711bee",
+   "pinned_commit_date": "2026-10-20T16:59:14Z",
+   "exercises": "authentication, authorization, crypto, CSRF, OAuth2",
+   "stewardship": "Spring (Broadcom); production standard",
+   "scorecard": {
+    "score": 6.8,
+    "scorecard_run": "2026-10-12",
+    "checks": {
+     "Security-Policy": 10,
+     "CI-Tests": null,
+     "SAST": 10,
+     "Fuzzing": 10,
+     "Code-Review": 0,
+     "Maintained": 10,
+     "Branch-Protection": 3,
+     "Pinned-Dependencies": 10,
+     "Signed-Releases": -1,
+     "Vulnerabilities": null,
+     "Dangerous-Workflow": 10,
+     "Token-Permissions": 0
+    }
+   },
+   "best_practices_badge": "none",
+   "stars": 9650,
+   "license": "Apache-2.0",
+   "languages": {
+    "Java": 0.95,
+    "Kotlin": 0.04,
+    "JavaScript": 0.0
+   },
+   "best_practices": {
+    "project_id": null,
+    "badge_level": "no entry",
+    "source": "bestpractices.dev API 2026-10-20"
+   }
+  },
+  "java-keycloak": {
+   "github": "keycloak/keycloak",
+   "language": "java",
+   "pinned_sha": "d7b7d660babd29495322bca8c65f528872dad18b",
+   "pinned_commit_date": "2026-10-20T14:45:30Z",
+   "exercises": "identity provider: OIDC/SAML, DB access (JPA), crypto, HTTP clients",
+   "stewardship": "CNCF incubating",
+   "scorecard": {
+    "score": 9.2,
+    "scorecard_run": "2026-10-12",
+    "checks": {
+     "Security-Policy": 10,
+     "CI-Tests": null,
+     "SAST": 9,
+     "Fuzzing": 10,
+     "Code-Review": 9,
+     "Maintained": 10,
+     "Branch-Protection": 8,
+     "Pinned-Dependencies": 8,
+     "Signed-Releases": 8,
+     "Vulnerabilities": null,
+     "Dangerous-Workflow": 10,
+     "Token-Permissions": 10
+    }
+   },
+   "best_practices_badge": "passing",
+   "stars": 37447,
+   "license": "Apache-2.0",
+   "languages": {
+    "Java": 0.92,
+    "TypeScript": 0.07,
+    "FreeMarker": 0.01
+   },
+   "best_practices": {
+    "project_id": 6818,
+    "badge_level": "passing",
+    "tiered_percentage": 111,
+    "source": "bestpractices.dev API 2026-10-20"
+   }
+  },
+  "ruby-rails": {
+   "github": "rails/rails",
+   "language": "ruby",
+   "pinned_sha": "3f0b675158e8284241bb1213c00375bc1fb9c52f",
+   "pinned_commit_date": "2026-10-20T15:50:35Z",
+   "exercises": "web framework: Active Record SQL building, Active Job workers, crypto, sessions",
+   "stewardship": "Rails Foundation",
+   "scorecard": {
+    "score": 6.2,
+    "scorecard_run": "2026-10-19",
+    "checks": {
+     "Security-Policy": 10,
+     "CI-Tests": null,
+     "SAST": 0,
+     "Fuzzing": 0,
+     "Code-Review": 5,
+     "Maintained": 10,
+     "Branch-Protection": 3,
+     "Pinned-Dependencies": 2,
+     "Signed-Releases": -1,
+     "Vulnerabilities": null,
+     "Dangerous-Workflow": 10,
+     "Token-Permissions": 7
+    }
+   },
+   "best_practices_badge": "in_progress",
+   "stars": 58839,
+   "license": "MIT",
+   "languages": {
+    "Ruby": 0.97,
+    "JavaScript": 0.01,
+    "HTML": 0.01
+   },
+   "best_practices": {
+    "project_id": 33,
+    "badge_level": "in_progress",
+    "tiered_percentage": 94,
+    "source": "bestpractices.dev API 2026-10-20"
+   }
+  },
+  "ruby-rack": {
+   "github": "rack/rack",
+   "language": "ruby",
+   "pinned_sha": "412b7e5250612e8b23095eee65ee3268addb4776",
+   "pinned_commit_date": "2026-10-20T00:08:30Z",
+   "exercises": "HTTP server interface: request parsing, sessions, multipart, middleware",
+   "stewardship": "independent; under every Ruby web server",
+   "scorecard": {
+    "score": 7.2,
+    "scorecard_run": "2026-10-12",
+    "checks": {
+     "Security-Policy": 10,
+     "CI-Tests": null,
+     "SAST": 0,
+     "Fuzzing": 0,
+     "Code-Review": 9,
+     "Maintained": 10,
+     "Branch-Protection": -1,
+     "Pinned-Dependencies": 0,
+     "Signed-Releases": -1,
+     "Vulnerabilities": null,
+     "Dangerous-Workflow": 10,
+     "Token-Permissions": 10
+    }
+   },
+   "best_practices_badge": "none",
+   "stars": 5131,
+   "license": "NOASSERTION",
+   "languages": {
+    "Ruby": 1.0,
+    "HTML": 0.0,
+    "CSS": 0.0
+   },
+   "best_practices": {
+    "project_id": null,
+    "badge_level": "no entry",
+    "source": "bestpractices.dev API 2026-10-20"
+   }
+  },
+  "ruby-puma": {
+   "github": "puma/puma",
+   "language": "ruby",
+   "pinned_sha": "d53529399bc250915374eebe3ae54dd9fd9a6cb0",
+   "pinned_commit_date": "2026-10-16T02:02:47Z",
+   "exercises": "multi-threaded/multi-process HTTP server: thread pools, timeouts, TLS",
+   "stewardship": "independent; Rails default server",
+   "scorecard": {
+    "score": 6.1,
+    "scorecard_run": "2026-10-19",
+    "checks": {
+     "Security-Policy": 10,
+     "CI-Tests": null,
+     "SAST": 0,
+     "Fuzzing": 0,
+     "Code-Review": 6,
+     "Maintained": 10,
+     "Branch-Protection": -1,
+     "Pinned-Dependencies": 0,
+     "Signed-Releases": 0,
+     "Vulnerabilities": null,
+     "Dangerous-Workflow": 10,
+     "Token-Permissions": 10
+    }
+   },
+   "best_practices_badge": "none",
+   "stars": 7919,
+   "license": "BSD-3-Clause",
+   "languages": {
+    "Ruby": 0.87,
+    "C": 0.06,
+    "Java": 0.05
+   },
+   "best_practices": {
+    "project_id": null,
+    "badge_level": "no entry",
+    "source": "bestpractices.dev API 2026-10-20"
+   }
+  },
+  "ruby-rubygems": {
+   "github": "rubygems/rubygems",
+   "language": "ruby",
+   "pinned_sha": "f033df93676007227d1ae0bd7326008e6396b3e9",
+   "pinned_commit_date": "2026-10-15T07:32:00Z",
+   "exercises": "RubyGems + Bundler: HTTP fetches with retries, TLS verification, signatures",
+   "stewardship": "Ruby Central",
+   "scorecard": {
+    "score": 7.4,
+    "scorecard_run": "2025-10-14T04:30:02Z",
+    "checks": {
+     "Security-Policy": 10,
+     "CI-Tests": 10,
+     "SAST": 10,
+     "Fuzzing": 0,
+     "Code-Review": 1,
+     "Maintained": 10,
+     "Branch-Protection": -1,
+     "Pinned-Dependencies": 10,
+     "Signed-Releases": -1,
+     "Vulnerabilities": 10,
+     "Dangerous-Workflow": 10,
+     "Token-Permissions": 0
+    }
+   },
+   "best_practices_badge": "none",
+   "stars": 3979,
+   "license": "NOASSERTION",
+   "languages": {
+    "Ruby": 0.97,
+    "Roff": 0.02,
+    "Shell": 0.0
+   },
+   "best_practices": {
+    "project_id": null,
+    "badge_level": "no entry",
+    "source": "bestpractices.dev API 2026-10-20"
+   }
+  }
+ }
+}

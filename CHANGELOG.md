@@ -5,7 +5,120 @@ under `[Unreleased]` (there are no release tags yet) and reference the
 `REQ-###` they serve. Rationale belongs in `.ai/project-context.md`.
 
 ## [Unreleased]
+### 2026-10-21 (gold re-run)
+- ARB-065 | Gold benchmark re-run after the precision fixes (Arbiter 8cf1ee7, 23 repositories without keycloak, native checks): 6,477 findings, 1.32 per KLOC, 7 rules over budget. The first run (d57e479, 24 repositories) had 12,468 findings, 2.05 per KLOC, 16 over budget. Results in `tools/gold/results/2026-10-21-gold-*-after.*`.
+### 2026-10-21 (roadmap)
+- ARB-066 to ARB-075 | Proposed roadmap requirements: remediation through MCP
+with a verify loop, explaining why a rule fired or did not, auto-apply only for
+fixes that verify, and seven requirements against hallucination and hidden
+assumptions (claims need evidence, assumption ledger, generated briefs,
+environment preflight, independent re-verification, verified/inferred/assumed
+labels, ask instead of guessing).
 ### 2026-10-21
+- ARB-067 | Gaps and next-steps report (`docs/gaps-and-next-steps.md`):
+where Arbiter stands, with measured numbers and their sources (gold benchmark,
+OWASP recall, CWE Top 25 matrix, scan times), the gaps in detection,
+precision, performance, platform, product and developer experience, fifteen
+improvements ranked by value over effort with requirement ids, an evaluation
+of fourteen testing options, and three milestones with measurable exit
+criteria. Every claim is labelled measured, inferred or assumed (ARB-074).
+Records the issues found during the overnight runs: findings with the same
+evidence collapsing, per-file query recompilation, the `lang_rules` import
+cycle and `controls._probe_of`. Documentation only; no code changed.
+- ARB-065 | Java and TypeScript packs fixed against the gold triage and
+OWASP Benchmark Java. TypeScript test-without-assertion recognises node:test
+plans (`tspl`) and their destructured methods, AVA's `t.*` assertions
+(`t.throwsAsync`), node:assert functions called bare, `runClient(t)`-style
+helpers, a Promise's `reject`, "should not crash / without error" titles and
+Playwright `({ page })` flows: 729 to 18 on the gold set (1.11 to 0.027 per
+KLOC). fetch-no-timeout skips browser files (`document`/`window`): 25 to 14.
+Java test-without-assertion skips `@Disabled`/`@Ignore` and empty `@Override`
+tests, tests whose name or `@DisplayName` says nothing throws (the TypeScript
+rule's convention), a conditional `throw`, and a method reference handed to
+a runner (keycloak run-on-server): 446 to 276, still over budget; the rest
+only call the code. Java sql-string-built needs a receiver (not Ant's
+`execute`), SQL words in the string, and a splice that is not
+identifier-shaped (`tableName`, `getTableName(...)`; a bare `column` stays),
+and tracks `String sql = ...` into a following `try`: gold 45 to 7. Java
+command-injection adds `Runtime r = Runtime.getRuntime(); r.exec(...)`,
+`exec("echo " + x)`, and a ProcessBuilder list in a method that adds a shell
+`-c`; weak-random-for-secret adds `new java.util.Random()`,
+`java.lang.Math.random()` and one hop through a local or a `nextBytes`
+buffer into a `rememberMe`/reset/auth key. OWASP Java in-scope recall 0.045
+to 1.0, false-positive rate 0.043 to 0.565, score 0.003 to 0.435: weak
+randomness 218/218 with no false positive; SQL and command injection flag
+every safe case too, because the safe cases differ only by constant
+propagation.
+- ARB-065 | Shared-probe precision on the gold set (23 repositories without
+Keycloak). undeclared-import 1,647 to 79: Python requirement files in any
+layout (`requirements/*.txt`, `requirements-*.txt`, `requirements.in`, extras
+and markers), Go files resolved against their nearest go.mod (and module paths
+without a slash), bare Node built-ins, tsconfig path aliases, Java plugin ids,
+artifactId-named packages, the Gradle API in plugin builds and a documented
+table of guaranteed transitive packages (jspecify, aopalliance,
+reactive-streams, jose4j), Ruby gemspecs and renamed requires.
+assigned-credential 1,019 to 132: only literals are judged (no unquoted
+values in source code), constants holding key names, headers, URLs, hashes or
+their own name's words are skipped, as are i18n bundles and docs; under test
+paths only generated-looking values report. blanket-suppression 243 to 178:
+gosec `#nosec G115` names a rule. stub-on-production-path 309 to 48: abstract,
+base-class, hook, explained and "not supported" bodies are declarations.
+Fixture private keys stay reported, as low with a `test-fixture` tag. Keycloak:
+undeclared-import 678 to 158, assigned-credential 677 to 56. Insecure apps
+keep their true positives (planted corpus unchanged in all five languages).
+- ARB-065 | Python and Ruby packs, first fixes from the gold triage.
+Python `sql-injection` skips a statement whose every spliced value is a
+quoting call (`quote_name`, `qn`, `escape_identifier`), an ALL_CAPS constant
+or a built SQL fragment, and a two-stage template whose values stay `%%s`
+binds (Django 65 to 29). `insecure-random-for-secret` also reports a
+`random` value stored in a session or cookie, and knows `normalvariate` and
+the other distributions; `weak-password-hash` reports an empty md5/sha1
+object fed by `update()` in a function that handles a password (OWASP
+Benchmark Python: weak randomness 0/99 to 99/99, weak hash 0/71 to 71/71, no
+safe case flagged). `code-injection` skips eval behind a validating guard
+that returns or raises (safe cases flagged 33/33 to 11/33; the rest are
+constant-propagation decoys). Ruby: `stub-method` treats a class with two or
+more bare `raise NotImplementedError` methods, a private hook, an
+`Abstract*`/`Base` class and "is not implemented" messages as the abstract
+idiom; `vacuous-spec` counts `should_*`/`expect_*`/`mock_*` helpers, a
+helper with a heredoc and "does not raise" names; `check-then-act-unlocked`
+needs a collection query and a mutating act, and skips a `Concurrent::Map`
+constant declared beside its use, ENV and per-thread stores; `sql-injection`
+skips `escape_*` and `.to_i` interpolations; `rescue-exception` skips a
+hand-off to an error method, a collected or wrapped exception, and a
+RuboCop disable; `swallowed-error` skips an empty rescue with a comment
+saying why, and `rescue => @ivar`. Each pinned by planted pairs and tests
+that keep a still-reported case.
+- ARB-062 | CWE Top 25 (2024) measured before any new rule: an
+applicability matrix for Python, TypeScript/JavaScript, Go, Java and Ruby
+(`docs/cwe-top25.md`), 47 new planted pairs, one per applicable cell not
+already in the corpus, and a ranked gap list. Each defect is marked with what
+reports it, native or semgrep/bandit. 32 defects nothing reports are tagged
+`gap: CWE-N` in the source (TS JWT `decode`, Java `csrf.disable()`, error
+detail returned to the client, uploads under the client's filename, SSRF
+outside Python...). `docs/probes.md` lists, per language, the CWEs that do not
+apply, are out of reach for single-file checks, or are gaps. One marker
+comment can now carry both `expect:` and `expect-ext:`.
+- ARB-065 | Gold-standard benchmark. A fourth group in
+`tools/fetch_corpus.sh` (`GOLD_ONLY=1`) pins 24 exemplary repositories, 4 or 5
+per language (urllib3, Django, Celery, aiohttp, cryptography; undici, Nest,
+jose, OpenTelemetry JS, axios; Caddy, containerd, CoreDNS, grpc-go, etcd;
+Netty, HttpClient 5, Tomcat, Spring Security, Keycloak; Rails, Rack, Puma,
+RubyGems). Each is pinned to one commit and chosen on evidence recorded in
+`tools/gold/repos.json`: OpenSSF Scorecard checks, the Best Practices badge,
+and stewardship. OWASP Benchmark for Java and Python is pinned too, as
+labelled ground truth. `tools/gold_benchmark.py` counts findings per rule
+per KLOC against per-rule budgets in `tools/gold/budgets.json` and exits 1
+on a breach. `--recall` scores a labelled benchmark per CWE: recall,
+false-positive rate and TPR-FPR, with the CWEs Arbiter claims kept apart
+from those it does not. First measurement (`tools/gold/results/`): 6,086
+KLOC, 2.05 findings/KLOC, 16 rules over budget, led by TypeScript
+test-without-assertion (1.11/KLOC, from tspl plans and AVA `t.*`),
+undeclared-import (0.38) and assigned-credential (0.28). In-scope recall
+is 0.045 on OWASP Java (command injection and weak randomness 0%) and 0.22
+on OWASP Python. The triage, with a file:line for each verdict and a
+prioritised fix list, is in `tools/gold/results/2026-10-21-triage.md`.
+No rule changed.
 - ARB-061 | Rule packs for Python, TypeScript/JavaScript, Go, Java and Ruby:
 races, outbound calls with no timeout (and Go DB calls with no deadline),
 retry loops with no backoff or cap, swallowed errors and unstoppable worker
@@ -19,6 +132,15 @@ Java undeclared-import reads Gradle version catalogs, maps packages to
 groupIds and treats Gradle test source sets as tests (2,295 findings to 117
 on seven Java repos); a skip annotation inside a comment is no longer a
 skipped test.
+- ARB-061 | Precision follow-ups in shared files, from the language runs.
+A Go test handing `t` to a helper in any argument position delegates its
+assertion (cobra 34 to 2 tests-assert-nothing); `//go:build ignore` generators
+may import undeclared modules (client_golang 2 to 0); `InsecureSkipVerify`
+beside its own `VerifyPeerCertificate`/`VerifyConnection`/`PeerCertSANs` in the
+same literal is custom verification, not off (traefik 25 to 20); a `_test/`
+directory holds tests (yaegi 19 source findings under it to 0). Pack queries
+are compiled when a pack loads, and one that does not compile raises a
+`PackError` naming pack, rule and reason instead of silently emptying a scan.
 - ARB-064 | Findings traceable in OmniGraph: rule and CWE nodes, `violates`
 and `classified_as` edges, full and gate reports merged, `--if-stale`
 rebuild, `omni graph findings --cwe/--rule`, impact by file or CWE.

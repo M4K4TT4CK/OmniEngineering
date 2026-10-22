@@ -265,8 +265,8 @@ def _is_context(f: FileInfo) -> bool:
     from .incremental import is_context
     if is_context(f):
         return True
-    from .authored import _MANIFESTS
-    return Path(f.path).name in _MANIFESTS
+    from .authored import is_context_path
+    return is_context_path(f.path)
 
 
 def _narrowed(inv: Inventory, keep: list[FileInfo]) -> Inventory:
@@ -459,16 +459,21 @@ def adapter_divergence(probe_name: str, cached: list[dict], fresh: list[dict]) -
     )
 
 
-def make_context_digest(names: set[str]) -> Callable[[ProbeContext], str]:
+def make_context_digest(names: set[str] | Callable[[str], bool]) -> Callable[[ProbeContext], str]:
     """A context-digest function for a probe whose per-file answer depends on
-    the manifests named here and on which paths exist in the repository."""
+    the manifests named here and on which paths exist in the repository.
+
+    `names` is a set of file names or a predicate over a repository-relative
+    path, for manifests a name alone does not identify (`requirements/*.txt`)."""
+    wanted = names if callable(names) else (lambda p: Path(p).name in names)
+
     def digest(ctx: ProbeContext) -> str:
         inv = ctx.inventory
         whole = getattr(inv, "whole", None) or inv
         h = hashlib.sha256()
         for f in sorted(whole.files, key=lambda x: (x.repo_id, x.path)):
             h.update(f"{f.repo_id}:{f.path}\n".encode("utf-8"))
-            if Path(f.path).name in names and not f.binary:
+            if wanted(f.path) and not f.binary:
                 h.update(file_digest(f.abspath).encode("utf-8"))
         return h.hexdigest()
     return digest

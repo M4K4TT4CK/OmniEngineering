@@ -430,6 +430,50 @@ def test_assertion_helpers_and_conditional_skips_are_not_reported(tmp_path):
     assert got == [("skipped-test", 4), ("test-without-assertion", 2)]
 
 
+# ----------------------------- precision on the gold corpus (ARB-065)
+
+def test_node_test_and_ava_assertion_objects_count_as_assertions(tmp_path):
+    # undici: `const { strictEqual } = tspl(t, { plan: 2 })`, then the
+    # destructured names called bare; jose (AVA): `t.throwsAsync`, `t.is`;
+    # node:test's `t.assert`, an imported `deepStrictEqual`, a test-shaped
+    # helper handed `t` (undici `runClient(t)`), and a Promise whose
+    # `reject` fails the test. A helper named for something else
+    # (`checkout(t)`, pinned above) still does not count.
+    src = (
+        "test('plan', (t) => { const { strictEqual } = tspl(t, { plan: 1 }); strictEqual(run(), 1); });\n"
+        "test('ava', async (t) => { await t.throwsAsync(run(), { code: 'E' }); });\n"
+        "test('ava is', (t) => { t.is(run(), 1); t.true(ok); });\n"
+        "test('node', (t) => { t.assert.equal(run(), 1); });\n"
+        "test('bare', (t) => { deepStrictEqual(run(), [1]); });\n"
+        "test('helper', async (t) => { await runClient(t, run()); });\n"
+        "test('promise', (t) => new Promise((resolve, reject) => { run().on('error', reject); }));\n"
+        "test('only calls', async (t) => { await run(); });\n"
+        "test('nested arrow only', async (t) => { await t.test('x', async (t) => { await run(); }); });\n"
+        "test('should forceFlush without error', (t) => { run(); });\n"
+        "test('batch callback should not crash', (t) => { run(); });\n"
+    )
+    assert _lines(_scan(tmp_path, {"a.test.js": src}, "test-without-assertion")) == [8, 9]
+
+
+def test_a_playwright_page_flow_is_checked_by_its_locators(tmp_path):
+    # keycloak admin-ui: `test("...", async ({ page }) => { await clickX(page); })`.
+    # A node:test `t` that only calls the code is still reported.
+    src = (
+        "test('Check hide inherited roles option', async ({ page }) => { await clickHide(page); });\n"
+        "test('typed', async ({ page }: { page: Page }) => { await clickHide(page); });\n"
+        "test('only calls', async (t) => { await clickHide(t.name); });\n"
+    )
+    assert _lines(_scan(tmp_path, {"a.spec.ts": src}, "test-without-assertion")) == [3]
+
+
+def test_fetch_in_browser_code_is_not_reported(tmp_path):
+    # tomcat's manager webapp and the otel-js web examples run in a page
+    src = "export async function load() { return fetch('/api/apps'); }\n"
+    browser = "document.title = 'x';\n" + src
+    assert _lines(_scan(tmp_path, {"a.ts": src}, "fetch-no-timeout")) == [1]
+    assert not _scan(tmp_path, {"b.js": browser}, "fetch-no-timeout")
+
+
 # ---------------------------------------------------------------- the corpus
 
 def test_the_corpus_exercises_every_rule_in_the_pack():

@@ -11,6 +11,11 @@ commas. A marker with `expect-ext:` names an external analyzer's rule
 (semgrep, bandit, ...): it is scored by `tools/planted_score.py` but not
 asserted by the fast test suite, which runs without analyzers.
 
+One comment may carry both kinds, when a native rule and an external one each
+report the same defect:
+
+    system("zip #{name}") # expect: arbiter/ruby.command-injection expect-ext: semgrep/x
+
 Markers live on the defect line itself, so they cannot drift away from it the
 way a separate list of line numbers would.
 """
@@ -20,7 +25,9 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-MARKER = re.compile(r"(?:#|//|--)\s*expect(?P<ext>-ext)?:\s*(?P<rules>[\w./:,\- ]+?)\s*(?:\*/)?\s*$")
+MARKER = re.compile(r"(?:#|//|--)\s*(?P<body>expect(?:-ext)?:\s*[\w./:,\- ]+?)\s*(?:\*/)?\s*$")
+# Where each `expect:` / `expect-ext:` group starts inside a marker's body.
+_GROUP = re.compile(r"(?:^|\s)expect(-ext)?:\s*")
 SOURCE_SUFFIXES = {".py", ".ts", ".tsx", ".js", ".mjs", ".cjs", ".go", ".java", ".rb"}
 
 
@@ -52,9 +59,13 @@ def markers(root: Path) -> list[Expected]:
             m = MARKER.search(line)
             if not m:
                 continue
-            for rule in (r.strip() for r in m.group("rules").split(",")):
-                if rule:
-                    out.append(Expected(rule=rule, path=rel, line=i, external=bool(m.group("ext"))))
+            body = m.group("body")
+            groups = list(_GROUP.finditer(body))
+            for g, nxt in zip(groups, groups[1:] + [None]):
+                rules = body[g.end(): nxt.start() if nxt else len(body)]
+                for rule in (r.strip() for r in rules.split(",")):
+                    if rule:
+                        out.append(Expected(rule=rule, path=rel, line=i, external=bool(g.group(1))))
     return out
 
 

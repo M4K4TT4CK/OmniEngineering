@@ -34,12 +34,15 @@ def test_underscored_credential_names_are_caught(legacy_report):
 
 def test_test_fixture_keys_are_downgraded_not_hidden(tmp_path):
     """psf/requests ships four private keys under tests/certs. They are real
-    keys and deliberate; reporting them as critical was wrong."""
+    keys and deliberate; reporting them as critical was wrong. Since ARB-065
+    they are low and tagged `test-fixture`, so they can be budgeted on their
+    own (240 on gold: grpc-go's testdata/x509, cryptography's vectors)."""
     key = "-----BEGIN PRIVATE KEY-----\nMIIBVQIBADAN\n-----END PRIVATE KEY-----\n"
     found = _scan_text(tmp_path, "tests/certs/server.key", key, ["secrets"])
     assert len(found) == 1
-    assert found[0].severity == "medium" and found[0].confidence == "low"
+    assert found[0].severity == "low" and found[0].confidence == "low"
     assert "test fixture" in found[0].title
+    assert "test-fixture" in found[0].tags
 
 
 def test_production_key_stays_critical(tmp_path):
@@ -312,7 +315,7 @@ def test_non_deployment_paths_downgrade_real_keys(tmp_path, path):
     """Traefik commits real TLS keys under integration/resources/tls so its
     integration suite has something to serve. Same category as the keys under
     psf/requests' tests/certs -- a different word for the directory should not
-    change the verdict from medium to critical."""
+    change the verdict from low (tagged test-fixture, ARB-065) to critical."""
     real = ("-----BEGIN RSA PRIVATE KEY-----\n"
             "MIICXAIBAAKBgQDVgc+zdNmcxwg4xqdoiy/WpnYj0WFvE7A/zy0EfvnUhxhLAXlC\n"
             "bjQw5Sqxa8IwQVr4G/mR7wTTJtf/Nrt5bP+E2D4W9MtuL7tzZ9KS/7v3D3nninMP\n"
@@ -320,7 +323,8 @@ def test_non_deployment_paths_downgrade_real_keys(tmp_path, path):
     found = [f for f in _scan_text(tmp_path, path, real, ["secrets"])
              if "private-key" in f.rule_id]
     assert found, "still reported — downgraded, never hidden"
-    assert found[0].severity == "medium" and found[0].confidence == "low"
+    assert found[0].severity == "low" and found[0].confidence == "low"
+    assert "test-fixture" in found[0].tags
     assert "fixture" in found[0].title
 
 
@@ -521,3 +525,28 @@ def test_provider_token_lookalikes_do_not_fire(tmp_path, line):
               "gitlab-token", "npm-token", "sendgrid-key", "pypi-token",
               "slack-webhook"}}
     assert not fired, f"{line} fired {fired}"
+
+
+@pytest.mark.parametrize("code,reported", [
+    # Custom verification in the same literal: the flag is how Go spells it.
+    ("cfg := &tls.Config{\n\tInsecureSkipVerify: true,\n"
+     "\tVerifyPeerCertificate: verifySPIFFE,\n}\n", False),
+    ("cfg := &tls.Config{InsecureSkipVerify: true, VerifyConnection: check}\n", False),
+    # Traefik's consulcatalog/connect_tls.go: the SPIFFE ID pinned declaratively.
+    ("t := &dynamic.ServersTransport{\n\tServerName: n,\n\tInsecureSkipVerify: true,\n"
+     "\tRootCAs: c.getRoot(),\n\tPeerCertSANs: []traefiktls.SAN{\n\t\t{Value: id},\n\t},\n}\n",
+     False),
+    ("cfg := &tls.Config{InsecureSkipVerify: true}\n"
+     "cfg.VerifyPeerCertificate = func(raw [][]byte, _ [][]*x509.Certificate) error {\n"
+     "\treturn verify(raw)\n}\n", False),
+    # Still reported: the plain flag, and a verifier in a DIFFERENT literal.
+    ("cfg := &tls.Config{InsecureSkipVerify: true}\n", True),
+    ("a := &tls.Config{InsecureSkipVerify: true}\n"
+     "b := &tls.Config{VerifyPeerCertificate: v}\n", True),
+])
+def test_insecure_skip_verify_with_its_own_verifier_is_not_reported(tmp_path, code, reported):
+    (tmp_path / "a.go").write_text("package p\n\nfunc f() {\n" + code + "}\n")
+    rep = run_scan([str(tmp_path)], load_config(None), only=["authored"],
+                   use_adapters=False, use_cache=False)
+    hits = [f for f in rep.active() if "security-check-disabled" in f.rule_id]
+    assert bool(hits) == reported, [(f.location.start_line, f.title) for f in hits]

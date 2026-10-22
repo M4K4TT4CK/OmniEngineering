@@ -249,3 +249,138 @@ def test_deserialization_round_trip_in_test_support_is_not_reported(tmp_path):
     assert "object-input-stream" not in rules_in(tmp_path, code, "src/jsr166Test/java/app/Svc.java")
     plain = code.replace("import static org.junit.Assert.assertEquals;\n", "")
     assert "object-input-stream" in rules_in(tmp_path / "p", plain)
+
+
+# --- the gold corpus and OWASP Benchmark (ARB-065) -------------------------
+
+def lines_of(tmp_path, code: str, rule: str, name: str = MAIN) -> list[int]:
+    found = _scan_text(tmp_path, name, code, only=["lang_java"])
+    return sorted(f.location.start_line for f in found if f.rule_id == f"arbiter/java.{rule}")
+
+
+_GOLD_TEST = """package app;
+import org.junit.jupiter.api.*;
+class SvcTest extends Base {
+    private final Svc svc = new Svc();
+    @Disabled("Assumes a pooled buffer") @Test @Override public void testMaxFastWritableBytes() {}
+    @Test @Override public void testInherited() { }
+    @Test void buildWhenScopesIsNullThenDoesNotThrowAnyException() { svc.name(); }
+    @Test void contextLoads() { svc.name(); }
+    @Test void shouldNotThrowExceptionWhenValueIsBetweenBounds() { svc.name(); }
+    @Test void preAuthorizeWhenRoleAdminThenPasses() { svc.name(); }
+    @Test @DisplayName("does not throw on an empty name") void emptyName() { svc.name(); }
+    @Test void pipeline() throws Throwable { Throwable cause = svc.error(); if (cause != null) { throw cause; } }
+    @Test void readerIndexBoundaryCheck() { svc.name(); }
+    @Test @Override public void testOverriddenButRuns() { svc.name(); }
+    @Test void validateConfiguration() { runOnServer.run(SvcTest::validateOnServer); }
+    @Test void forEachName() { svc.names().forEach(System.out::println); }
+}
+"""
+
+
+def test_switched_off_and_does_not_throw_tests_are_not_reported(tmp_path):
+    # netty AbstractAdaptiveByteBufTest (`@Disabled` empty overrides),
+    # spring-security `...ThenDoesNotThrowAnyException` / `contextLoads`,
+    # commons-lang `shouldNotThrowExceptionWhen...`,
+    # netty DefaultChannelPipelineTest (`if (cause != null) throw cause`),
+    # keycloak `runOnServer.run(SvcTest::validateOnServer)`.
+    # A test that only calls the code is still reported, override or not.
+    assert lines_of(tmp_path, _GOLD_TEST, "test-without-assertion", TEST) == [13, 14, 16]
+
+
+_SQL = """package app;
+import java.sql.*;
+class Svc {
+    Connection conn; javax.persistence.EntityManager em; String tableName;
+    ResultSet byName(String name) throws SQLException {
+        String sql = "SELECT * FROM users WHERE name = '" + name + "'";
+        try {
+            Statement st = conn.createStatement();
+            return st.executeQuery(sql);
+        } finally { conn.close(); }
+    }
+    Object cluster() {
+        return em.createNativeQuery("SELECT min(c) FROM " + tableName + " WHERE last_update > ?1").getSingleResult();
+    }
+    Object realm() throws SQLException {
+        return conn.prepareStatement("select ID from " + getTableName("REALM") + " where NAME = ?");
+    }
+    Object mixed(String id) throws SQLException {
+        return conn.prepareStatement("select ID from " + getTableName("REALM") + " where NAME = '" + id + "'");
+    }
+    void jmx(String queryString) { execute("/../jmxproxy/" + queryString); }
+    ResultSet sort(String column) throws SQLException {
+        return conn.createStatement().executeQuery("select id from SERVERS order by " + column);
+    }
+    void schema(String user) throws SQLException { conn.createStatement().execute("SET SCHEMA " + user); }
+    void execute(String s) {}
+    String getTableName(String t) { return t; }
+}
+"""
+
+
+def test_sql_built_before_a_try_is_tracked_and_identifier_splices_are_not(tmp_path):
+    # OWASP Benchmark: `String sql = ...` then the sink inside `try { }`.
+    # keycloak JpaClusterEventStoreProvider / migrations: only a table name
+    # is spliced, values are `?`. tomcat JMXQueryTask: Ant's `execute`.
+    # A bare `column` from a request parameter (WebGoat's ORDER BY lesson) is
+    # not identifier-shaped enough to trust, and stays reported.
+    assert lines_of(tmp_path, _SQL, "sql-string-built") == [9, 19, 23, 25]
+
+
+_CMD = """package app;
+import java.util.*;
+class Svc {
+    Process a(String bar) throws Exception {
+        Runtime r = Runtime.getRuntime();
+        return r.exec("echo " + bar);
+    }
+    Process b(String param) throws Exception {
+        List<String> argList = new ArrayList<>();
+        argList.add("sh"); argList.add("-c"); argList.add("echo " + param);
+        ProcessBuilder pb = new ProcessBuilder();
+        pb.command(argList);
+        return pb.start();
+    }
+    Process c(List<String> args) throws Exception {
+        return new ProcessBuilder(args).start();
+    }
+    int d() { Runtime r = Runtime.getRuntime(); return r.availableProcessors(); }
+}
+"""
+
+
+def test_runtime_in_a_local_and_a_shell_list_are_command_injection(tmp_path):
+    # OWASP Benchmark cmdi: `Runtime r = Runtime.getRuntime(); r.exec(cmd + bar)`
+    # and `pb.command(argList)` with `sh -c`. A ProcessBuilder handed a list
+    # with no shell in the method runs no shell, and is not reported.
+    assert lines_of(tmp_path, _CMD, "command-injection") == [6, 12]
+
+
+_REMEMBER = """package app;
+class Svc {
+    String issue() {
+        float rand = new java.util.Random().nextFloat();
+        String rememberMeKey = Float.toString(rand).substring(2);
+        return rememberMeKey;
+    }
+    String bytes() {
+        byte[] b = new byte[8];
+        new java.util.Random(1L).nextBytes(b);
+        String rememberMeKey = java.util.Base64.getEncoder().encodeToString(b);
+        return rememberMeKey;
+    }
+    double jitter() {
+        double value = java.lang.Math.random();
+        String label = Double.toString(value);
+        return value;
+    }
+}
+"""
+
+
+def test_a_random_value_that_becomes_a_remember_me_key_is_reported(tmp_path):
+    # OWASP Benchmark weakrand: the value is drawn into a local, then turned
+    # into `rememberMeKey`; `java.util.Random` written in full and
+    # `java.lang.Math.random()` both count. A jitter stays unreported.
+    assert lines_of(tmp_path, _REMEMBER, "weak-random-for-secret") == [4, 10]

@@ -204,6 +204,33 @@ and no owned rule fires on an unmarked line. `python tools/planted_score.py
 [--adapters]` prints the catch rate per language, with or without the external
 analyzers.
 
+A comment may carry both kinds of marker, `# expect: <native> expect-ext:
+<external>`, when both report the same defect. A planted defect that nothing
+reports yet carries `gap: CWE-N` instead of a marker, so it shows in the source
+without failing the score.
+
+### CWE Top 25: not assessed
+
+The 2024 CWE Top 25 is planted per language and measured in
+[`docs/cwe-top25.md`](cwe-top25.md), with the matrix, the per-language counts
+and the ranked gap list. The CWEs below are **not assessed** by Arbiter in the
+named language. A scan that finds none of them says nothing about them.
+
+| Language | Not assessed: does not apply | Not assessed: out of reach for single-file checks | Applies, but no check yet (gap) |
+|---|---|---|---|
+| Python | 787, 125, 416, 119 (memory-safe); 476 (`None` access raises); 190 (arbitrary-precision ints) | 862, 863, 306, 269, 20; 918 beyond one function | 434, 77; 200 except `debug=True` |
+| TypeScript / JavaScript | 787, 125, 416, 119; 476 (`undefined` access raises); 190 (`number` is a double) | 862, 863, 306, 269, 20; 918 beyond one function | 352, 434, 77, 287, 200, 918 |
+| Go | 787, 125, 416, 119 (outside `unsafe`); 94 (no runtime eval); 502 (stdlib decoders fill declared types) | 862, 863, 306, 269, 20, 476 (nil-flow analysis), 352 (absent middleware); 918 beyond one function | 22, 434, 77, 287, 200, 918, 190; 798 signing-key literals |
+| Java | 787, 125, 416, 119 (outside JNI) | 862, 863, 306, 269, 20, 476 (nullness analysis); 918 beyond one function | 79, 352, 77, 200, 918, 798, 190 |
+| Ruby | 787, 125, 416, 119 (outside C extensions); 476 (`nil` access raises); 190 (arbitrary-precision ints) | 862, 863, 306, 269, 20; 918 beyond one function | 352, 22, 434, 77, 200, 918 |
+
+Gap cells that semgrep or bandit cover only when installed are listed as
+covered in `docs/cwe-top25.md`. Without the analyzers they fall back to the
+native column there. In a scan, an analyzer that did not run is already
+reported as not assessed (see [Native probes](#native-probes)). The CWE-level
+rows above are not yet in the controls coverage report; see ARB-062 in
+`.ai/requirements/requirements.json`.
+
 ## Machine-authored code
 
 A growing share of new code is drafted by a model, and model-drafted code fails

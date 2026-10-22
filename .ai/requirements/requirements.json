@@ -1414,7 +1414,8 @@
       "acceptance_criteria": [
         "every interview-slice defect in the planted corpus is caught in python typescript go java ruby",
         "no rule fires on a good twin",
-        "precision run on each language's corpus repos reviewed"
+        "precision run on each language's corpus repos reviewed",
+        "false positives the language runs found in shared files fixed, each pinned by a test that also keeps a still-reported case, and a pack query that does not compile fails the load naming its rule"
       ],
       "validation_required": [
         "pytest",
@@ -1430,14 +1431,16 @@
       "id": "ARB-062",
       "category": "capability",
       "title": "CWE Top 25 coverage per IDE language, with what is not assessed stated",
-      "description": "For each IDE language, every applicable CWE Top 25 weakness has a planted pair caught by a native rule or a pinned analyzer; weaknesses out of reach of single-file structural checks (authorization, data flow without taint tracking) are listed as not assessed per language.",
+      "description": "For each IDE language, every applicable 2024 CWE Top 25 weakness has a planted bad/good pair, scored native-only and with the pinned analyzers (semgrep, bandit, gitleaks). Integration first: the applicability matrix, measured coverage and ranked gap list are in docs/cwe-top25.md (measured 2026-10-21: 47 new pairs; 32 planted defects caught by nothing). Native rules are then written only for the ranked gaps. Weaknesses that do not apply (memory safety; 190 in Python/Ruby/TS; 94 and 502 in Go) or are out of reach of single-file checks (862, 863, 306, 269, 20, 476 in Go/Java, 352 in Go, 918 beyond one function) are listed as not assessed per language.",
       "priority": "medium",
       "status": "pending",
       "minimum_access_scope": [],
       "acceptance_criteria": [
-        "per-language CWE table in docs/probes.md",
-        "each in-scope CWE has a passing planted pair",
-        "not-assessed CWEs appear in the controls coverage output"
+        "per-language CWE table in docs/probes.md (not assessed / gap) and the matrix in docs/cwe-top25.md",
+        "each applicable cell has a planted pair under fixtures/planted/<lang>/; a caught defect carries expect: or expect-ext:, an uncaught one carries gap: CWE-N",
+        "planted_score.py stays fully caught with 0 on good twins and 0 unmarked, native-only and with --adapters",
+        "the ranked gaps from docs/cwe-top25.md get native rules, each turning its gap: comment into an expect: marker",
+        "not-assessed CWEs appear in the controls coverage output: needs a CWE Top 25 control pack with per-language applicability (a control today has one automatable value and no language), a state or reason for 'does not apply in this language' distinct from not_automatable, and controls._probe_of mapping arbiter/<lang>.* to the lang_<lang> probe (today it returns '<lang>', so a language-pack check would always read as not assessed)"
       ],
       "validation_required": [
         "pytest",
@@ -1447,7 +1450,10 @@
       "documentation_required": [
         "changelog"
       ],
-      "risk_notes": []
+      "risk_notes": [
+        "semgrep rules that fire on the fixed twin too (Ruby missing-csrf-protection, check-send-file and dangerous-exec, Flask ssrf-requests, bandit B603/B607) are not counted as coverage",
+        "918 is planted in its same-function form only; interprocedural SSRF stays out of reach"
+      ]
     },
     {
       "id": "ARB-063",
@@ -1484,6 +1490,280 @@
         "omni graph why <finding> shows file symbol rule cwe requirement and introducing commit",
         "omni graph impact <file> lists findings",
         "works in interview-ide-arbiter after make scan"
+      ],
+      "validation_required": [
+        "pytest",
+        "doctor",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-065",
+      "category": "measurement",
+      "title": "Gold-standard benchmark: precision budgets per rule on exemplary code, recall on ground-truth benchmarks",
+      "description": "A repeatable measurement of Arbiter against the best-run code in each IDE language. 24 repositories (python typescript go java ruby) chosen by recorded evidence (OpenSSF Scorecard, Best Practices badge, foundation stewardship, security policy) and pinned to one commit each in tools/fetch_corpus.sh. tools/gold_benchmark.py counts findings per rule per KLOC on them against per-rule budgets kept as data in tools/gold/budgets.json and exits non-zero when a rule is over budget; --recall scores OWASP Benchmark (Java, Python) per CWE: recall, false-positive rate and TPR-FPR.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "tools/fetch_corpus.sh",
+        "tools/gold_benchmark.py",
+        "tools/gold/",
+        "tests/test_gold_benchmark.py"
+      ],
+      "acceptance_criteria": [
+        "3 to 5 pinned gold repositories per language with evidence recorded",
+        "findings per KLOC per rule with budgets from a data file and a non-zero exit on breach",
+        "recall per CWE on at least one labelled benchmark",
+        "harness logic tested without network",
+        "first measurement triaged into a prioritised list of rule fixes",
+        "java and typescript pack rules over budget on the gold set brought under budget, each fix with a planted pair and a pinned test that keeps a still-reported case, and OWASP Benchmark Java in-scope recall raised with its false-positive rate reported per CWE",
+        "shared-probe false positives found on gold fixed, each pinned by a test that also keeps a still-reported case",
+        "undeclared-import resolves Python requirement layouts, nearest go.mod, bare Node built-ins, Java plugin and transitive packages and Ruby gemspecs",
+        "assigned-credential judges only literal values and skips key-name constants, message bundles and test data that is not generated-looking",
+        "insecure corpus apps keep their true positives and the planted corpus stays fully caught",
+        "Python and Ruby pack fixes from the triage measured before and after on the gold repositories, the earlier clean corpora and OWASP Benchmark Python, each pinned by a planted pair and a test that keeps a still-reported case"
+      ],
+      "validation_required": [
+        "pytest",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": [
+        "gold repositories are untrusted: scanned only never built or run",
+        "OWASP Benchmark is GPL: fetched never redistributed",
+        "first measurement 2026-10-21: 16 rules over budget; rule fixes are follow-up work, listed in tools/gold/results/2026-10-21-triage.md"
+      ]
+    },
+    {
+      "id": "ARB-066",
+      "category": "capability",
+      "title": "Remediation through MCP, with a verify loop",
+      "description": "Each finding carries a concrete fix for its own lines (before/after, not just the rule's generic remediation) and a verify step: rerun the probe on the file, the tests, and the gate. The fix and the check are exposed over MCP in a machine-readable form so an AI agent can apply and prove a fix. Sources: rule remediation text, the planted good twins, and fix pairs mined by tools/fixpairs.py.",
+      "priority": "high",
+      "status": "proposed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "arbiter explain/fix <finding> returns a patch-shaped suggestion and a verify command for every native rule",
+        "MCP tool returns the same structure; a schema test pins it",
+        "applying the planted good twin's change to its bad file makes the finding disappear for every planted defect",
+        "verify reports pass/fail per step (probe, tests, gate)"
+      ],
+      "validation_required": [
+        "pytest",
+        "doctor",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-067",
+      "category": "quality",
+      "title": "Explain why a rule fired or did not fire; feed verdicts back into confidence",
+      "description": "`arbiter why <finding>` shows the matched query, the captures and which exclusions (unless_inside / unless_in_scope / unless_in_file) were checked; `arbiter why-not <file:line> <rule>` shows which part failed to match. `arbiter feedback` verdicts adjust per-rule confidence and are reported, never silently applied.",
+      "priority": "high",
+      "status": "proposed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "why and why-not work for every native pack rule",
+        "a recorded false-positive verdict lowers that rule's reported confidence on the next scan, with the verdict cited",
+        "precision per rule over the clean and gold corpora is published in docs/",
+        "gaps and next-steps report written (docs/gaps-and-next-steps.md)"
+      ],
+      "validation_required": [
+        "pytest",
+        "doctor",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-068",
+      "category": "capability",
+      "title": "Auto-apply fixes only for rules whose fixes verify reliably",
+      "description": "After ARB-066, a rule earns auto-apply when its suggested fix verifies (probe silent, tests pass, gate passes) on at least 95% of its planted and mined fix pairs. Auto-apply is opt-in per repository, reversible (one commit per fix, referencing the finding), and never applies to security rules without review.",
+      "priority": "medium",
+      "status": "proposed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "per-rule fix verification rate is measured and stored",
+        "only rules at or above the threshold are eligible",
+        "each applied fix is its own commit citing the finding id and the verify result",
+        "security-dimension rules require an explicit reviewer approval"
+      ],
+      "validation_required": [
+        "pytest",
+        "doctor",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": [
+        "Automated edits can hide judgement; keep opt-in and reviewable."
+      ]
+    },
+    {
+      "id": "ARB-069",
+      "category": "process",
+      "title": "Claims need evidence: agent and PR claims carry the command that proves them",
+      "description": "Agent reports and PR descriptions list each factual claim (scores, test counts, 'no false positives', gate status) with the exact command that reproduces it. The gate reruns those commands and fails when a claimed result does not match.",
+      "priority": "high",
+      "status": "proposed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "a claims block format is documented and parsed",
+        "omni gate reruns each claim's command and compares the result",
+        "a mismatched claim fails the gate with the expected and actual values"
+      ],
+      "validation_required": [
+        "pytest",
+        "doctor",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-070",
+      "category": "process",
+      "title": "Assumption ledger linked in OmniGraph",
+      "description": "Assumptions made while specifying or building (from clarify, prompts, agent briefs) are recorded with status unverified, verified (with evidence) or wrong. OmniGraph links requirement -> assumption -> evidence. A requirement cannot be completed while it depends on an unverified assumption.",
+      "priority": "medium",
+      "status": "proposed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "assumptions are stored in the registry or a sibling file with a schema",
+        "omni graph shows requirement-to-assumption-to-evidence edges",
+        "completing a requirement with an unverified assumption fails the registry gate"
+      ],
+      "validation_required": [
+        "pytest",
+        "doctor",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-071",
+      "category": "quality",
+      "title": "Briefs and instructions generated from code, or tested against it",
+      "description": "Facts given to agents (pack schema, CLI commands, what the query engine supports) are generated from the source and tests. A hand-written fact carries a test that fails when it stops being true. Found: a pack comment said #not-match? was ignored; it was copied into four agent briefs and was wrong.",
+      "priority": "high",
+      "status": "proposed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "agent brief sections listing schema and commands are generated",
+        "every hand-written engine capability claim in packs/ and docs/ has a test",
+        "the #not-match? claim is covered by a test"
+      ],
+      "validation_required": [
+        "pytest",
+        "doctor",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-072",
+      "category": "reliability",
+      "title": "Environment preflight before every agent or scan run",
+      "description": "Before work starts, check and record: which copy of arbiter is imported, the git branch and HEAD, tool and grammar versions, and that every pack compiles. A failed check stops the run instead of producing confident wrong numbers. Found: a precision run used the shared install instead of the worktree.",
+      "priority": "high",
+      "status": "proposed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "arbiter preflight prints and stores import path, branch, HEAD, tool versions and pack compile status",
+        "a mismatch between the expected and actual import path fails",
+        "reports include the preflight record"
+      ],
+      "validation_required": [
+        "pytest",
+        "doctor",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-073",
+      "category": "process",
+      "title": "Independent mechanical re-verification of agent reports",
+      "description": "A separate step rechecks each agent report against the repository (reruns the scores, the suite and the gate on the agent's commit) rather than trusting the report. Discrepancies are listed, not silently corrected.",
+      "priority": "medium",
+      "status": "proposed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "a re-verify command takes a branch and a report and reruns every claimed check",
+        "discrepancies are reported per claim",
+        "merging an agent branch is blocked until re-verification passes"
+      ],
+      "validation_required": [
+        "pytest",
+        "doctor",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-074",
+      "category": "quality",
+      "title": "Label statements as verified, inferred or assumed; flag lossy input",
+      "description": "Agent statements and generated reports label each claim as verified (with evidence), inferred or assumed. Input that was compressed, truncated or summarised is flagged so conclusions drawn from it are marked.",
+      "priority": "medium",
+      "status": "proposed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "report and brief schemas carry a per-claim label",
+        "inputs passed through compression or truncation are marked in the record",
+        "a conclusion drawn only from lossy input is labelled inferred"
+      ],
+      "validation_required": [
+        "pytest",
+        "doctor",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
+    },
+    {
+      "id": "ARB-075",
+      "category": "process",
+      "title": "Ask instead of guessing on decisions the user owns",
+      "description": "When a request is ambiguous and the answer changes what gets built (scope, destructive actions, public exposure, naming of external things), workflows stop and ask with concrete options instead of picking one silently. Defaults are allowed only where a convention exists, and are stated.",
+      "priority": "medium",
+      "status": "proposed",
+      "minimum_access_scope": [],
+      "acceptance_criteria": [
+        "workflow instructions list the decision classes that require asking",
+        "skills record each question asked and the answer in the session log",
+        "a default chosen without asking is stated in the output"
       ],
       "validation_required": [
         "pytest",

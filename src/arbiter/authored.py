@@ -107,11 +107,75 @@ _JS_IMPORT = re.compile(
     re.M,
 )
 
+# Node's built-in modules, which may be imported with or without the `node:`
+# scheme. Only the scheme was recognised, so nest's `import * as http from
+# 'http'` was an undeclared package 79 times on gold (ARB-065). This is
+# `require('module').builtinModules` for Node 22, written out so the check stays
+# offline and does not depend on which Node (if any) is installed. A subpath
+# (`fs/promises`, `stream/web`, `util/types`) belongs to its head.
+NODE_BUILTINS = frozenset({
+    "assert", "async_hooks", "buffer", "child_process", "cluster", "console",
+    "constants", "crypto", "dgram", "diagnostics_channel", "dns", "domain",
+    "events", "fs", "http", "http2", "https", "inspector", "module", "net", "os",
+    "path", "perf_hooks", "process", "punycode", "querystring", "readline",
+    "repl", "stream", "string_decoder", "sys", "timers", "tls", "trace_events",
+    "tty", "url", "util", "v8", "vm", "wasi", "worker_threads", "zlib",
+})
+
 _MANIFESTS = {
     "requirements.txt", "requirements-dev.txt", "pyproject.toml", "setup.py",
     "setup.cfg", "Pipfile", "environment.yml", "constraints.txt",
     "package.json", "package-lock.json", "yarn.lock", "pnpm-lock.yaml",
 } | _eco.MANIFESTS
+
+# Python requirement files outside the one conventional name. Celery keeps its
+# runtime dependencies in `requirements/default.txt` and its extras under
+# `requirements/extras/`, so `click` and `vine` -- declared on lines 3 and 4 --
+# were reported 88 times on gold (ARB-065). pip-tools' `requirements.in`,
+# `requirements-test.txt`, `test-requirements.txt` and `constraints-*.txt` are
+# the same thing under other spellings. A name alone cannot say that
+# `default.txt` is a requirement file; its directory can.
+_PY_REQUIREMENT_FILE = re.compile(
+    r"(?i)^(?:requirements|constraints)[\w.-]*\.(?:txt|in)$"
+    r"|^[\w.-]+[-_.]requirements\.(?:txt|in)$")
+_PY_REQUIREMENT_DIR = re.compile(r"(?i)(^|/)requirements(/|$)")
+
+
+def is_manifest_path(path: str) -> bool:
+    """True when the file at `path` is one the dependency check reads.
+
+    Path, not name: a `.txt` or `.in` file anywhere under a `requirements/`
+    directory is a requirement file whatever it is called.
+    """
+    name = path.rsplit("/", 1)[-1]
+    if name in _MANIFESTS or _PY_REQUIREMENT_FILE.match(name) or name.endswith(_eco.GEMSPEC_SUFFIX):
+        return True
+    parent = path[: -len(name)]
+    return name.lower().endswith((".txt", ".in")) and bool(_PY_REQUIREMENT_DIR.search(parent))
+
+
+# TypeScript and JavaScript path aliases: `"paths": {"@app/*": ["src/*"]}` in a
+# tsconfig makes `@app/config` a local import. Not a manifest -- it declares no
+# dependency -- but it decides whether an import is local, so it is read beside
+# the manifests and folded into the cache context with them.
+_ALIAS_CONFIG = re.compile(r"^(?:tsconfig[\w.-]*|jsconfig[\w.-]*)\.json$")
+
+
+def is_context_path(path: str) -> bool:
+    """A file whose content decides what the import check concludes elsewhere."""
+    return is_manifest_path(path) or bool(_ALIAS_CONFIG.match(path.rsplit("/", 1)[-1]))
+
+
+def _jsonc(text: str):
+    """Parse a tsconfig: JSON with comments and trailing commas. None if not."""
+    import json as _json
+    code = re.sub(r'("(?:\\.|[^"\\])*")|//[^\n]*|/\*.*?\*/',
+                  lambda m: m.group(1) or "", text, flags=re.DOTALL)
+    code = re.sub(r",(\s*[}\]])", r"\1", code)
+    try:
+        return _json.loads(code)
+    except ValueError:
+        return None
 
 # Names that look like third-party imports and are not: the repository's own
 # packages, and the conventional local-source roots.
@@ -239,6 +303,51 @@ _COMPENSATING_TLS = re.compile(
 )
 _COMPENSATION_WINDOW = 8   # lines after the finding
 
+# Verification REPLACED, not removed. Go's crypto/tls only lets a program run
+# its own chain check (SPIFFE IDs, pinned peers) by setting InsecureSkipVerify
+# and supplying VerifyPeerCertificate or VerifyConnection; with either beside it
+# the flag is how custom verification is spelled, and it is not reported.
+# PeerCertSANs / PeerCertURI are the declarative form of the same thing:
+# Traefik's TLS client config turns them into a VerifyPeerCertificate callback
+# (pkg/server/service/transport.go), and its Consul Connect transport
+# (consulcatalog/connect_tls.go) pins the SPIFFE ID that way. Only the struct
+# literal holding the flag counts, or an assignment to the field shortly after.
+_CUSTOM_VERIFIER_FIELD = re.compile(
+    r"\b(?:VerifyPeerCertificate|VerifyConnection|PeerCertSANs|PeerCertURI)\s*:")
+_CUSTOM_VERIFIER_ASSIGN = re.compile(r"\.(?:VerifyPeerCertificate|VerifyConnection)\s*=[^=]")
+
+
+def _enclosing_braces(code: str, pos: int) -> str:
+    """The innermost `{...}` around `pos`, or "" when there is none."""
+    depth, start = 0, -1
+    for i in range(pos - 1, -1, -1):
+        c = code[i]
+        if c == "}":
+            depth += 1
+        elif c == "{":
+            if depth == 0:
+                start = i
+                break
+            depth -= 1
+    if start < 0:
+        return ""
+    depth = 0
+    for j in range(start, len(code)):
+        if code[j] == "{":
+            depth += 1
+        elif code[j] == "}":
+            depth -= 1
+            if depth == 0:
+                return code[start:j + 1]
+    return code[start:]
+
+
+def _custom_verification(code: str, lines: list[str], pos: int, line: int) -> bool:
+    if _CUSTOM_VERIFIER_FIELD.search(_enclosing_braces(code, pos)):
+        return True
+    return bool(_CUSTOM_VERIFIER_ASSIGN.search(
+        "\n".join(lines[line: line + _COMPENSATION_WINDOW])))
+
 # ---------------------------------------------------------------------------
 # 4. Prose describing absent code
 # ---------------------------------------------------------------------------
@@ -265,13 +374,15 @@ def _declared_dependencies(ctx: ProbeContext, repo_id: str) -> tuple[set[str], b
     names: set[str] = set()
     seen_manifest = False
     for f in ctx.inventory.text_files():
-        if f.repo_id != repo_id or Path(f.path).name not in _MANIFESTS:
+        if f.repo_id != repo_id or not is_manifest_path(f.path):
             continue
         text = _read(f)
         if not text:
             continue
         seen_manifest = True
-        for m in re.finditer(r"^\s*\"?([A-Za-z0-9_.@/-]{2,})\"?\s*[:=<>~^\s\"]", text, re.M):
+        # `[` and `;` end a name too: `pytest-celery[all]>=1.3.0` and
+        # `uvloop; sys_platform != "win32"` are requirement lines (ARB-065).
+        for m in re.finditer(r"^\s*\"?([A-Za-z0-9_.@/-]{2,})\"?\s*[:=<>~^\s\"\[;]", text, re.M):
             raw = m.group(1).strip().strip('"')
             names.add(raw.lower().replace("_", "-"))
             names.add(raw.lower().split("/")[-1].replace("_", "-"))
@@ -283,6 +394,9 @@ def _declared_dependencies(ctx: ProbeContext, repo_id: str) -> tuple[set[str], b
         # undeclared (FAIL-049).
         for m in re.finditer(r"[\"']([A-Za-z0-9_.-]{2,})(?:\[[^\]]*\])?\s*(?:[<>=~!;]|[\"'])", text):
             names.add(m.group(1).lower().replace("_", "-"))
+    # A namespace distribution (`backports.zoneinfo`, `zope.interface`) is
+    # imported by its first segment.
+    names |= {n.split(".")[0] for n in names if "." in n and "/" not in n}
     return names, seen_manifest
 
 
@@ -313,6 +427,16 @@ def _workspace_packages(ctx: ProbeContext, repo_id: str) -> set[str]:
             if head and "*" not in head:
                 out.add(head.lower())
                 out.add(f"@{head.lower()}")
+    for f in ctx.inventory.text_files():
+        if f.repo_id != repo_id or not _ALIAS_CONFIG.match(Path(f.path).name):
+            continue
+        doc = _jsonc(_read(f) or "")
+        opts = doc.get("compilerOptions") if isinstance(doc, dict) else None
+        paths = opts.get("paths") if isinstance(opts, dict) else None
+        for alias in paths if isinstance(paths, dict) else ():
+            head = str(alias).split("*")[0].rstrip("/").lower()
+            if head:
+                out.add(head)
     # An organisation scope used by any local package is local for all of them,
     # in both the bare and the @-scoped spelling: a package.json named
     # "juice-shop" is the sibling that `@juice-shop/models` refers to.
@@ -409,6 +533,8 @@ def _undeclared_imports(f, text, declared, local, has_manifest,
         for spec in sorted(n for n in names if n):
             if spec.startswith((".", "/", "#", "node:")):
                 continue
+            if spec.split("/")[0] in NODE_BUILTINS:
+                continue
             pkg = "/".join(spec.split("/")[:2]) if spec.startswith("@") else spec.split("/")[0]
             low = pkg.lower()
             if low in declared or low.split("/")[-1] in declared or low in local:
@@ -430,17 +556,20 @@ def _ecosystem_facts(ctx: ProbeContext, repo_id: str, language: str) -> dict:
     whole = getattr(ctx.inventory, "whole", None) or ctx.inventory
     files = [f for f in whole.text_files() if f.repo_id == repo_id]
     wanted = _eco.MANIFESTS_OF[language]
-    manifests = [f for f in files if Path(f.path).name in wanted]
+    manifests = [f for f in files if Path(f.path).name in wanted
+                 or (language == "ruby" and f.path.endswith(_eco.GEMSPEC_SUFFIX))]
     declared: set[str] = set()
     local: set[str] = set()
+    per_module: dict[str, set[str]] = {}
     for m in manifests:
         text = _read(m) or ""
         if language == "go":
             req, own = _eco.go_declared(text)
             declared |= req
             local |= own
+            per_module[m.path.rpartition("/")[0]] = req
         elif language == "java":
-            declared |= _eco.java_declared(text)
+            declared |= _eco.java_declared(text, m.path)
         else:
             declared |= _eco.ruby_declared(text)
     if language == "java":
@@ -451,18 +580,40 @@ def _ecosystem_facts(ctx: ProbeContext, repo_id: str, language: str) -> dict:
                     local.add(pkg)
     elif language == "ruby":
         local |= _eco.ruby_local([f.path for f in files])
-    return {"declared": declared, "local": local, "has_manifest": bool(manifests)}
+    return {"declared": declared, "local": local, "has_manifest": bool(manifests),
+            "per_module": per_module}
+
+
+# A Go file excluded from every build: `//go:build ignore` (or the legacy
+# `// +build ignore`) before the package clause. These are `go run` scripts --
+# client_golang's collector code generators -- and may import modules the
+# go.mod deliberately does not declare, because nothing ever compiles them in.
+_GO_BUILD_IGNORE = re.compile(r"(?m)^//(?:go:build|\s*\+build)\s+ignore\s*$")
+_GO_PACKAGE_CLAUSE = re.compile(r"(?m)^package\s")
+
+
+def _go_build_ignored(text: str) -> bool:
+    m = _GO_PACKAGE_CLAUSE.search(text)
+    return bool(_GO_BUILD_IGNORE.search(text[:m.start()] if m else text))
 
 
 def _undeclared_other(f, text, facts: dict) -> list[Finding]:
     """Go, Java and Ruby imports nothing declares (see ecosystems.py)."""
     if not facts["has_manifest"] or _NOT_SHIPPED.search(f.path) or f.role == "test":
         return []
+    if f.language == "go" and _go_build_ignored(text):
+        return []
     lang, eco = f.language, _eco.ECOSYSTEM_OF[f.language]
     declared, local = facts["declared"], facts["local"]
     out: list[Finding] = []
     seen: set[str] = set()
     if lang == "go":
+        # Each Go module declares its own requirements; a file answers to the
+        # go.mod nearest above it, not to the union of every go.mod in the tree.
+        per_module = facts.get("per_module") or {}
+        home = _eco.nearest_manifest(f.path, list(per_module))
+        if home is not None:
+            declared = per_module[home]
         names = [(n, n) for n in _eco.go_imports(text) if not _eco.go_resolves(n, declared, local)]
     elif lang == "java":
         names = [(n, ".".join(n.split(".")[:3])) for n in _eco.java_imports(text)
@@ -626,13 +777,120 @@ def _stub_marker_at_body_level(body: str) -> bool:
             return True
     return False
 
+# A stub by design. Celery's backends override `save_group` with
+# `raise NotImplementedError('save_group is not supported by this backend.')`,
+# and its `BasePool` has `on_apply(...): pass` hooks for subclasses to fill in;
+# those were 309 reports on gold (ARB-065). The structural signals, any one of
+# which makes an empty or raising body a declaration rather than a gap:
+#   - `raise NotImplementedError(<message>)`: the message is the decision;
+#   - a comment in the body explaining why it is empty;
+#   - an `on_*` / `before_*` / `after_*` hook, empty by convention;
+#   - `@abstractmethod`, or a docstring saying subclasses must or should
+#     implement or override it;
+#   - the enclosing class is a base: named Base*/Abstract*/*Base/*Mixin/
+#     *Interface/*Protocol, deriving from ABC, ABCMeta or Protocol, or
+#     subclassed by another class in the same file.
+# A `return True  # TODO` is never excused: that is a hardcoded answer, not an
+# abstract method, and it is the always-yes this check exists for.
+_NOT_IMPLEMENTED_WITH_MESSAGE = re.compile(r"\braise\s+NotImplementedError\s*\(\s*[^)\s]")
+# Hook methods, which exist to be overridden and do nothing by default:
+# celery's `on_consumer_ready`, `on_init_blueprint`.
+_HOOK_NAME = re.compile(r"^_?(?:on|before|after)_[a-z]")
+# A comment in the body says the emptiness was decided: `# results messages
+# on reply queue, nothing stored server-side` above a `pass`, or `pass  # unused`.
+# A TODO is the opposite of an explanation, and stays a stub.
+_BODY_COMMENT = re.compile(r"#\s*(\S[^\n]*)")
+_UNFINISHED = re.compile(r"(?i)\b(?:todo|fixme|xxx|hack|stub|placeholder|implement|for now|temporar)")
+
+
+def _explained(body: str) -> bool:
+    return any(len(c) >= 5 and not _UNFINISHED.search(c)
+               for c in _BODY_COMMENT.findall(_strip_strings(body)))
+
+
+def _strip_strings(code: str) -> str:
+    return re.sub(r"(['\"])(?:\\.|(?!\1).)*\1", "''", code)
+_HARDCODED_RETURN = re.compile(
+    r"\breturn\s+(?:True|False|None|\[\]|\{\}|0|\"\"|'')\s*#", re.IGNORECASE)
+_ABSTRACT_DOC = re.compile(
+    r"(?i)\b(?:subclass(?:es)?|child classes|implementations?|backends?)\s+(?:must|should|need to|may)"
+    r"|\b(?:must|should|to)\s+be\s+(?:implemented|overridden|overriden)"
+    r"|\boverride\s+(?:this|in)\b|\babstract\b")
+_BASE_CLASS_NAME = re.compile(
+    r"^(?:Base|Abstract)[A-Z_]|(?:Base|Mixin|Interface|Protocol|ABC)$")
+_ABSTRACT_BASES = re.compile(r"\b(?:ABC|ABCMeta|Protocol|abc\.ABC|typing\.Protocol)\b")
+_CLASS_DEF = re.compile(r"^(?P<indent>[ \t]*)class\s+(?P<name>\w+)\s*(?:\((?P<bases>[^)]*)\))?\s*:", re.MULTILINE)
+
+
+def _enclosing_class(text: str, pos: int, indent: str) -> re.Match | None:
+    """The `class` statement a def at `pos` with `indent` is a method of, or None.
+
+    The first code line above it that is indented less decides: a `class`
+    line makes it a method, anything else (a `def`, an `if`) means it is not.
+    """
+    width = len(indent.expandtabs())
+    for line in reversed(text[:pos].split("\n")):
+        stripped = line.strip()
+        if not stripped or stripped.startswith(("#", "@")):
+            continue
+        if len(line.expandtabs()) - len(line.expandtabs().lstrip()) < width:
+            return _CLASS_DEF.match(line)
+    return None
+
+
+def _stub_by_design(text: str, m: re.Match, body: str, subclassed: set[str]) -> bool:
+    if _HARDCODED_RETURN.search(body):
+        return False
+    if _NOT_IMPLEMENTED_WITH_MESSAGE.search(body) or _explained(body):
+        return True
+    if _HOOK_NAME.match(m.group("name")) and not _SENSITIVE_NAME.search(m.group("name")):
+        return True
+    head = "\n".join(text[:m.start()].split("\n")[-4:])
+    if re.search(r"@(?:abc\.)?abstract(?:method|property|classmethod|staticmethod)\b", head):
+        return True
+    doc = re.match(r'\s*(?:[rbu]?)("""|\'\'\')(.*?)\1', body, re.DOTALL)
+    if doc and _ABSTRACT_DOC.search(doc.group(2)):
+        return True
+    indent = m.group("indent")
+    if not indent:
+        return False
+    cls = _enclosing_class(text, m.start(), indent)
+    if cls is None:
+        return False
+    return bool(_BASE_CLASS_NAME.search(cls.group("name"))
+                or _ABSTRACT_BASES.search(cls.group("bases") or "")
+                or cls.group("name") in subclassed)
+
+
+def _subclassed_names(text: str) -> set[str]:
+    out: set[str] = set()
+    for c in _CLASS_DEF.finditer(text):
+        for base in (c.group("bases") or "").split(","):
+            name = base.strip().split("[")[0].split(".")[-1]
+            if name.isidentifier():
+                out.add(name)
+    return out
+
+
 def _stubs(f, text) -> list[Finding]:
     if f.language != "python" or f.role in ("test", "docs"):
         return []
     out: list[Finding] = []
-    for m in _STUB_BODY.finditer(text):
+    subclassed: set[str] | None = None
+    # Match on the text with docstrings blanked, so a `def my_view(request):`
+    # inside a docstring's example (django/views/decorators/debug.py) is not a
+    # function; read the body from the original, which has the same offsets.
+    blanked = _PY_DOCSTRING.sub(lambda d: re.sub(r"[^\n]", " ", d.group(0)), text)
+    for mb in _STUB_BODY.finditer(blanked):
+        m = _STUB_BODY.match(text, mb.start())
+        if m is None:
+            continue
         name, body = m.group("name"), m.group("body")
         if not _stub_marker_at_body_level(body):
+            continue
+        if subclassed is None:
+            subclassed = _subclassed_names(text)
+        if _stub_by_design(text, m, body, subclassed):
             continue
         sensitive = bool(_SENSITIVE_NAME.search(name))
         out.append(Finding(
@@ -671,6 +929,9 @@ def _disabled_checks(f, text) -> list[Finding]:
     for pattern, title, sev in _DISABLED_CHECK:
         for m in pattern.finditer(code):
             n = _line_of(code, m.start())
+            if "InsecureSkipVerify" in m.group(0) and _custom_verification(
+                    code, lines, m.start(), n):
+                continue
             window = "\n".join(lines[max(0, n - 1 - _GUARD_WINDOW): n])
             guarded = bool(_OPT_IN_GUARD.search(window))
             after = "\n".join(lines[n: n + _COMPENSATION_WINDOW])
@@ -779,5 +1040,5 @@ def register_authored() -> None:
         # paths exist, so both are folded into the cache key. An unchanged
         # file is served from the cache only while neither has moved.
         cacheable=True,
-        cache_context=make_context_digest(_MANIFESTS),
+        cache_context=make_context_digest(is_context_path),
     ))
