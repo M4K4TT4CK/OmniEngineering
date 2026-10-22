@@ -122,7 +122,7 @@ of time spent compiling queries is unknown.
 | No cross-file or interprocedural analysis | 862, 863, 306 and 918 beyond one function are declared out of reach | [M] `docs/probes.md` |
 | Rules are brittle to small rewrites | aliasing (`Runtime r`), fully qualified names (`java.util.Random`), nesting (`try`) drop whole OWASP categories to 0 or near it (0/126, 0/218, 28/272) | [M] triage; [I] that the planted corpus never exercised these variants |
 | gitleaks finds none of the planted credentials | they are generic passwords and keys, not provider-shaped tokens | [M] `docs/cwe-top25.md` |
-| Findings with the same evidence in one file and symbol collapse into one: six `catch {}` report once | `Finding.fingerprint()` hashes rule, repo, path, logical symbol and snippet but no line or ordinal (`src/arbiter/core.py`), and `engine._dedupe` keeps one per id | [M] code; [I] that the collapse is a side effect of making the fingerprint survive line shifts, not an intended count |
+| Findings with the same evidence in one file and symbol collapse into one: six `catch {}` report once | `Finding.fingerprint()` hashes rule, repo, path, logical symbol and snippet but no line or ordinal (`src/arbiter/core.py`), and `engine._dedupe` keeps one per id | [M] code; [I] that the collapse is a side effect of making the fingerprint survive line shifts, not an intended count. **Fixed 2026-10-21 (ARB-080):** each distinct site gets an occurrence ordinal; old baselines keep matching (`tests/test_occurrence_fingerprint.py`) **[M]** |
 
 ### Precision
 
@@ -156,6 +156,27 @@ gold set now holds 4 or 5 per language (`tools/gold/repos.json`) **[M]**.
   `src/arbiter/ast.py` builds `Query(lang, query_src)` inside `run_query` on
   each call **[M]**. With N files and R rules, that is N × R compilations
   where R would do.
+  **Fixed 2026-10-21 (ARB-076):** compiled queries are cached per process by
+  grammar and query text; `tests/test_query_cache.py` counts compilations
+  **[M]**. Same four repositories, same machine,
+  `tools/gold_benchmark.py --corpus ~/wt/corpus-gold --only
+  java-keycloak,ruby-rails,go-grpc,ts-nest --jobs 4 --no-fail`, at
+  `de35f15` and then `d693074`, identical findings (2,200) **[M]**:
+
+  | Repository | Before (s) | After (s) |
+  |---|---:|---:|
+  | ts-nest | 252.5 | 26.2 |
+  | ruby-rails | 720.1 | 203.3 |
+  | go-grpc | 59.1 | 45.9 |
+  | java-keycloak | 2,124.1 | 1,499.8 |
+
+  Other agents were scanning on the same machine during both runs (load
+  average 4 to 17), so single figures carry noise **[M]** load; **[I]** effect.
+  Keycloak is now dominated by shared probes, not packs: on
+  `java-keycloak/services` (1,751 Java files) `authored` took 28.4 s,
+  `doc_drift` 14.9 s and `lang_java` 6.2 s (`ProbeOutcome.duration_s`)
+  **[M]**. The full 24-repository gold run at `8205249` (`--jobs 4`) summed
+  2,308.9 s, 36% of 6,454.9 s, with keycloak at 1,239.9 s **[M]**.
 - **No performance budget exists.** The gold harness records seconds but
   fails only on precision budgets (`tools/gold_benchmark.py`, ARB-065)
   **[M]**. A twofold regression would pass CI today **[I]**.
@@ -180,7 +201,7 @@ gold set now holds 4 or 5 per language (`tools/gold/repos.json`) **[M]**.
 | Licence and visibility disagree | `LICENSE` is an interim notice that "reserves all rights and grants none" (ARB-005); `.ai/checklists/public-release.md` says it does not apply because Arbiter is proprietary | [M] |
 | ARB-005 licensing needs counsel | the semgrep LGPL-2.1 redistribution review (L-6) blocks bundling the analyzers in the air-gapped bundle | [M] registry |
 | Install is from source only | `SETUP.md` documents `pip install -e .` (or `omni arbiter install` from a checkout, URL or pip spec), and the analyzers come from a bash script | [M] SETUP.md; [A] that no package is published to an index |
-| Two import-time fragilities | `import arbiter.lang_rules` before `arbiter.probes` raises a circular `ImportError`; `controls._probe_of("arbiter/python.x")` returns `"python"`, not `"lang_python"`, so a language-pack control always reads as not assessed | [M] both reproduced for this report |
+| Two import-time fragilities | `import arbiter.lang_rules` before `arbiter.probes` raises a circular `ImportError`; `controls._probe_of("arbiter/python.x")` returns `"python"`, not `"lang_python"`, so a language-pack control always reads as not assessed | [M] both reproduced for this report. **Both fixed 2026-10-21:** ARB-078 (`tests/test_import_order.py`) and ARB-062 criterion 5 (`tests/test_controls_lang_packs.py`) **[M]** |
 | The controls report cannot express per-language CWE applicability | one automatable value per control and no language dimension (ARB-062 acceptance criteria) | [M] |
 | Test discovery in OmniEngineering is easy to fool | Version B's auto-detection ran planted defect fixtures as test suites until `.ai/graph-config.json` excluded them | [M] observed tonight |
 | The self-gate needs config to pass on omni's own code | a `shell=True` in omni's test runner is suppressed in `arbiter.yaml` with a by-design reason instead of an inline, rule-specific annotation | [M] `arbiter.yaml:25` |
@@ -294,13 +315,28 @@ Fast, honest and quiet on good code.
 Exit criteria, all measurable:
 
 - [ ] Gold benchmark: the three P1 rules are within budget; total
-  over-budget rules ≤ 8 (from 16).
+  over-budget rules ≤ 8 (from 16). *2026-10-21, all 24 repositories: 7
+  over at `bd6bf16`, 10 at `8205249` **[M]**. The rise is ARB-080 counting
+  each same-evidence site (7,457 to 8,162 findings; the only scan change
+  between the two) **[I]**: it adds `authored.security-check-disabled`
+  (145 to 328), `assurance.permanently-skipped-test` (157 to 311) and
+  `typescript.test-without-assertion` (18 to 22). P1 status:
+  `typescript.test-without-assertion` 0.034 and `secrets.assigned-credential`
+  0.035 (budget 0.03) are just over, `authored.undeclared-import` 0.039.
+  `java.test-without-assertion` is now low confidence and still over (276,
+  0.092; 0.046 confidence-weighted, which is reported and not budgeted).*
 - [ ] The full gold run takes ≤ 50% of 6,454.9 s on the same machine, and
-  java-keycloak ≤ 10 min. These targets are **[A]**, to be set from the
-  first post-fix measurement.
-- [ ] A test proves each pack query is compiled once per process.
+  java-keycloak ≤ 10 min. *2026-10-21: the first half is met (2,308.9 s
+  summed, 36%, at `8205249`, `--jobs 4`; the jobs setting of the 6,454.9 s run is not recorded) **[M]**, the second is not (keycloak 1,239.9 s,
+  20.7 min; the remaining time is in `authored` and `doc_drift`) **[M]**.*
+- [x] A test proves each pack query is compiled once per process.
+  *`tests/test_query_cache.py` (ARB-076); it fails with the cache disabled
+  **[M]**.*
 - [ ] `python -c "import arbiter.lang_rules"` succeeds in CI, and
-  `_probe_of("arbiter/python.x") == "lang_python"`.
+  `_probe_of("arbiter/python.x") == "lang_python"`. *Both hold locally:
+  `tests/test_import_order.py` (ARB-078) and
+  `tests/test_controls_lang_packs.py` (ARB-062) pass in the fast tier
+  **[M]**; not yet seen in CI, because the branch has not been pushed.*
 - [ ] `arbiter preflight` output is embedded in gold and planted reports.
 - [ ] Perf budgets and snapshots fail CI on a seeded regression (proven by
   a mutation in `mutate_tests.py`).
