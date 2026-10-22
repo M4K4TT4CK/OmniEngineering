@@ -97,6 +97,15 @@ semgrep's bundled `generic.secrets.gitleaks.*` rules did report two of them.
   a view that acts as the session user (`request.user`, `@login_required`) and
   does not authenticate the request itself (HMAC, bearer token); semgrep's
   `no-csrf-exempt` reports every use.
+  Real-code check, 2026-10-21: the three pinned Django applications in
+  `tools/fetch_corpus.sh` (`DJANGO_APPS_ONLY=1`: zulip, healthchecks,
+  django-cms; 252k production lines) have 49 `@csrf_exempt` views and
+  `python.csrf-protection-disabled` reports none. Only one reads
+  `request.user`: zulip's `rest_dispatch`, which re-applies `csrf_protect` to
+  its session branch (now an explicit exclusion). The rest are API-key or
+  remote-server APIs, webhook, bot and ping endpoints, signed-link
+  unsubscribes, development-only logins and a test view. No `jwt-*` or
+  `error-*` finding either (the one `jwt.decode` verifies).
 - **Python 918**: semgrep's Flask SSRF rule also fires on the fixed twin, which
   validates the host against an allowlist. The Django-labelled taint rule
   (`ssrf-injection-requests`) is the one that discriminates, and it is the one

@@ -627,13 +627,16 @@ rules:
     # itself (an HMAC signature, `compare_digest`, a bearer token in the
     # Authorization header) has no ambient cookie authority to forge, and
     # webhook-named views are left alone: that is what the decorator is for.
+    # A dispatcher that is exempt only to re-apply `csrf_protect(...)` to the
+    # session-authenticated branch itself (zulip's `rest_dispatch`) is not
+    # reported either.
     # Flask-WTF's `WTF_CSRF_ENABLED = False` is reported outside a test or
     # development config class.
     query: |
       ((decorated_definition (decorator) @hit (#match? @hit "^@\\s*((\\w+\\.)*csrf_exempt|(\\w+\\.)*csrf\\.exempt)\\s*(#.*)?$")
           definition: (function_definition name: (identifier) @n (#not-match? @n "(?i)webhook|callback|hook|ingest|inbound|notify|notification"))) @def
         (#match? @def "\\brequest\\.(user|session)\\b|\\bcurrent_user\\b|\\bsession\\[|@\\s*(\\w+\\.)*login_required\\b|\\bflask_login\\b")
-        (#not-match? @def "(?i)\\bhmac\\b|compare_digest|signature|\\bAuthorization\\b|HTTP_AUTHORIZATION|bearer"))
+        (#not-match? @def "(?i)\\bhmac\\b|compare_digest|signature|\\bAuthorization\\b|HTTP_AUTHORIZATION|bearer|\\bcsrf_protect\\("))
       ((module (assignment left: (identifier) @k (#eq? @k "WTF_CSRF_ENABLED") right: (false)) @hit))
       ((class_definition name: (identifier) @c (#not-match? @c "(?i)test|dev|local")
          body: (block (assignment left: (identifier) @k (#eq? @k "WTF_CSRF_ENABLED") right: (false)) @hit)))

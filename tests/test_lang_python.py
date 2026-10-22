@@ -515,6 +515,22 @@ def test_csrf_exempt_is_reported_only_on_a_session_authenticated_view(tmp_path):
     assert _lines(tmp_path, code, "csrf-protection-disabled") == [13]
 
 
+def test_csrf_exempt_dispatcher_that_reapplies_csrf_protect_is_fine(tmp_path):
+    # zulip's rest_dispatch: exempt, then csrf_protect() on the session branch.
+    code = (
+        "from django.views.decorators.csrf import csrf_exempt, csrf_protect\n"
+        "@csrf_exempt\n"
+        "def rest_dispatch(request, **kwargs):\n"
+        "    target = kwargs[request.method]\n"
+        "    if request.user.is_authenticated:\n"
+        "        target = csrf_protect(session_view(target))\n"
+        "    return target(request)\n"
+        "@csrf_exempt\n"
+        "def settings_post(request):\n"
+        "    request.user.save_settings(request.POST)\n")
+    assert _lines(tmp_path, code, "csrf-protection-disabled") == [8]
+
+
 def test_wtf_csrf_off_in_a_test_config_is_fine(tmp_path):
     code = (
         "class Config:\n"
