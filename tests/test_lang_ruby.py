@@ -858,3 +858,134 @@ def test_empty_rescue_with_a_reason_or_a_kept_error_is_not_swallowed(tmp_path):
     end
     '''
     assert _rules(tmp_path, code)["swallowed-error"] == [13, 18]
+
+
+# --- CWE Top 25 round 1 (ARB-062) -------------------------------------------
+
+def test_jwt_decode_without_verification(tmp_path):
+    code = '''
+    class A
+      def a(t)
+        JWT.decode(t, nil, false)
+      end
+      def b(t, k)
+        ::JWT.decode(t, k, true, algorithms: ["none"])
+      end
+      def ok(t, k)
+        JWT.decode(t, k, true, algorithm: "HS256")
+      end
+      def peek_then_verify(t, keys)
+        iss = JWT.decode(t, nil, false).first["iss"]
+        JWT.decode(t, keys.fetch(iss), true, algorithm: "RS256")
+      end
+    end
+    '''
+    assert _rules(tmp_path, code).get("jwt-unverified-decode") == [4, 7]
+
+
+def test_jwt_literal_key_in_call_or_tied_constant(tmp_path):
+    code = '''
+    class Tokens
+      SIGNING_KEY = "s1gn1ng-k3y-in-source"
+      OTHER_KEY = ENV.fetch("OTHER")
+      PLACEHOLDER_KEY = "changeme-before-deploy"
+      def a(p)
+        JWT.encode(p, SIGNING_KEY, "HS256")
+      end
+      def b(p)
+        JWT.encode(p, "an0ther-l1teral-k3y", "HS256")
+      end
+      def c(p)
+        JWT.encode(p, PLACEHOLDER_KEY, "HS256") + JWT.encode(p, OTHER_KEY, "HS256")
+      end
+    end
+    '''
+    assert _rules(tmp_path, code).get("jwt-literal-signing-key") == [3, 10]
+
+
+CSRF_ACTION = '''
+      def create
+        current_user.update!(params.require(:user).permit(:email))
+      end
+    end
+    '''
+
+
+def test_csrf_skip_is_reported_in_a_session_controller(tmp_path):
+    code = '''
+    class ProfilesController < ApplicationController
+      skip_before_action :verify_authenticity_token, only: :create
+    ''' + CSRF_ACTION
+    assert _rules(tmp_path, code, "app/controllers/profiles_controller.rb").get(
+        "csrf-protection-disabled") == [3]
+
+
+@pytest.mark.parametrize("head", [
+    # an API controller has no CSRF check to skip
+    "class ProfilesController < ActionController::API\n  skip_forgery_protection\n",
+    # webhooks authenticate the sender, not a cookie
+    "class StripeWebhooksController < ApplicationController\n  skip_forgery_protection\n",
+    # the request carries its own credential
+    "class ProfilesController < ApplicationController\n  skip_forgery_protection\n"
+    "  before_action { authenticate_or_request_with_http_token { |t| ok?(t) } }\n",
+    "class ProfilesController < ApplicationController\n  skip_forgery_protection\n"
+    "  def verify!\n    OpenSSL::HMAC.hexdigest('SHA256', k, request.raw_post)\n  end\n",
+])
+def test_csrf_skip_is_fine_where_there_is_no_ambient_cookie_authority(tmp_path, head):
+    code = head + CSRF_ACTION
+    assert "csrf-protection-disabled" not in _rules(tmp_path, code, "app/controllers/x_controller.rb")
+
+
+def test_csrf_skip_in_a_get_only_or_abstract_controller_is_fine(tmp_path):
+    # railties welcome_controller.rb, pwa_controller.rb; actionmailbox base_controller.rb
+    code = '''
+    class Rails::PwaController < Rails::ApplicationController
+      skip_forgery_protection
+      def manifest
+        render template: "pwa/manifest", layout: false
+      end
+    end
+    '''
+    assert "csrf-protection-disabled" not in _rules(tmp_path, code, "app/controllers/pwa_controller.rb")
+
+
+def test_null_session_is_a_protection_strategy(tmp_path):
+    code = '''
+    class ApplicationController < ActionController::Base
+      protect_from_forgery with: :null_session
+    ''' + CSRF_ACTION
+    assert "csrf-protection-disabled" not in _rules(tmp_path, code, "app/controllers/application_controller.rb")
+
+
+def test_error_detail_to_client(tmp_path):
+    code = '''
+    class Api < Sinatra::Base
+      error do |e|
+        halt 500, { error: e.message, trace: e.backtrace }.to_json
+      end
+      def a
+        work
+      rescue => e
+        render json: { error: e.message }, status: 500
+      end
+      def b
+        work
+      rescue ActiveRecord::RecordInvalid => e
+        render json: { error: e.message }, status: 422
+      end
+      def c
+        work
+      rescue StandardError => err
+        logger.error(err.message)
+        render json: { error: "failed" }, status: 500
+      end
+      def d
+        work
+      rescue Exception => err
+        render plain: err.message
+      end
+    end
+    '''
+    found = _rules(tmp_path, code)
+    assert found.get("error-backtrace-to-client") == [4]
+    assert found.get("error-message-to-client") == [9, 25]

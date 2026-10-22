@@ -7,7 +7,7 @@ app = Flask(__name__)
 
 def current_user_id() -> str:
     token = request.headers["Authorization"].removeprefix("Bearer ")
-    claims = jwt.decode(token, options={"verify_signature": False})  # expect-ext: semgrep/semgrep-rules.python.jwt.security.unverified-jwt-decode
+    claims = jwt.decode(token, options={"verify_signature": False})  # expect: arbiter/python.jwt-unverified-decode expect-ext: semgrep/semgrep-rules.python.jwt.security.unverified-jwt-decode
     return claims["sub"]
 
 

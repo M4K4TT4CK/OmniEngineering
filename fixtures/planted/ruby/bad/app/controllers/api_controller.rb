@@ -10,7 +10,7 @@ class ApiController < ActionController::API
 
   def authenticate!
     token = request.headers["Authorization"].to_s.delete_prefix("Bearer ")
-    payload, = JWT.decode(token, nil, false) # expect-ext: semgrep/semgrep-rules.ruby.jwt.security.audit.ruby-jwt-decode-without-verify, semgrep/semgrep-rules.ruby.jwt.security.ruby-jwt-hardcoded-secret
+    payload, = JWT.decode(token, nil, false) # expect: arbiter/ruby.jwt-unverified-decode expect-ext: semgrep/semgrep-rules.ruby.jwt.security.audit.ruby-jwt-decode-without-verify, semgrep/semgrep-rules.ruby.jwt.security.ruby-jwt-hardcoded-secret
     @current_user_id = payload.fetch("sub")
   rescue JWT::DecodeError, KeyError
     head :unauthorized

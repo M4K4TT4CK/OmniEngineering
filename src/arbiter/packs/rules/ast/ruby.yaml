@@ -820,3 +820,189 @@ rules:
     remediation: >-
       Use SecureRandom: `SecureRandom.hex(16)`, `SecureRandom.urlsafe_base64`,
       `SecureRandom.random_number(range)`, `SecureRandom.alphanumeric`.
+
+  # --- Authentication, CSRF and error disclosure (CWE Top 25, ARB-062) ------
+  - id: jwt-unverified-decode
+    title: "JWT decoded without checking its signature: `{text}`"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-287, CWE-347]
+    controls: [NIST-800-53r5:IA-2, OWASP-ASVS:3.5.3]
+    tags: [auth, jwt, security-check-disabled]
+    # ruby-jwt's `JWT.decode(token, key, verify = true, options)`: a literal
+    # `false` third argument skips the signature, and an algorithm list that
+    # admits "none" accepts an unsigned token.
+    query: |
+      (call receiver: [(constant) (scope_resolution)] @r (#match? @r "^(::)?JWT$")
+        method: (identifier) @m (#eq? @m "decode")
+        arguments: (argument_list . (_) . (_) . (false))) @hit
+      ((call receiver: [(constant) (scope_resolution)] @r (#match? @r "^(::)?JWT$")
+         method: (identifier) @m (#eq? @m "decode")
+         arguments: (argument_list (pair key: (hash_key_symbol) @k (#match? @k "^algorithms?$") value: (_) @v)))
+        @hit (#match? @v "(?i)^\\[?\\s*[\"']none[\"']"))
+    # Peek, then verify: a method that also calls `JWT.decode(..., true, ...)`
+    # read an unverified claim (`iss`, `kid`) to choose the key.
+    unless_in_scope: |
+      ((call receiver: [(constant) (scope_resolution)] @r (#match? @r "^(::)?JWT$")
+         method: (identifier) @m (#eq? @m "decode")
+         arguments: (argument_list . (_) . (_) . (true))) @x
+        (#not-match? @x "(?i)[\"']none[\"']"))
+    description: >-
+      The payload is trusted without checking that the issuer signed it.
+      Anyone can write `{"sub": 1}`, base64 it and be that user. Model-drafted
+      code reaches for this to "just read the user id" from a bearer token.
+    remediation: >-
+      `JWT.decode(token, ENV.fetch("JWT_SECRET"), true, algorithm: "HS256")`
+      with a fixed algorithm, and `aud`/`iss` checks where the token has them.
+
+  - id: jwt-literal-signing-key
+    title: "JWT key is a string literal in the source: `{text}`"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-798, CWE-321]
+    controls: [NIST-800-53r5:IA-5, OWASP-ASVS:2.10.4]
+    tags: [secrets, jwt, crypto]
+    # The literal is the key argument of `JWT.encode(payload, key, alg)` or
+    # `JWT.decode(token, key, ...)`, or a constant of the same class, module
+    # or file that is passed there. The secrets probe misses both: the
+    # literal sits in an argument, and `SIGNING_KEY` is not a
+    # credential-shaped name. The hit is the call or the constant's name,
+    # never the literal, so the key stays out of the report's evidence.
+    query: |
+      ((call receiver: [(constant) (scope_resolution)] @hit (#match? @hit "^(::)?JWT$")
+         method: (identifier) @m (#match? @m "^(encode|decode)$")
+         arguments: (argument_list . (_) . (string (string_content) @s)))
+        (#not-match? @s "^(.{0,7}|(?i:.*(changeme|change[-_]me|your[-_]|placeholder|example|dummy|xxx|replace[-_]?me|not[-_]?(a[-_])?secret).*)|-----BEGIN.*)$"))
+      ; `SIGNING_KEY = "..."` in a class or module body that passes it to
+      ; JWT.encode/decode (the backreference ties the constant to the call).
+      ((body_statement (assignment left: (constant) @hit (#match? @hit "^[A-Z][A-Z0-9_]*(KEY|SECRET)$")
+          right: (string (string_content) @s)
+          (#not-match? @s "^(.{0,7}|(?i:.*(changeme|change[-_]me|your[-_]|placeholder|example|dummy|xxx|replace[-_]?me|not[-_]?(a[-_])?secret).*)|-----BEGIN.*)$"))) @body
+        (#match? @body "(?ms)^\\s*([A-Z][A-Z0-9_]*(KEY|SECRET))\\s*=\\s*[\"'](?!(?i:[^\"'\\n]*(changeme|change[-_]me|your[-_]|placeholder|example|dummy|xxx|replace[-_]?me|not[-_]?(a[-_])?secret)))[^\"'\\n]{8,}[\"'].*\\bJWT\\.(encode|decode)\\((?:[^()]|\\([^()]*\\))*?,\\s*\\1\\b"))
+      ((program (assignment left: (constant) @hit (#match? @hit "^[A-Z][A-Z0-9_]*(KEY|SECRET)$")
+          right: (string (string_content) @s)
+          (#not-match? @s "^(.{0,7}|(?i:.*(changeme|change[-_]me|your[-_]|placeholder|example|dummy|xxx|replace[-_]?me|not[-_]?(a[-_])?secret).*)|-----BEGIN.*)$"))) @body
+        (#match? @body "(?ms)^\\s*([A-Z][A-Z0-9_]*(KEY|SECRET))\\s*=\\s*[\"'](?!(?i:[^\"'\\n]*(changeme|change[-_]me|your[-_]|placeholder|example|dummy|xxx|replace[-_]?me|not[-_]?(a[-_])?secret)))[^\"'\\n]{8,}[\"'].*\\bJWT\\.(encode|decode)\\((?:[^()]|\\([^()]*\\))*?,\\s*\\1\\b"))
+    description: >-
+      Whoever can read the repository can mint a valid token for any user,
+      and rotating the key means a code change and a deploy. A placeholder
+      secret like this is the classic generated default that ships.
+    remediation: "`ENV.fetch(\"JWT_SECRET\")` or `Rails.application.credentials.jwt_secret`, read once at boot."
+
+  - id: csrf-protection-disabled
+    title: "CSRF protection switched off: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-352]
+    controls: [NIST-800-53r5:SC-23, OWASP-ASVS:4.2.2]
+    tags: [csrf, rails, security-check-disabled]
+    # `skip_before_action :verify_authenticity_token` and
+    # `skip_forgery_protection` in a controller that has a state-changing
+    # action of its own. Not reported:
+    # * ActionController::API / Metal controllers, which have no CSRF check;
+    # * GET-only controllers (Rails' WelcomeController and PwaController);
+    # * an abstract base with no actions (ActionMailbox::BaseController);
+    # * webhook and ingress endpoints, and controllers that authenticate the
+    #   request itself (a signed token or URL, an HMAC signature, a bearer
+    #   token): no ambient cookie authority, so nothing to forge
+    #   (ActiveStorage::DiskController checks a signed token).
+    # `protect_from_forgery with: :null_session` is not reported: it is a
+    # protection strategy (an unverified request runs with no session and no
+    # cookies), and Rails' own documentation recommends it for APIs.
+    query: |
+      (call !receiver method: (identifier) @m (#eq? @m "skip_before_action")
+        arguments: (argument_list (simple_symbol) @s (#eq? @s ":verify_authenticity_token"))) @hit
+      (call !receiver method: (identifier) @m (#eq? @m "skip_forgery_protection")) @hit
+      ((identifier) @hit (#eq? @hit "skip_forgery_protection"))
+    requires_file: |
+      (method name: (identifier) @n
+        (#match? @n "^(create|update|destroy|delete|remove|upload|import|submit|approve|reject|transfer|cancel|confirm|charge|pay|purchase|checkout|subscribe|unsubscribe|reset|change|save|publish|vote|follow|unfollow|invite|accept|decline|grant|revoke|enable|disable|archive|restore|send|post|toggle)(_\\w+)?$")) @x
+    unless_in_file: |
+      (class superclass: (superclass (scope_resolution) @s (#match? @s "^(::)?ActionController::(API|Metal)$"))) @x
+      (class name: (_) @n (#match? @n "(?i)(webhook|ingress|inbound|callback|hook|notification|stripe|twilio|github|slack)")) @x
+      ((call method: (identifier) @a) @x
+        (#match? @a "^(authenticate_with_http_token|authenticate_or_request_with_http_token|secure_compare|construct_event|verify_signature|verify_webhook\\w*|valid_signature\\?|verified_request\\?|decode_verified_\\w+|doorkeeper_authorize!|authenticate_api\\w*)$"))
+      ((scope_resolution) @x (#match? @x "^(::)?OpenSSL::HMAC$"))
+    description: >-
+      Rails checks an authenticity token on every non-GET request so that a
+      page on another site cannot submit a form as the logged-in user. Turning
+      the check off is the usual generated "fix" for an
+      `InvalidAuthenticityToken` error on a form or fetch; it makes every
+      state-changing action here forgeable from any website the user visits.
+    remediation: >-
+      Keep the check and send the token (`form_with` does; for fetch, read
+      `csrf_meta_tags`'s value into an `X-CSRF-Token` header). An endpoint
+      that is really an API should inherit ActionController::API and
+      authenticate each request with a token, not a cookie.
+
+  - id: error-backtrace-to-client
+    title: "Exception backtrace returned to the client: `{text}`"
+    severity: medium
+    confidence: high
+    dimension: security
+    cwe: [CWE-209, CWE-200]
+    controls: [NIST-800-53r5:SI-11, OWASP-ASVS:7.4.1]
+    tags: [error-handling, information-exposure]
+    # A response sink whose arguments hold an exception's backtrace or
+    # `full_message` (which includes it): `render json:/plain:/html:`,
+    # Sinatra's `halt` and `body`, Grape's `error!`, or a Rack triple
+    # `[500, headers, [e.full_message]]` returned from `call`.
+    query: |
+      ((call !receiver method: (identifier) @m (#match? @m "^(render|halt|body|json|error!|respond_with)$")
+         arguments: (argument_list) @a) @hit
+        (#match? @a "\\.(backtrace|full_message|backtrace_locations)\\b"))
+      ((array . (integer) . (_) . (array) @b .) @hit
+        (#match? @b "\\.(backtrace|full_message|backtrace_locations)\\b"))
+    description: >-
+      The client receives the stack: file paths, gem names and versions,
+      the line that failed. It is a map of the application for whoever
+      triggers the error, and Rails' own error pages hide it outside
+      development for that reason.
+    remediation: >-
+      Log the backtrace with an incident id (`Rails.logger.error`) and return
+      a generic message with that id; `rescue_from` in ApplicationController
+      is the place to do it once.
+
+  - id: error-message-to-client
+    title: "Exception message returned to the client: `{text}`"
+    severity: low
+    confidence: medium
+    dimension: security
+    cwe: [CWE-209, CWE-200]
+    controls: [NIST-800-53r5:SI-11, OWASP-ASVS:7.4.1]
+    tags: [error-handling, information-exposure]
+    # `e.message` in a response sink, where `e`
+    # is the variable of a catch-all handler in the same method or block:
+    # `rescue => e`, `rescue StandardError, Exception => e`, or
+    # `rescue_from StandardError do |e|`. A backreference ties the rescued
+    # variable to a `.message` in the handler. A handler for a specific class
+    # (`rescue ActiveRecord::RecordInvalid => e`) is not reported: its
+    # message is usually written for the user. A sink that also returns
+    # the backtrace is error-backtrace-to-client's.
+    query: |
+      ((rescue (exception_variable) (then (call !receiver method: (identifier) @m (#match? @m "^(render|halt|body|json|error!|respond_with)$")
+          arguments: (argument_list) @a) @hit)) @r
+        (#match? @a "\\b\\w+\\.message\\b")
+        (#match? @r "(?s)^rescue(\\s+(::)?(StandardError|Exception)(\\s*,\\s*(::)?(StandardError|Exception))*)?\\s*=>\\s*(?P<v>\\w+)\\b.*\\b(?P=v)\\.message\\b")
+        (#not-match? @a "\\.(backtrace|full_message|backtrace_locations)\\b"))
+      ((call !receiver method: (identifier) @rf (#eq? @rf "rescue_from")
+         arguments: (argument_list . (_) @c (#match? @c "^(::)?(StandardError|Exception)$"))
+         block: [(do_block body: (body_statement (call !receiver method: (identifier) @m (#match? @m "^(render|halt|body|json|error!|respond_with)$")
+                                                  arguments: (argument_list) @a) @hit))
+                 (block body: (block_body (call !receiver method: (identifier) @m (#match? @m "^(render|halt|body|json|error!|respond_with)$")
+                                            arguments: (argument_list) @a) @hit))] @blk)
+        (#match? @a "\\b\\w+\\.message\\b")
+        (#match? @blk "(?s)^(do|\\{)\\s*\\|(?P<v>\\w+)\\|.*\\b(?P=v)\\.message\\b")
+        (#not-match? @a "\\.(backtrace|full_message|backtrace_locations)\\b"))
+    description: >-
+      A catch-all handler hands whatever exception it caught back to the
+      client. For a database, file or network error that text carries table
+      and column names, paths, host names and sometimes the offending input,
+      none of which was meant to leave the server.
+    remediation: >-
+      Return a fixed message (and an incident id you log alongside the
+      exception); keep `e.message` for errors you raised for the user, and
+      rescue those by their own class.

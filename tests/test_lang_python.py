@@ -20,7 +20,8 @@ RULES = {
     "swallowed-error-in-worker-loop", "worker-loop-no-stop-signal",
     "thread-not-daemon-never-joined", "sql-injection", "command-injection",
     "code-injection", "unsafe-deserialization", "insecure-random-for-secret",
-    "weak-password-hash",
+    "weak-password-hash", "jwt-unverified-decode", "jwt-literal-signing-key",
+    "error-traceback-to-client", "error-message-to-client", "csrf-protection-disabled",
 }
 
 pytestmark = pytest.mark.skipif(not ts.available(), reason="tree-sitter not installed")
@@ -393,3 +394,133 @@ def test_eval_behind_a_validating_guard_is_fine(tmp_path):
         "        log(bar)\n"
         "    return eval(bar)\n")
     assert _lines(tmp_path, code, "code-injection") == [12]
+
+
+# --- CWE Top 25 round 1 (ARB-062) -------------------------------------------
+
+def test_jwt_decode_without_verification_every_spelling(tmp_path):
+    code = (
+        "import jwt\n"
+        "from jose import jwt as jose_jwt\n"
+        "def a(t):\n"
+        "    return jwt.decode(t, options={'verify_signature': False})\n"
+        "def b(t):\n"
+        "    return jwt.decode(t, verify=False)\n"
+        "def c(t, k):\n"
+        "    return jwt.decode(t, k, algorithms=['HS256', 'none'])\n"
+        "def d(t):\n"
+        "    return jose_jwt.get_unverified_claims(t)\n"
+        "def e(t):\n"
+        "    opts = {'verify_signature': False}\n"
+        "    return jwt.decode(t, options=opts)\n"
+        "def f(t):\n"
+        "    return jwt.decode(t, options=dict(verify_signature=False))\n")
+    assert _lines(tmp_path, code, "jwt-unverified-decode") == [4, 6, 8, 10, 12, 15]
+
+
+def test_jwt_peek_then_verify_and_header_reads_are_fine(tmp_path):
+    # Reading `iss`/`kid` unverified to pick the key, then verifying with an
+    # algorithm list, is how multi-issuer validation is written.
+    code = (
+        "import jwt\n"
+        "def verify(t, keys):\n"
+        "    iss = jwt.decode(t, options={'verify_signature': False})['iss']\n"
+        "    return jwt.decode(t, keys[iss], algorithms=['RS256'], audience='api')\n"
+        "def kid(t):\n"
+        "    return jwt.get_unverified_header(t)['kid']\n"
+        "def exp_only(t, k):\n"
+        "    return jwt.decode(t, k, algorithms=['HS256'], options={'verify_exp': False})\n")
+    assert _lines(tmp_path, code, "jwt-unverified-decode") == []
+
+
+def test_jwt_literal_key_skips_placeholders_and_unrelated_constants(tmp_path):
+    code = (
+        "import jwt, os\n"
+        "JWT_KEY = 'changeme-in-production'\n"
+        "OTHER_KEY = 'q8Vz-m2Lr7-tKw4P-zz'\n"
+        "def a(p):\n"
+        "    return jwt.encode(p, JWT_KEY, algorithm='HS256')\n"
+        "def b(p):\n"
+        "    return jwt.encode(p, os.environ['K'], algorithm='HS256')\n"
+        "def c(p):\n"
+        "    return jwt.encode(p, 'short', algorithm='HS256')\n")
+    assert _lines(tmp_path, code, "jwt-literal-signing-key") == []
+
+
+def test_traceback_behind_a_debug_flag_is_not_reported(tmp_path):
+    # django/core/handlers/asgi.py:294
+    code = (
+        "import traceback\n"
+        "from django.conf import settings\n"
+        "from django.http import HttpResponseServerError\n"
+        "def handle(request):\n"
+        "    try:\n"
+        "        return run(request)\n"
+        "    except Exception:\n"
+        "        return HttpResponseServerError(\n"
+        "            traceback.format_exc() if settings.DEBUG else 'Internal Server Error')\n"
+        "def leak(request):\n"
+        "    try:\n"
+        "        return run(request)\n"
+        "    except Exception:\n"
+        "        return HttpResponseServerError(traceback.format_exc())\n"
+        "def logged():\n"
+        "    log.error('failed: %s', traceback.format_exc())\n")
+    assert _lines(tmp_path, code, "error-traceback-to-client") == [14]
+
+
+def test_exception_message_only_from_a_catch_all_handler(tmp_path):
+    code = (
+        "from fastapi import HTTPException\n"
+        "from flask import jsonify\n"
+        "def parse(body):\n"
+        "    try:\n"
+        "        return int(body)\n"
+        "    except ValueError as e:\n"
+        "        return jsonify(error=str(e)), 400\n"
+        "def run(job):\n"
+        "    try:\n"
+        "        job()\n"
+        "    except Exception as exc:\n"
+        "        raise HTTPException(status_code=500, detail=str(exc))\n"
+        "def other(job):\n"
+        "    try:\n"
+        "        job()\n"
+        "    except Exception as exc:\n"
+        "        return jsonify(error=str(job)), 500\n"
+        "def helper(job):\n"
+        "    try:\n"
+        "        job()\n"
+        "    except Exception as exc:\n"
+        "        return str(exc)\n")
+    assert _lines(tmp_path, code, "error-message-to-client") == [12]
+
+
+def test_csrf_exempt_is_reported_only_on_a_session_authenticated_view(tmp_path):
+    code = (
+        "from django.views.decorators.csrf import csrf_exempt\n"
+        "import hmac\n"
+        "@csrf_exempt\n"
+        "def stripe_webhook(request):\n"
+        "    request.user\n"
+        "@csrf_exempt\n"
+        "def api(request):\n"
+        "    token = request.headers['Authorization']\n"
+        "    request.user\n"
+        "@csrf_exempt\n"
+        "def public_ping(request):\n"
+        "    return ok()\n"
+        "@csrf_exempt\n"
+        "def transfer(request):\n"
+        "    request.user.account.transfer(request.POST['to'])\n")
+    assert _lines(tmp_path, code, "csrf-protection-disabled") == [13]
+
+
+def test_wtf_csrf_off_in_a_test_config_is_fine(tmp_path):
+    code = (
+        "class Config:\n"
+        "    WTF_CSRF_ENABLED = False\n"
+        "class TestingConfig(Config):\n"
+        "    WTF_CSRF_ENABLED = False\n"
+        "app.config['WTF_CSRF_ENABLED'] = False\n")
+    assert _lines(tmp_path, code, "csrf-protection-disabled") == [2, 5]
