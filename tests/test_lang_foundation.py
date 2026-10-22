@@ -74,6 +74,8 @@ def test_tsx_files_parse_with_the_tsx_grammar():
     "src/foo.test.ts", "web/a.spec.js", "lib/user_spec.rb", "spec/a_spec.rb",
     "src/test/java/a/FooTest.java", "pkg/x_test.go", "tests/test_a.py",
     "_test/closure0.go", "interp/_test/a/b.go",
+    "test-d/jwt.test-d.ts", "test-d/index.ts", "integration-tests/api/src/a.ts",
+    "packages/x/integration-tests/b.js",
 ])
 def test_every_ide_languages_test_files_are_tests(path):
     assert classify(path, "x") == "test"
@@ -83,7 +85,10 @@ def test_every_ide_languages_test_files_are_tests(path):
                                   "cmd/main.go", "src/latest.ts",
                                   # `_test/` must be the whole directory name
                                   "pkg/foo_test/a.go", "_testdata/a.go", "my_test_dir/a.go",
-                                  "src/_test.go/x.go"])
+                                  "src/_test.go/x.go",
+                                  # whole directory names only
+                                  "my-test-d/a.ts", "integration-tests-utils.ts",
+                                  "src/integration-testsuite/a.ts"])
 def test_source_files_are_not_mistaken_for_tests(path):
     assert classify(path, "x") == "source"
 

@@ -60,7 +60,11 @@ TEST_HINTS = re.compile(r"(^|/)(tests?|spec|__tests__)(/|$)|(^|/)test_[^/]+$|_te
                         # A directory named exactly `_test`: the go tool ignores
                         # `_`-prefixed dirs, and yaegi keeps its interpreter's
                         # input programs there. Not `foo_test/` or `_testdata/`.
-                        r"|(^|/)_test/")
+                        r"|(^|/)_test/"
+                        # tsd-style type-level test directories (`test-d/`,
+                        # jose) and suites kept in `integration-tests/`
+                        # (opentelemetry-js). Whole directory names only.
+                        r"|(^|/)(test-d|integration-tests)/")
 DOC_HINTS = re.compile(r"(^|/)(docs?|\.ai)(/|$)|\.(md|rst|adoc)$", re.IGNORECASE)
 # `cdk\.out[^/]*` rather than `cdk\.out`: CDK_OUTDIR lets a project redirect
 # synth output to a renamed directory (`cdk.out.chk`, seen on a real system),
