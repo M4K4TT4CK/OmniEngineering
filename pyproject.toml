@@ -8,8 +8,14 @@ version = "0.1.0"
 description = "Polyglot repository and system evaluator: security, compliance, quality, drift and cross-repo interfaces"
 readme = "README.md"
 requires-python = ">=3.10"
+# Apache-2.0 (decided 2026-10-21). The SPDX string form, `license = "Apache-2.0"`
+# (PEP 639), needs setuptools 77 or later; the build floor above is 68, so the
+# file form stays and the classifier carries the identifier for indexes.
 license = { file = "LICENSE" }
 authors = [{ name = "Nicholas J Pauken" }]
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+]
 dependencies = [
     "PyYAML>=6.0",
     # tomllib joined the standard library in 3.11; tomli is the same parser

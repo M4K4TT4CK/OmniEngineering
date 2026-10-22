@@ -1103,3 +1103,38 @@ pull request waits for the slower of the two rather than their sum.
 `.ai/test-suites.json` names the fast tier as the gate's suite and the slow
 tier as an integration suite the gate does not run. `train.yml` still runs
 everything nightly.
+
+## 2026-10-21 — Apache-2.0, and the repository stays public (ARB-005)
+
+**The decision.** The copyright holder, Nicholas J Pauken, chose to keep
+`paukennick/arbiter` public and license Arbiter under the Apache License,
+Version 2.0. `LICENSE` is now the standard, unmodified Apache-2.0 text;
+`NOTICE` opens with "Arbiter / Copyright 2026 Nicholas J Pauken" and then
+reproduces the OmniEngineering workspace's own NOTICE unchanged, because
+`.ai/` and the `omni` tooling are OmniEngineering's Apache-2.0 work and §4(d)
+asks for its notice to travel with derivatives. `pyproject.toml` keeps
+`license = { file = "LICENSE" }` and adds the Apache classifier: the SPDX
+string form needs setuptools 77 and the build floor is 68. Apache-2.0 also
+matches OmniEngineering, which vendors Arbiter as a git subtree.
+
+**What it replaces.** The 2026-09-12 interim notice (all rights reserved, no
+grant) and the 2026-09-14 per-repository/per-system proprietary model, whose
+L-3 draft grant was never in force. `docs/licensing.md` is rewritten as the
+current position and keeps a short history of the superseded draft rather
+than deleting the reasoning. The interim notice's §3 — scan output belongs to
+the user — is carried forward in `README.md`, `NOTICE` and
+`docs/licensing.md`; Apache-2.0 licenses the software and says nothing about
+what it produces.
+
+**What stays open.** L-6, the redistribution review for bundling the five
+analyzers (semgrep's LGPL-2.1 in particular), is untouched by the relicence:
+it is about semgrep's licence, not Arbiter's. ARB-005 therefore stays
+pending, and the bundle manifest's "redistribution review pending (ARB-005)"
+remains true. Owner decisions not taken here: whether to accept outside
+contributions and on what inbound terms (Apache-2.0 §5 alone, a DCO or a CLA),
+per-file licence headers, and a trademark policy for the name "Arbiter"
+(`TRADEMARKS.md` is the OmniEngineering identity policy).
+
+**The pre-publication check.** A full-history gitleaks scan was run for this
+change; the result and what it covered are in `CHANGELOG.md` under
+2026-10-21.

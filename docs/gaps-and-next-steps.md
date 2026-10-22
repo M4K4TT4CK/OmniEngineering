@@ -176,9 +176,9 @@ gold set now holds 4 or 5 per language (`tools/gold/repos.json`) **[M]**.
 
 | Gap | Evidence | Label |
 |---|---|---|
-| **The repository is already public, but the Phase 3 pre-publication gate is not recorded as run** | `gh repo view paukennick/arbiter` returns `PUBLIC` (2026-10-20); the plan made publication conditional on a full-history gitleaks scan, a fixture-key review, a `training/` redistribution check and an ARB-005 decision; no CHANGELOG entry records them | [M] visibility; [I] that the gate was skipped (absence of a record is not proof) |
-| Licence and visibility disagree | `LICENSE` is an interim notice that "reserves all rights and grants none" (ARB-005); `.ai/checklists/public-release.md` says it does not apply because Arbiter is proprietary | [M] |
-| ARB-005 licensing needs counsel | the semgrep LGPL-2.1 redistribution review (L-6) blocks bundling the analyzers in the air-gapped bundle | [M] registry |
+| **The repository is already public, but the Phase 3 pre-publication gate is not recorded as run** | `gh repo view paukennick/arbiter` returns `PUBLIC` (2026-10-20); the plan made publication conditional on a full-history gitleaks scan, a fixture-key review, a `training/` redistribution check and an ARB-005 decision; no CHANGELOG entry records them. **Update 2026-10-21:** the ARB-005 decision (Apache-2.0, stays public) and a full-history gitleaks scan with its hits reviewed are now in `CHANGELOG.md`; the `training/` redistribution check is still not recorded | [M] visibility; [I] that the gate was skipped (absence of a record is not proof) |
+| ~~Licence and visibility disagree~~ — resolved 2026-10-21 | was: `LICENSE` an interim notice that "reserves all rights and grants none". The owner chose Apache-2.0 and kept the repository public; `LICENSE`, `NOTICE` and `.ai/checklists/public-release.md` now say so (ARB-005) | [M] |
+| ARB-005's last criterion is open | the licence is decided (Apache-2.0); the semgrep LGPL-2.1 redistribution review (L-6) still blocks bundling the analyzers in the air-gapped bundle, and needs a named reviewer | [M] registry |
 | Install is from source only | `SETUP.md` documents `pip install -e .` (or `omni arbiter install` from a checkout, URL or pip spec), and the analyzers come from a bash script | [M] SETUP.md; [A] that no package is published to an index |
 | Two import-time fragilities | `import arbiter.lang_rules` before `arbiter.probes` raises a circular `ImportError`; `controls._probe_of("arbiter/python.x")` returns `"python"`, not `"lang_python"`, so a language-pack control always reads as not assessed | [M] both reproduced for this report |
 | The controls report cannot express per-language CWE applicability | one automatable value per control and no language dimension (ARB-062 acceptance criteria) | [M] |
@@ -215,7 +215,7 @@ cited in each row. "New" IDs are proposals and are not yet in the registry.
 | 10 | macOS CI, `install_tools.ps1`, analyzers and self-gate on all three OSes | Med | M | Windows has already caught a bug Linux missed (`da26819`) | ARB-063 |
 | 11 | Same-function constant propagation and taint in the pack engine | High | L | The only route below FPR 1.0 on OWASP Python code and command injection | new ARB-081 |
 | 12 | MCP fix + verify loop | High | M–L | Differentiates the product for AI agents; needs 9 and fix pairs | ARB-066 → ARB-068 |
-| 13 | Decide the public status and licence; run the pre-publication checklist retroactively | High (risk) | S to run, owner decision | Public repo with an all-rights-reserved licence and an unrecorded history scan | ARB-005, ARB-075 |
+| 13 | Decide the public status and licence; run the pre-publication checklist retroactively | High (risk) | S to run, owner decision | Done 2026-10-21 for the licence (Apache-2.0, stays public) and the full-history gitleaks scan (`CHANGELOG.md`); the `training/` redistribution check is not recorded | ARB-005, ARB-075 |
 | 14 | Packaged install: a wheel and a pinned-analyzer bootstrap per OS | Med | M | Removes the "clone and bash" barrier | ARB-063; new ARB-082 |
 | 15 | Cross-file analysis (routes, auth middleware) | High | L+ | Unlocks 862, 863 and 306, but is a different engine. Prefer an adapter (semgrep Pro / CodeQL) first; their licence terms are **[A]** unchecked | new, defer |
 
@@ -304,8 +304,9 @@ Exit criteria, all measurable:
 - [ ] `arbiter preflight` output is embedded in gold and planted reports.
 - [ ] Perf budgets and snapshots fail CI on a seeded regression (proven by
   a mutation in `mutate_tests.py`).
-- [ ] The public/licence decision is recorded (ARB-005/075), and a
-  full-history gitleaks scan result is in the CHANGELOG.
+- [x] The public/licence decision is recorded (ARB-005/075), and a
+  full-history gitleaks scan result is in the CHANGELOG. (2026-10-21:
+  Apache-2.0; gitleaks findings all synthetic test values.)
 
 ### Milestone 2: close what single-file analysis can reach
 

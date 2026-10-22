@@ -14,7 +14,7 @@ These settings correspond to the `configuration` block in
 - `lint_command`: none gating; `ruff` is available through the `tools` extra
 - `typecheck_command`: none configured
 - `changelog_location`: `CHANGELOG.md`, grouped by date under `[Unreleased]`, each entry citing its `REQ-###`
-- `documentation_locations`: `.ai/project-context.md` (decision history), `CHANGELOG.md`, `README.md` (overview: capabilities, administration, versioning, licensing), `docs/` (granular reference, one file per category), `SETUP.md` (installation), `NOTICE.md` (third-party components), `docs/licensing.md` (licensing requirements), `.ai/failures/failure-ledger.json` (shipped defects, via `python omni failure`)
+- `documentation_locations`: `.ai/project-context.md` (decision history), `CHANGELOG.md`, `README.md` (overview: capabilities, administration, versioning, licensing), `docs/` (granular reference, one file per category), `SETUP.md` (installation), `NOTICE.md` (third-party components), `docs/licensing.md` (Apache-2.0 decision, third-party obligations, open licensing questions), `.ai/failures/failure-ledger.json` (shipped defects, via `python omni failure`)
 - `branching_or_pr_standard`: main branch `main`; remote `github.com/paukennick/arbiter`; no PR template in-repo
 - `comment_style`: minimal — comments only for non-obvious WHY, matching the existing `src/arbiter/` style
 - `requirement_id_prefix`: `REQ` — active registry at

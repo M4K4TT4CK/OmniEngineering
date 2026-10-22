@@ -1,3 +1,20 @@
+Arbiter
+Copyright 2026 Nicholas J Pauken
+
+Licensed under the Apache License, Version 2.0 (see LICENSE). Reports,
+findings, baselines, knowledge files and other output that Arbiter generates
+from your own material belong to you; Arbiter's licence claims no rights over
+them.
+
+Third-party components that Arbiter depends on or invokes, and whether any of
+them is redistributed, are inventoried in NOTICE.md.
+
+-------------------------------------------------------------------------------
+
+This product includes the OmniEngineering workspace (the `.ai/` directory and
+the `omni`, `make_ai.py`, `omni_graph.py` and `omni_mcp.py` tooling), whose
+NOTICE follows unchanged:
+
 OmniEngineering Workspace
 Copyright 2026 Michael McMillin
 

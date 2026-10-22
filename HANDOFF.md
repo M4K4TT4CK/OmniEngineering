@@ -25,10 +25,11 @@ transports (ARB-010) passed their requirement-specific tests and the full Linux
 completion gate, then closed in that dependency order. Their outcomes are in
 `CHANGELOG.md`, `.ai/project-context.md`, and the requirement archive.
 
-Two requirements are active. ARB-005 (licensing) requires counsel; do not
-represent engineering work as resolving its licensing questions — its first
-three acceptance criteria are met, and the fourth is a redistribution review
-that has to be performed and signed by a person. ARB-024 (exercise the Windows
+Two requirements are active. ARB-005 (licensing): the owner chose Apache-2.0 on
+2026-10-21 and `LICENSE` carries it, which meets its first three acceptance
+criteria; the fourth is the L-6 redistribution review for bundling the
+analyzers, which has to be performed and signed by a person — do not represent
+engineering work as resolving it. ARB-024 (exercise the Windows
 code paths in CI) is engineering work and is unblocked.
 
 ## Validation
