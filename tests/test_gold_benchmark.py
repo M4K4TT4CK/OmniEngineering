@@ -145,6 +145,28 @@ def test_evaluate_flags_only_rules_over_budget_with_enough_findings():
     assert [r["over_budget"] for r in rules] == [True, False, False, False]
 
 
+def test_an_accepted_breach_stays_reported_and_fails_again_past_its_ceiling():
+    b = {"default_per_kloc": 0.1, "min_count": 1, "accepted_breaches": {
+        "held": {"ceiling_per_kloc": 0.2, "reason": "decided"},
+        "risen": {"ceiling_per_kloc": 0.2, "reason": "decided"}}}
+    rules = [{"rule": "held", "per_kloc": 0.15, "count": 5},
+             {"rule": "risen", "per_kloc": 0.25, "count": 5},
+             {"rule": "plain", "per_kloc": 0.5, "count": 5}]
+    breaches = gb.evaluate(rules, b)
+    assert [x["rule"] for x in breaches] == ["held", "risen", "plain"], "an accepted breach is still a breach"
+    assert [x.get("accepted") for x in breaches] == [True, False, None]
+    assert [x["rule"] for x in gb.failing_breaches(breaches)] == ["risen", "plain"]
+
+
+def test_every_accepted_breach_names_a_reason_a_date_and_a_ceiling_above_its_budget():
+    b = json.loads((GOLD / "budgets.json").read_text())
+    for rule, entry in b.get("accepted_breaches", {}).items():
+        if rule.startswith("_"):
+            continue
+        assert entry.get("reason") and entry.get("decided"), rule
+        assert float(entry["ceiling_per_kloc"]) > gb.budget_for(rule, b), rule
+
+
 def test_confidence_is_reported_weighted_but_the_budget_reads_the_raw_rate():
     """Lowering a rule's confidence (java.test-without-assertion) shows in the
     weighted column; it does not by itself bring the rule under budget."""
@@ -182,7 +204,8 @@ def test_report_shape_and_markdown():
     assert rep["schema_version"] == gb.SCHEMA_VERSION and rep["kind"] == "gold-precision"
     assert set(rep) >= {"totals", "lines", "missing", "repos", "rules", "breaches", "arbiter_commit"}
     assert rep["totals"] == {"repos": 1, "kloc": 1.0, "findings": 4, "per_kloc": 4.0,
-                             "rules_fired": 1, "rules_over_budget": 1}
+                             "rules_fired": 1, "rules_over_budget": 1,
+                             "rules_over_budget_accepted": 0}
     row = rep["repos"][0]
     assert row["at_pin"] is True and row["pinned_sha"] == "a" * 40 and row["per_kloc"] == 4.0
     assert rep["rules"][0]["budget_per_kloc"] == 1.0 and rep["rules"][0]["over_budget"]

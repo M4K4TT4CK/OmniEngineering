@@ -315,7 +315,10 @@ Fast, honest and quiet on good code.
 Exit criteria, all measurable:
 
 - [ ] Gold benchmark: the three P1 rules are within budget; total
-  over-budget rules ≤ 8 (from 16). *2026-10-21, all 24 repositories: 7
+  over-budget rules ≤ 8 (from 16). *2026-10-22: 9 over at `1047341`, 3 of them
+  accepted breaches recorded in `tools/gold/budgets.json` (java and typescript
+  test-without-assertion, permanently-skipped-test), so 6 fail the run **[M]**.
+  The criterion counts all 9, so it stays open.* *2026-10-21, all 24 repositories: 7
   over at `bd6bf16`, 10 at `7dd990c` **[M]**. The rise is ARB-080 counting
   each same-evidence site (7,457 to 8,162 findings; the only scan change
   between the two) **[I]**: it adds `authored.security-check-disabled`

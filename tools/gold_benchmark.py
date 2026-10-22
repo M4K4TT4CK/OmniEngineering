@@ -270,9 +270,24 @@ def evaluate(rules: list[dict], budgets: dict) -> list[dict]:
         r["over_budget"] = (r["per_kloc"] is not None and r["per_kloc"] > b
                             and r["count"] >= min_count)
         if r["over_budget"]:
-            breaches.append({"rule": r["rule"], "per_kloc": r["per_kloc"], "budget": b,
-                             "count": r["count"]})
+            breach = {"rule": r["rule"], "per_kloc": r["per_kloc"], "budget": b,
+                      "count": r["count"]}
+            accepted = budgets.get("accepted_breaches", {}).get(r["rule"])
+            if accepted:
+                ceiling = float(accepted["ceiling_per_kloc"])
+                breach["accepted"] = r["per_kloc"] <= ceiling
+                breach["ceiling"] = ceiling
+                breach["reason"] = accepted["reason"]
+            r["accepted_breach"] = bool(breach.get("accepted"))
+            breaches.append(breach)
     return breaches
+
+
+def failing_breaches(breaches: list[dict]) -> list[dict]:
+    """Breaches that fail the run: every breach except an accepted one still
+    at or under its recorded ceiling. An accepted breach stays in the report
+    and in `rules_over_budget`; only a rise past its ceiling fails again."""
+    return [b for b in breaches if not b.get("accepted")]
 
 
 def build_report(repos: list[dict], pins: dict[str, Pin], budgets: dict,
@@ -297,7 +312,8 @@ def build_report(repos: list[dict], pins: dict[str, Pin], budgets: dict,
         "schema_version": SCHEMA_VERSION, "kind": "gold-precision", **meta,
         "totals": {"repos": len(repos), "kloc": round(all_k, 1), "findings": total,
                    "per_kloc": round(total / all_k, 3) if all_k else None,
-                   "rules_fired": len(agg["rules"]), "rules_over_budget": len(breaches)},
+                   "rules_fired": len(agg["rules"]), "rules_over_budget": len(breaches),
+                   "rules_over_budget_accepted": len(breaches) - len(failing_breaches(breaches))},
         "lines": agg["lines"], "missing": missing, "repos": repo_rows,
         "rules": agg["rules"], "breaches": breaches,
     }
@@ -308,7 +324,8 @@ def render_markdown(report: dict, top: int = 15) -> str:
     out = ["# Gold-standard benchmark", "",
            (f"Arbiter `{report.get('arbiter_commit', '?')}`, {t['repos']} repositories, "
             f"{t['kloc']} KLOC, {t['findings']} findings ({t['per_kloc']}/KLOC), "
-            f"{t['rules_fired']} rules fired, **{t['rules_over_budget']} over budget**."), ""]
+            f"{t['rules_fired']} rules fired, **{t['rules_over_budget']} over budget**"
+            f" ({t.get('rules_over_budget_accepted', 0)} of them accepted breaches)."), ""]
     if report.get("missing"):
         out += [f"Not scanned (missing or not at the pinned commit): {', '.join(report['missing'])}", ""]
     out += ["## Rules by findings per KLOC", "",
@@ -319,7 +336,16 @@ def render_markdown(report: dict, top: int = 15) -> str:
     for r in report["rules"][:top]:
         out.append(f"| `{r['rule']}` | {r['count']} | {r['per_kloc']} "
                    f"| {r.get('weighted_per_kloc', r['per_kloc'])} | {r['budget_per_kloc']} "
-                   f"| {r['in_tests']} | {r['repos_hit']} | {'**yes**' if r['over_budget'] else ''} |")
+                   f"| {r['in_tests']} | {r['repos_hit']} | "
+                   f"{('accepted' if r.get('accepted_breach') else '**yes**') if r['over_budget'] else ''} |")
+    accepted = [b for b in report.get("breaches", []) if "ceiling" in b]
+    if accepted:
+        out += ["", "## Accepted breaches", "",
+                "Over budget by a recorded decision; the run fails again if the rate passes the ceiling.", "",
+                "| rule | /KLOC | budget | ceiling | within ceiling | reason |", "|---|---:|---:|---:|:-:|---|"]
+        for b in accepted:
+            out.append(f"| `{b['rule']}` | {b['per_kloc']} | {b['budget']} | {b['ceiling']} "
+                       f"| {'yes' if b['accepted'] else '**no**'} | {b['reason']} |")
     out += ["", "## Repositories", "", "| repo | lang | KLOC | findings | /KLOC | at pin |",
             "|---|---|---:|---:|---:|:-:|"]
     for r in sorted(report["repos"], key=lambda x: (x["language"], x["name"])):
@@ -496,7 +522,7 @@ def run_precision(args, pins: list[Pin], recall_names: set[str]) -> int:
     if missing and not args.allow_missing:
         print(f"missing repositories: {missing}", file=sys.stderr)
         return 2
-    return 1 if report["breaches"] and not args.no_fail else 0
+    return 1 if failing_breaches(report["breaches"]) and not args.no_fail else 0
 
 
 def run_recall(args, pins: list[Pin], benchmarks: dict) -> int:
