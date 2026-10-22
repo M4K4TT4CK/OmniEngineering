@@ -52,7 +52,7 @@
       "id": "ARB-005",
       "category": "legal",
       "title": "Establish licensing terms for arbiter",
-      "description": "Partly closed by engineering as of 2026-09-14; the remainder needs counsel and cannot be completed here. LICENSE exists at the repository root and pyproject.toml references it, copyright is asserted to Nicholas J Pauken, and LICENSE section 3 assigns scan output to the user -- the first three acceptance criteria. LICENSE is explicitly an interim notice and not the operative grant: it reserves all rights and grants none. The fourth criterion is L-6, the redistribution review for the five bundled analyzers, recorded in NOTICE.md with a date and a named reviewer. That is a legal determination about semgrep's LGPL-2.1 terms and it must not be signed by anyone who did not perform it, so this requirement stays pending until a person does. It blocks the air-gapped bundle and nothing else; docs/licensing.md records the open questions.",
+      "description": "Operative licence decided 2026-10-21 by the copyright holder, Nicholas J Pauken: Arbiter is licensed under the Apache License, Version 2.0 and the repository stays public. This replaces the interim all-rights-reserved LICENSE (2026-09-12) and drops the planned proprietary per-repository/per-system licence (the L-3 draft grant), which was never in force; docs/licensing.md keeps a short history of it. State of the four acceptance criteria: (1) met -- LICENSE is the standard unmodified Apache-2.0 text and pyproject.toml references it (license = { file = \"LICENSE\" } plus the Apache classifier); (2) met -- copyright asserted to Nicholas J Pauken in NOTICE; (3) met -- README.md, NOTICE and docs/licensing.md state that scan output belongs to the user (Apache-2.0 itself claims nothing over output); (4) NOT met -- L-6, the redistribution review for bundling the five analyzers (semgrep LGPL-2.1 in particular), recorded in NOTICE.md with a date and a named reviewer. That is a legal determination about semgrep's licence, unaffected by Arbiter's relicence, and must not be signed by anyone who did not perform it, so this requirement stays pending until a person does. It blocks only including the analyzers in the air-gapped bundle; Arbiter invokes semgrep as a separate executable and does not bundle it.",
       "priority": "high",
       "status": "pending",
       "minimum_access_scope": [
@@ -79,7 +79,8 @@
       "risk_notes": [
         "Requires qualified legal review and cannot be completed by engineering alone",
         "the air-gapped bundle roadmap item stays blocked until the semgrep LGPL-2.1 redistribution question is answered",
-        "2026-10-09: the air-gapped bundle now ships without the analyzers (ARB-051); only including them in the bundle stays blocked on the L-6 redistribution review."
+        "2026-10-09: the air-gapped bundle now ships without the analyzers (ARB-051); only including them in the bundle stays blocked on the L-6 redistribution review.",
+        "2026-10-21: relicensed under Apache-2.0 by owner decision; criteria 1-3 met under the new licence, criterion 4 (L-6 review, named reviewer) still open. Owner decisions outstanding: inbound contribution terms (Apache-2.0 s5 alone, DCO or CLA), per-file headers, an Arbiter trademark policy."
       ]
     },
     {

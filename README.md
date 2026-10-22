@@ -8,7 +8,7 @@ not actually inspect.**
 | **Version** | 0.1.0 — pre-release, no tagged releases yet |
 | **Python** | 3.11 or later |
 | **Runtime dependencies** | PyYAML |
-| **License** | Proprietary — see [Licensing](#licensing) |
+| **License** | Apache-2.0 — see [Licensing](#licensing) |
 
 Arbiter scans one repository, or a **system** of several, and produces findings
 across seven dimensions: security, compliance, quality, drift, interface, supply
@@ -302,7 +302,7 @@ own job, and the fast tier on every platform.
 | [docs/bundle.md](docs/bundle.md) | The air-gapped bundle: what it carries, what it excludes and why, build, verify, install offline |
 | [docs/pilot-runbook.md](docs/pilot-runbook.md) | Standing a pilot up, in the order the steps have to happen |
 | [docs/pilot-terms.md](docs/pilot-terms.md) | What each tester is told happens to their code |
-| [docs/licensing.md](docs/licensing.md) | Licensing requirements and the questions still open (ARB-005) |
+| [docs/licensing.md](docs/licensing.md) | The Apache-2.0 decision, third-party obligations and the questions still open (ARB-005) |
 | [CHANGELOG.md](CHANGELOG.md) | Dated entries, referenced to requirements |
 | [NOTICE.md](NOTICE.md) | Third-party components and their licenses |
 
@@ -350,23 +350,26 @@ if calibration has moved since a release gate was pinned.
 
 ## Licensing
 
-Arbiter is **proprietary**. Copyright © 2026 Nicholas J Pauken, all rights
-reserved — see [LICENSE](LICENSE), which `pyproject.toml` references.
+Arbiter is licensed under the **Apache License, Version 2.0** — see
+[LICENSE](LICENSE), which `pyproject.toml` references, and [NOTICE](NOTICE).
+Copyright © 2026 Nicholas J Pauken. The copyright holder chose Apache-2.0 on
+2026-10-21, replacing the interim all-rights-reserved notice the repository
+carried before; [docs/licensing.md](docs/licensing.md) records the decision and
+its history.
 
 **Scan output belongs to you.** Reports, findings, baselines and knowledge files
 that Arbiter generates from your material are yours, with no restriction on
-publishing them. That clause is in `LICENSE` today and is meant to survive into
-the operative licence unchanged.
+publishing them. Apache-2.0 licenses the software and claims nothing over what
+it produces.
 
-> **Administrative note:** `LICENSE` is an *interim* notice. It asserts
-> ownership, reserves all rights and assigns scan output to the user, but it is
-> not the operative grant — the terms on which Arbiter may be used have not been
-> drafted and need qualified counsel. Do not distribute against it.
+Apache-2.0 grants no trademark rights (§6); see [TRADEMARKS.md](TRADEMARKS.md).
+Outside contributions are not being accepted yet; see
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
-The licensing position is specified in **[docs/licensing.md](docs/licensing.md)**
-— eight requirements covering the operative grant, copyright ownership,
-ownership of scan output, and the redistribution review that blocks including
-the analyzers in the air-gapped bundle. Tracked as ARB-005.
+One licensing item is open, and it is about a third-party tool rather than
+Arbiter: the redistribution review (L-6, tracked as ARB-005) that blocks
+including the analyzers — semgrep's LGPL-2.1 in particular — in the air-gapped
+bundle.
 
 Arbiter depends only on PyYAML at runtime. The external analyzers it adapts are
 neither vendored nor redistributed — each is installed separately by the

@@ -44,8 +44,9 @@ The five external analyzers — ruff, bandit, semgrep, checkov and gitleaks — 
 Shipping them would be a redistribution, and the per-component redistribution
 review (L-6 in [licensing.md](licensing.md), tracked as ARB-005) has not been
 done; semgrep's LGPL-2.1 terms in particular need a person to review and
-record it in [NOTICE.md](../NOTICE.md). A bundle of Arbiter alone conveys
-nothing but Arbiter, which is why it is not blocked.
+record it in [NOTICE.md](../NOTICE.md). A bundle of Arbiter and its runtime
+dependencies conveys Arbiter (Apache-2.0) and the unmodified PyYAML and tomli
+wheels (MIT), and no analyzer, which is why it is not blocked.
 
 On the air-gapped machine, install the analyzers from your own mirror and
 Arbiter's adapters find them on `PATH` as usual. A scan that cannot find one

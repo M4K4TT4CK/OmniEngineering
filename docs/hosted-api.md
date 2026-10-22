@@ -139,9 +139,11 @@ server-side and returning findings over HTTP conveys no copy to the caller, so
 gate hosting.** Hosting triggers fewer third-party obligations than the bundle
 does, not more.
 
-What does still need counsel is L-3's term structure — a hosted service is
-priced and terminated differently from a delivered copy — and the custody terms
-above. See [licensing.md](licensing.md).
+Arbiter itself is Apache-2.0 (decided 2026-10-21), so there is no longer a
+proprietary term structure to adapt for a service. What still needs a person,
+and counsel before anything beyond a pilot, is the custody terms above — they
+are contractual, and the licence does not answer them. See
+[licensing.md](licensing.md).
 
 ## Access is handed out by hand, one key per user
 

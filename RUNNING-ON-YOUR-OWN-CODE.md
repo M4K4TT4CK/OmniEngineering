@@ -6,12 +6,10 @@ repositories. This is the part where it looks at code that matters to you.
 Nothing here needs my sandbox. It runs on your machine, against repositories
 that never leave it.
 
-**A note on licensing:** `LICENSE` reserves all rights and grants none — that's
-deliberate, the operative terms are still being drafted (tracked as ARB-005 in
-[docs/licensing.md](docs/licensing.md)). If you got a link to this repository
-from me, you have my go-ahead to run it against your own code; that's the
-actual, current position while the formal grant is unsettled, not just a gap
-in the paperwork.
+**A note on licensing:** Arbiter is licensed under Apache-2.0 (`LICENSE`), so
+you can run it against your own code without asking anyone, and what it
+produces from your code — reports, findings, baselines — is yours
+([docs/licensing.md](docs/licensing.md)).
 
 **A note if you're on Windows:** the `arbiter` CLI itself is pure Python and
 runs the same in PowerShell, cmd.exe, or a terminal — every command below
