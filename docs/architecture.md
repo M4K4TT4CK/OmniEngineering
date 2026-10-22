@@ -123,6 +123,33 @@ Without this, the "new findings only" gate turns into noise and people switch it
 off — which costs far more than the occasional collision the shortened digest
 risks.
 
+### Occurrences (ARB-080)
+
+Without a line number, every site in one file with the same rule and evidence
+had the same ID, and the engine kept one: six identical `catch {}` counted
+once. The engine now numbers the distinct sites of one ID in line order
+before deduplication. Occurrence 0 keeps the ID above unchanged, so a finding
+that occurs once has the ID it always had; occurrence *k* gets
+
+```text
+"f:" + sha256(base_id ‖ "#k")[:12]
+```
+
+and carries `occurrence` and `base_id` in the report. Two reports of the very
+same site still share one ID and collapse. Shifting the whole file keeps
+every ID; inserting a new repeat above an old one renumbers the sites below
+it, so one finding reads as new, but the count of new findings is right.
+
+Reports carry `"fingerprint": "occurrence-v1"` and so do baselines cut from
+them (`schema_version` 1.1). A baseline without that marker (1.0, cut before
+ARB-080) holds one ID per same-evidence group, so the gate treats every
+occurrence of a listed ID as existing; a suppression by `id:` and an
+`arbiter diff` from an older report match the same way. `arbiter baseline
+report.json --migrate .arbiter/baseline.json --out .arbiter/baseline.json`
+rewrites such a baseline in the new format without accepting anything it did
+not accept: each finding the old file matched is listed by its new ID, IDs no
+longer found are kept, and `created`, `commit` and `config_hash` carry over.
+
 ## Result cache
 
 `cache.py` keeps, in `.arbiter/cache.json` under the first target, one entry

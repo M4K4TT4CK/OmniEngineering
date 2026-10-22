@@ -1839,6 +1839,52 @@
         "changelog"
       ],
       "risk_notes": []
+    },
+    {
+      "id": "ARB-080",
+      "category": "defect",
+      "title": "Same-evidence findings in one file each count: occurrence ordinal in the fingerprint, with a baseline migration",
+      "description": "Finding.fingerprint hashes rule, repo, path, logical symbol and evidence but no line, so repeated defects with identical evidence in one file shared one id and engine._dedupe kept one: six catch {} counted once. engine.run_scan now calls core.assign_occurrences before _dedupe: the distinct sites (start/end line and column) of one id are numbered in line order; occurrence 0 keeps the old id and occurrence k gets f:sha256(base_id#k)[:12] with occurrence and base_id in the report. Reports and new baselines carry fingerprint occurrence-v1 (baseline schema 1.1). A legacy (1.0) baseline matches every occurrence of an id it lists, as do suppressions by id and arbiter diff from a legacy report, so an upgrade does not turn a green gate red. arbiter baseline --migrate OLD rewrites a legacy baseline in the new format accepting only what the old one accepted and keeping created, commit and config_hash (what omni arbiter baseline records).",
+      "priority": "medium",
+      "status": "pending",
+      "minimum_access_scope": [
+        "src/arbiter/core.py",
+        "src/arbiter/engine.py",
+        "src/arbiter/policy.py",
+        "src/arbiter/diff.py",
+        "src/arbiter/cli.py",
+        "tests/test_occurrence_fingerprint.py",
+        "docs/architecture.md",
+        "docs/cli.md"
+      ],
+      "acceptance_criteria": [
+        "six repeated defects with identical evidence in one file report as six findings with six ids (real lang_ruby scan)",
+        "a finding that occurs once keeps its pre-ARB-080 id and two reports of one site still collapse",
+        "ids survive a whole-file line shift and a JSON round trip",
+        "a legacy 1.0 baseline marks every repeat of an id it lists as existing and the gate stays green on unchanged code via arbiter gate --baseline .arbiter/baseline.json (the omni gate path) including the commit and config_hash keys omni adds",
+        "arbiter baseline --migrate keeps exactly what the old baseline accepted and labels identically to it and refuses a report without occurrence ids",
+        "a current baseline reports one added repeat as one new finding",
+        "suppressions by id and diffs from a legacy report match every repeat",
+        "planted score stays fully caught with 0 on good twins and 0 unmarked"
+      ],
+      "validation_required": [
+        "pytest",
+        "planted_score",
+        "gold_benchmark",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog",
+        "docs/architecture.md",
+        "docs/cli.md"
+      ],
+      "risk_notes": [
+        "finding counts rise wherever repeats were collapsed: gold and planted numbers are re-measured after this change",
+        "inserting a new repeat above an existing one renumbers the sites below it: the new-finding count is right but the finding labelled new may be an old site",
+        "verdicts in .arbiter/knowledge.json are keyed by id: occurrence 0 keeps its verdict and occurrences k>0 start unadjudicated",
+        "the omni gate runs the arbiter on PATH (the shared install)",
+        "which gets this behaviour only once it is updated"
+      ]
     }
   ]
 }

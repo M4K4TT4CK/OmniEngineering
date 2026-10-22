@@ -1398,6 +1398,32 @@
       "prevention_rules": [],
       "prevention_notes": "every shipped pack rule id is checked to map to a registered probe name, and a real scan per language asserts the control reads satisfied",
       "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-054",
+      "date": "2026-10-21",
+      "title": "Repeated defects with identical evidence in one file collapsed into one finding",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "six identical catch {} (or rescue Exception) in one file reported once: one fingerprint, and engine._dedupe kept one per id",
+      "how_detected": "code reading for docs/gaps-and-next-steps.md (2026-10-21)",
+      "root_cause": "the fingerprint deliberately excludes line numbers so a baseline survives reformatting; with nothing else to tell same-evidence sites in one file apart, they shared an id and deduplication by id treated them as one defect",
+      "requirement": "ARB-080",
+      "affected": [
+        "src/arbiter/core.py",
+        "src/arbiter/engine.py"
+      ],
+      "fix_summary": "core.assign_occurrences numbers the distinct sites of one id before _dedupe (occurrence 0 keeps the old id); legacy baselines, suppressions by id and diffs from legacy reports match every repeat; arbiter baseline --migrate rewrites a legacy baseline",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_occurrence_fingerprint.py::test_six_repeated_defects_in_one_file_count_as_six",
+        "tests/test_occurrence_fingerprint.py::test_the_gate_stays_green_on_a_legacy_baseline_and_after_migrating_it",
+        "tests/test_occurrence_fingerprint.py::test_migrating_a_legacy_baseline_keeps_exactly_what_it_accepted"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [],
+      "prevention_notes": "a real scan of six repeats must yield six ids, and the gate on a legacy baseline must stay green on unchanged code",
+      "recurrence_of": ""
     }
   ]
 }

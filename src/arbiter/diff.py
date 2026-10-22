@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .core import SEV_RANK, Finding, Report
+from .core import FINGERPRINT_SCHEME, SEV_RANK, Finding, Report
 
 
 @dataclass
@@ -69,9 +69,18 @@ def diff_reports(before: Report, after: Report) -> ReportDiff:
     d = ReportDiff(before=before, after=after)
     a_by_id = {f.id: f for f in before.active()}
     b_by_id = {f.id: f for f in after.active()}
+    # A report from before occurrence ids (ARB-080) has one id for every
+    # same-evidence repeat in a file. Each repeat in `after` then persists
+    # from it rather than reading as new: the code did not change, the ids did.
+    legacy = before.fingerprint != FINGERPRINT_SCHEME and after.fingerprint == FINGERPRINT_SCHEME
+    matched: set[str] = set()
 
     for fid, f in b_by_id.items():
         prev = a_by_id.get(fid)
+        if prev is None and legacy:
+            prev = a_by_id.get(f.fingerprint_base)
+        if prev is not None:
+            matched.add(prev.id)
         if prev is None:
             d.new.append(f)
         else:
@@ -82,7 +91,7 @@ def diff_reports(before: Report, after: Report) -> ReportDiff:
                 d.moved.append((prev, f))
 
     for fid, f in a_by_id.items():
-        if fid not in b_by_id:
+        if fid not in matched:
             d.fixed.append(f)
 
     order = {s: i for i, s in enumerate(["critical", "high", "medium", "low", "info"])}
