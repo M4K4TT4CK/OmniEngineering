@@ -5,6 +5,27 @@ under `[Unreleased]` (there are no release tags yet) and reference the
 `REQ-###` they serve. Rationale belongs in `.ai/project-context.md`.
 
 ## [Unreleased]
+### 2026-10-21 (CWE Top 25, Java round 1)
+- ARB-062 | Java native rules for gap-list ranks 1-4 (`docs/cwe-top25.md`).
+CWE-287: `java.jwt-unsigned-accepted` (jjwt `parseClaimsJwt`,
+`parseUnsecuredClaims`, `.unsecured()`; high confidence) and
+`java.jwt-decode-without-verify` (auth0 `JWT.decode`, Nimbus `JWTParser.parse`
+with no `verify`/`require`/JWT processor in the file, an issuer or key-id peek
+excepted; medium). CWE-798: `java.hardcoded-signing-key` (`Algorithm.HMAC256`,
+`Keys.hmacShaKeyFor`, `signWith`/`setSigningKey`, `new SecretKeySpec` given a
+literal) and `java.hardcoded-db-password` (`DriverManager.getConnection` with a
+literal password or `password=` in the URL, `setPassword` on a data source);
+placeholders and empty passwords skipped, test code skipped, the literal never
+in the finding. CWE-352: `java.csrf-disabled` (all three Spring Security forms;
+high severity, medium confidence) and `java.csrf-disabled-stateless` (low/low
+where the file declares `SessionCreationPolicy.STATELESS`). CWE-200/209:
+`java.stack-trace-to-client` (high confidence) and
+`java.exception-message-to-client` (medium; broad or library exceptions only,
+tied to their own catch clause or `@ExceptionHandler`). Java Top 25 coverage:
+native 4 to 8 cells, caught by anything 8 to 11 of 15; gaps left 79, 77, 918,
+190. Gold Java repositories (httpclient, netty, spring-security, tomcat; keycloak
+skipped): 0 findings from the new rules. OWASP Benchmark Java unchanged
+(in-scope recall 1.0, FPR 0.565).
 ### 2026-10-21 (gold re-run)
 - ARB-065 | Gold benchmark re-run after the precision fixes (Arbiter 8cf1ee7, 23 repositories without keycloak, native checks): 6,477 findings, 1.32 per KLOC, 7 rules over budget. The first run (d57e479, 24 repositories) had 12,468 findings, 2.05 per KLOC, 16 over budget. Results in `tools/gold/results/2026-10-21-gold-*-after.*`.
 ### 2026-10-21 (roadmap)

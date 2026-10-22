@@ -221,7 +221,7 @@ named language. A scan that finds none of them says nothing about them.
 | Python | 787, 125, 416, 119 (memory-safe); 476 (`None` access raises); 190 (arbitrary-precision ints) | 862, 863, 306, 269, 20; 918 beyond one function | 434, 77; 200 except `debug=True` |
 | TypeScript / JavaScript | 787, 125, 416, 119; 476 (`undefined` access raises); 190 (`number` is a double) | 862, 863, 306, 269, 20; 918 beyond one function | 352, 434, 77, 287, 200, 918 |
 | Go | 787, 125, 416, 119 (outside `unsafe`); 94 (no runtime eval); 502 (stdlib decoders fill declared types) | 862, 863, 306, 269, 20, 476 (nil-flow analysis), 352 (absent middleware); 918 beyond one function | 22, 434, 77, 287, 200, 918, 190; 798 signing-key literals |
-| Java | 787, 125, 416, 119 (outside JNI) | 862, 863, 306, 269, 20, 476 (nullness analysis); 918 beyond one function | 79, 352, 77, 200, 918, 798, 190 |
+| Java | 787, 125, 416, 119 (outside JNI) | 862, 863, 306, 269, 20, 476 (nullness analysis); 918 beyond one function | 79, 77, 918, 190 |
 | Ruby | 787, 125, 416, 119 (outside C extensions); 476 (`nil` access raises); 190 (arbitrary-precision ints) | 862, 863, 306, 269, 20; 918 beyond one function | 352, 22, 434, 77, 200, 918 |
 
 Gap cells that semgrep or bandit cover only when installed are listed as

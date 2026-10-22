@@ -1452,7 +1452,8 @@
       ],
       "risk_notes": [
         "semgrep rules that fire on the fixed twin too (Ruby missing-csrf-protection, check-send-file and dangerous-exec, Flask ssrf-requests, bandit B603/B607) are not counted as coverage",
-        "918 is planted in its same-function form only; interprocedural SSRF stays out of reach"
+        "918 is planted in its same-function form only; interprocedural SSRF stays out of reach",
+        "progress 2026-10-21 (Java, round 1): native rules for gap ranks 1-4 in java.yaml (jwt-unsigned-accepted, jwt-decode-without-verify, hardcoded-signing-key, hardcoded-db-password, csrf-disabled, csrf-disabled-stateless, stack-trace-to-client, exception-message-to-client); Java 287, 352, 200 and 798 now caught natively; Java gaps left: 79, 77, 918, 190"
       ]
     },
     {

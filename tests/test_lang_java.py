@@ -23,6 +23,10 @@ RULES = {
     "command-injection", "object-input-stream", "xml-decoder", "jackson-default-typing",
     "stub-method", "test-without-assertion", "trust-all-certificates",
     "hostname-verifier-disabled", "weak-random-for-secret",
+    # CWE Top 25, round 1 (ARB-062)
+    "jwt-unsigned-accepted", "jwt-decode-without-verify", "hardcoded-signing-key",
+    "hardcoded-db-password", "csrf-disabled", "csrf-disabled-stateless",
+    "stack-trace-to-client", "exception-message-to-client",
 }
 
 pytestmark = pytest.mark.skipif(not ts.available(), reason="tree-sitter not installed")
@@ -384,3 +388,137 @@ def test_a_random_value_that_becomes_a_remember_me_key_is_reported(tmp_path):
     # into `rememberMeKey`; `java.util.Random` written in full and
     # `java.lang.Math.random()` both count. A jitter stays unreported.
     assert lines_of(tmp_path, _REMEMBER, "weak-random-for-secret") == [4, 10]
+
+
+# --- CWE Top 25, round 1 (ARB-062) -----------------------------------------
+
+_JWT_PEEK = """package app;
+import com.auth0.jwt.JWT;
+import com.nimbusds.jwt.JWTParser;
+class Svc {
+    String issuer(String token) throws Exception {
+        return JWTParser.parse(token).getJWTClaimsSet().getIssuer();
+    }
+    String kid(String token) { return JWT.decode(token).getKeyId(); }
+    String user(String token) { return JWT.decode(token).getSubject(); }
+}
+"""
+
+
+def test_a_jwt_peek_at_issuer_or_key_id_is_not_a_decode_without_verify(tmp_path):
+    # spring-security's JwtIssuerAuthenticationManagerResolver reads `iss`
+    # to pick the verifier; reading the subject is trusting the token.
+    assert lines_of(tmp_path, _JWT_PEEK, "jwt-decode-without-verify") == [9]
+
+
+def test_a_file_that_verifies_the_token_is_not_reported(tmp_path):
+    code = _JWT_PEEK.replace(
+        "String user(String token) {",
+        "String user(String token) { verifier.verify(token);")
+    assert lines_of(tmp_path, code, "jwt-decode-without-verify") == []
+
+
+_KEYS = """package app;
+import com.auth0.jwt.algorithms.Algorithm;
+import java.sql.DriverManager;
+class Svc {
+    Object a() { return Algorithm.HMAC256("changeme"); }
+    Object b() { return Algorithm.HMAC256("your-secret-here"); }
+    Object c() throws Exception { return DriverManager.getConnection("jdbc:h2:mem:x", "sa", ""); }
+    Object d() { return Algorithm.HMAC256(secret); }
+    Object e() { return Algorithm.HMAC256("hunter2-prod"); }
+    Object f() throws Exception { return DriverManager.getConnection("jdbc:mysql://db/app?user=app&password=s3cret"); }
+}
+"""
+
+
+def test_placeholders_and_empty_passwords_are_not_hardcoded_credentials(tmp_path):
+    assert lines_of(tmp_path, _KEYS, "hardcoded-signing-key") == [9]
+    assert lines_of(tmp_path, _KEYS, "hardcoded-db-password") == [10]
+
+
+def test_a_literal_key_in_test_code_is_not_reported(tmp_path):
+    assert lines_of(tmp_path, _KEYS, "hardcoded-signing-key", name=TEST) == []
+
+
+def test_a_finding_does_not_carry_the_secret(tmp_path):
+    found = _scan_text(tmp_path, MAIN, _KEYS, only=["lang_java"])
+    for f in found:
+        assert "hunter2" not in f.title + f.evidence and "s3cret" not in f.title + f.evidence
+
+
+_CSRF = """package app;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+class Svc {
+    void chain(HttpSecurity http) throws Exception {
+        http.csrf(c -> c.disable())
+            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+    }
+}
+"""
+
+
+def test_csrf_off_in_a_stateless_config_is_a_low_confidence_finding(tmp_path):
+    # Decision (docs/cwe-top25.md, Java 352): a stateless bearer-token API
+    # turns CSRF off by design, so it is reported apart, at low/low.
+    assert lines_of(tmp_path, _CSRF, "csrf-disabled") == []
+    assert lines_of(tmp_path, _CSRF, "csrf-disabled-stateless") == [6]
+    stateful = _CSRF.replace("SessionCreationPolicy.STATELESS", "SessionCreationPolicy.IF_REQUIRED")
+    assert lines_of(tmp_path, stateful, "csrf-disabled") == [6]
+
+
+_ERRORS = """package app;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+class Svc {
+    ResponseEntity<String> a() {
+        try { return ResponseEntity.ok(run()); }
+        catch (IllegalArgumentException e) { return ResponseEntity.badRequest().body(e.getMessage()); }
+    }
+    ResponseEntity<String> b() {
+        try { return ResponseEntity.ok(run()); }
+        catch (RuntimeException e) { return ResponseEntity.status(500).body(e.getMessage()); }
+    }
+    @ExceptionHandler(Exception.class)
+    String c(Exception ex) { return ex.getMessage(); }
+    @ExceptionHandler(OrderNotFound.class)
+    String d(OrderNotFound ex) { return ex.getMessage(); }
+    ResponseEntity<String> e(Result r) { return ResponseEntity.ok(r.toString()); }
+}
+"""
+
+
+def test_only_a_broad_exceptions_message_is_reported(tmp_path):
+    # The text of a validation or domain exception is written for the caller;
+    # a RuntimeException's or an Exception handler's is not.
+    assert lines_of(tmp_path, _ERRORS, "exception-message-to-client") == [11, 14]
+    assert lines_of(tmp_path, _ERRORS, "stack-trace-to-client") == []
+
+
+_TOMCAT = """package app;
+class Svc {
+    boolean service(Request req, Response response) throws Exception {
+        try { req.read(); } catch (IOException e) { log(e); }
+        try { parseCookies(req); }
+        catch (IllegalArgumentException e) { response.sendError(400, e.getMessage()); }
+        try { decode(req); }
+        catch (IOException ioe) { response.sendError(400, sm.getString("invalidUri", ioe.getMessage())); }
+        try { run(req); }
+        catch (IOException ioe) { response.sendError(500, ioe.getMessage()); }
+        return true;
+    }
+}
+"""
+
+
+def test_a_message_counts_only_for_its_own_broad_catch(tmp_path):
+    # tomcat CoyoteAdapter: every catch parameter is `e`, so an earlier
+    # `catch (IOException e)` must not lend its type to a later validation
+    # catch; a message wrapped in a bundle template was chosen for the caller.
+    assert lines_of(tmp_path, _TOMCAT, "exception-message-to-client") == [10]
+
+
+def test_a_nested_call_in_the_issuer_peek_is_still_a_peek(tmp_path):
+    code = _JWT_PEEK.replace("JWTParser.parse(token)", "JWTParser.parse(token.trim())")
+    assert lines_of(tmp_path, code, "jwt-decode-without-verify") == [9]
