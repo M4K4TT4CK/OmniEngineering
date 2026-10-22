@@ -5,6 +5,25 @@ under `[Unreleased]` (there are no release tags yet) and reference the
 `REQ-###` they serve. Rationale belongs in `.ai/project-context.md`.
 
 ## [Unreleased]
+### 2026-10-21 (CWE Top 25, TypeScript and Go round 1)
+- ARB-062 | Native rules for ranked gaps 1, 2 and 4 in TypeScript and Go.
+TypeScript: `jwt-decode-unverified` (CWE-287/347, medium: `jwt.decode` or
+jose `decodeJwt` in a function that never verifies; `decode(t, {complete:
+true})` is the key-lookup form and is not reported), `jwt-verify-insecure-options`
+(`algorithms: ["none"]`, `ignoreExpiration: true`; high), `jwt-hardcoded-secret`
+(CWE-798, literal secret to `jwt.sign`/`verify`; high), `error-stack-in-response`
+(CWE-200/209, `err.stack` in an Express/Koa response unless the function checks
+`NODE_ENV`; high) and `error-object-in-response` (`res.json(err)`; medium).
+Go: `jwt-parse-unverified` (medium, silent when the function also verifies),
+`jwt-claims-validation-disabled` (high), `hardcoded-signing-key` (`[]byte("…")`
+to `SignedString`, `hmac.New`, a keyfunc, or a key-named variable; high),
+`hardcoded-dsn-password` (mysql `user:pass@` and key=value DSNs; trivial
+passwords skipped as in `pg-url`; high), `error-text-in-response` (err text
+to `http.Error`/gin/echo with a 5xx, or `fmt.Fprint*`/`Write` to the writer
+in a handler; medium) and `pprof-on-default-mux` (medium; silent when the
+server listens on loopback). The pack schema gains `requires_in_scope`. The
+matrix moves TypeScript 287 and 200 and Go 287, 200 and 798 to N: TypeScript
+native 6 to 8 cells, Go 4 (798 part) to 6.
 ### 2026-10-21 (gold re-run)
 - ARB-065 | Gold benchmark re-run after the precision fixes (Arbiter 8cf1ee7, 23 repositories without keycloak, native checks): 6,477 findings, 1.32 per KLOC, 7 rules over budget. The first run (d57e479, 24 repositories) had 12,468 findings, 2.05 per KLOC, 16 over budget. Results in `tools/gold/results/2026-10-21-gold-*-after.*`.
 ### 2026-10-21 (roadmap)

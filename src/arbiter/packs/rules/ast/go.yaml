@@ -492,6 +492,244 @@ rules:
     remediation: "Call the program directly with exec.Command(name, args...) so each argument is passed as-is; never route values through a shell string."
 
   # ---------------------------------------------------------------------
+  # Authentication (CWE-287)
+  # ---------------------------------------------------------------------
+  # ParseUnverified is also how a multi-issuer verifier reads `iss` or `kid`
+  # to choose a key, so a function that goes on to verify (jwt.Parse,
+  # ParseWithClaims, a Verify call) is left alone. golang-jwt's keyfunc not
+  # checking t.Method is deliberately NOT a rule: the library already refuses
+  # "none" without UnsafeAllowNoneSignatureType and rejects a key of the
+  # wrong type for the algorithm, so the classic algorithm confusion does not
+  # reproduce and the rule would be noise.
+  - id: jwt-parse-unverified
+    title: "`{text}` reads a JWT without verifying its signature"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-287, CWE-347]
+    controls: [NIST-800-218:PW.5]
+    tags: [auth, jwt]
+    requires_file: |
+      ((import_spec path: (interpreted_string_literal) @p)
+        (#match? @p "^\"github.com/(golang-jwt/jwt|dgrijalva/jwt-go|form3tech-oss/jwt-go)"))
+    query: |
+      ((call_expression
+        function: (selector_expression field: (field_identifier) @m)) @hit
+        (#eq? @m "ParseUnverified"))
+    unless_in_scope: |
+      ((selector_expression) @s
+        (#match? @s "^jwt\\.Parse(WithClaims)?$|\\.ParseWithClaims$|\\.Verify$"))
+      ((call_expression
+        function: (selector_expression operand: (identifier) @o field: (field_identifier) @m))
+        (#match? @o "(?i)parser")
+        (#eq? @m "Parse"))
+    description: >-
+      ParseUnverified splits and decodes the token and fills the claims, but
+      never checks the signature. Anyone can write a token whose `sub` is any
+      user, and code that trusts these claims authenticates them.
+    remediation: "Use jwt.ParseWithClaims with a keyfunc and jwt.WithValidMethods, and read claims only after it returns no error."
+
+  - id: jwt-claims-validation-disabled
+    title: "`{text}` turns off JWT expiry and not-before checks"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-287, CWE-613]
+    controls: [NIST-800-218:PW.5]
+    tags: [auth, jwt]
+    requires_file: |
+      ((import_spec path: (interpreted_string_literal) @p)
+        (#match? @p "^\"github.com/(golang-jwt/jwt|dgrijalva/jwt-go|form3tech-oss/jwt-go)"))
+    query: |
+      ((call_expression
+        function: (selector_expression field: (field_identifier) @m)) @hit
+        (#eq? @m "WithoutClaimsValidation"))
+      ((keyed_element
+        (literal_element (identifier) @k)
+        (literal_element (true))) @hit
+        (#eq? @k "SkipClaimsValidation"))
+    description: >-
+      With claims validation off the parser still checks the signature but
+      accepts a token whose `exp` passed long ago, so a token that leaked
+      once (a log, a browser history, a proxy) works for good.
+    remediation: "Drop WithoutClaimsValidation and require expiry (jwt.WithExpirationRequired), with jwt.WithLeeway for clock skew."
+
+  # ---------------------------------------------------------------------
+  # Hard-coded credentials (CWE-798)
+  # ---------------------------------------------------------------------
+  # The secrets probe reads `name = "literal"`. A key written `[]byte("…")`
+  # or a DSN literal at the call is a credential it cannot see.
+  - id: hardcoded-signing-key
+    title: "`{text}` is a signing key written in the source"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-798, CWE-321]
+    controls: [NIST-800-218:PW.5]
+    tags: [secrets, jwt]
+    requires_file: |
+      ((import_spec path: (interpreted_string_literal) @p)
+        (#match? @p "^\"(github.com/(golang-jwt/jwt|dgrijalva/jwt-go|form3tech-oss/jwt-go|go-jose/go-jose|lestrrat-go/jwx)|gopkg.in/square/go-jose|crypto/hmac\")"))
+    query: |
+      ((call_expression
+        function: (selector_expression field: (field_identifier) @m)
+        arguments: (argument_list . (type_conversion_expression (slice_type) @t [(interpreted_string_literal) (raw_string_literal)]) @hit .))
+        (#eq? @m "SignedString")
+        (#eq? @t "[]byte"))
+      ((call_expression
+        function: (selector_expression) @f
+        arguments: (argument_list . (_) . (type_conversion_expression (slice_type) @t [(interpreted_string_literal) (raw_string_literal)]) @hit))
+        (#eq? @f "hmac.New")
+        (#eq? @t "[]byte"))
+      ((func_literal
+        parameters: (parameter_list) @p
+        body: (block (statement_list (return_statement (expression_list
+          . (type_conversion_expression (slice_type) @t [(interpreted_string_literal) (raw_string_literal)]) @hit)))))
+        (#match? @p "jwt\\.Token")
+        (#eq? @t "[]byte"))
+      ((function_declaration
+        parameters: (parameter_list) @p
+        body: (block (statement_list (return_statement (expression_list
+          . (type_conversion_expression (slice_type) @t [(interpreted_string_literal) (raw_string_literal)]) @hit)))))
+        (#match? @p "jwt\\.Token")
+        (#eq? @t "[]byte"))
+      ((var_spec
+        name: (identifier) @n
+        value: (expression_list . (type_conversion_expression (slice_type) @t [(interpreted_string_literal) (raw_string_literal)] @lit) .)) @hit
+        (#match? @n "(?i)(secret|sign(ing)?_?key|jwt_?key|hmac_?key|mac_?key|private_?key|api_?key|passw)")
+        (#eq? @t "[]byte")
+        (#match? @lit "^.[^\"`]{8,}.$"))
+      ((short_var_declaration
+        left: (expression_list . (identifier) @n .)
+        right: (expression_list . (type_conversion_expression (slice_type) @t [(interpreted_string_literal) (raw_string_literal)] @lit) .)) @hit
+        (#match? @n "(?i)(secret|sign(ing)?_?key|jwt_?key|hmac_?key|mac_?key|private_?key|api_?key|passw)")
+        (#eq? @t "[]byte")
+        (#match? @lit "^.[^\"`]{8,}.$"))
+    description: >-
+      Every copy of the source and of the binary carries the key, so anyone
+      who has either can mint tokens or MACs the service accepts, and
+      rotating it is a code change and a deploy.
+    remediation: "Load the key at startup from the environment or a secrets manager (os.Getenv, a mounted file) and refuse to start when it is missing."
+
+  - id: hardcoded-dsn-password
+    title: "`{text}` opens a database with a password written in the DSN"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-798, CWE-259]
+    controls: [NIST-800-218:PW.5]
+    tags: [secrets, database]
+    # `user:pass@tcp(host)/db` (go-sql-driver/mysql) and the key=value form
+    # (`host=… password=…`). URL-form DSNs (postgres://u:p@…) are the
+    # secrets probe's `pg-url`, so the user:pass form excludes `://`.
+    # Trivial passwords (root, password, postgres, …) are local-dev
+    # defaults, as in pg-url.
+    query: |
+      ((call_expression
+        function: (selector_expression) @f
+        arguments: (argument_list [(interpreted_string_literal) (raw_string_literal)] @dsn)) @hit
+        (#match? @f "^(sql|sqlx)\\.(Open|MustOpen|Connect|MustConnect)$|^(mysql|postgres|sqlserver|clickhouse)\\.Open$|^pgx\\.Connect$|^pgxpool\\.(New|Connect)$")
+        (#match? @dsn "^.[^:\"`@/\\s]+:(?!//)[^@\"`\\s]+@|(?i:\\bpassword=)[^\\s\"`']+")
+        (#not-match? @dsn "^.[^:]+:(?i:|password|pass|passwd|secret|root|postgres|mysql|test|example|changeme|admin|\\*+)@|(?i:\\bpassword=(|password|pass|secret|root|postgres|mysql|test|example|changeme|admin|\\*+))(\\s|.$)|%[sdv]|\\$\\{|\\{\\{"))
+    description: >-
+      The database password is compiled into the binary and kept in version
+      control, where everyone who can read the repository has it and it
+      outlives every rotation of the real credential.
+    remediation: "Read the DSN or the password from the environment or a secrets manager; build the DSN with mysql.Config / pgx.ParseConfig rather than a literal."
+
+  # ---------------------------------------------------------------------
+  # Information exposure (CWE-200)
+  # ---------------------------------------------------------------------
+  # The error text of a failed query, file operation or upstream call goes
+  # into the response body. A 4xx built from err.Error() is usually a parse
+  # error about the caller's own input and is left alone; http.Error and the
+  # gin/echo helpers are reported only with a 5xx status. Medium confidence:
+  # some services return internal errors on purpose (proxies, admin APIs).
+  # Error identifiers are local ones (err, e, rerr, parseErr); package-level
+  # sentinels (ErrNotFound, errNoBackend) are fixed messages.
+  - id: error-text-in-response
+    title: "`{text}` sends the internal error text to the client"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-200, CWE-209]
+    controls: [NIST-800-218:PW.5]
+    tags: [info-leak, error-handling]
+    query: |
+      ((call_expression
+        function: (selector_expression) @f
+        arguments: (argument_list . (_) . (_) @msg . (_) @code .)) @hit
+        (#eq? @f "http.Error")
+        (#match? @msg "(^|[^.\\w])(err|e|[a-z]\\w*Err|[a-z]+err)\\.Error\\(\\)|Sprint[fln]*\\(.*,\\s*(err|e|[a-z]\\w*Err|[a-z]+err)\\s*\\)$")
+        (#match? @code "^(http\\.)?Status(InternalServerError|BadGateway|ServiceUnavailable|GatewayTimeout|NotImplemented|InsufficientStorage)$|^5[0-9][0-9]$"))
+      ((call_expression
+        function: (selector_expression) @f
+        arguments: (argument_list . (identifier) @w) @args) @hit
+        (#match? @f "^fmt\\.Fprint(f|ln)?$")
+        (#match? @w "^(w|rw|resp|res|writer|wr)$")
+        (#match? @args ",\\s*(err|e|[a-z]\\w*Err|[a-z]+err)(\\.Error\\(\\))?\\s*[,)]"))
+      ((call_expression
+        function: (selector_expression operand: (identifier) @w field: (field_identifier) @m)
+        arguments: (argument_list . (type_conversion_expression) @b .)) @hit
+        (#match? @w "^(w|rw|resp|res|writer|wr)$")
+        (#eq? @m "Write")
+        (#match? @b "^\\[\\]byte\\(\\s*(err|e|[a-z]\\w*Err|[a-z]+err)\\.Error\\(\\)\\s*\\)$"))
+      ((call_expression
+        function: (selector_expression) @f
+        arguments: (argument_list . (identifier) @w . (call_expression) @b .)) @hit
+        (#eq? @f "io.WriteString")
+        (#match? @w "^(w|rw|resp|res|writer|wr)$")
+        (#match? @b "^(err|e|[a-z]\\w*Err|[a-z]+err)\\.Error\\(\\)$"))
+      ((call_expression
+        function: (selector_expression operand: (identifier) @c field: (field_identifier) @m)
+        arguments: (argument_list . (_) @code) @args) @hit
+        (#match? @c "^(c|ctx)$")
+        (#match? @m "^(JSON|String|IndentedJSON|PureJSON|AbortWithStatusJSON|XML)$")
+        (#match? @code "^(http\\.)?Status(InternalServerError|BadGateway|ServiceUnavailable|GatewayTimeout|NotImplemented|InsufficientStorage)$|^5[0-9][0-9]$")
+        (#match? @args "(^|[^.\\w])(err|e|[a-z]\\w*Err|[a-z]+err)\\.Error\\(\\)"))
+    # Only in a handler: a function with a response writer or a framework
+    # context among its parameters (a closure inside a handler counts).
+    requires_in_scope: |
+      ((qualified_type) @t
+        (#match? @t "^(http\\.ResponseWriter|gin\\.Context|echo\\.Context|fiber\\.Ctx)$"))
+    description: >-
+      Driver, file-system and upstream errors carry table and constraint
+      names, file paths, internal host names and sometimes the values that
+      failed. Returned to the caller they map the internals for an attacker
+      and can expose other users' data.
+    remediation: "Log err server-side (with a request id) and return a fixed message: http.Error(w, \"internal error\", http.StatusInternalServerError)."
+
+  - id: pprof-on-default-mux
+    title: "`{text}` publishes /debug/pprof on the default mux"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-200, CWE-489]
+    controls: [NIST-800-218:PW.5]
+    tags: [info-leak, debug]
+    query: |
+      ((import_spec (blank_identifier) path: (interpreted_string_literal) @p) @hit
+        (#eq? @p "\"net/http/pprof\""))
+    # A default mux served only on the loopback interface is not exposed.
+    unless_in_file: |
+      ((call_expression
+        function: (selector_expression field: (field_identifier) @f)
+        arguments: (argument_list . (_) @a))
+        (#eq? @f "ListenAndServe")
+        (#match? @a "^\"(localhost|127\\.0\\.0\\.1|\\[::1\\]):"))
+      ((keyed_element
+        (literal_element (identifier) @k)
+        (literal_element (interpreted_string_literal) @a))
+        (#eq? @k "Addr")
+        (#match? @a "^\"(localhost|127\\.0\\.0\\.1|\\[::1\\]):"))
+    description: >-
+      The blank import registers /debug/pprof/ handlers on
+      http.DefaultServeMux as a side effect. Any server that serves the
+      default mux (a nil Handler) then exposes heap dumps, goroutine stacks
+      and command-line arguments, and lets anyone start CPU profiles.
+    remediation: "Import net/http/pprof by name and mount its handlers on a separate, internal-only mux (or behind auth); never serve the default mux publicly."
+
+  # ---------------------------------------------------------------------
   # Stubs that reached a production path
   # ---------------------------------------------------------------------
   - id: stub-on-security-path

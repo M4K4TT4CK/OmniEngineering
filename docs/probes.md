@@ -182,10 +182,10 @@ a grammar this machine lacks shows that one language as **not assessed**
 rather than as a clean pass. `tools/install_tools.sh` caches every grammar the
 packs need; scans never download one.
 
-Rules are tree-sitter queries, with four optional context conditions for the
+Rules are tree-sitter queries, with five optional context conditions for the
 things a bare pattern cannot say ("no lock held", "no timeout set"):
-`unless_inside`, `unless_in_scope` (the enclosing function, or the file),
-`unless_in_file` and `requires_file`. The schema is documented at the top of
+`unless_inside`, `unless_in_scope` and `requires_in_scope` (the enclosing
+function, or the file), `unless_in_file` and `requires_file`. The schema is documented at the top of
 `src/arbiter/lang_rules.py`, and a pack that breaks it fails at import.
 Rule ids are `arbiter/<pack>.<id>`; each carries its CWE.
 
@@ -219,8 +219,8 @@ named language. A scan that finds none of them says nothing about them.
 | Language | Not assessed: does not apply | Not assessed: out of reach for single-file checks | Applies, but no check yet (gap) |
 |---|---|---|---|
 | Python | 787, 125, 416, 119 (memory-safe); 476 (`None` access raises); 190 (arbitrary-precision ints) | 862, 863, 306, 269, 20; 918 beyond one function | 434, 77; 200 except `debug=True` |
-| TypeScript / JavaScript | 787, 125, 416, 119; 476 (`undefined` access raises); 190 (`number` is a double) | 862, 863, 306, 269, 20; 918 beyond one function | 352, 434, 77, 287, 200, 918 |
-| Go | 787, 125, 416, 119 (outside `unsafe`); 94 (no runtime eval); 502 (stdlib decoders fill declared types) | 862, 863, 306, 269, 20, 476 (nil-flow analysis), 352 (absent middleware); 918 beyond one function | 22, 434, 77, 287, 200, 918, 190; 798 signing-key literals |
+| TypeScript / JavaScript | 787, 125, 416, 119; 476 (`undefined` access raises); 190 (`number` is a double) | 862, 863, 306, 269, 20; 918 beyond one function | 352, 434, 77, 918 |
+| Go | 787, 125, 416, 119 (outside `unsafe`); 94 (no runtime eval); 502 (stdlib decoders fill declared types) | 862, 863, 306, 269, 20, 476 (nil-flow analysis), 352 (absent middleware); 918 beyond one function | 22, 434, 77, 918, 190 |
 | Java | 787, 125, 416, 119 (outside JNI) | 862, 863, 306, 269, 20, 476 (nullness analysis); 918 beyond one function | 79, 352, 77, 200, 918, 798, 190 |
 | Ruby | 787, 125, 416, 119 (outside C extensions); 476 (`nil` access raises); 190 (arbitrary-precision ints) | 862, 863, 306, 269, 20; 918 beyond one function | 352, 22, 434, 77, 200, 918 |
 

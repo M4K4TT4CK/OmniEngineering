@@ -33,6 +33,7 @@ rules:
     # Optional context conditions, each a tree-sitter query:
     unless_inside: "..."     # skip a hit enclosed by any capture of this query
     unless_in_scope: "..."   # skip a hit whose enclosing function (or file) matches this
+    requires_in_scope: "..." # only report a hit whose enclosing function (or file) matches this
     unless_in_file: "..."    # skip every hit when the file matches this
     requires_file: "..."     # only report in a file that matches this
     description: "..."
@@ -68,7 +69,7 @@ FUNCTION_TYPES: dict[str, set[str]] = {
 
 _KEYS = {"id", "title", "severity", "confidence", "dimension", "cwe", "controls", "tags",
          "roles", "files", "query", "unless_inside", "unless_in_scope", "unless_in_file",
-         "requires_file", "description", "remediation", "languages"}
+         "requires_file", "requires_in_scope", "description", "remediation", "languages"}
 _SEVERITIES = {"info", "low", "medium", "high", "critical"}
 _CONFIDENCES = {"low", "medium", "high"}
 
@@ -108,7 +109,8 @@ def validate_pack(data: dict, name: str) -> None:
             raise PackError(f"{where}: query must capture @hit")
 
 
-QUERY_KEYS = ("query", "unless_inside", "unless_in_scope", "unless_in_file", "requires_file")
+QUERY_KEYS = ("query", "unless_inside", "unless_in_scope", "unless_in_file", "requires_file",
+              "requires_in_scope")
 
 
 # File names standing in for each grammar a language can be parsed with, so a
@@ -276,6 +278,8 @@ def _run_rule(pack: str, rule: dict, f, parsed) -> list[Finding]:
             return []
         inside = _matches(lang, rule["unless_inside"], parsed) if rule.get("unless_inside") else []
         scoped = _matches(lang, rule["unless_in_scope"], parsed) if rule.get("unless_in_scope") else []
+        needed = (_matches(lang, rule["requires_in_scope"], parsed)
+                  if rule.get("requires_in_scope") else None)
     except ValueError as exc:
         raise RuntimeError(f"rule arbiter/{pack}.{rule['id']}: {exc}") from exc
 
@@ -288,10 +292,12 @@ def _run_rule(pack: str, rule: dict, f, parsed) -> list[Finding]:
         seen.add(node.start_byte)
         if any(_encloses(o, node) for o in inside):
             continue
-        if scoped:
+        if scoped or needed is not None:
             # Outside any function, the file is the scope.
             scope = _enclosing_function(node, lang) or parsed[0].root_node
             if any(_encloses(scope, s) for s in scoped):
+                continue
+            if needed is not None and not any(_encloses(scope, s) for s in needed):
                 continue
         text = _snippet(hit["text"], 60)
         out.append(Finding(
