@@ -1453,6 +1453,9 @@
       "risk_notes": [
         "semgrep rules that fire on the fixed twin too (Ruby missing-csrf-protection, check-send-file and dangerous-exec, Flask ssrf-requests, bandit B603/B607) are not counted as coverage",
         "918 is planted in its same-function form only; interprocedural SSRF stays out of reach"
+      ],
+      "progress": [
+        "2026-10-21 round 1, Python and Ruby: ranked gaps 1, 3 and 4 native (jwt-unverified-decode CWE-287, csrf-protection-disabled CWE-352, error-traceback/backtrace-to-client and error-message-to-client CWE-209/200), plus jwt-literal-signing-key (CWE-798, gap 2's Python/Ruby form). gap: markers Python 200, Ruby 352 and Ruby 200 became expect: markers. Python native cells 6 to 9; Ruby native 6 to 9, caught by anything 8 to 10 (docs/cwe-top25.md)."
       ]
     },
     {

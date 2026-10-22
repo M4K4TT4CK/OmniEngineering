@@ -5,6 +5,26 @@ under `[Unreleased]` (there are no release tags yet) and reference the
 `REQ-###` they serve. Rationale belongs in `.ai/project-context.md`.
 
 ## [Unreleased]
+### 2026-10-21 (CWE Top 25 round 1: Python and Ruby)
+- ARB-062 | Native rules for the ranked CWE Top 25 gaps in Python and Ruby.
+`python.jwt-unverified-decode` / `ruby.jwt-unverified-decode` (CWE-287):
+PyJWT and python-jose with `verify_signature: False`, `verify=False`, a
+"none" algorithm or `get_unverified_claims`; `JWT.decode(t, k, false)`. A
+function that also verifies with a fixed algorithm list (peek, then verify) is
+not reported. `python.jwt-literal-signing-key` / `ruby.jwt-literal-signing-key`
+(CWE-798): a string literal, or a `*_KEY`/`*_SECRET` constant tied to the call,
+as the key of jwt encode/decode; the secrets probe missed both.
+`python.csrf-protection-disabled` / `ruby.csrf-protection-disabled` (CWE-352):
+`@csrf_exempt` on a session-authenticated Django view, `WTF_CSRF_ENABLED =
+False` outside a test config; `skip_before_action :verify_authenticity_token`
+and `skip_forgery_protection` in a controller with a state-changing action that
+is not an API, webhook or self-authenticating controller. `null_session` is not
+reported. `python.error-traceback-to-client` / `ruby.error-backtrace-to-client`
+(CWE-209/200, high) and `python.error-message-to-client` /
+`ruby.error-message-to-client` (medium): a traceback, backtrace or catch-all
+exception message in a response in the same statement. Cells in
+`docs/cwe-top25.md`: Python 352, 287 and 200 and Ruby 352, 287 and 200 are
+now native; Python native 6 to 9, Ruby native 6 to 9 and caught 8 to 10.
 ### 2026-10-21 (gold re-run)
 - ARB-065 | Gold benchmark re-run after the precision fixes (Arbiter 8cf1ee7, 23 repositories without keycloak, native checks): 6,477 findings, 1.32 per KLOC, 7 rules over budget. The first run (d57e479, 24 repositories) had 12,468 findings, 2.05 per KLOC, 16 over budget. Results in `tools/gold/results/2026-10-21-gold-*-after.*`.
 ### 2026-10-21 (roadmap)
