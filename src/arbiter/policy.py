@@ -26,6 +26,12 @@ PROFILES: dict[str, dict] = {
     "ci": {"network": False, "model": False, "description": "fast, deterministic, gate-focused"},
     "connected": {"network": True, "model": True, "description": "full depth"},
     "audit": {"network": True, "model": True, "description": "everything, no time budget"},
+    # ci plus the model verification pass (verify.py): deterministic probes,
+    # then each finding at or above verify.min_severity is checked by a model
+    # against a bounded, secret-masked excerpt. The only network traffic is
+    # that call; no adapter or probe that fetches is enabled.
+    "assisted": {"network": False, "model": True, "verify": True,
+                 "description": "deterministic probes, then a model checks each finding"},
 }
 
 DEFAULT_WEIGHTS = {
@@ -58,6 +64,23 @@ DEFAULTS: dict[str, Any] = {
     # The persistent per-file result cache (cache.py). `--no-cache` on the
     # command line bypasses it whatever this says; CI runs without it.
     "cache": {"enabled": True},
+    # The model verification pass (verify.py). `enabled: null` lets the
+    # profile decide (on for `assisted`); offline and ci never call a model,
+    # whatever this says.
+    "verify": {
+        "enabled": None,
+        "provider": "anthropic",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "min_severity": "medium",
+        "max_findings": 150,
+        "max_tokens": 400_000,
+        "max_output_tokens": 4000,
+        "excerpt_lines": 120,
+        "cache": True,
+        "skip_rules": ["arbiter/ast.*", "arbiter/quality.*",
+                       "arbiter/assurance.suppression-census"],
+    },
 }
 
 

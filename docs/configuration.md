@@ -21,7 +21,7 @@ implicit user-level defaults.
 
 ```yaml
 version: 1
-profile: offline          # offline | ci | connected | audit
+profile: offline          # offline | ci | assisted | connected | audit
 
 gate:
   fail_on:
@@ -53,12 +53,32 @@ A profile is a capability budget, not a severity setting.
 | `ci` | no | no | fast, deterministic gating |
 | `connected` | yes | yes | full depth |
 | `audit` | yes | yes | everything, no time budget |
+| `assisted` | no | verification only | `ci` plus the model verification pass ([precision.md](precision.md#model-verification)) |
 
 A probe that needs a capability the profile forbids is skipped with that reason
 recorded, so the report says what the profile cost you. Coverage falls by
 exactly the amount that was not checked — the grade never quietly absorbs it.
 
 Override per run with `arbiter scan . --profile connected`.
+
+The `verify:` block configures the model verification pass (defaults shown;
+`enabled: null` lets the profile decide, and `offline`/`ci` never call a
+model whatever it says). `--model-verify` / `--no-model-verify` override it
+per run.
+
+```yaml
+verify:
+  enabled: null
+  model: claude-opus-5-5
+  effort: medium
+  min_severity: medium
+  max_findings: 150        # model calls per scan
+  max_tokens: 400000       # input + output tokens per scan
+  max_output_tokens: 4000  # per call
+  excerpt_lines: 120
+  cache: true              # .arbiter/verify-cache.json; cache_path overrides
+  skip_rules: ["arbiter/ast.*", "arbiter/quality.*", "arbiter/assurance.suppression-census"]
+```
 
 ## Gating
 

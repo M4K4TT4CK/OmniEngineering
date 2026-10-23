@@ -140,6 +140,10 @@ class Finding:
     # empty on occurrence 0 where it equals `id`.
     occurrence: int = 0
     base_id: str = ""
+    # The model verification pass (verify.py): {verdict, reason, model,
+    # prompt_version, cached, line}. Empty when the pass did not run. It never
+    # changes severity, status or suppression; the tier mapping reads it.
+    verification: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not self.id:
