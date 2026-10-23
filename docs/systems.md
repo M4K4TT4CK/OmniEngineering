@@ -55,8 +55,8 @@ low   infra:stack.py:12         `LEGACY_FEATURE_FLAG` is provisioned but nothing
 ## A stated limitation
 
 The permission checks see SDK call sites. An application that reaches a service
-over raw HTTP therefore reads as an unused grant. That limitation is why those
-findings carry low confidence — the check is useful and is not authoritative,
+over raw HTTP therefore reads as an unused grant. That limitation is why `permission-unused` carries low confidence (and
+`permission-not-granted` medium) — the check is useful and is not authoritative,
 and the confidence encodes the difference rather than a footnote nobody reads.
 
 ## Inside one repository

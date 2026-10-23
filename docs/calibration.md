@@ -47,12 +47,18 @@ hundred thousand generated cases drown out ten real ones.
 
 - **Confidence moves, severity never does.** How often a rule is right is
   measurable; how much it matters when it is right is a policy judgement.
-- **Learning never changes a gate outcome** unless `gate.use_calibration` is set.
+- **Learning never changes a gate outcome.** The gate reads severity, and learning moves only confidence.
 - **One finding moves the statistics once.** Re-adjudicating a fingerprint is
   refused.
 
 A rule under 20 adjudicated observations reports as **unproven** rather than
 inheriting a flattering estimate from a handful of samples.
+
+This ledger (`.arbiter/knowledge.json`, human verdicts on your repository) is
+not the precision ledger. Gate-facing precision tiers read
+`tools/gold/precision.json`, built from ground truth and model labels
+([precision.md](precision.md#ledger)). The knowledge file shipped in this
+repository holds 0 human adjudications as of 2026-10-23.
 
 ## Adjudication
 

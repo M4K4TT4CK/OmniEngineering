@@ -1709,7 +1709,9 @@
       "documentation_required": [
         "changelog"
       ],
-      "risk_notes": []
+      "risk_notes": [
+        "progress 2026-10-23 (round 4 docs review): tests/test_docs.py checks that every relative link and #anchor in the root guides and docs/ resolves and that every CLI subcommand appears in docs/cli.md; a partial step toward criterion 2 (capability claims in docs/ tested), not the generated briefs of criterion 1"
+      ]
     },
     {
       "id": "ARB-072",

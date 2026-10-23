@@ -4,7 +4,10 @@ Everything up to now has been Arbiter measuring itself against public practice
 repositories. This is the part where it looks at code that matters to you.
 
 Nothing here needs my sandbox. It runs on your machine, against repositories
-that never leave it.
+that never leave it under the default `offline` profile (and under `ci`). The
+`connected`, `audit` and `assisted` profiles send masked code excerpts to a
+model API when `ANTHROPIC_API_KEY` is set; see
+[docs/configuration.md](docs/configuration.md#profiles).
 
 **A note on licensing:** Arbiter is licensed under Apache-2.0 (`LICENSE`), so
 you can run it against your own code without asking anyone, and what it
@@ -39,9 +42,9 @@ amount of tuning I can do against public repositories.
 If you're starting fresh, with no repository open yet:
 
 ```bash
-git clone <your arbiter repo>
+git clone https://github.com/paukennick/arbiter
 cd arbiter
-pip install -e .
+pip install -e ".[ast]"     # ast: the language rule packs; without it they read not assessed
 ```
 
 If you're already working from inside the repository you want scanned —
@@ -49,7 +52,7 @@ this session's working directory is the target, not a separate clone of
 Arbiter — skip the clone and just get `arbiter` on the path instead:
 
 ```bash
-pip install git+<your arbiter repo>@main
+pip install "arbiter-eval[ast] @ git+https://github.com/paukennick/arbiter@main"
 ```
 
 or, if you have a local checkout of Arbiter elsewhere on the same machine:
@@ -64,7 +67,7 @@ in, not in Arbiter's own.
 Optional, and worth doing once:
 
 ```bash
-./tools/install_tools.sh      # five external analyzers, pinned versions
+./tools/install_tools.sh      # five external analyzers, pinned, and the tree-sitter grammars
 ```
 
 That script lives in Arbiter's own repo, so run it from there (or point it
@@ -104,6 +107,11 @@ Open `.arbiter/first-run/report.html`. Read four things, in this order:
    analysis — `# noqa`, `nosec`, `eslint-disable`, `checkov:skip`, excluded
    paths, tests that assert nothing. It is the answer to "how much does a
    clean report from any tool actually mean here".
+
+Each finding also shows a precision tier, `[advisory]` on every finding today:
+no rule is yet declared precise enough to block a tiered gate. The default
+gate ignores tiers, so this changes nothing until you opt in
+([docs/reading-a-report.md](docs/reading-a-report.md#precision-tiers)).
 
 ---
 
@@ -149,11 +157,13 @@ arbiter review .arbiter/first-run/report.json --interactive
 The sampler picks what to show you. It puts rules with no verdicts yet ahead of
 rules already proven, spreads across files so you are not answering thirty
 questions about one module, and never asks you about a finding you have already
-judged. Thirty verdicts is enough to move real calibration; a hundred is
-better.
+judged. A rule needs 20 verdicts of its own before calibration trusts it, so
+thirty spread across many rules starts the ledger rather than moving it; a
+hundred is better.
 
 What your verdicts do: a rule you call wrong repeatedly gets demoted in
-confidence and severity, not deleted. It keeps reporting, more quietly, and
+confidence, never in severity, and is not deleted. It keeps reporting at its
+policy severity, and
 `arbiter learn` shows you exactly what changed and on how many observations.
 Ten out of ten is treated as evidence of a rate above roughly 0.72, not as
 evidence of perfection.
@@ -199,7 +209,8 @@ So: **a green pull-request check means "this change introduced nothing that
 crosses a threshold". It never means "this repository is clean."** The nightly
 job is the one whose result may be quoted as being about the repository.
 
-Measured on Traefik, 171 changed files out of 2,293: 59 seconds to 6 seconds,
+Measured on Traefik in September 2026, 171 changed files out of 2,293: 59
+seconds to 6 seconds,
 and the file-scoped findings are identical to the full scan's on the files both
 read — 158 and 158, nothing missing and nothing extra.
 
