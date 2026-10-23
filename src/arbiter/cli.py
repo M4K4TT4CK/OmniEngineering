@@ -870,6 +870,7 @@ def cmd_controls(args) -> int:
     """
     from .controls import (
         NO_COVERAGE,
+        NOT_APPLICABLE,
         NOT_ASSESSED,
         SATISFIED,
         STATE_MEANING,
@@ -910,6 +911,10 @@ def cmd_controls(args) -> int:
         print(f"  {fw['id']}  baseline {fw['baseline'] or '-'}")
         print(f"  {'-' * 72}")
         for state in STATES:
+            # not_applicable exists only for packs with per-language
+            # applicability; a framework pack never prints a row of zeros for it.
+            if state == NOT_APPLICABLE and not counts[state] and "languages" not in res:
+                continue
             print(f"    {counts[state]:>4}  {state:<17}{STATE_MEANING[state]}")
         if res["not_enumerated"]:
             print(f"    {res['not_enumerated']:>4}  not_enumerated   "
@@ -922,6 +927,17 @@ def cmd_controls(args) -> int:
               f"({counts[SATISFIED] + counts[VIOLATED]} of {res['declared_total']}).")
         print("    Every other control is unevidenced here. That is a statement "
               "about\n    this tool's reach, not about the system's security.")
+        if res.get("languages"):
+            # Per language: assessed, not assessed, gap, out of reach, n/a.
+            print(f"\n    {'language':<12}{'assessed':>9}{'violated':>9}{'not_run':>9}"
+                  f"{'gap':>6}{'OOR':>6}{'n/a':>6}{'absent':>8}")
+            for lang, lc in res["languages"].items():
+                if lc["absent"] and not any(lc[k] for k in (
+                        "satisfied", "violated", "not_assessed", "no_coverage", "out_of_reach")):
+                    continue  # the language is not in this codebase
+                print(f"    {lang:<12}{lc['satisfied'] + lc['violated']:>9}{lc['violated']:>9}"
+                      f"{lc['not_assessed']:>9}{lc['no_coverage']:>6}{lc['out_of_reach']:>6}"
+                      f"{lc['not_applicable']:>6}{lc['absent']:>8}")
 
         rows = [r for r in res["controls"]
                 if not wanted or r["state"] in wanted]
@@ -935,6 +951,9 @@ def cmd_controls(args) -> int:
                 print(f"    [{r['state'].upper()}] {r['id']}  {r['title']}")
                 if r.get("reason"):
                     print(f"        {r['reason'][:100]}")
+                for lang, cell in (r.get("languages") or {}).items():
+                    if cell["state"] in (VIOLATED, NOT_ASSESSED, NO_COVERAGE):
+                        print(f"        {lang:<11} {cell['state']:<13} {cell['reason'][:80]}")
                 if r["state"] in (VIOLATED, SATISFIED) and r.get("residual"):
                     print(f"        still needs a person: {r['residual'].strip()[:100]}")
     return EXIT_OK
