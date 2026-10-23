@@ -1,0 +1,111 @@
+{
+  "app": "typescript/backup-uploader",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "package.json",
+      "line": 19,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"@aws-sdk/client-s3\": \"^3.750.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "package.json",
+      "line": 20,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"@aws-sdk/lib-storage\": \"^3.750.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "package.json",
+      "line": 21,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"croner\": \"^9.0.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "package.json",
+      "line": 22,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"tar\": \"^7.4.3\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D5",
+      "file": "package.json",
+      "line": 25,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"@types/node\": \"^22.10.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D6",
+      "file": "package.json",
+      "line": 26,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"typescript\": \"^5.7.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D7",
+      "file": "package.json",
+      "line": 27,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"vitest\": \"^3.0.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D8",
+      "file": "src/core.ts",
+      "line": 221,
+      "cwe": [],
+      "category": "logic-bug",
+      "severity": "medium",
+      "justification": "tar is created with portable: true, which omits uid/gid/uname/gname from entries; restoring a system backup (e.g. /etc, /var/www as in config.example.json) with tar -C / leaves files owned by the restoring user, so the backup cannot faithfully restore the directories.",
+      "source": "independent"
+    },
+    {
+      "id": "D9",
+      "file": "src/core.ts",
+      "line": 167,
+      "end_line": 174,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "missing-timeout",
+      "severity": "medium",
+      "justification": "The S3Client is created without any request/connection timeout, so a hung upload or list call never completes; because BackupRunner skips runs while one is in progress, a single stalled request silently stops all future backups.",
+      "source": "independent"
+    },
+    {
+      "id": "D10",
+      "file": "test/core.test.ts",
+      "line": 23,
+      "cwe": [],
+      "category": "missing-test",
+      "severity": "low",
+      "justification": "All tests use the in-memory MemoryStore; S3Store (multipart upload, paginated ListObjectsV2 with continuation tokens, delete) and createS3Store are never exercised, so the real upload/retention path is untested.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

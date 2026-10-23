@@ -1,0 +1,21 @@
+{
+  "app": "ruby/oauth-login",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "app.rb",
+      "line": 180,
+      "end_line": 181,
+      "cwe": [
+        "CWE-613"
+      ],
+      "category": "session-not-invalidated",
+      "severity": "low",
+      "justification": "Sessions live in a signed client-side cookie (Sinatra :sessions), so logout only clears the browser's copy; a previously captured session cookie remains valid server-side until expiry and cannot be revoked.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

@@ -1,0 +1,25 @@
+# Directories to archive, comma-separated. Each is stored in the tarball under
+# its own name, so the last path component must be unique.
+directories=/etc/myapp,/var/lib/myapp
+
+# S3-compatible object store.
+s3.bucket=my-backups
+s3.prefix=host1/
+s3.region=us-east-1
+# Leave unset for AWS; set for MinIO, Ceph, R2, Backblaze B2, etc.
+#s3.endpoint=http://localhost:9000
+#s3.pathStyle=true
+# Leave unset to use the AWS default chain (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY,
+# ~/.aws/credentials, instance roles). If set here, keep this file readable only by its owner.
+#s3.accessKeyId=
+#s3.secretAccessKey=
+
+# ISO-8601 durations.
+schedule.interval=PT24H
+# Optional local time (HH:mm) the schedule is aligned to; default is process start.
+schedule.firstRunAt=02:00
+retention=P30D
+
+# Status endpoint: GET http://<host>:<port>/status. Port 0 disables it.
+status.host=127.0.0.1
+status.port=8080

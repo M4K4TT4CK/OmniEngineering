@@ -1,0 +1,18 @@
+{
+ "target": "ai-corpus-heldout",
+ "aggregate": true,
+ "arbiter_commit": "88bcb10cf4dabd54b365b152687611ec7e239095",
+ "_about": "Held-out tree: counts and a digest only, never the findings (tools/gold/heldout.json).",
+ "count": 135,
+ "digest": "8286914b0de5e41fbcb37568d5d204a7820112c43fe88ebe74363c015c0a0440",
+ "score": {
+  "apps": 40,
+  "defects": 236,
+  "detected": 87,
+  "findings_in_scope": 121,
+  "true_positives": 88,
+  "code_defects": 142,
+  "code_detected": 6,
+  "code_true_positives": 7
+ }
+}

@@ -1,0 +1,20 @@
+{
+  "app": "go/thumbnail-service",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {"id": "D1", "file": "server.go", "line": 285,
+     "cwe": ["CWE-400"], "category": "unbounded-disk", "severity": "medium",
+     "justification": "Every unauthenticated POST with a new image (a single changed byte gives a new SHA-256 key) writes up to 10 new files into the cache directory, and the cache has no size limit or eviction, so any client can fill the disk.",
+     "source": "independent"},
+    {"id": "D2", "file": "server.go", "line": 161,
+     "cwe": ["CWE-770"], "category": "unbounded-memory", "severity": "low",
+     "justification": "Each request buffers the whole source (up to 20 MiB, uploaded or fetched) in memory before it waits on the decode semaphore, and nothing limits the number of in-flight requests, so many concurrent requests can exhaust memory even though decoding itself is limited to 4.",
+     "source": "independent"},
+    {"id": "D3", "file": "server.go", "line": 364,
+     "cwe": ["CWE-252"], "category": "ignored-error", "severity": "low",
+     "justification": "writeJSON discards the error returned by json.NewEncoder(w).Encode(v).",
+     "source": "independent"}
+  ],
+  "false_alarms": []
+}

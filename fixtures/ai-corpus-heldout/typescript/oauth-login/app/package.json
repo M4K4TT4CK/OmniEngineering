@@ -1,0 +1,27 @@
+{
+  "name": "github-oauth-login",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GitHub OAuth 2.0 login with Express and SQLite",
+  "main": "dist/app.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/app.js",
+    "dev": "node --import tsx app.ts",
+    "test": "node --import tsx --test app.test.ts"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/express": "^5.0.3",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

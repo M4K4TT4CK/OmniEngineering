@@ -1,0 +1,122 @@
+{
+  "app": "ruby/csv-import",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "Gemfile",
+      "line": 3,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Gem 'puma' has no version constraint, so bundle install resolves whatever release is newest, including future major versions with breaking changes.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "importer.rb",
+      "line": 1,
+      "cwe": [],
+      "category": "undeclared-dependency",
+      "severity": "low",
+      "justification": "require 'csv' is used but csv is not in the Gemfile; since Ruby 3.4 csv is a bundled (not default) gem, so under bundle exec the require fails on supported Rubies (README says 3.1+).",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "app.rb",
+      "line": 83,
+      "cwe": [],
+      "category": "undeclared-dependency",
+      "severity": "low",
+      "justification": "CsvImport::App.run! on Sinatra ~> 4.0 needs the 'rackup' gem, which is not declared, so the README's 'ruby app.rb' cannot start a server.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "app.rb",
+      "line": 18,
+      "end_line": 20,
+      "cwe": [
+        "CWE-306"
+      ],
+      "category": "missing-authn",
+      "severity": "medium",
+      "justification": "POST /imports (and GET /imports/:id) need no authentication, so anyone who can reach the service can upsert/overwrite any customer record by email and read import error messages containing customer data.",
+      "source": "independent"
+    },
+    {
+      "id": "D5",
+      "file": "app.rb",
+      "line": 25,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "unbounded-input",
+      "severity": "medium",
+      "justification": "The uploaded file is copied to the uploads dir with no size limit (acknowledged in README), so a single request can fill disk.",
+      "source": "independent"
+    },
+    {
+      "id": "D6",
+      "file": "importer.rb",
+      "line": 143,
+      "cwe": [
+        "CWE-770"
+      ],
+      "category": "unbounded-memory",
+      "severity": "medium",
+      "justification": "read_rows collects every parsed CSV row into an array before processing, so memory grows with the (unbounded) upload size.",
+      "source": "independent"
+    },
+    {
+      "id": "D7",
+      "file": "app.rb",
+      "line": 60,
+      "cwe": [
+        "CWE-770"
+      ],
+      "category": "unbounded-concurrency",
+      "severity": "medium",
+      "justification": "Every upload spawns a new Thread with no pool or limit, so a burst of uploads creates unbounded concurrent imports competing for the SQLite write lock and memory.",
+      "source": "independent"
+    },
+    {
+      "id": "D8",
+      "file": "app.rb",
+      "line": 60,
+      "cwe": [
+        "CWE-401"
+      ],
+      "category": "unbounded-memory",
+      "severity": "low",
+      "justification": "JOBS[id] stores a Thread object for every import ever started and nothing ever removes entries, so the hash grows for the life of the process.",
+      "source": "independent"
+    },
+    {
+      "id": "D9",
+      "file": "app.rb",
+      "line": 24,
+      "end_line": 25,
+      "cwe": [
+        "CWE-459"
+      ],
+      "category": "resource-leak",
+      "severity": "low",
+      "justification": "Each upload is copied to uploads/<id>.csv and the file is never deleted after the import finishes, so disk usage grows without bound.",
+      "source": "independent"
+    },
+    {
+      "id": "D10",
+      "file": "importer.rb",
+      "line": 142,
+      "cwe": [],
+      "category": "logic-bug",
+      "severity": "low",
+      "justification": "CSV.open is called without a 'bom|utf-8' encoding, so a CSV saved by Excel with a UTF-8 BOM gets a header '\\uFEFFname' and the whole import fails with 'missing columns: name'.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

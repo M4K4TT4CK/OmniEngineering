@@ -4,6 +4,7 @@
  "reference_seconds": 0.338,
  "targets": {
   "ai-corpus": 1.1,
+  "ai-corpus-heldout": 13.27,
   "go-coredns": 7.3,
   "planted": 0.88,
   "py-urllib3": 1.76,

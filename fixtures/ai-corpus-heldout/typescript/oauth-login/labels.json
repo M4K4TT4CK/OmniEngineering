@@ -1,0 +1,112 @@
+{
+  "app": "typescript/oauth-login",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "package.json",
+      "line": 17,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"better-sqlite3\": \"^11.10.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "package.json",
+      "line": 18,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"express\": \"^5.1.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "package.json",
+      "line": 21,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"@types/better-sqlite3\": \"^7.6.13\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "package.json",
+      "line": 22,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"@types/express\": \"^5.0.3\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D5",
+      "file": "package.json",
+      "line": 23,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"@types/node\": \"^22.0.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D6",
+      "file": "package.json",
+      "line": 24,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"tsx\": \"^4.19.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D7",
+      "file": "package.json",
+      "line": 25,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"typescript\": \"^5.6.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D8",
+      "file": "app.ts",
+      "line": 139,
+      "cwe": [],
+      "category": "logic-bug",
+      "severity": "medium",
+      "justification": "readCookie returns the raw cookie value without decodeURIComponent, but res.cookie() URL-encodes values (\"/notes\" is stored as \"%2Fnotes\"); safePath then rejects it because it no longer starts with \"/\", so the callback always redirects to /profile instead of the page the user came from.",
+      "source": "independent"
+    },
+    {
+      "id": "D9",
+      "file": "app.ts",
+      "line": 161,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "missing-timeout",
+      "severity": "low",
+      "justification": "The token-exchange fetch to GitHub has no AbortSignal/timeout, so a slow or hung upstream holds the callback request open indefinitely.",
+      "source": "independent"
+    },
+    {
+      "id": "D10",
+      "file": "app.ts",
+      "line": 179,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "missing-timeout",
+      "severity": "low",
+      "justification": "The profile fetch to the GitHub API has no timeout, so a hung upstream connection stalls the login callback indefinitely.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

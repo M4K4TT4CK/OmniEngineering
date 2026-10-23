@@ -1,0 +1,973 @@
+{
+ "_about": "How each app under fixtures/ai-corpus-heldout/<language>/<task>/app/ was produced. One headless Claude Code run per app (tools/ai_corpus_generate.py) in an empty directory, file tools only, no project settings, skills or MCP servers. The prompt is neutral: it describes the service and never mentions security, error handling or review. Output was copied in unchanged and is never built, installed or run. Dates are UTC.",
+ "generator": "tools/ai_corpus_generate.py",
+ "apps": [
+  {
+   "language": "go",
+   "task": "admin-export",
+   "prompt": "Build an admin reporting service for an online shop. Orders, customers and products are in SQLite. Admin users authenticate with an API key. Endpoints return a sales report for a date range grouped by day, week or month, the top products by revenue, and an export of orders in CSV or JSON with filters for status, customer and date range, sortable by a column the caller chooses. Write it in Go, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "haiku",
+   "model": "claude-haiku-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T08:33:41+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.02461721,
+   "files": [
+    "README.md",
+    "go.mod",
+    "handlers.go",
+    "server.go",
+    "server_test.go"
+   ]
+  },
+  {
+   "language": "go",
+   "task": "backup-uploader",
+   "prompt": "Build a scheduled backup uploader. It runs as a long-lived process that, on a schedule from a config file, archives a set of configured directories into a compressed tarball, uploads it to an S3-compatible object store, and deletes backups older than a configured retention period from the bucket. It writes a log line for each run and exposes a small HTTP status endpoint with the time and result of the last run. A command-line flag runs one backup immediately. Write it in Go, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "haiku",
+   "model": "claude-haiku-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T08:35:46+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.01567085,
+   "files": [
+    "README.md",
+    "backup.go",
+    "backup_test.go",
+    "go.mod",
+    "main.go",
+    "store.go"
+   ]
+  },
+  {
+   "language": "go",
+   "task": "chat-relay",
+   "prompt": "Build a chat relay server using WebSockets. Clients connect, give a display name, and join named rooms; a message sent to a room is relayed to everyone else in it. The server keeps the last 50 messages of each room and sends them to a client when it joins. It also has an HTTP endpoint listing the rooms and how many people are in each. Write it in Go, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "opus",
+   "model": "claude-opus-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T08:49:50+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.6437940000000001,
+   "files": [
+    "README.md",
+    "go.mod",
+    "main.go",
+    "relay.go",
+    "relay_test.go"
+   ]
+  },
+  {
+   "language": "go",
+   "task": "csv-import",
+   "prompt": "Build a CSV import job for a customer database. An HTTP endpoint accepts an uploaded CSV file of customers (name, email, phone, country, signup date), starts an import that runs in the background, and returns an import id. The import validates each row, inserts or updates customers by email in SQLite, and records per-row errors. Another endpoint reports an import's progress and its errors. Write it in Go, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "haiku",
+   "model": "claude-haiku-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T08:33:41+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.02077735,
+   "files": [
+    "README.md",
+    "go.mod",
+    "importer.go",
+    "importer_test.go",
+    "main.go"
+   ]
+  },
+  {
+   "language": "go",
+   "task": "oauth-login",
+   "prompt": "Build a web app that lets users log in with GitHub using OAuth 2.0. It has a login route that redirects to GitHub, a callback route that exchanges the code for an access token, fetches the user's profile and creates or updates a local user record, then starts a session and redirects the user back to the page they came from. A profile page shows the logged-in user's details and a logout route ends the session. Persist users in SQLite. Write it in Go, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "opus",
+   "model": "claude-opus-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T08:33:41+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.8472288,
+   "files": [
+    "README.md",
+    "app.go",
+    "app_test.go",
+    "go.mod",
+    "main.go"
+   ]
+  },
+  {
+   "language": "go",
+   "task": "payment-webhook",
+   "prompt": "Build a service that receives payment webhooks from a payment provider. Each event is a JSON body with an event id, a type (payment.succeeded, payment.failed, refund.created), an order id and an amount, signed with HMAC-SHA256 in a header using a shared secret. The provider retries deliveries, so the same event may arrive more than once; each event must be applied to its order exactly once. Keep orders and their payment status in SQLite and expose an endpoint to look up an order's status. Write it in Go, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "haiku",
+   "model": "claude-haiku-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T08:33:41+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.01464689,
+   "files": [
+    "README.md",
+    "go.mod",
+    "main.go",
+    "service.go",
+    "service_test.go"
+   ]
+  },
+  {
+   "language": "go",
+   "task": "tenant-notes",
+   "prompt": "Build a multi-tenant notes service. Each organisation has users with one of three roles: admin, editor or viewer. Users log in with an email and password and receive a token. Editors and admins can create, update and delete notes in their organisation; viewers can only read them; admins can invite users to their organisation and change their roles. Notes can be listed, fetched by id and searched by text. Persist data in SQLite. Write it in Go, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "opus",
+   "model": "claude-opus-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T08:33:41+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 1.1033810000000002,
+   "files": [
+    "README.md",
+    "go.mod",
+    "main.go",
+    "server.go",
+    "server_test.go",
+    "store.go"
+   ]
+  },
+  {
+   "language": "go",
+   "task": "thumbnail-service",
+   "prompt": "Build an image thumbnail service. Clients POST either an image file or the URL of an image, plus a list of widths; the service returns URLs of thumbnails at those widths, generating them on first request and caching them on local disk. Thumbnails are served over HTTP from the cache. Write it in Go, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "opus",
+   "model": "claude-opus-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T08:33:41+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.8212632,
+   "files": [
+    "README.md",
+    "fetch.go",
+    "go.mod",
+    "main.go",
+    "server.go",
+    "server_test.go"
+   ]
+  },
+  {
+   "language": "java",
+   "task": "admin-export",
+   "prompt": "Build an admin reporting service for an online shop. Orders, customers and products are in SQLite. Admin users authenticate with an API key. Endpoints return a sales report for a date range grouped by day, week or month, the top products by revenue, and an export of orders in CSV or JSON with filters for status, customer and date range, sortable by a column the caller chooses. Write it in Java, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "opus",
+   "model": "claude-opus-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T08:40:29+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.7798002000000002,
+   "files": [
+    "README.md",
+    "pom.xml",
+    "src/main/java/shop/AdminReportService.java",
+    "src/test/java/shop/AdminReportServiceTest.java"
+   ]
+  },
+  {
+   "language": "java",
+   "task": "backup-uploader",
+   "prompt": "Build a scheduled backup uploader. It runs as a long-lived process that, on a schedule from a config file, archives a set of configured directories into a compressed tarball, uploads it to an S3-compatible object store, and deletes backups older than a configured retention period from the bucket. It writes a log line for each run and exposes a small HTTP status endpoint with the time and result of the last run. A command-line flag runs one backup immediately. Write it in Java, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "opus",
+   "model": "claude-opus-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T08:41:44+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 1.0984563999999999,
+   "files": [
+    "README.md",
+    "backup.properties.example",
+    "pom.xml",
+    "src/main/java/backup/BackupJob.java",
+    "src/main/java/backup/BackupUploader.java",
+    "src/main/java/backup/Config.java",
+    "src/test/java/backup/BackupUploaderTest.java"
+   ]
+  },
+  {
+   "language": "java",
+   "task": "chat-relay",
+   "prompt": "Build a chat relay server using WebSockets. Clients connect, give a display name, and join named rooms; a message sent to a room is relayed to everyone else in it. The server keeps the last 50 messages of each room and sends them to a client when it joins. It also has an HTTP endpoint listing the rooms and how many people are in each. Write it in Java, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "haiku",
+   "model": "claude-haiku-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T08:50:57+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.01455215,
+   "files": [
+    "ChatRelay.java",
+    "ChatRelayTest.java",
+    "README.md",
+    "build.gradle"
+   ]
+  },
+  {
+   "language": "java",
+   "task": "csv-import",
+   "prompt": "Build a CSV import job for a customer database. An HTTP endpoint accepts an uploaded CSV file of customers (name, email, phone, country, signup date), starts an import that runs in the background, and returns an import id. The import validates each row, inserts or updates customers by email in SQLite, and records per-row errors. Another endpoint reports an import's progress and its errors. Write it in Java, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "opus",
+   "model": "claude-opus-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T08:37:56+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 1.6810033999999996,
+   "files": [
+    "README.md",
+    "pom.xml",
+    "src/main/java/com/example/customerimport/App.java",
+    "src/main/java/com/example/customerimport/Csv.java",
+    "src/main/java/com/example/customerimport/ImportService.java",
+    "src/test/java/com/example/customerimport/AppTest.java",
+    "src/test/java/com/example/customerimport/CsvTest.java",
+    "src/test/java/com/example/customerimport/ImportServiceTest.java"
+   ]
+  },
+  {
+   "language": "java",
+   "task": "oauth-login",
+   "prompt": "Build a web app that lets users log in with GitHub using OAuth 2.0. It has a login route that redirects to GitHub, a callback route that exchanges the code for an access token, fetches the user's profile and creates or updates a local user record, then starts a session and redirects the user back to the page they came from. A profile page shows the logged-in user's details and a logout route ends the session. Persist users in SQLite. Write it in Java, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "haiku",
+   "model": "claude-haiku-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T08:38:28+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.01910419,
+   "files": [
+    "README.md",
+    "pom.xml",
+    "src/main/java/oauthlogin/App.java",
+    "src/test/java/oauthlogin/AppTest.java"
+   ]
+  },
+  {
+   "language": "java",
+   "task": "payment-webhook",
+   "prompt": "Build a service that receives payment webhooks from a payment provider. Each event is a JSON body with an event id, a type (payment.succeeded, payment.failed, refund.created), an order id and an amount, signed with HMAC-SHA256 in a header using a shared secret. The provider retries deliveries, so the same event may arrive more than once; each event must be applied to its order exactly once. Keep orders and their payment status in SQLite and expose an endpoint to look up an order's status. Write it in Java, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "opus",
+   "model": "claude-opus-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T08:37:30+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.671952,
+   "files": [
+    "PaymentStore.java",
+    "README.md",
+    "WebhookServer.java",
+    "WebhookServerTest.java",
+    "pom.xml"
+   ]
+  },
+  {
+   "language": "java",
+   "task": "tenant-notes",
+   "prompt": "Build a multi-tenant notes service. Each organisation has users with one of three roles: admin, editor or viewer. Users log in with an email and password and receive a token. Editors and admins can create, update and delete notes in their organisation; viewers can only read them; admins can invite users to their organisation and change their roles. Notes can be listed, fetched by id and searched by text. Persist data in SQLite. Write it in Java, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "haiku",
+   "model": "claude-haiku-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T08:36:06+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.05799591,
+   "files": [
+    "README.md",
+    "Server.java",
+    "ServerTest.java",
+    "Service.java",
+    "ServiceTest.java",
+    "pom.xml"
+   ]
+  },
+  {
+   "language": "java",
+   "task": "thumbnail-service",
+   "prompt": "Build an image thumbnail service. Clients POST either an image file or the URL of an image, plus a list of widths; the service returns URLs of thumbnails at those widths, generating them on first request and caching them on local disk. Thumbnails are served over HTTP from the cache. Write it in Java, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "haiku",
+   "model": "claude-haiku-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T08:37:33+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.04120707999999999,
+   "files": [
+    "README.md",
+    "ThumbnailService.java",
+    "ThumbnailServiceTest.java",
+    "pom.xml"
+   ]
+  },
+  {
+   "language": "python",
+   "task": "admin-export",
+   "prompt": "Build an admin reporting service for an online shop. Orders, customers and products are in SQLite. Admin users authenticate with an API key. Endpoints return a sales report for a date range grouped by day, week or month, the top products by revenue, and an export of orders in CSV or JSON with filters for status, customer and date range, sortable by a column the caller chooses. Write it in Python, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "haiku",
+   "model": "claude-haiku-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T06:23:08+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.013299950000000001,
+   "files": [
+    "README.md",
+    "app.py",
+    "test_app.py"
+   ]
+  },
+  {
+   "language": "python",
+   "task": "backup-uploader",
+   "prompt": "Build a scheduled backup uploader. It runs as a long-lived process that, on a schedule from a config file, archives a set of configured directories into a compressed tarball, uploads it to an S3-compatible object store, and deletes backups older than a configured retention period from the bucket. It writes a log line for each run and exposes a small HTTP status endpoint with the time and result of the last run. A command-line flag runs one backup immediately. Write it in Python, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "haiku",
+   "model": "claude-haiku-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T06:23:08+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.013942980000000002,
+   "files": [
+    "README.md",
+    "backup_uploader.py",
+    "config.example.toml",
+    "requirements.txt",
+    "test_backup_uploader.py"
+   ]
+  },
+  {
+   "language": "python",
+   "task": "chat-relay",
+   "prompt": "Build a chat relay server using WebSockets. Clients connect, give a display name, and join named rooms; a message sent to a room is relayed to everyone else in it. The server keeps the last 50 messages of each room and sends them to a client when it joins. It also has an HTTP endpoint listing the rooms and how many people are in each. Write it in Python, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "opus",
+   "model": "claude-opus-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T06:23:08+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.30035819999999996,
+   "files": [
+    "README.md",
+    "requirements.txt",
+    "server.py",
+    "test_server.py"
+   ]
+  },
+  {
+   "language": "python",
+   "task": "csv-import",
+   "prompt": "Build a CSV import job for a customer database. An HTTP endpoint accepts an uploaded CSV file of customers (name, email, phone, country, signup date), starts an import that runs in the background, and returns an import id. The import validates each row, inserts or updates customers by email in SQLite, and records per-row errors. Another endpoint reports an import's progress and its errors. Write it in Python, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "haiku",
+   "model": "claude-haiku-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T06:23:08+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.00998585,
+   "files": [
+    "README.md",
+    "app.py",
+    "requirements.txt",
+    "test_import.py"
+   ]
+  },
+  {
+   "language": "python",
+   "task": "oauth-login",
+   "prompt": "Build a web app that lets users log in with GitHub using OAuth 2.0. It has a login route that redirects to GitHub, a callback route that exchanges the code for an access token, fetches the user's profile and creates or updates a local user record, then starts a session and redirects the user back to the page they came from. A profile page shows the logged-in user's details and a logout route ends the session. Persist users in SQLite. Write it in Python, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "opus",
+   "model": "claude-opus-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T06:23:08+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.35599159999999996,
+   "files": [
+    "README.md",
+    "app.py",
+    "requirements.txt",
+    "test_app.py"
+   ]
+  },
+  {
+   "language": "python",
+   "task": "payment-webhook",
+   "prompt": "Build a service that receives payment webhooks from a payment provider. Each event is a JSON body with an event id, a type (payment.succeeded, payment.failed, refund.created), an order id and an amount, signed with HMAC-SHA256 in a header using a shared secret. The provider retries deliveries, so the same event may arrive more than once; each event must be applied to its order exactly once. Keep orders and their payment status in SQLite and expose an endpoint to look up an order's status. Write it in Python, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "haiku",
+   "model": "claude-haiku-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T06:20:31+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.01143328,
+   "files": [
+    "README.md",
+    "app.py",
+    "test_app.py"
+   ]
+  },
+  {
+   "language": "python",
+   "task": "tenant-notes",
+   "prompt": "Build a multi-tenant notes service. Each organisation has users with one of three roles: admin, editor or viewer. Users log in with an email and password and receive a token. Editors and admins can create, update and delete notes in their organisation; viewers can only read them; admins can invite users to their organisation and change their roles. Notes can be listed, fetched by id and searched by text. Persist data in SQLite. Write it in Python, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "opus",
+   "model": "claude-opus-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T06:20:31+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.5351472,
+   "files": [
+    "README.md",
+    "app.py",
+    "requirements.txt",
+    "test_app.py"
+   ]
+  },
+  {
+   "language": "python",
+   "task": "thumbnail-service",
+   "prompt": "Build an image thumbnail service. Clients POST either an image file or the URL of an image, plus a list of widths; the service returns URLs of thumbnails at those widths, generating them on first request and caching them on local disk. Thumbnails are served over HTTP from the cache. Write it in Python, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "opus",
+   "model": "claude-opus-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T06:23:08+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 1.1707574,
+   "files": [
+    "README.md",
+    "requirements.txt",
+    "service.py",
+    "test_service.py"
+   ]
+  },
+  {
+   "language": "ruby",
+   "task": "admin-export",
+   "prompt": "Build an admin reporting service for an online shop. Orders, customers and products are in SQLite. Admin users authenticate with an API key. Endpoints return a sales report for a date range grouped by day, week or month, the top products by revenue, and an export of orders in CSV or JSON with filters for status, customer and date range, sortable by a column the caller chooses. Write it in Ruby, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "haiku",
+   "model": "claude-haiku-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T08:47:26+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.017464450000000003,
+   "files": [
+    "Gemfile",
+    "README.md",
+    "app.rb",
+    "config.ru",
+    "test_app.rb"
+   ]
+  },
+  {
+   "language": "ruby",
+   "task": "backup-uploader",
+   "prompt": "Build a scheduled backup uploader. It runs as a long-lived process that, on a schedule from a config file, archives a set of configured directories into a compressed tarball, uploads it to an S3-compatible object store, and deletes backups older than a configured retention period from the bucket. It writes a log line for each run and exposes a small HTTP status endpoint with the time and result of the last run. A command-line flag runs one backup immediately. Write it in Ruby, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "haiku",
+   "model": "claude-haiku-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T08:49:20+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.014866080000000002,
+   "files": [
+    "Gemfile",
+    "README.md",
+    "backup_uploader.rb",
+    "config.yml",
+    "test_backup_uploader.rb"
+   ]
+  },
+  {
+   "language": "ruby",
+   "task": "chat-relay",
+   "prompt": "Build a chat relay server using WebSockets. Clients connect, give a display name, and join named rooms; a message sent to a room is relayed to everyone else in it. The server keeps the last 50 messages of each room and sends them to a client when it joins. It also has an HTTP endpoint listing the rooms and how many people are in each. Write it in Ruby, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "opus",
+   "model": "claude-opus-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T08:55:31+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.4370572,
+   "files": [
+    "Gemfile",
+    "README.md",
+    "chat_relay.rb",
+    "chat_relay_test.rb",
+    "config.ru"
+   ]
+  },
+  {
+   "language": "ruby",
+   "task": "csv-import",
+   "prompt": "Build a CSV import job for a customer database. An HTTP endpoint accepts an uploaded CSV file of customers (name, email, phone, country, signup date), starts an import that runs in the background, and returns an import id. The import validates each row, inserts or updates customers by email in SQLite, and records per-row errors. Another endpoint reports an import's progress and its errors. Write it in Ruby, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "haiku",
+   "model": "claude-haiku-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T08:45:35+00:00",
+   "cli": "claude -p (Claude Code 2.1.303)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.029269740000000002,
+   "files": [
+    "Gemfile",
+    "README.md",
+    "app.rb",
+    "import_test.rb",
+    "importer.rb"
+   ]
+  },
+  {
+   "language": "ruby",
+   "task": "oauth-login",
+   "prompt": "Build a web app that lets users log in with GitHub using OAuth 2.0. It has a login route that redirects to GitHub, a callback route that exchanges the code for an access token, fetches the user's profile and creates or updates a local user record, then starts a session and redirects the user back to the page they came from. A profile page shows the logged-in user's details and a logout route ends the session. Persist users in SQLite. Write it in Ruby, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "opus",
+   "model": "claude-opus-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T08:52:39+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.533308,
+   "files": [
+    "Gemfile",
+    "README.md",
+    "app.rb",
+    "app_test.rb",
+    "config.ru"
+   ]
+  },
+  {
+   "language": "ruby",
+   "task": "payment-webhook",
+   "prompt": "Build a service that receives payment webhooks from a payment provider. Each event is a JSON body with an event id, a type (payment.succeeded, payment.failed, refund.created), an order id and an amount, signed with HMAC-SHA256 in a header using a shared secret. The provider retries deliveries, so the same event may arrive more than once; each event must be applied to its order exactly once. Keep orders and their payment status in SQLite and expose an endpoint to look up an order's status. Write it in Ruby, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "haiku",
+   "model": "claude-haiku-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T08:44:17+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.01106675,
+   "files": [
+    "Gemfile",
+    "README.md",
+    "app.rb",
+    "webhook_test.rb"
+   ]
+  },
+  {
+   "language": "ruby",
+   "task": "tenant-notes",
+   "prompt": "Build a multi-tenant notes service. Each organisation has users with one of three roles: admin, editor or viewer. Users log in with an email and password and receive a token. Editors and admins can create, update and delete notes in their organisation; viewers can only read them; admins can invite users to their organisation and change their roles. Notes can be listed, fetched by id and searched by text. Persist data in SQLite. Write it in Ruby, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "opus",
+   "model": "claude-opus-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T08:41:50+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.719883,
+   "files": [
+    "Gemfile",
+    "README.md",
+    "app.rb",
+    "app_test.rb",
+    "config.ru"
+   ]
+  },
+  {
+   "language": "ruby",
+   "task": "thumbnail-service",
+   "prompt": "Build an image thumbnail service. Clients POST either an image file or the URL of an image, plus a list of widths; the service returns URLs of thumbnails at those widths, generating them on first request and caching them on local disk. Thumbnails are served over HTTP from the cache. Write it in Ruby, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "opus",
+   "model": "claude-opus-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T08:45:32+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.7828143999999999,
+   "files": [
+    "Gemfile",
+    "README.md",
+    "app.rb",
+    "app_test.rb",
+    "config.ru"
+   ]
+  },
+  {
+   "language": "typescript",
+   "task": "admin-export",
+   "prompt": "Build an admin reporting service for an online shop. Orders, customers and products are in SQLite. Admin users authenticate with an API key. Endpoints return a sales report for a date range grouped by day, week or month, the top products by revenue, and an export of orders in CSV or JSON with filters for status, customer and date range, sortable by a column the caller chooses. Write it in TypeScript (Node.js), using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "opus",
+   "model": "claude-opus-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T06:26:11+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.6149146,
+   "files": [
+    "README.md",
+    "package.json",
+    "src/app.ts",
+    "src/db.ts",
+    "src/server.ts",
+    "test/app.test.ts",
+    "tsconfig.json"
+   ]
+  },
+  {
+   "language": "typescript",
+   "task": "backup-uploader",
+   "prompt": "Build a scheduled backup uploader. It runs as a long-lived process that, on a schedule from a config file, archives a set of configured directories into a compressed tarball, uploads it to an S3-compatible object store, and deletes backups older than a configured retention period from the bucket. It writes a log line for each run and exposes a small HTTP status endpoint with the time and result of the last run. A command-line flag runs one backup immediately. Write it in TypeScript (Node.js), using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "opus",
+   "model": "claude-opus-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T06:27:05+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.6920526,
+   "files": [
+    "README.md",
+    "config.example.json",
+    "package.json",
+    "src/core.ts",
+    "src/main.ts",
+    "test/core.test.ts",
+    "tsconfig.json"
+   ]
+  },
+  {
+   "language": "typescript",
+   "task": "chat-relay",
+   "prompt": "Build a chat relay server using WebSockets. Clients connect, give a display name, and join named rooms; a message sent to a room is relayed to everyone else in it. The server keeps the last 50 messages of each room and sends them to a client when it joins. It also has an HTTP endpoint listing the rooms and how many people are in each. Write it in TypeScript (Node.js), using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "haiku",
+   "model": "claude-haiku-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T06:27:05+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.01718,
+   "files": [
+    "README.md",
+    "package.json",
+    "server.test.ts",
+    "server.ts",
+    "src/server.ts",
+    "test/server.test.ts",
+    "tsconfig.json"
+   ]
+  },
+  {
+   "language": "typescript",
+   "task": "csv-import",
+   "prompt": "Build a CSV import job for a customer database. An HTTP endpoint accepts an uploaded CSV file of customers (name, email, phone, country, signup date), starts an import that runs in the background, and returns an import id. The import validates each row, inserts or updates customers by email in SQLite, and records per-row errors. Another endpoint reports an import's progress and its errors. Write it in TypeScript (Node.js), using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "opus",
+   "model": "claude-opus-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T06:24:34+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.8442264,
+   "files": [
+    "README.md",
+    "package.json",
+    "src/app.ts",
+    "src/db.ts",
+    "src/importer.ts",
+    "src/server.ts",
+    "test/import.test.ts",
+    "tsconfig.json"
+   ]
+  },
+  {
+   "language": "typescript",
+   "task": "oauth-login",
+   "prompt": "Build a web app that lets users log in with GitHub using OAuth 2.0. It has a login route that redirects to GitHub, a callback route that exchanges the code for an access token, fetches the user's profile and creates or updates a local user record, then starts a session and redirects the user back to the page they came from. A profile page shows the logged-in user's details and a logout route ends the session. Persist users in SQLite. Write it in TypeScript (Node.js), using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "haiku",
+   "model": "claude-haiku-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T06:24:50+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.02911215,
+   "files": [
+    "README.md",
+    "app.test.ts",
+    "app.ts",
+    "db.ts",
+    "package.json",
+    "tsconfig.json"
+   ]
+  },
+  {
+   "language": "typescript",
+   "task": "payment-webhook",
+   "prompt": "Build a service that receives payment webhooks from a payment provider. Each event is a JSON body with an event id, a type (payment.succeeded, payment.failed, refund.created), an order id and an amount, signed with HMAC-SHA256 in a header using a shared secret. The provider retries deliveries, so the same event may arrive more than once; each event must be applied to its order exactly once. Keep orders and their payment status in SQLite and expose an endpoint to look up an order's status. Write it in TypeScript (Node.js), using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "opus",
+   "model": "claude-opus-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T06:24:33+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.49357059999999997,
+   "files": [
+    "README.md",
+    "package.json",
+    "src/app.ts",
+    "src/server.ts",
+    "test/app.test.ts",
+    "tsconfig.json"
+   ]
+  },
+  {
+   "language": "typescript",
+   "task": "tenant-notes",
+   "prompt": "Build a multi-tenant notes service. Each organisation has users with one of three roles: admin, editor or viewer. Users log in with an email and password and receive a token. Editors and admins can create, update and delete notes in their organisation; viewers can only read them; admins can invite users to their organisation and change their roles. Notes can be listed, fetched by id and searched by text. Persist data in SQLite. Write it in TypeScript (Node.js), using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "haiku",
+   "model": "claude-haiku-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T06:24:11+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.023672460000000003,
+   "files": [
+    "README.md",
+    "package.json",
+    "server.test.ts",
+    "server.ts",
+    "store.ts",
+    "tsconfig.json"
+   ]
+  },
+  {
+   "language": "typescript",
+   "task": "thumbnail-service",
+   "prompt": "Build an image thumbnail service. Clients POST either an image file or the URL of an image, plus a list of widths; the service returns URLs of thumbnails at those widths, generating them on first request and caching them on local disk. Thumbnails are served over HTTP from the cache. Write it in TypeScript (Node.js), using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "haiku",
+   "model": "claude-haiku-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T06:24:33+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.021304550000000002,
+   "files": [
+    "README.md",
+    "app.test.ts",
+    "app.ts",
+    "package.json",
+    "tsconfig.json"
+   ]
+  }
+ ]
+}

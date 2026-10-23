@@ -1,49 +1,100 @@
 {
- "schema_version": 1,
- "frozen": "2026-10-22",
- "seed": 20261022,
- "fraction": 0.3,
- "method": "tools/ground_truth/heldout_split.py: per-language floor(30%), remainder by largest share, seeded tie-break and draw",
- "held_out": {
-  "gold_repos": [
-   "go-containerd",
-   "go-grpc",
-   "java-httpclient",
-   "java-keycloak",
-   "py-urllib3",
-   "ruby-rack",
-   "ts-axios"
-  ],
-  "per_language": {
-   "go": [
-    "go-containerd",
-    "go-grpc"
-   ],
-   "java": [
-    "java-httpclient",
-    "java-keycloak"
-   ],
-   "python": [
-    "py-urllib3"
-   ],
-   "ruby": [
-    "ruby-rack"
-   ],
-   "typescript": [
-    "ts-axios"
-   ]
+  "schema_version": 1,
+  "frozen": "2026-10-22",
+  "seed": 20261022,
+  "fraction": 0.3,
+  "method": "tools/ground_truth/heldout_split.py: per-language floor(30%), remainder by largest share, seeded tie-break and draw",
+  "held_out": {
+    "gold_repos": [
+      "go-containerd",
+      "go-grpc",
+      "java-httpclient",
+      "java-keycloak",
+      "py-urllib3",
+      "ruby-rack",
+      "ts-axios"
+    ],
+    "per_language": {
+      "go": [
+        "go-containerd",
+        "go-grpc"
+      ],
+      "java": [
+        "java-httpclient",
+        "java-keycloak"
+      ],
+      "python": [
+        "py-urllib3"
+      ],
+      "ruby": [
+        "ruby-rack"
+      ],
+      "typescript": [
+        "ts-axios"
+      ]
+    },
+    "gold_repos_total": 24,
+    "ground_truth_sources": [
+      "owasp-java",
+      "owasp-python",
+      "cve-fix",
+      "juliet-java"
+    ]
   },
-  "gold_repos_total": 24,
-  "ground_truth_sources": [
-   "owasp-java",
-   "owasp-python",
-   "cve-fix",
-   "juliet-java"
-  ]
- },
- "development": {
-  "ai_corpus": "fixtures/ai-corpus is development data: rules were tuned on it. A second corpus from a different generator model, held out, is future work.",
-  "planted": "fixtures/planted is a regression check, never part of a precision claim."
- },
- "policy": "Rule authors must not open findings, labels or excerpts from held-out repositories or ground-truth sources while changing a rule. The precision claim is reported on the held-out split only; a rule tuned on what it is measured on overstates itself."
+  "development": {
+    "ai_corpus": "fixtures/ai-corpus is development data: rules were tuned on it. A second corpus from a different generator model, held out, is future work.",
+    "planted": "fixtures/planted is a regression check, never part of a precision claim."
+  },
+  "policy": "Rule authors must not open findings, labels or excerpts from held-out repositories or ground-truth sources while changing a rule. The precision claim is reported on the held-out split only; a rule tuned on what it is measured on overstates itself.",
+  "ai_corpus_heldout": {
+    "path": "fixtures/ai-corpus-heldout",
+    "generator": "tools/ai_corpus_generate.py --set heldout --models opus,haiku",
+    "labels": "one independent labelling subagent per language, committed before Arbiter was run on the tree; no reconciliation",
+    "score": "tools/ai_corpus_score.py --corpus fixtures/ai-corpus-heldout --aggregate-only",
+    "guard": "tools/gold/guards.json target ai-corpus-heldout (aggregate: counts and digest only)",
+    "sealed_on": "2026-10-23",
+    "apps": [
+      "python/tenant-notes",
+      "python/payment-webhook",
+      "python/thumbnail-service",
+      "python/csv-import",
+      "python/oauth-login",
+      "python/admin-export",
+      "python/chat-relay",
+      "python/backup-uploader",
+      "typescript/tenant-notes",
+      "typescript/payment-webhook",
+      "typescript/thumbnail-service",
+      "typescript/csv-import",
+      "typescript/oauth-login",
+      "typescript/admin-export",
+      "typescript/chat-relay",
+      "typescript/backup-uploader",
+      "go/tenant-notes",
+      "go/payment-webhook",
+      "go/thumbnail-service",
+      "go/csv-import",
+      "go/oauth-login",
+      "go/admin-export",
+      "go/chat-relay",
+      "go/backup-uploader",
+      "java/tenant-notes",
+      "java/payment-webhook",
+      "java/thumbnail-service",
+      "java/csv-import",
+      "java/oauth-login",
+      "java/admin-export",
+      "java/chat-relay",
+      "java/backup-uploader",
+      "ruby/tenant-notes",
+      "ruby/payment-webhook",
+      "ruby/thumbnail-service",
+      "ruby/csv-import",
+      "ruby/oauth-login",
+      "ruby/admin-export",
+      "ruby/chat-relay",
+      "ruby/backup-uploader"
+    ]
+  },
+  "_about": "Held-out data for the precision claim (plan Phase 1 item 5). Rule authors must not inspect findings on anything listed here, read its labels while writing or tuning a rule, or copy its code into planted fixtures. Only aggregate scores are reported. Each top-level key is one held-out set, so sets added on other branches merge side by side."
 }

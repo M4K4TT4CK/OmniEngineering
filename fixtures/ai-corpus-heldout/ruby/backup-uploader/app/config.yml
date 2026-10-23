@@ -1,0 +1,24 @@
+# Cron expression (minute hour day-of-month month day-of-week) for scheduled runs.
+schedule: "0 2 * * *"
+
+# Directories to archive. Each is stored in the tarball under its own name.
+directories:
+  - /var/lib/app/data
+  - /etc/app
+
+# Bucket and key prefix for uploaded archives.
+bucket: my-backups
+prefix: backups/
+
+# Leave endpoint out for AWS S3. Set it for MinIO, Ceph, Backblaze B2, etc.
+endpoint: https://s3.example.com
+region: us-east-1
+
+# Archives under the prefix older than this many days are deleted after each run.
+retention_days: 30
+
+# Status endpoint is served on 127.0.0.1 at /status.
+status_port: 8080
+
+# Optional. Logs to stdout when omitted.
+log_file: /var/log/backup-uploader.log

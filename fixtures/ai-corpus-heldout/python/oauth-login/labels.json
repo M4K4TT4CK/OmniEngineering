@@ -1,0 +1,28 @@
+{
+  "app": "python/oauth-login",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {"id": "D1", "file": "requirements.txt", "line": 1,
+     "cwe": [], "category": "unpinned-dependency", "severity": "low",
+     "justification": "Flask>=3.0 is an open lower bound with no upper pin or lock file.",
+     "source": "independent"},
+    {"id": "D2", "file": "requirements.txt", "line": 2,
+     "cwe": [], "category": "unpinned-dependency", "severity": "low",
+     "justification": "requests>=2.31 is an open lower bound with no upper pin or lock file.",
+     "source": "independent"},
+    {"id": "D3", "file": "requirements.txt", "line": 3,
+     "cwe": [], "category": "unpinned-dependency", "severity": "low",
+     "justification": "pytest>=8.0 is an open lower bound with no upper pin or lock file.",
+     "source": "independent"},
+    {"id": "D4", "file": "app.py", "line": 32,
+     "cwe": [], "category": "undeclared-dependency", "severity": "low",
+     "justification": "app.py imports markupsafe directly but it is not listed in requirements.txt; it is only present transitively through Flask.",
+     "source": "independent"},
+    {"id": "D5", "file": "app.py", "line": 357,
+     "cwe": ["CWE-613"], "category": "session-not-invalidated", "severity": "low",
+     "justification": "Sessions are Flask's client-side signed cookies with no server-side record or expiry, so logout only clears the browser's copy; a captured session cookie stays valid indefinitely after logout.",
+     "source": "independent"}
+  ],
+  "false_alarms": []
+}

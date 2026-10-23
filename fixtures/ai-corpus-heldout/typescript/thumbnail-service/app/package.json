@@ -1,0 +1,27 @@
+{
+  "name": "thumbnail-service",
+  "version": "1.0.0",
+  "private": true,
+  "description": "HTTP service that generates image thumbnails on first request and caches them on local disk",
+  "main": "app.ts",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "tsx app.ts",
+    "test": "tsx --test app.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "multer": "^2.0.0",
+    "sharp": "^0.33.5"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/multer": "^1.4.12",
+    "@types/node": "^20.14.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

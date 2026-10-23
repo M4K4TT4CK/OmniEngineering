@@ -1,0 +1,95 @@
+{
+  "app": "typescript/chat-relay",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "package.json",
+      "line": 16,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"ws\": \"^8.18.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "package.json",
+      "line": 19,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"@types/node\": \"^22.0.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "package.json",
+      "line": 20,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"@types/ws\": \"^8.5.10\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "package.json",
+      "line": 21,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"tsx\": \"^4.19.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D5",
+      "file": "package.json",
+      "line": 22,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"typescript\": \"^5.6.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D6",
+      "file": "server.ts",
+      "line": 52,
+      "cwe": [
+        "CWE-770"
+      ],
+      "category": "unbounded-memory",
+      "severity": "medium",
+      "justification": "getRoom creates a room for any name a client joins and rooms are never deleted, each retaining up to 50 messages of 2000 chars; a client can join unlimited distinct rooms and grow server memory without bound.",
+      "source": "independent"
+    },
+    {
+      "id": "D7",
+      "file": "server.ts",
+      "line": 58,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "unbounded-memory",
+      "severity": "medium",
+      "justification": "send() writes to every member without checking socket.bufferedAmount; a slow or non-reading client accumulates an unbounded outbound buffer as others chat, with no backpressure or disconnect.",
+      "source": "independent"
+    },
+    {
+      "id": "D8",
+      "file": "server.ts",
+      "line": 145,
+      "end_line": 153,
+      "cwe": [
+        "CWE-772"
+      ],
+      "category": "resource-leak",
+      "severity": "low",
+      "justification": "There is no ping/pong heartbeat, so half-open connections (client vanished without a close frame) are never detected; they stay in room member sets and inflate /rooms counts indefinitely.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

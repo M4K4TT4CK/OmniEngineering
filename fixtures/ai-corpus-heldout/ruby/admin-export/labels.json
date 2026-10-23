@@ -1,0 +1,108 @@
+{
+  "app": "ruby/admin-export",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "Gemfile",
+      "line": 3,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Gem 'csv' has no version constraint, so bundle install resolves whatever release is newest, including future major versions with breaking changes.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "Gemfile",
+      "line": 4,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Gem 'puma' has no version constraint, so bundle install resolves whatever release is newest, including future major versions with breaking changes.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "Gemfile",
+      "line": 5,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Gem 'rackup' has no version constraint, so bundle install resolves whatever release is newest, including future major versions with breaking changes.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "Gemfile",
+      "line": 10,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Gem 'minitest' has no version constraint, so bundle install resolves whatever release is newest, including future major versions with breaking changes.",
+      "source": "independent"
+    },
+    {
+      "id": "D5",
+      "file": "Gemfile",
+      "line": 11,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Gem 'rack-test' has no version constraint, so bundle install resolves whatever release is newest, including future major versions with breaking changes.",
+      "source": "independent"
+    },
+    {
+      "id": "D6",
+      "file": "app.rb",
+      "line": 96,
+      "end_line": 105,
+      "cwe": [
+        "CWE-770"
+      ],
+      "category": "unbounded-memory",
+      "severity": "medium",
+      "justification": "The export has no pagination or row limit: all matching orders are loaded into memory and rendered into one string, so a wide date range can exhaust memory (acknowledged in README).",
+      "source": "independent"
+    },
+    {
+      "id": "D7",
+      "file": "app.rb",
+      "line": 111,
+      "cwe": [
+        "CWE-1236"
+      ],
+      "category": "csv-injection",
+      "severity": "low",
+      "justification": "Customer names and statuses are written to CSV unescaped, so a value starting with =, +, - or @ is executed as a formula when an admin opens the export in a spreadsheet (acknowledged in README).",
+      "source": "independent"
+    },
+    {
+      "id": "D8",
+      "file": "app.rb",
+      "line": 90,
+      "cwe": [
+        "CWE-20"
+      ],
+      "category": "unhandled-input-error",
+      "severity": "low",
+      "justification": "params.fetch('direction').downcase assumes a string; ?direction[]=x yields an Array and raises NoMethodError, returning 500 instead of 400.",
+      "source": "independent"
+    },
+    {
+      "id": "D9",
+      "file": "app.rb",
+      "line": 171,
+      "end_line": 173,
+      "cwe": [
+        "CWE-20"
+      ],
+      "category": "unhandled-input-error",
+      "severity": "low",
+      "justification": "status is bound to SQL without a type check; ?status[a]=b passes present? and binds a Hash, which sqlite3 rejects with an exception, giving a 500.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

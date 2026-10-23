@@ -1,0 +1,55 @@
+{
+  "app": "ruby/chat-relay",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "Gemfile",
+      "line": 7,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "gem 'rack', '>= 2.2' has no upper bound, so any future major version of rack is accepted.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "chat_relay.rb",
+      "line": 160,
+      "end_line": 161,
+      "cwe": [
+        "CWE-390"
+      ],
+      "category": "swallowed-exception",
+      "severity": "low",
+      "justification": "flush rescues StandardError from client.deliver and discards it without logging, hiding programming errors and never cleaning up the dead client.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "chat_relay.rb",
+      "line": 128,
+      "end_line": 129,
+      "cwe": [
+        "CWE-770"
+      ],
+      "category": "unbounded-memory",
+      "severity": "low",
+      "justification": "A single unauthenticated client can create up to 1000 rooms, each retaining 50 messages of up to 16 KiB, holding hundreds of MB, and there is no limit on connections or message rate.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "chat_relay_test.rb",
+      "line": 237,
+      "end_line": 239,
+      "cwe": [],
+      "category": "missing-test",
+      "severity": "low",
+      "justification": "The WebSocket transport (App#websocket: upgrade, on(:message), on(:close) disconnect cleanup) is never exercised; the only /ws test checks the non-upgrade 426 path.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

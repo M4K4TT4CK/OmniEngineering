@@ -1,0 +1,58 @@
+{
+  "app": "java/csv-import",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "src/main/java/com/example/customerimport/App.java",
+      "line": 105,
+      "end_line": 109,
+      "cwe": [
+        "CWE-306"
+      ],
+      "category": "missing-authn",
+      "severity": "medium",
+      "justification": "Routing for POST /imports and GET /imports/{id} performs no authentication, so any network client can upload a CSV that overwrites every field of existing customer records by email (upsert), i.e. unauthenticated mass modification of the customer database.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "src/main/java/com/example/customerimport/ImportService.java",
+      "line": 178,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "unbounded-memory",
+      "severity": "low",
+      "justification": "Each import decodes the whole upload to a String and then materialises every record as Row objects with List copies before processing; a 20 MB file of tiny rows becomes millions of objects (many times the upload size), and up to 10 queued uploads plus 8 in-flight request bodies are held at once, so the README's 'bounded by 20 MB' memory claim understates real usage.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "src/main/java/com/example/customerimport/App.java",
+      "line": 56,
+      "end_line": 58,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "server-no-timeout",
+      "severity": "low",
+      "justification": "The JDK HttpServer runs on a fixed 8-thread pool (line 51) with no read/idle timeout while each upload of up to 20 MB is read synchronously; eight slow-upload clients block all requests, including status polling.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "src/main/java/com/example/customerimport/App.java",
+      "line": 217,
+      "cwe": [
+        "CWE-20"
+      ],
+      "category": "unhandled-input-error",
+      "severity": "low",
+      "justification": "URLDecoder.decode throws IllegalArgumentException on a malformed percent escape in the status query string (e.g. ?errorsLimit=%zz); it is not caught in status() and becomes a 500 instead of a 400.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

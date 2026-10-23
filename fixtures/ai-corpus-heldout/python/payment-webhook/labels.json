@@ -1,0 +1,24 @@
+{
+  "app": "python/payment-webhook",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {"id": "D1", "file": "app.py", "line": 155, "end_line": 160,
+     "cwe": ["CWE-400"], "category": "unbounded-input", "severity": "medium",
+     "justification": "A negative Content-Length (e.g. -1) passes the `length > MAX_BODY_BYTES` check and rfile.read(-1) then reads until EOF, so the 64 KiB body cap is bypassed and an unauthenticated client can make the server buffer an unbounded body.",
+     "source": "independent"},
+    {"id": "D2", "file": "app.py", "line": 200, "end_line": 205,
+     "cwe": ["CWE-400"], "category": "server-no-timeout", "severity": "medium",
+     "justification": "ThreadingHTTPServer/BaseHTTPRequestHandler is used with no socket timeout and unlimited threads, so slow or stalled clients (slowloris, or a short body under a larger Content-Length) each pin a thread indefinitely.",
+     "source": "independent"},
+    {"id": "D3", "file": "app.py", "line": 177, "end_line": 189,
+     "cwe": ["CWE-306"], "category": "missing-authn", "severity": "medium",
+     "justification": "GET /orders/<id> has no authentication at all, so anyone who can reach the service can read any order's amount and payment status by guessing ids.",
+     "source": "independent"},
+    {"id": "D4", "file": "app.py", "line": 121,
+     "cwe": ["CWE-20"], "category": "logic-bug", "severity": "low",
+     "justification": "The amount is only checked for payment.* events; refund.created of any amount (including a partial or zero refund) moves the whole order to 'refunded'.",
+     "source": "independent"}
+  ],
+  "false_alarms": []
+}

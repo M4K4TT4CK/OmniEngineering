@@ -1,0 +1,88 @@
+{
+  "app": "ruby/backup-uploader",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "backup_uploader.rb",
+      "line": 68,
+      "end_line": 71,
+      "cwe": [
+        "CWE-835"
+      ],
+      "category": "logic-bug",
+      "severity": "medium",
+      "justification": "Anything that is not a directory or symlink is treated as a regular file; a FIFO or device under a backed-up directory makes File.open/IO.copy_stream block forever, hanging the run while holding the mutex, so every later scheduled run blocks too.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "backup_uploader.rb",
+      "line": 61,
+      "cwe": [
+        "CWE-754"
+      ],
+      "category": "logic-bug",
+      "severity": "medium",
+      "justification": "Dir.glob on a configured directory that does not exist (or is unreadable) returns [], so the run uploads an archive missing that directory and reports status 'ok'; misconfigured or unmounted sources fail silently.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "backup_uploader.rb",
+      "line": 78,
+      "cwe": [],
+      "category": "logic-bug",
+      "severity": "low",
+      "justification": "The tar header is written with file.size taken before copying; a file that grows during archiving raises and fails the whole backup, and one that shrinks leaves a mis-sized entry, so live log/database files break runs.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "backup_uploader.rb",
+      "line": 126,
+      "cwe": [],
+      "category": "logic-bug",
+      "severity": "low",
+      "justification": "The archive is uploaded with a single put_object, which S3 limits to 5 GB; larger backups always fail. Multipart upload (upload_file) is needed.",
+      "source": "independent"
+    },
+    {
+      "id": "D5",
+      "file": "backup_uploader.rb",
+      "line": 133,
+      "cwe": [
+        "CWE-20"
+      ],
+      "category": "logic-bug",
+      "severity": "low",
+      "justification": "retention_days is never validated; with 0 or a negative value the cutoff is now or in the future, so prune deletes the archive that was just uploaded, along with every other backup.",
+      "source": "independent"
+    },
+    {
+      "id": "D6",
+      "file": "backup_uploader.rb",
+      "line": 187,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "server-no-timeout",
+      "severity": "low",
+      "justification": "The status server spawns an unbounded thread per connection and calls client.gets with no timeout or length limit, so idle or slow clients can pile up threads and memory.",
+      "source": "independent"
+    },
+    {
+      "id": "D7",
+      "file": "backup_uploader.rb",
+      "line": 218,
+      "end_line": 222,
+      "cwe": [],
+      "category": "missing-test",
+      "severity": "low",
+      "justification": "The scheduling path, --once flag and exit code in main are never tested, and neither are retention edge cases; the tests cover only Runner/Archiver/StatusServer.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

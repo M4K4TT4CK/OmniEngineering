@@ -222,6 +222,68 @@ there.
   under `re.M` consumes the preceding newline. The mutation sweep found it
   too (section 4).
 
+### Held-out batch (`fixtures/ai-corpus-heldout/`)
+
+> **Rule authors must not inspect findings on this tree.** Do not run
+> Arbiter on `fixtures/ai-corpus-heldout/` and read its output, do not read
+> its `labels.json` while writing or tuning a rule, and do not add its apps
+> to planted fixtures or variants. Only aggregate scores are reported
+> (`tools/ai_corpus_score.py --aggregate-only`, which names no rule, file,
+> line or finding). The 99% precision claim is reported on held-out data
+> only. The sealed list is `tools/gold/heldout.json` → `ai_corpus_heldout`.
+
+The development corpus above is what rules get tuned against, so its score
+flatters them over time. The held-out batch is the same shape and is never
+looked at:
+
+- **Eight other tasks** (`tenant-notes`, `payment-webhook`,
+  `thumbnail-service`, `csv-import`, `oauth-login`, `admin-export`,
+  `chat-relay`, `backup-uploader`) × the same five languages = 40 apps,
+  prompts in `tools/ai_corpus_generate.py` → `HELDOUT_TASKS`, same neutral
+  wording, same file-tools-only headless run.
+- **Two generator models**, neither the development corpus's: `opus`
+  (claude-opus-5-5) and `haiku` (claude-haiku-5-5), alternated over the
+  language × task grid (`model_for`) so every language and every task has
+  apps from both, 20 each. Model and exact prompt per app are in its
+  `manifest.json`.
+- **Labels first, then one score.** The labels were written by one
+  independent labelling subagent per language, which read only the apps and
+  their prompts (no Arbiter source, docs, rules or output) and were
+  committed before Arbiter was ever run on the tree. There is no
+  reconciliation pass: `false_alarms` stays empty, so every finding that
+  detects no label counts against precision as *unreviewed*. That makes the
+  held-out precision a lower bound (a real defect the labeller missed scores
+  as a false alarm), and it is the only way to keep the tree unseen. A
+  blind adjudication of unreviewed findings, if wanted, must be done by
+  someone who does not write rules and must report counts only.
+- **Generate, install, score:**
+
+```bash
+python tools/ai_corpus_generate.py --set heldout --models opus,haiku --budget-usd 25 \
+    --out scratchpad/heldout/gen                         # stops before spend could pass the cap
+python tools/ai_corpus_generate.py --set heldout --out scratchpad/heldout/gen --install
+python tools/ai_corpus_score.py --corpus fixtures/ai-corpus-heldout --aggregate-only \
+    --markdown tools/gold/results/<date>-ai-corpus-heldout.md
+```
+
+- **Regression guard.** `ai-corpus-heldout` in `tools/gold/guards.json` is
+  an *aggregate* target: its snapshot is a finding count, a SHA-256 digest of
+  the finding list and the scorer's counts (detected, true positives), never
+  the findings. When it fails, it says only that the numbers moved. Accept
+  an intended change with `update --targets ai-corpus-heldout --no-perf`;
+  do not go looking for which findings changed.
+- `fixtures/**` exclusions (Arbiter, semgrep, bandit, checkov, gitleaks and
+  ruff suppressions in `arbiter.yaml`, and pytest's `testpaths = ["tests"]`)
+  cover this tree exactly as they cover `fixtures/ai-corpus/`.
+
+**First and only score (2026-10-22, Arbiter `88bcb10`, native probes).**
+Code defects (dependency pinning left out): 6 of 142 detected (4%), and 7 of
+40 code findings detect a label (18%, lower bound: 33 unreviewed). No
+high-severity finding (0/11) detects a label. All labels: 87/236 detected,
+88/121 findings true. Per language and per category, as counts only, in
+`tools/gold/results/2026-10-22-ai-corpus-heldout.md`. The development
+corpus at the same commit: 2/117 and 2/22.
+
 ## 2. Human-label sampling
 
 The gold budgets assume every finding on exemplary code is a false positive.
@@ -295,8 +357,10 @@ python tools/regression_guard.py check --corpus ~/corpus-guard                 #
 python tools/regression_guard.py update --corpus ~/wt/corpus-gold              # accept an intended change
 ```
 
-Targets are in `tools/gold/guards.json`. Two are in-tree (`fixtures/planted`
-and `fixtures/ai-corpus`). Four are small gold repositories pinned in
+Targets are in `tools/gold/guards.json`. Three are in-tree (`fixtures/planted`,
+`fixtures/ai-corpus`, and the held-out `fixtures/ai-corpus-heldout`, which is
+an aggregate-only target: counts and a digest, never findings; see
+[the held-out batch](#held-out-batch-fixturesai-corpus-heldout)). Four are small gold repositories pinned in
 `tools/fetch_corpus.sh`: `py-urllib3`, `ts-jose`, `ruby-puma` and
 `go-coredns`. They have 47, 134, 74 and 308 findings and scan in 1.6 to 7 s.
 The large gold repositories stay with `gold_benchmark.py`, because a

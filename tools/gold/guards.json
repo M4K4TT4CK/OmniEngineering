@@ -1,5 +1,5 @@
 {
- "_about": "Targets for tools/regression_guard.py. A target with `path` is a tree in this repository; one without is a gold repository pinned in tools/fetch_corpus.sh (same name), looked up under --corpus. Small repositories only: the guard runs in CI, and a snapshot of a large tree is a diff nobody reads. perf: a target fails when its scan takes longer than baseline * machine_factor * tolerance + slack_seconds, where machine_factor is this machine's time on a fixed pure-Python calibration workload over the baseline machine's (never below min_factor); the calibration runs no Arbiter code, so a regression cannot hide inside it.",
+ "_about": "Targets for tools/regression_guard.py. A target with `path` is a tree in this repository; one without is a gold repository pinned in tools/fetch_corpus.sh (same name), looked up under --corpus. Small repositories only: the guard runs in CI, and a snapshot of a large tree is a diff nobody reads. perf: a target fails when its scan takes longer than baseline * machine_factor * tolerance + slack_seconds, where machine_factor is this machine's time on a fixed pure-Python calibration workload over the baseline machine's (never below min_factor); the calibration runs no Arbiter code, so a regression cannot hide inside it. A target with `aggregate: true` (the held-out AI corpus) stores and prints counts, a digest and aggregate scores only, never findings.",
  "perf": {
   "tolerance": 1.5,
   "slack_seconds": 2.0,
@@ -11,6 +11,10 @@
   },
   "ai-corpus": {
    "path": "fixtures/ai-corpus"
+  },
+  "ai-corpus-heldout": {
+   "path": "fixtures/ai-corpus-heldout",
+   "aggregate": true
   },
   "py-urllib3": {},
   "ts-jose": {},
