@@ -256,8 +256,23 @@ def test_guard_reads_declarations_from_config():
 
 def test_guard_cli_fails_on_a_seeded_declaration(tmp_path, capsys):
     cfg = tmp_path / "arbiter.yaml"
-    cfg.write_text("precision:\n  verified_rules: [arbiter/python.sql-injection]\n")
+    cfg.write_text("precision:\n  verified_rules: [arbiter/python.never-labelled-rule]\n")
     assert PG.main(["check", "--config", str(cfg)]) == 1
     assert "declared verified but has no ledger entry" in capsys.readouterr().out
     cfg.write_text("version: 1\n")
     assert PG.main(["check", "--config", str(cfg)]) == 0
+
+
+def test_gzipped_jsonl_labels_are_read(tmp_path):
+    import gzip
+    rec = {"finding_id": "f:1", "rule_id": RULE, "label": "tp", "labeller": "a",
+           "source": "juliet", "held_out": True, "role": "ground_truth"}
+    gz = tmp_path / "labels.jsonl.gz"
+    gz.write_bytes(gzip.compress((json.dumps(rec) + "\n").encode()))
+    assert PL.read_jsonl(gz) == PL.read_jsonl(_plain(tmp_path, rec))
+
+
+def _plain(tmp_path, rec):
+    p = tmp_path / "labels.jsonl"
+    p.write_text(json.dumps(rec) + "\n", encoding="utf-8")
+    return p

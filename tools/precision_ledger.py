@@ -64,7 +64,12 @@ def norm_label(v) -> str:
 
 def read_jsonl(path: Path) -> list[dict]:
     out = []
-    for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+    if path.name.endswith(".gz"):
+        import gzip
+        text = gzip.decompress(path.read_bytes()).decode("utf-8")
+    else:
+        text = path.read_text(encoding="utf-8")
+    for i, line in enumerate(text.splitlines(), 1):
         if not line.strip() or line.lstrip().startswith("#"):
             continue
         try:
@@ -332,7 +337,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if same else 1
     records: list[dict] = []
     for p in args.labels:
-        records += (read_jsonl(p) if p.suffix == ".jsonl"
+        records += (read_jsonl(p) if p.name.endswith((".jsonl", ".jsonl.gz"))
                     else read_sheet(p, args.sheet_batch, args.sheet_source, args.sheet_held_out))
     previous = P.load_ledger(LEDGER) if LEDGER.is_file() else None
     ledger = build(records, previous, args.date, declared_verified(), snapshot_counts())

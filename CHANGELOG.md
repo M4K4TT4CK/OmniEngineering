@@ -5,6 +5,8 @@ under `[Unreleased]` (there are no release tags yet) and reference the
 `REQ-###` they serve. Rationale belongs in `.ai/project-context.md`.
 
 ## [Unreleased]
+### 2026-10-23 (precision ledger filled)
+- ARB-065 | `tools/gold/precision.json` (and its packaged copy) built from the p1b labels: OWASP Java/Python and Juliet Java ground truth, CVE fix pairs, and the model labels on the gold and AI-corpus samples (`calibration.jsonl` left out, because it relabels ground-truth items blind and would count them twice). 98 rules have entries; 1 is admitted (`java.weak-random-for-secret`, 218 TP / 0 FP, lower bound 0.983); none is declared verified, so the tiered gate would block nothing yet and the verified-tier claim is not made. Java injection rules sit far below the bar on Juliet and OWASP (`java.sql-string-built` 0.418, `java.command-injection` 0.406): their false positives are the constant-propagation cases the one-hop data-flow work targets. `tools/precision_ledger.py` reads `.jsonl.gz` label files. Claim scopes in `tools/label_models.py` `CLAIMS` are kept as written (lockfile-backed npm ranges FP; embedded-database calls without a deadline and first-party actions pinned by tag TP).
 ### 2026-10-23 (judgement provider on 5.x models)
 - ARB-065 | The judgement probe's `AnthropicProvider` no longer sends `temperature` to the 5.x models (`claude-{opus,sonnet,haiku,fable}-5*`), which reject it with HTTP 400; older models keep `temperature: 0`. Found by the model verification pass (2026-10-22). `tests/test_judgement_provider.py`.
 ### 2026-10-22 (precision: tiers and ledger)
