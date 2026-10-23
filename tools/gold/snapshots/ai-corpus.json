@@ -1,9 +1,9 @@
 {
  "target": "ai-corpus",
  "pinned_sha": "",
- "arbiter_commit": "879047f42aa3a51bc8c2fe482733bb7b9c2d6a5f",
+ "arbiter_commit": "e58947fde01689a3ad006c9e99347f3ced7b6a1a",
  "recorded": "2026-10-23",
- "count": 128,
+ "count": 127,
  "by_rule": {
   "arbiter/aiapp.store-never-evicted": 5,
   "arbiter/assurance.suppression-census": 1,
@@ -27,7 +27,6 @@
   "arbiter/python.retry-constant-delay": 1,
   "arbiter/ruby.request-body-read-unbounded": 2,
   "arbiter/ruby.requeue-without-delay": 1,
-  "arbiter/ruby.sql-injection": 1,
   "arbiter/ruby.ssrf-stored-callback": 1,
   "arbiter/ruby.swallowed-error": 1,
   "arbiter/supply.unpinned-npm-dep": 47,
@@ -92,7 +91,6 @@
   "arbiter/ruby.request-body-read-unbounded\truby/job-queue/app/app.rb\t14",
   "arbiter/ruby.request-body-read-unbounded\truby/url-shortener/app/app.rb\t188",
   "arbiter/ruby.requeue-without-delay\truby/job-queue/app/job_queue.rb\t76",
-  "arbiter/ruby.sql-injection\truby/notes-api/app/app.rb\t252",
   "arbiter/ruby.ssrf-stored-callback\truby/webhook-receiver/app/app.rb\t79",
   "arbiter/ruby.swallowed-error\truby/url-shortener/app/app.rb\t114",
   "arbiter/supply.unpinned-npm-dep\ttypescript/file-upload/app/package.json\t0",
