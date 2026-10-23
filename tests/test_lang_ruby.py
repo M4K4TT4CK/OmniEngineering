@@ -288,6 +288,60 @@ def test_sql_interpolation_and_params_order_are_reported(tmp_path):
     assert _rules(tmp_path, code)["sql-injection"] == [4, 5, 6]
 
 
+def test_sql_with_literal_choices_quoted_names_or_pragma_readback_is_silent(tmp_path):
+    """Round 4: the `v3` gold labels of the rule were 0 tp / 19 fp, Rails'
+    adapters among them: a literal chosen by a condition next to
+    `quote_*_name(...)`, and a PRAGMA setting read back and restored."""
+    code = '''
+    class Adapter
+      def change(from_table, fk_name, enforced, if_not_exists, schema_name)
+        execute "ALTER TABLE #{quote_table_name(from_table)} ALTER CONSTRAINT #{quote_column_name(fk_name)} #{enforced ? 'ENFORCED' : 'NOT ENFORCED'}"
+        execute("CREATE SCHEMA#{' IF NOT EXISTS' if if_not_exists} #{quote_schema_name(schema_name)}")
+        execute("DROP SCHEMA#{' IF EXISTS' unless if_not_exists} #{connection.quote_table_name(schema_name)}")
+        name = quote_column_name(fk_name)
+        execute("ALTER TABLE t DROP CONSTRAINT #{name}")
+      end
+
+      def disable_referential_integrity
+        old_foreign_keys = query_value("PRAGMA foreign_keys", nil)
+        old_defer = select_value("PRAGMA defer_foreign_keys")
+        execute("PRAGMA foreign_keys = OFF")
+        yield
+      ensure
+        execute("PRAGMA defer_foreign_keys = #{old_defer}")
+        execute("PRAGMA foreign_keys = #{old_foreign_keys}")
+      end
+    end
+    '''
+    assert "sql-injection" not in _rules(tmp_path, code)
+
+
+def test_sql_raw_value_beside_safe_ones_or_non_pragma_readback_is_reported(tmp_path):
+    """The bad twins of the test above: one raw value among safe ones, a
+    literal choice whose branch is a parameter, a value read back from a
+    table row (stored data: second-order injection), a parameter shadowing
+    nothing, and a local also assigned a parameter."""
+    code = '''
+    class Adapter
+      def change(table, enforced, mode, name)
+        execute "ALTER TABLE #{quote_table_name(table)} #{enforced ? 'ENFORCED' : mode}"
+        execute("CREATE SCHEMA#{' IF NOT EXISTS' if enforced} #{name}")
+        owner = select_value("SELECT owner FROM jobs WHERE id = 1")
+        execute("DELETE FROM jobs WHERE owner = '#{owner}'")
+        old = query_value("PRAGMA foreign_keys")
+        old = name if enforced
+        execute("PRAGMA foreign_keys = #{old}")
+        execute("PRAGMA foreign_keys = #{query_value("PRAGMA #{name}")}")
+      end
+
+      def restore(old_foreign_keys)
+        execute("PRAGMA foreign_keys = #{old_foreign_keys}")
+      end
+    end
+    '''
+    assert _rules(tmp_path, code)["sql-injection"] == [4, 5, 7, 10, 11, 15]
+
+
 def test_shell_multi_arg_escaped_or_integer_interpolation_is_silent(tmp_path):
     code = '''
     require "open3"

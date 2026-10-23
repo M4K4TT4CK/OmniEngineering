@@ -42,10 +42,17 @@ rules:
     requires_file: "..."     # only report in a file that matches this
     requirements: [ARB-062]  # the requirement(s) it was built or fixed under
     tier: advisory           # verified | advisory (rule_meta.py, docs/precision.md)
-    # Python only: skip a string-building hit when every value spliced into
-    # it is safe (see _splices_safe). Each is a regex, full-matched:
-    safe_splice_calls: "..." # callee of a call whose result is safe (`quote_name`)
+    # Python and Ruby: skip a string-building hit when every value spliced
+    # into it is safe (see _splices_safe, _rb_splices_safe). Each is a
+    # regex, full-matched:
+    safe_splice_calls: "..." # callee of a call whose result is safe (`quote_name`);
+                             # in Ruby the method name (`quote_table_name`)
     safe_splice_names: "..." # a name or attribute that is safe (`TABLE`, `inner_sql`)
+    # Ruby only:
+    safe_splice_text: "..."  # searched in an interpolation's source (`#{...}`):
+                             # a match makes it safe (the query's own exclusion)
+    safe_splice_values: "..." # full-matched against a value or a local's
+                             # assigned value (`query_value("PRAGMA x")`)
     description: "..."
     remediation: "..."
 ```
@@ -89,7 +96,7 @@ FUNCTION_TYPES: dict[str, set[str]] = {
 _KEYS = {"id", "title", "severity", "confidence", "dimension", "cwe", "controls", "tags",
          "roles", "files", "query", "unless_inside", "unless_in_scope", "unless_in_file",
          "requires_file", "requires_in_scope", "description", "remediation", "languages",
-         "safe_splice_calls", "safe_splice_names", "taint",
+         "safe_splice_calls", "safe_splice_names", "safe_splice_text", "safe_splice_values", "taint",
          # Not detection logic: traceability and precision (rule_meta.py).
          "requirements", "tier", "precision_ref"}
 # Keys of a rule's `taint:` block (Milestone 3, see dataflow.py).
@@ -146,11 +153,14 @@ def validate_pack(data: dict, name: str) -> None:
             raise PackError(f"{where}: query must capture @hit")
         if "taint" in rule:
             _validate_taint(rule["taint"], where)
-        for key in ("safe_splice_calls", "safe_splice_names"):
+        for key in ("safe_splice_calls", "safe_splice_names", "safe_splice_text", "safe_splice_values"):
             if key not in rule:
                 continue
-            if set(rule.get("languages") or data["languages"]) != {"python"}:
-                raise PackError(f"{where}: `{key}` is implemented for Python only")
+            langs = set(rule.get("languages") or data["languages"])
+            if key in ("safe_splice_text", "safe_splice_values") and langs != {"ruby"}:
+                raise PackError(f"{where}: `{key}` is implemented for Ruby only")
+            if len(langs) != 1 or not langs <= {"python", "ruby"}:
+                raise PackError(f"{where}: `{key}` is implemented for Python and Ruby only")
             try:
                 re.compile(rule[key])
             except (re.error, TypeError) as exc:
@@ -436,6 +446,10 @@ def _run_rule(pack: str, rule: dict, f, parsed) -> list[Finding]:
             kept = _taint_pass(rule, lang, parsed, kept, caps, accept)
         except ValueError as exc:
             raise RuntimeError(f"rule arbiter/{pack}.{rule['id']}: {exc}") from exc
+    if lang == "ruby" and any(k.startswith("safe_splice_") for k in rule):
+        # After the taint pass, which would otherwise report the same call
+        # again as a sink of the string's own interpolations.
+        kept = [h for h in kept if not _rb_splices_safe(h["node"], rule)]
     return [_finding(pack, rule, f, hit) for hit in kept]
 
 
@@ -849,3 +863,122 @@ def register_lang_rules() -> None:
 
 def pack_path(pack: str) -> Path:
     return AST_PACKS / f"{pack}.yaml"
+
+
+# ---------------------------------------------------------------------------
+# Ruby: the same question for an interpolated string argument
+# ---------------------------------------------------------------------------
+#
+# `ruby.sql-injection` (round 4): every one of its gold findings labelled
+# `v3` was a false positive, and eight of them interpolate only values that
+# cannot carry outside data: a literal picked by a condition (`#{enforced ?
+# 'ENFORCED' : 'NOT ENFORCED'}`, `#{' IF EXISTS' if if_exists}`) beside
+# `quote_table_name(...)`, or a PRAGMA setting read back from the database
+# a few lines earlier (`old = query_value("PRAGMA foreign_keys")`, then
+# `execute("PRAGMA foreign_keys = #{old}")`). A call whose first argument is
+# a string is skipped when every interpolation in it is safe: its source
+# matches `safe_splice_text`, or its value is a literal, a constant, a
+# conditional of safe values, a call `safe_splice_calls` names, a value
+# `safe_splice_values` matches, or a local every assignment of which in the
+# enclosing method is safe. A parameter, a block or loop variable, an
+# instance variable and a bare name never assigned (a method call) are not.
+
+_RB_LITERALS = {"integer", "float", "true", "false", "nil", "simple_symbol", "constant",
+                "string_content", "escape_sequence"}
+_RB_SCOPES = {"method", "singleton_method", "class", "module", "program"}
+
+
+def _rb_scope(node):
+    cur = node.parent
+    while cur is not None and cur.type not in _RB_SCOPES:
+        cur = cur.parent
+    return cur
+
+
+def _rb_assignments(scope, name: str) -> list | None:
+    """Right-hand sides assigned to local `name` in this method; None when it
+    is a parameter, a block or loop variable, or bound some other way."""
+    word = re.compile(rf"(?<![\w@$:.]){re.escape(name)}(?![\w?!])")
+    params = scope.child_by_field_name("parameters")
+    if params is not None and word.search(_txt(params)):
+        return None
+    out: list = []
+    stack = list(scope.named_children)
+    while stack:
+        n = stack.pop()
+        if n.type in ("method", "singleton_method", "class", "module"):
+            continue
+        if n.type in ("block_parameters", "lambda_parameters", "exception_variable",
+                      "left_assignment_list", "for"):
+            target = n.child_by_field_name("pattern") if n.type == "for" else n
+            if target is not None and word.search(_txt(target)):
+                return None
+        if n.type in ("assignment", "operator_assignment"):
+            left, right = n.child_by_field_name("left"), n.child_by_field_name("right")
+            if left is not None and left.type == "identifier" and _txt(left) == name:
+                if right is None:
+                    return None
+                out.append(right)
+        stack.extend(n.named_children)
+    return out
+
+
+def _rb_value_safe(node, rule: dict, scope, depth: int = 0) -> bool:
+    if node is None or depth > 4:
+        return False
+    t = node.type
+    values = rule.get("safe_splice_values")
+    if values and re.fullmatch(values, _txt(node)):
+        return True
+    if t in _RB_LITERALS:
+        return True
+    if t == "string":
+        return all(c.type in _RB_LITERALS or
+                   (c.type == "interpolation" and _rb_interpolation_safe(c, rule, scope, depth + 1))
+                   for c in node.named_children)
+    if t == "parenthesized_statements":
+        kids = [k for k in node.named_children if k.type != "comment"]
+        return len(kids) == 1 and _rb_value_safe(kids[0], rule, scope, depth + 1)
+    if t == "conditional":
+        return _rb_value_safe(node.child_by_field_name("consequence"), rule, scope, depth + 1) \
+            and _rb_value_safe(node.child_by_field_name("alternative"), rule, scope, depth + 1)
+    if t in ("if_modifier", "unless_modifier"):
+        return _rb_value_safe(node.child_by_field_name("body"), rule, scope, depth + 1)
+    if t == "call":
+        calls = rule.get("safe_splice_calls")
+        m = node.child_by_field_name("method")
+        return bool(calls and m is not None and re.fullmatch(calls, _txt(m)))
+    if t == "identifier":
+        names = rule.get("safe_splice_names")
+        if names and re.fullmatch(names, _txt(node)):
+            return True
+        if scope is None:
+            return False
+        rhs = _rb_assignments(scope, _txt(node))
+        return bool(rhs) and all(_rb_value_safe(r, rule, scope, depth + 1) for r in rhs)
+    return False
+
+
+def _rb_interpolation_safe(interp, rule: dict, scope, depth: int = 0) -> bool:
+    text_rx = rule.get("safe_splice_text")
+    if text_rx and re.search(text_rx, _txt(interp)):
+        return True
+    kids = [k for k in interp.named_children if k.type != "comment"]
+    return len(kids) == 1 and _rb_value_safe(kids[0], rule, scope, depth)
+
+
+def _rb_splices_safe(hit, rule: dict) -> bool:
+    """A call whose first argument is a string every interpolation of which
+    is safe. Anything else (a heredoc, a local, a concatenation) is not
+    judged here and keeps its finding."""
+    if hit.type != "call":
+        return False
+    args = hit.child_by_field_name("arguments")
+    first = next((a for a in (args.named_children if args is not None else []) if a.type != "comment"), None)
+    if first is None or first.type != "string":
+        return False
+    interps = [c for c in first.named_children if c.type == "interpolation"]
+    if not interps:
+        return False
+    scope = _rb_scope(hit)
+    return all(_rb_interpolation_safe(i, rule, scope) for i in interps)

@@ -196,7 +196,14 @@ because the same line is Rails' generated default in `test.rb`. A Python rule
 may also give `safe_splice_calls` and `safe_splice_names` (regexes): a hit that
 builds a string is skipped when every value spliced into it is a literal, a
 call or name those match, or a local whose every assignment in the enclosing
-function is (`python.sql-injection`; one function, no data flow). The schema is documented at the top of
+function is (`python.sql-injection`; one function, no data flow). A Ruby
+rule may give the same two keys plus `safe_splice_text` (searched in each
+`#{...}`) and `safe_splice_values` (full-matched against a value or a local's
+assigned value): a call whose first argument is an interpolated string is
+skipped when every interpolation is safe, which includes a literal chosen by
+a condition (`ruby.sql-injection`: `#{x ? 'A' : 'B'}`, `#{' IF EXISTS' if
+f}`, a PRAGMA setting read back with `query_value("PRAGMA foreign_keys")`).
+The schema is documented at the top of
 `src/arbiter/lang_rules.py`, and a pack that breaks it fails at import.
 Rule ids are `arbiter/<pack>.<id>`; each carries its CWE.
 
