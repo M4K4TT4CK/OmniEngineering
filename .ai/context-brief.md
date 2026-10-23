@@ -31,6 +31,7 @@ Read more context only when the task needs it:
 | Test planning or fixes | `.ai/playbooks/testing.md` |
 | Refactoring | `.ai/playbooks/refactoring.md` |
 | Release readiness | `.ai/playbooks/release.md` |
+| Planning, debugging, migration, handoff | the matching file in `.ai/playbooks/` (index: `.ai/playbooks/README.md`) |
 | Security-sensitive change | `.ai/checklists/security.md` |
 | Completion gate | `.ai/checklists/pre-completion.md` |
 | Requirements quality | `.ai/knowledge/swebok/requirements-quality-checklist.md` |
@@ -63,6 +64,6 @@ Before claiming completion, confirm:
 ## When The Task Touches Arbiter
 
 Read the integration handbook once: `docs/arbiter-integration.md` in the OmniEngineering
-repository (https://github.com/paukennick/OmniEngineering/blob/main/docs/arbiter-integration.md;
+repository (https://github.com/M4K4TT4CK/OmniEngineering/blob/main/docs/arbiter-integration.md;
 an adopted workspace carries no copy). It says how `omni gate` runs `arbiter gate`, how
 findings reach the ledger and the graph, and which switches turn each piece off.

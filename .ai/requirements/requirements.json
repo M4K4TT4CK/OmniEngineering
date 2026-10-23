@@ -1911,6 +1911,42 @@
         "CHANGELOG"
       ],
       "risk_notes": []
+    },
+    {
+      "id": "REQ-057",
+      "category": "Documentation",
+      "title": "Documentation matches the CLI and code",
+      "description": "README, docs/, .ai context files, entrypoints, playbooks, adapters, checklists and CLI help describe the commands, flags, paths, config keys and behaviour that exist today; a new adopter can go from clone to adopt to a first passing gate by following the README; context files loaded on every task carry no stale or duplicated text.",
+      "priority": "medium",
+      "status": "pending",
+      "minimum_access_scope": [
+        "README.md",
+        "CONTRIBUTING.md",
+        "docs/arbiter-integration.md",
+        ".ai/context-brief.md",
+        ".ai/project-configuration.md",
+        ".ai/project-map.md",
+        ".ai/adapters",
+        ".claude/skills/clarify/SKILL.md",
+        "make_ai.py",
+        "omni_mcp.py",
+        "tests/test_docs.py"
+      ],
+      "acceptance_criteria": [
+        "every omni subcommand appears in the README command reference",
+        "internal markdown links and anchors resolve",
+        "the README quick start reaches a passing omni gate in a fresh repository",
+        "unit tests and omni gate pass"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests",
+        "./omni gate"
+      ],
+      "documentation_required": [
+        "README",
+        "CHANGELOG"
+      ],
+      "risk_notes": []
     }
   ]
 }

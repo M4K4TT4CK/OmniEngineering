@@ -1,6 +1,13 @@
 # Changelog
 ## 2026-10-23
 ### Completed
+- `REQ-057` | Documentation | Documentation checked against the CLI and code.
+Context files: `.ai/project-configuration.md` drops the OmniEngineering-specific
+"Findings In The Graph" section (it is an adopter template loaded on every
+task; the content lives in `docs/arbiter-integration.md`), the context brief
+links the public repository and indexes the remaining playbooks, two adapters
+point at `.ai/entrypoints/fallback-contract.md` instead of the `LLM_CONTEXT.md`
+shim, and `.ai/project-map.md` is regenerated.
 - `REQ-056` | Requirements | `clarify` skill for gathering requirements in plan
 mode (`.claude/skills/clarify/SKILL.md`): frame the problem, read the code and
 `omni graph why` before asking, ask at most 4 ranked questions per round,

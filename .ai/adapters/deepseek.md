@@ -14,7 +14,7 @@ Read the universal ruleset only when policy depth is needed.
 Use `omni requirement show|list|search` for task traceability (never load the whole registry file). Use .ai/.ignore
 as a hard prompt-level exclusion list. If you cannot access a required file,
 name the missing file and apply the fallback operating contract in
-LLM_CONTEXT.md.
+.ai/entrypoints/fallback-contract.md.
 
 When switching from another model, do not rely on prior chat memory. Reload the
 brief, manifest, active requirement, and task-relevant files before editing.
