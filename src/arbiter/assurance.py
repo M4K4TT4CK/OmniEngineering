@@ -96,6 +96,44 @@ SUPPRESSION_PATTERNS: list[tuple[str, re.Pattern, int]] = [
 # next person has no way to tell a considered exception from a shrug.
 _JUSTIFIED = re.compile(r"(?:#|//)\s*\S.{12,}")
 
+# A blanket suppression that says why on the same line (ARB-065). TypeScript
+# cannot name an error in `@ts-expect-error` or `@ts-ignore`, so a written
+# reason is the most a TypeScript author can give: opentelemetry-js writes
+# `// @ts-expect-error access internal property for testing`, jose's type
+# tests `// @ts-expect-error a private key must not be embeddable`, axios's
+# `// @ts-expect-error -- the encoding opt-in only accepts booleans`. 124 of
+# 280 gold reports were such sites. Two words of prose after the directive
+# (separators and a second comment marker skipped) is a reason; a bare
+# directive, or one followed by a single token, is still blanket.
+_REASON_LEAD = re.compile(r"^[\s:,;.\-\u2013\u2014#/*]+")
+_REASON_WORD = re.compile(r"[A-Za-z]{2,}")
+
+
+def _carries_reason(trailing: str) -> bool:
+    rest = _REASON_LEAD.sub("", trailing)
+    return len(_REASON_WORD.findall(rest)) >= 2
+
+
+# These directives only take effect at the start of a comment. Matched later in
+# a comment, or on a block-comment continuation line, they are prose about the
+# directive: jose's JSDoc shows `* // @ts-ignore` in a usage example, and its
+# tools/declaration-comments.js says "three stray `// @ts-ignore` lines".
+_COMMENT_START_ONLY = {"typescript", "eslint", "golangci"}
+
+
+def _quoted_directive(tool: str, before: str) -> bool:
+    if tool not in _COMMENT_START_ONLY:
+        return False
+    if before.lstrip().startswith("*") or before.endswith(("`", "'", '"')):
+        return True
+    # An earlier `//` opened the comment this directive sits in. `://` is a
+    # URL in code (`fetch("http://x") // eslint-disable-line`), not a comment.
+    return _EARLIER_COMMENT.search(before) is not None
+
+
+_EARLIER_COMMENT = re.compile(r"(?<![:/])//")
+
+
 # Files where suppressions are expected and uninteresting: generated code, and
 # the tool's own test fixtures, which deliberately contain awkward material.
 _EXPECTED_SUPPRESSIONS = re.compile(
@@ -369,16 +407,18 @@ def _suppressions(ctx: ProbeContext, repo_id: str) -> list[Finding]:
                 continue
             label = "gosec" if tool == "bandit" and getattr(f, "language", "") == "go" else tool
             for m in pattern.finditer(text):
+                line_start = text.rfind("\n", 0, m.start()) + 1
+                if _quoted_directive(tool, text[line_start:m.start()]):
+                    continue
                 total += 1
                 per_tool[label] += 1
-                line_start = text.rfind("\n", 0, m.start()) + 1
                 line_end = text.find("\n", m.start())
                 line = text[line_start: line_end if line_end != -1 else len(text)]
                 named = m.group(gi) if gi <= (m.re.groups or 0) else None
                 trailing = line[m.end() - line_start:]
                 if not _JUSTIFIED.search(trailing) and not _JUSTIFIED.search(line[:m.start() - line_start]):
                     unjustified += 1
-                if _blanket(named):
+                if _blanket(named) and not _carries_reason(trailing):
                     blanket.append((label, f.path, _line_of(text, m.start()), line.strip()[:110]))
 
     out: list[Finding] = []

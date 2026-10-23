@@ -395,6 +395,13 @@ _EXPRESSION_LANGUAGES = frozenset({
 #     RandomWhich..."), so it is still reported.
 _KEY_NAME_VALUE = re.compile(
     r"^(?:[A-Za-z][A-Za-z_-]*(?:[.:/][A-Za-z][A-Za-z_-]*)+"
+    # Three or more segments may each carry one run of digits: tomcat's
+    # `org.apache.tomcat.manager2.CsrfFilter.token`, keycloak's
+    # `picketlink.wstrust.base64_encode_wstrust_secret_key`, grpc's
+    # `type.googleapis.com/envoy...access_token.v3.AccessTokenCredentials`
+    # (ARB-065). A JWT has three segments too, but each is base64 with digits
+    # scattered through it, so no segment of one matches.
+    r"|[A-Za-z][A-Za-z_-]*(?:\d+[A-Za-z_-]*)?(?:[.:/][A-Za-z][A-Za-z_-]*(?:\d+[A-Za-z_-]*)?){2,}"
     r"|[A-Z][a-z]*(?:-[A-Z][a-z]*)+"
     r"|(?=.{0,32}$)[a-z]+(?:[A-Z][a-z]+){1,3})$")
 # A URL without user-info is an endpoint (`TOKEN_URL = "https://oauth2...`).
@@ -432,9 +439,34 @@ _TEST_MATERIAL = re.compile(
     r"|integration|e2e|acceptance|conformance|hack|scripts?/dev"
     # Test vectors: pyca/cryptography ships its key corpus as the
     # `vectors/cryptography_vectors` package.
-    r"|vectors|test[-_]?vectors)(/|$)"
+    r"|vectors|test[-_]?vectors"
+    # Suites in a directory the inventory does not call a test (ARB-065):
+    # keycloak's `testsuite/`, urllib3's `dummyserver/certs`, celery's `t/`.
+    # Their keys were reported as critical, high-confidence leaks.
+    r"|testsuite|test[-_]suites?|dummyserver|t)(/|$)"
     r"|(^|/)[^/]*\.(test|spec)\.[a-z]+$"
+    # A module named for fixtures: jose's tap/fixtures.ts, cryptography's
+    # fixtures_rsa.py.
+    r"|(^|/)fixtures?(?:[_-][^/]*)?\.[a-z]+$"
+    # A key issued for `localhost` identifies no deployed host: caddy's
+    # caddytest/caddy.localhost.key, keycloak's test-user@localhost.key.pem.
+    r"|(^|/)[^/]*localhost[^/]*\.(?:key|pem)$"
 )
+
+# Directories that hold fixture DATA, by name: testdata/, fixtures/, test
+# vectors. A data file there (a .pem, .key or .txt the inventory gives no
+# language) exists to be the fixture -- grpc-go's testdata/x509, etcd's
+# tests/fixtures/*.key.insecure, cryptography's vectors and its RFC 8032
+# SECRET lines, coredns's testdata/*.private. 146 of 260 private-key and 18 of
+# 210 assigned-credential gold reports (ARB-065). It is not reported. A key
+# under any other test path (tests/certs, integration/.../tls, examples/), or
+# a key written into test source code, is still reported, at low.
+_FIXTURE_DATA_DIR = re.compile(
+    r"(^|/)(testdata|test[-_]data|fixtures?(?:-[\w-]+)?|__fixtures__|vectors|test[-_]?vectors)/")
+
+
+def _fixture_data_file(f) -> bool:
+    return f.language == "unknown" and bool(_FIXTURE_DATA_DIR.search(f.path))
 
 # A PEM header with nothing behind it. Argo CD's operator manual shows how to
 # register a repository credential, and the key body in that example is three
@@ -548,6 +580,64 @@ _PASSWORD_HASH = re.compile(
     r"|^\{(?:bcrypt|ssha|sha(?:-?\d+)?|md[45]|ldap|pbkdf2|scrypt|argon2|sha256)\}", re.IGNORECASE)
 
 
+# The Fetch API's `credentials` option takes a mode, not a credential:
+# `credentials: 'same-origin'` (tomcat's manager webapp, axios, undici, the
+# Turbo bundle in Rails' guides).
+_FETCH_CREDENTIALS_MODES = frozenset({"same-origin", "include", "omit"})
+# A symbol named for a digest of a password holds the hash, which is how a
+# password is meant to be stored: spring-security's Pbkdf2PasswordEncoderTests
+# `encodedPassword = "ab1146a8..."`, tomcat's TestRealmBase `PWD_MD5`.
+# Not `hash` or `digest` alone: `HASH_SECRET` and an HTTP digest password are
+# secrets used for hashing, not hashes. `encoded` only beside `password`: a
+# password encoder's output is a hash, but spring-security's
+# `DEFAULT_ENCODED_SECRET_KEY` is a base64-encoded key and stays reported.
+_HASH_NAME_WORDS = frozenset({"hashed", "md5", "sha", "sha1", "sha256", "sha512", "bcrypt"})
+_PASSWORD_WORDS = frozenset({"password", "passwd", "pwd"})
+
+
+def _holds_password_hash(name: str) -> bool:
+    words = _words(name)
+    return bool(words & _HASH_NAME_WORDS) or ("encoded" in words and bool(words & _PASSWORD_WORDS))
+# The words a key or message id adds to the symbol it is named after: keycloak's
+# `EXPIRED_ACTION_TOKEN_NO_SESSION = "expiredActionTokenNoSessionMessage"`.
+_NAMING_WORDS = frozenset({"message", "msg", "key", "name", "id", "attr", "attribute",
+                           "param", "header", "field", "error", "exp", "type", "claim",
+                           "label", "property", "prop"})
+# A snake_case identifier of letters only, which is how form fields, claims
+# and map keys are spelled (`j_password`, `_password_reset_token`).
+_SNAKE_IDENTIFIER = re.compile(r"^_?[a-z]+(?:_[a-z]+)+$")
+# A string built by interpolation is computed, not a constant: rubygems'
+# s3_uri_signer.rb builds its `credential_info` from `#{date}` and
+# `#{s3_config.region}` (reported at high).
+_INTERPOLATION = re.compile(r"#\{[^}]*\}|\$\{[^}]*\}")
+# A value that is a variable reference: openssl.cnf's `private_key =
+# $dir/private/ca.key.pem`, Maven's `token="$${project.version}"`.
+_VARIABLE_REFERENCE = re.compile(r"^\$+(?:\{|\(|[A-Za-z_]\w*(?:/|$))")
+
+
+def _full_name(text: str, offset: int, name: str) -> str:
+    """The whole symbol, when the pattern's 24-character prefix cut it short.
+
+    `LOGOUT_TRIGGERED_BY_ACTION_TOKEN` was matched as `OUT_TRIGGERED_BY_ACTION_
+    TOKEN`, so its value `"logout_triggered_by_action_token"` no longer echoed it.
+    """
+    j = offset
+    while j > 0 and (text[j - 1].isalnum() or text[j - 1] == "_"):
+        j -= 1
+    return text[j:offset] + name
+
+
+def _names_the_symbol(name: str, val_s: str) -> bool:
+    """The value is the symbol's own name as a key, message id or field name."""
+    name_words, value_words = _words(name), _words(val_s)
+    if not value_words or any(c.isdigit() for c in val_s):
+        return False
+    extra = value_words - name_words
+    if name_words <= value_words and len(extra) <= 1 and extra <= _NAMING_WORDS:
+        return True
+    return bool(_SNAKE_IDENTIFIER.match(val_s) and value_words & name_words)
+
+
 def _words(s: str) -> set[str]:
     """Lower-case words of an identifier or value: camelCase and separators split."""
     spaced = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", s)
@@ -564,6 +654,15 @@ def _credential_finding(f, text: str, offset: int, name: str, value: str,
     """
     val_s = (value or "").strip()
     if not val_s or _PLACEHOLDER.match(val_s):
+        return None
+    name = _full_name(text, offset, name)
+    if _VARIABLE_REFERENCE.match(val_s) or (quoted and _INTERPOLATION.search(val_s)):
+        return None
+    # An unquoted value ending in `;` is a statement: `token: CancelToken;` is
+    # a property type in axios's index.d.cts.
+    if not quoted and val_s.endswith(";"):
+        return None
+    if val_s.lower() in _FETCH_CREDENTIALS_MODES or _holds_password_hash(name):
         return None
     # `SEMANTIC_API_KEY_ENV = "OMNI_GRAPH_SEMANTIC_API_KEY"` names the variable
     # the key is read FROM; the value is an identifier, not a credential
@@ -595,6 +694,8 @@ def _credential_finding(f, text: str, offset: int, name: str, value: str,
         return None
     value_words = _words(val_s)
     if value_words and value_words <= _words(name):
+        return None
+    if quoted and _names_the_symbol(name, val_s):
         return None
     # Real credentials do not contain spaces. Values that do are example
     # passphrases ("keyboard cat") or prose, and were the largest source of
@@ -674,10 +775,12 @@ def probe_secrets(ctx: ProbeContext) -> list[Finding]:
         # operator manual is the case: real-looking YAML, placeholder values.
         test_material = (bool(_TEST_MATERIAL.search(f.path))
                          or f.role in ("test", "docs"))
+        fixture_data = test_material and _fixture_data_file(f)
         for suffix, title, sev, pattern in SECRET_PATTERNS:
             for m in re.finditer(pattern, text):
                 val = m.group(0)
-                if suffix == "private-key" and not _pem_has_key_material(text, m.start()):
+                if suffix == "private-key" and (fixture_data
+                                                or not _pem_has_key_material(text, m.start())):
                     continue
                 eff_sev, eff_conf = sev, "high"
                 note = ""
@@ -717,7 +820,7 @@ def probe_secrets(ctx: ProbeContext) -> list[Finding]:
         # The name heuristic is for code and configuration. In documentation
         # (`docs/`, `.adoc`, release notes) a credential-named assignment is an
         # illustration; the provider-token patterns above still run there.
-        if _MESSAGE_BUNDLE.search(f.path) or f.role == "docs":
+        if _MESSAGE_BUNDLE.search(f.path) or f.role == "docs" or fixture_data:
             continue
         for m in _ASSIGNED_SECRET.finditer(text):
             found = _credential_finding(f, text, m.start(), m.group(1), m.group(3),
