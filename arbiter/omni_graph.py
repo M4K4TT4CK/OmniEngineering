@@ -108,6 +108,10 @@ NODE_KIND_LAYER = {
     "playbook": LAYER_WORKSPACE,
     "checklist": LAYER_WORKSPACE,
     "finding": LAYER_ASSURANCE,  # REQ-043: one Arbiter finding, read from the newest gate report
+    # ARB-064: what a finding violates and how it is classified. `arbiter_rule` is distinct from `rule` (an
+    # OmniEngineering rulepack rule): one is a scanner check, the other a working agreement.
+    "arbiter_rule": LAYER_ASSURANCE,  # one Arbiter rule id (arbiter/concurrency.check-then-act), with its probe
+    "cwe": LAYER_ASSURANCE,  # one MITRE CWE id (CWE-362), named when the table below knows it
 }
 
 EDGE_LAYER = {
@@ -132,7 +136,78 @@ EDGE_LAYER = {
     "cites": LAYER_ASSURANCE,  # finding -> requirement named by a `req:<ID>` tag (context: being worked when the scan ran)
     "recorded_as": LAYER_ASSURANCE,  # finding -> failure-ledger entry whose how_detected names the finding
     "introduced_by": LAYER_ASSURANCE,  # REQ-051: finding -> the commit git blame holds for its line (the requirement is one `delivers` hop on)
+    # ARB-064: traceability from a finding to the rule it violates and the weakness class it belongs to
+    "violates": LAYER_ASSURANCE,  # finding -> arbiter_rule it was raised by
+    "classified_as": LAYER_ASSURANCE,  # finding -> cwe, and arbiter_rule -> cwe (the rule's declared classification)
 }
+
+# ARB-064: names for the CWE ids Arbiter's own rules declare plus the CWE Top 25, so a `cwe` node reads as more than a
+# number without a network lookup. An id missing here still gets a node; only its summary is empty.
+CWE_NAMES: dict[str, str] = {
+    "CWE-20": "Improper Input Validation",
+    "CWE-22": "Improper Limitation of a Pathname to a Restricted Directory (Path Traversal)",
+    "CWE-77": "Improper Neutralization of Special Elements used in a Command (Command Injection)",
+    "CWE-78": "Improper Neutralization of Special Elements used in an OS Command (OS Command Injection)",
+    "CWE-79": "Improper Neutralization of Input During Web Page Generation (Cross-site Scripting)",
+    "CWE-89": "Improper Neutralization of Special Elements used in an SQL Command (SQL Injection)",
+    "CWE-94": "Improper Control of Generation of Code (Code Injection)",
+    "CWE-95": "Improper Neutralization of Directives in Dynamically Evaluated Code (Eval Injection)",
+    "CWE-119": "Improper Restriction of Operations within the Bounds of a Memory Buffer",
+    "CWE-125": "Out-of-bounds Read",
+    "CWE-190": "Integer Overflow or Wraparound",
+    "CWE-200": "Exposure of Sensitive Information to an Unauthorized Actor",
+    "CWE-269": "Improper Privilege Management",
+    "CWE-276": "Incorrect Default Permissions",
+    "CWE-287": "Improper Authentication",
+    "CWE-295": "Improper Certificate Validation",
+    "CWE-306": "Missing Authentication for Critical Function",
+    "CWE-327": "Use of a Broken or Risky Cryptographic Algorithm",
+    "CWE-338": "Use of Cryptographically Weak Pseudo-Random Number Generator (PRNG)",
+    "CWE-352": "Cross-Site Request Forgery (CSRF)",
+    "CWE-362": "Concurrent Execution using Shared Resource with Improper Synchronization (Race Condition)",
+    "CWE-366": "Race Condition within a Thread",
+    "CWE-391": "Unchecked Error Condition",
+    "CWE-396": "Declaration of Catch for Generic Exception",
+    "CWE-400": "Uncontrolled Resource Consumption",
+    "CWE-416": "Use After Free",
+    "CWE-434": "Unrestricted Upload of File with Dangerous Type",
+    "CWE-470": "Use of Externally-Controlled Input to Select Classes or Code (Unsafe Reflection)",
+    "CWE-476": "NULL Pointer Dereference",
+    "CWE-494": "Download of Code Without Integrity Check",
+    "CWE-502": "Deserialization of Untrusted Data",
+    "CWE-703": "Improper Check or Handling of Exceptional Conditions",
+    "CWE-787": "Out-of-bounds Write",
+    "CWE-798": "Use of Hard-coded Credentials",
+    "CWE-829": "Inclusion of Functionality from Untrusted Control Sphere",
+    "CWE-834": "Excessive Iteration",
+    "CWE-835": "Loop with Unreachable Exit Condition (Infinite Loop)",
+    "CWE-862": "Missing Authorization",
+    "CWE-863": "Incorrect Authorization",
+    "CWE-916": "Use of Password Hash With Insufficient Computational Effort",
+    "CWE-918": "Server-Side Request Forgery (SSRF)",
+    "CWE-1080": "Source Code File with Excessive Number of Lines of Code",
+    "CWE-1121": "Excessive McCabe Cyclomatic Complexity",
+    "CWE-1124": "Excessive McCabe Cyclomatic Complexity (Nesting)",
+    "CWE-1164": "Irrelevant Code",
+    "CWE-1321": "Improperly Controlled Modification of Object Prototype Attributes (Prototype Pollution)",
+    "CWE-1357": "Reliance on Insufficiently Trustworthy Component",
+}
+_CWE_ID = re.compile(r"CWE[-_ ]?(\d+)", re.IGNORECASE)
+
+
+def normalise_cwe(value: Any) -> list[str]:
+    """`"CWE-89"`, `89`, `"cwe_89"`, `["CWE-79", ...]` -> `["CWE-89", ...]`, deduplicated, order kept."""
+    out: list[str] = []
+    items = value if isinstance(value, (list, tuple)) else [value]
+    for item in items:
+        if isinstance(item, bool):
+            continue
+        if isinstance(item, int) or (isinstance(item, str) and item.strip().isdigit()):
+            out.append(f"CWE-{int(item)}")
+            continue
+        out.extend(f"CWE-{number}" for number in _CWE_ID.findall(str(item or "")))
+    seen: set[str] = set()
+    return [c for c in out if not (c in seen or seen.add(c))]
 
 FAILURE_LEDGER_PATH = ".ai/failures/failure-ledger.json"
 REQUIREMENTS_PATHS = (".ai/requirements/requirements.json", ".ai/requirements/requirements-archive.json")
@@ -285,6 +360,7 @@ class Graph:
         self.stats: dict[str, dict[str, Any]] = {}
         self.notes: list[str] = []
         self.layer_stats: dict[str, dict[str, Any]] = {}
+        self.inputs: dict[str, Any] = {}  # ARB-064: what `omni graph build --if-stale` compares (reports, ledgers, HEAD)
 
     def add_node(self, node: GraphNode) -> GraphNode:
         return self.nodes.setdefault(node.id, node)
@@ -317,6 +393,7 @@ class Graph:
             "language_stats": self.stats,
             "layers": self.layer_stats,
             "notes": self.notes,
+            "inputs": self.inputs,
             "provenance_legend": PROVENANCE_LEGEND,
             "nodes": [node.to_json() for node in self.nodes.values()],
             "edges": [edge.to_json() for edge in self.edges],
@@ -460,12 +537,29 @@ def load_language(language: str):
 
             return ts.Language(grammar.language_typescript())
     except ImportError as exc:
+        packed = _language_from_pack(language)
+        if packed is not None:
+            return packed
         raise GraphDependencyError(
             f"tree-sitter grammar for '{language}' is not installed. Install it with: "
             'pip install "omniengineering-workspace[graph]"'
         ) from exc
 
     raise GraphDependencyError(f"Unsupported language: {language}")
+
+
+def _language_from_pack(language: str):
+    """The grammar from `tree-sitter-language-pack` when the per-language wheel is absent (ARB-064: Arbiter's own
+    `ast` extra installs the pack, not the wheels, and the graph must build in that environment). None when the pack
+    is missing or does not know the language."""
+    try:
+        import tree_sitter_language_pack as pack
+    except ImportError:
+        return None
+    try:
+        return pack.get_language(language)
+    except Exception:  # noqa: BLE001 -- an unknown language name in the pack is the same as no grammar
+        return None
 
 
 def _text(node) -> str:
@@ -1155,6 +1249,9 @@ def _generic_language(language: str):
         grammar = importlib.import_module(spec["module"])
         return ts.Language(getattr(grammar, spec.get("factory", "language"))())
     except (ImportError, AttributeError) as exc:
+        packed = _language_from_pack(spec.get("pack_name", language))
+        if packed is not None:
+            return packed
         raise GraphDependencyError(
             f"tree-sitter grammar for '{language}' is not installed. Install it with: pip install {spec['package']}"
         ) from exc
@@ -2140,8 +2237,58 @@ def build_graph(
     semantic_info: dict[str, Any] = {"enabled": False, "reason": "not requested", "api_url": None}
     if semantic:
         semantic_info = run_semantic_pass(graph)
+    graph.inputs = build_inputs(root, cfg)  # ARB-064
 
     return graph, semantic_info
+
+
+def build_inputs(root: Path, cfg: dict[str, Any] | None = None) -> dict[str, Any]:
+    """ARB-064: the cheap-to-stat inputs a rebuild would react to: HEAD, the Arbiter report(s) the findings come from, the
+    requirement registries, the failure ledger, the test-suite file and the graph config. Source files are deliberately
+    not walked: `--if-stale` runs after a scan or a gate, and a scan that found nothing new still writes a report."""
+    cfg = cfg or graph_config(root)
+    files: dict[str, int | None] = {}
+    tracked: list[str] = [GRAPH_CONFIG_PATH, str(cfg.get("failure_ledger") or FAILURE_LEDGER_PATH), str(cfg.get("test_suites_file") or TEST_SUITES_PATH)]
+    tracked.extend(str(rel) for rel in cfg.get("requirements_files") or [])
+    for rel in tracked:
+        try:
+            files[rel] = (root / rel).stat().st_mtime_ns if (root / rel).is_file() else None
+        except OSError:
+            files[rel] = None
+    for report in find_findings_reports(root, cfg):
+        rel = _report_rel(root, report)
+        try:
+            files[rel] = report.stat().st_mtime_ns
+        except OSError:
+            files[rel] = None
+    head = _git_lines(root, "rev-parse", "--verify", "-q", "HEAD")
+    return {"head": head.strip() if head else None, "files": files}
+
+
+def graph_stale(graph_path: Path, root: Path) -> tuple[bool, str]:
+    """ARB-064: whether the graph file predates its inputs. (True, reason) when a rebuild is due, (False, "") when the
+    recorded inputs match what is on disk now; a graph written before inputs were recorded is stale once."""
+    if not graph_path.is_file():
+        return True, "no graph file"
+    try:
+        data = json.loads(graph_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return True, f"graph file unreadable: {exc}"
+    recorded = data.get("inputs") if isinstance(data, dict) else None
+    if not isinstance(recorded, dict) or "files" not in recorded:
+        return True, "graph predates input tracking"
+    current = build_inputs(root)
+    if recorded.get("head") != current["head"]:
+        return True, f"HEAD moved ({str(recorded.get('head') or '-')[:9]} -> {str(current['head'] or '-')[:9]})"
+    before = recorded.get("files") if isinstance(recorded.get("files"), dict) else {}
+    for rel in sorted(set(before) | set(current["files"])):
+        if before.get(rel) != current["files"].get(rel):
+            if rel not in before:
+                return True, f"new input {rel}"
+            if rel not in current["files"]:
+                return True, f"input gone: {rel}"
+            return True, f"{rel} changed"
+    return False, ""
 
 
 # --------------------------------------------------------------------------
@@ -3206,9 +3353,14 @@ def check_failure_ledger(root: Path) -> dict[str, Any]:
 ARBITER_GATE_RULE_ID = "completion.arbiter_gate"
 FINDINGS_DEFAULT_OUT = "arbiter-out"
 FINDINGS_REPORT_NAME = "report.json"
-FINDINGS_NO_REPORT_NOTE = "findings: no Arbiter report found (run ./omni gate)"
+FINDINGS_NO_REPORT_NOTE = "findings: no Arbiter report found (run `arbiter scan` or ./omni gate)"
 _FINDING_SYMBOL_KINDS = ("function", "method", "class", "interface")
-_FINDING_LINK_EDGES = {"flags", "cites", "recorded_as", "introduced_by"}
+_FINDING_LINK_EDGES = {"flags", "cites", "recorded_as", "introduced_by", "violates", "classified_as"}
+# ARB-064: the edges that tie a finding to its classification. They fan out through a CWE or rule hub, so the
+# walks that collect a finding's context (`findings`, `impact` from a file) never follow them inward.
+_FINDING_CLASS_EDGES = frozenset({"violates", "classified_as"})
+_FINDING_ATTR_KEYS = ("rule_id", "probe", "dimension", "severity", "status", "tags", "cwe", "controls", "line", "directory_path", "report", "sources")
+_REPORT_CACHE: dict[str, tuple[int, Any]] = {}
 
 
 def _arbiter_out_dir(root: Path, cfg: dict[str, Any]) -> str:
@@ -3236,38 +3388,127 @@ def _arbiter_out_dir(root: Path, cfg: dict[str, Any]) -> str:
     return FINDINGS_DEFAULT_OUT
 
 
-def find_findings_report(root: Path, cfg: dict[str, Any] | None = None) -> Path | None:
-    """The report the finding nodes come from: graph-config `findings_report`, else the newest report.json under the
-    gate rule's --out directory (itself or one level below). None when disabled or nothing is there."""
+def _read_report(report: Path, problems: list[str] | None = None, label: str | None = None) -> Any:
+    """The parsed report, read once per (path, mtime): discovery, loading and the blame pass all look at it."""
+    try:
+        stamp = report.stat().st_mtime_ns
+    except OSError:
+        return None
+    key = str(report)
+    cached = _REPORT_CACHE.get(key)
+    if cached is not None and cached[0] == stamp:
+        return cached[1]
+    data = _read_json_file(report, problems, label)
+    if len(_REPORT_CACHE) > 16:
+        _REPORT_CACHE.clear()
+    _REPORT_CACHE[key] = (stamp, data)
+    return data
+
+
+def _report_scope_mode(report: Path) -> str:
+    data = _read_report(report)
+    scope = data.get("scan_scope") if isinstance(data, dict) else None
+    return str(scope.get("mode") or "full") if isinstance(scope, dict) else "full"
+
+
+def _report_candidates(directory: Path) -> list[Path]:
+    """report.json in `directory` and one level below it, newest first."""
+    if not directory.is_dir():
+        return []
+    candidates = [directory / FINDINGS_REPORT_NAME]
+    try:
+        candidates.extend(child / FINDINGS_REPORT_NAME for child in sorted(directory.iterdir()) if child.is_dir())
+    except OSError:
+        return []
+    found = [c for c in candidates if c.is_file()]
+    return sorted(found, key=lambda c: (-c.stat().st_mtime_ns, str(c)))
+
+
+def find_findings_reports(root: Path, cfg: dict[str, Any] | None = None) -> list[Path]:
+    """The reports the finding nodes come from, oldest-precedence first (ARB-064).
+
+    `findings_report` set to a path names exactly one report. On "auto" two are read: the newest FULL report (any
+    report.json under `arbiter-out/`, or the gate rule's --out directory, whose scan_scope.mode is not "partial") as
+    the base, and the newest report under the gate rule's --out directory (usually a partial `--changed` scan), which
+    overrides the status of the findings it holds. One report when both are the same file; [] when none exists."""
     cfg = cfg or graph_config(root)
     setting = cfg.get("findings_report", "auto")
     if setting is None:
-        return None
+        return []
     if isinstance(setting, str) and setting != "auto":
         candidate = root / setting
-        return candidate if candidate.is_file() else None
-    out_dir = root / _arbiter_out_dir(root, cfg)
-    if not out_dir.is_dir():
-        return None
-    candidates = [out_dir / FINDINGS_REPORT_NAME]
+        return [candidate] if candidate.is_file() else []
+    gate_dir = root / _arbiter_out_dir(root, cfg)
+    gate_candidates = _report_candidates(gate_dir)
+    # the newest partial report in the gate directory; when none is partial (a gate that scanned everything, or a
+    # gate directory that is `arbiter-out/` itself), simply the newest one there
+    gate = next((c for c in gate_candidates if _report_scope_mode(c) == "partial"), gate_candidates[0] if gate_candidates else None)
+    pool = _report_candidates(root / FINDINGS_DEFAULT_OUT)
+    for extra in gate_candidates:
+        if extra not in pool:
+            pool.append(extra)
+    pool.sort(key=lambda c: (-c.stat().st_mtime_ns, str(c)))
+    full = next((c for c in pool if _report_scope_mode(c) != "partial"), None)
+    reports: list[Path] = []
+    for report in (full, gate):
+        if report is not None and report not in reports:
+            reports.append(report)
+    return reports
+
+
+def find_findings_report(root: Path, cfg: dict[str, Any] | None = None) -> Path | None:
+    """The newest report the finding nodes come from (the gate report when there is one), or None."""
+    reports = find_findings_reports(root, cfg)
+    return reports[-1] if reports else None
+
+
+def _report_rel(root: Path, report: Path) -> str:
+    return report.relative_to(root).as_posix() if report.is_relative_to(root) else report.as_posix()
+
+
+def _repo_prefixes(root: Path, data: dict[str, Any]) -> dict[str, str]:
+    """ARB-064: a finding's `location.path` is relative to the repository Arbiter scanned (`repos[].path`), which may
+    be a subdirectory of the graph root (`arbiter scan fixtures/planted/python/bad`). Map repo id -> prefix."""
+    prefixes: dict[str, str] = {}
+    repos = data.get("repos") if isinstance(data.get("repos"), list) else []
     try:
-        candidates.extend(child / FINDINGS_REPORT_NAME for child in sorted(out_dir.iterdir()) if child.is_dir())
+        resolved_root = root.resolve()
     except OSError:
-        return None
-    found = [c for c in candidates if c.is_file()]
-    if not found:
-        return None
-    return max(found, key=lambda c: (c.stat().st_mtime_ns, str(c)))
+        resolved_root = root
+    for repo in repos:
+        if not isinstance(repo, dict):
+            continue
+        raw = str(repo.get("path") or repo.get("source") or "").strip()
+        if not raw:
+            continue
+        candidate = Path(raw)
+        if not candidate.is_absolute():
+            candidate = root / candidate
+        try:
+            candidate = candidate.resolve()
+        except OSError:
+            continue
+        if candidate == resolved_root:
+            prefix = ""
+        elif candidate.is_relative_to(resolved_root):
+            prefix = candidate.relative_to(resolved_root).as_posix()
+        else:
+            continue  # a repository outside the graph root: its paths stay as written and resolve to nothing
+        prefixes[str(repo.get("id") or "root")] = prefix
+        prefixes.setdefault("", prefix)
+    return prefixes
 
 
 def load_findings(root: Path, report: Path, problems: list[str] | None = None) -> list[dict[str, Any]]:
-    """The unsuppressed findings of an Arbiter report, reduced to the fields the graph keeps (never the evidence)."""
-    rel = report.relative_to(root).as_posix() if report.is_relative_to(root) else report.as_posix()
-    data = _read_json_file(report, problems, rel)
+    """The unsuppressed findings of an Arbiter report, reduced to the fields the graph keeps (never the evidence):
+    id, rule_id, probe, dimension, severity, status, tags, cwe, controls, title, path (graph-root relative), line."""
+    rel = _report_rel(root, report)
+    data = _read_report(report, problems, rel)
     if not isinstance(data, dict) or not isinstance(data.get("findings"), list):
         if problems is not None and data is not None:
             problems.append(f"{rel}: no `findings` list in the report")
         return []
+    prefixes = _repo_prefixes(root, data)
     items: list[dict[str, Any]] = []
     for raw in data["findings"]:
         if not isinstance(raw, dict) or not raw.get("id") or raw.get("suppressed"):
@@ -3278,16 +3519,54 @@ def load_findings(root: Path, report: Path, problems: list[str] | None = None) -
             path = path[2:]
         if not path:
             continue
+        prefix = prefixes.get(str(location.get("repo_id") or raw.get("repo_id") or "root"), prefixes.get("", ""))
+        if prefix and not path.startswith(prefix + "/") and not Path(path).is_absolute():
+            path = f"{prefix}/{path}"
         line = location.get("start_line")
         line = int(line) if isinstance(line, int) and not isinstance(line, bool) and line > 0 else None
         tags = [str(t) for t in raw.get("tags") or [] if isinstance(t, (str, int))]
+        controls = [str(c) for c in raw.get("controls") or [] if isinstance(c, (str, int))]
         parent = path.rsplit("/", 1)[0] if "/" in path else ""
         items.append({
-            "id": str(raw["id"]), "rule_id": str(raw.get("rule_id") or ""), "dimension": str(raw.get("dimension") or "other"),
-            "severity": str(raw.get("severity") or "info"), "status": str(raw.get("status") or "new"), "tags": tags,
-            "title": _short(raw.get("title"), 300), "path": path, "line": line, "directory_path": parent, "report": rel,
+            "id": str(raw["id"]), "rule_id": str(raw.get("rule_id") or ""), "probe": str(raw.get("probe") or ""),
+            "dimension": str(raw.get("dimension") or "other"), "severity": str(raw.get("severity") or "info"),
+            "status": str(raw.get("status") or "new"), "tags": tags, "cwe": normalise_cwe(raw.get("cwe") or []), "controls": controls,
+            "title": _short(raw.get("title"), 300), "path": path, "line": line, "directory_path": parent, "report": rel, "sources": [rel],
         })
     return items
+
+
+def load_merged_findings(root: Path, reports: list[Path], problems: list[str] | None = None) -> list[dict[str, Any]]:
+    """ARB-064: the findings of several reports merged by id. The first report is the base; a later one adds the ids it
+    alone holds and, when it is at least as new as the base, overrides `status` for the ids both hold (a gate run that
+    re-scanned a file knows better than an older full scan whether its finding is new, existing or fixed). Every item
+    records the report(s) it came from in `sources`."""
+    merged: dict[str, dict[str, Any]] = {}
+    base_stamp: int | None = None
+    for position, report in enumerate(reports):
+        try:
+            stamp = report.stat().st_mtime_ns
+        except OSError:
+            stamp = 0
+        if position == 0:
+            base_stamp = stamp
+        overrides = position == 0 or base_stamp is None or stamp >= base_stamp
+        for item in load_findings(root, report, problems):
+            existing = merged.get(item["id"])
+            if existing is None:
+                merged[item["id"]] = item
+                continue
+            if item["report"] not in existing["sources"]:
+                existing["sources"].append(item["report"])
+            if overrides:
+                existing["status"] = item["status"]
+                if item["line"] is not None:
+                    existing["line"] = item["line"]
+            for key in ("cwe", "controls", "tags"):
+                for value in item[key]:
+                    if value not in existing[key]:
+                        existing[key].append(value)
+    return list(merged.values())
 
 
 def _add_vendored_failures(graph: Graph, root: Path, index: _LayerIndex, stats: dict[str, Any]) -> list[tuple[str, str, str]]:
@@ -3363,16 +3642,20 @@ def _add_finding_nodes(
     graph: Graph, root: Path, index: _LayerIndex, detections: list[tuple[str, str, str]],
     stats: dict[str, Any], unresolved: list[str],
 ) -> None:
-    stats.update({"findings": 0, "flags": 0, "cites": 0, "recorded_as": 0, "introduced_by": 0, "uncommitted": 0})
+    stats.update({
+        "findings": 0, "flags": 0, "cites": 0, "recorded_as": 0, "introduced_by": 0, "uncommitted": 0,
+        "arbiter_rules": 0, "cwes": 0, "violates": 0, "classified_as": 0, "reports": [],
+    })
     cfg = graph_config(root)
     if cfg.get("findings_report") is None:
         return
-    report = find_findings_report(root, cfg)
-    if report is None:
+    reports = find_findings_reports(root, cfg)
+    if not reports:
         graph.notes.append(f"assurance: {FINDINGS_NO_REPORT_NOTE}")
         return
+    stats["reports"] = [_report_rel(root, r) for r in reports]
     problems: list[str] = []
-    items = load_findings(root, report, problems)
+    items = load_merged_findings(root, reports, problems)  # ARB-064: full report as the base, gate report on top
     graph.notes.extend(f"assurance: {problem}" for problem in problems)
     if not items:
         return
@@ -3387,7 +3670,7 @@ def _add_finding_nodes(
         finding = graph.add_node(
             GraphNode(
                 node_id, "finding", item["id"], item["id"], item["path"], item["line"], None, None, item["title"],
-                {key: item[key] for key in ("rule_id", "dimension", "severity", "status", "tags", "line", "directory_path", "report")},
+                {key: item[key] for key in _FINDING_ATTR_KEYS},
                 LAYER_ASSURANCE,
             )
         )
@@ -3426,7 +3709,40 @@ def _add_finding_nodes(
             if item["id"] in how:
                 graph.add_edge(node_id, failure_id, "recorded_as", "EXTRACTED", "failure-ledger", f"{fid} how_detected names this finding")
                 stats["recorded_as"] += 1
-    _blame_findings(graph, root, finding_nodes, _report_commit(report), stats)  # REQ-051
+        _classify_finding(graph, item, node_id, stats)  # ARB-064
+    _blame_findings(graph, root, finding_nodes, _report_commit(reports[-1]), stats)  # REQ-051
+
+
+def _classify_finding(graph: Graph, item: dict[str, Any], node_id: str, stats: dict[str, Any]) -> None:
+    """ARB-064: the finding `violates` its Arbiter rule and is `classified_as` each of its CWEs; the rule is
+    `classified_as` the same CWEs, so a rule node answers "what weakness does this check find" on its own."""
+    rule_node = None
+    if item["rule_id"]:
+        rule_id = f"arbiter_rule:{item['rule_id']}"
+        created = rule_id not in graph.nodes
+        rule_node = graph.add_node(
+            GraphNode(
+                rule_id, "arbiter_rule", item["rule_id"], item["rule_id"], None, None, None, None, item["title"],
+                {"probe": item["probe"], "title": item["title"], "dimension": item["dimension"], "findings": 0, "cwe": []},
+                LAYER_ASSURANCE,
+            )
+        )
+        if created:
+            stats["arbiter_rules"] += 1
+        rule_node.attrs["findings"] = int(rule_node.attrs.get("findings") or 0) + 1
+        graph.add_edge(node_id, rule_id, "violates", "EXTRACTED", "arbiter-report", f"raised by {item['rule_id']}" + (f" ({item['probe']} probe)" if item["probe"] else ""))
+        stats["violates"] += 1
+    for cwe in item["cwe"]:
+        cwe_id = f"cwe:{cwe}"
+        if cwe_id not in graph.nodes:
+            stats["cwes"] += 1
+        graph.add_node(GraphNode(cwe_id, "cwe", cwe, cwe, None, None, None, None, CWE_NAMES.get(cwe, ""), {"name": CWE_NAMES.get(cwe, "")}, LAYER_ASSURANCE))
+        graph.add_edge(node_id, cwe_id, "classified_as", "EXTRACTED", "arbiter-report", f"finding carries {cwe}")
+        stats["classified_as"] += 1
+        if rule_node is not None:
+            if cwe not in rule_node.attrs["cwe"]:
+                rule_node.attrs["cwe"].append(cwe)
+            graph.add_edge(rule_node.id, cwe_id, "classified_as", "EXTRACTED", "arbiter-report", f"{item['rule_id']} findings carry {cwe}")
 
 
 # REQ-051: who introduced the line. One `git blame --porcelain` per distinct file, all of its flagged lines batched
@@ -3438,7 +3754,7 @@ _UNCOMMITTED_HASH = "0" * 40
 
 def _report_commit(report: Path) -> str | None:
     """The commit an Arbiter report scanned (`repos[0].commit`), or None when the report does not say."""
-    data = _read_json_file(report)
+    data = _read_report(report)
     repos = data.get("repos") if isinstance(data, dict) else None
     if isinstance(repos, list) and repos and isinstance(repos[0], dict):
         commit = str(repos[0].get("commit") or "").strip()
@@ -3544,18 +3860,22 @@ def _link_directory_contents(graph: Graph) -> int:
 
 
 def describe_findings_source(root: Path, cfg: dict[str, Any] | None = None) -> dict[str, Any]:
-    """What `omni graph sources` reports for the findings: which report would be read, how many it holds, or why none."""
+    """What `omni graph sources` reports for the findings: which report(s) would be read, how many findings they hold
+    after the merge, or why none."""
     cfg = cfg or graph_config(root)
     setting = cfg.get("findings_report", "auto")
     if setting is None:
-        return {"report": None, "findings": 0, "disabled": True, "note": "findings: disabled by findings_report: null in graph-config"}
-    report = find_findings_report(root, cfg)
-    if report is None:
-        return {"report": None, "findings": 0, "disabled": False, "note": FINDINGS_NO_REPORT_NOTE, "out_dir": _arbiter_out_dir(root, cfg)}
+        return {"report": None, "reports": [], "findings": 0, "disabled": True, "note": "findings: disabled by findings_report: null in graph-config"}
+    reports = find_findings_reports(root, cfg)
+    if not reports:
+        return {"report": None, "reports": [], "findings": 0, "disabled": False, "note": FINDINGS_NO_REPORT_NOTE, "out_dir": _arbiter_out_dir(root, cfg)}
     problems: list[str] = []
-    items = load_findings(root, report, problems)
-    rel = report.relative_to(root).as_posix() if report.is_relative_to(root) else report.as_posix()
-    return {"report": rel, "findings": len(items), "disabled": False, "note": "", "problems": problems}
+    items = load_merged_findings(root, reports, problems)
+    rels = [_report_rel(root, r) for r in reports]
+    return {
+        "report": rels[-1], "reports": [{"path": rel, "mode": _report_scope_mode(r)} for rel, r in zip(rels, reports)],
+        "findings": len(items), "disabled": False, "note": "", "problems": problems,
+    }
 
 
 # --------------------------------------------------------------------------
@@ -3999,7 +4319,7 @@ def _resolve_one(graph_data: dict[str, Any], query: str) -> tuple[dict[str, Any]
     if len(matches) > 1:
         # A bare name matches a file, its class and that class's constructor alike; prefer the
         # outermost exact-name match when exactly one node of that kind exists.
-        rank = ("requirement", "failure", "finding", "rule", "suite", "changelog", "commit", "file", "playbook", "checklist", "rulepack",
+        rank = ("requirement", "failure", "finding", "cwe", "arbiter_rule", "rule", "suite", "changelog", "commit", "file", "playbook", "checklist", "rulepack",
                 "module", "table", "class", "interface", "function", "method")
         exact = [n for n in matches if n["name"] == query]
         for kind_name in rank:
@@ -4022,9 +4342,16 @@ def _node_brief(node: dict[str, Any], via: str = "") -> dict[str, Any]:
     if attrs.get("workspace"):  # REQ-052
         entry["workspace"] = attrs["workspace"]
     if node["kind"] == "finding":  # REQ-043: the rule and category are what a reader needs to act on a finding
-        for key in ("rule_id", "dimension", "line"):
+        for key in ("rule_id", "dimension", "line", "cwe"):
             if attrs.get(key) is not None:
                 entry[key] = attrs[key]
+    elif node["kind"] == "arbiter_rule":  # ARB-064
+        for key in ("probe", "cwe", "findings"):
+            if attrs.get(key) is not None:
+                entry[key] = attrs[key]
+    elif node["kind"] == "cwe":  # ARB-064
+        entry["name"] = node["name"]
+        entry["summary"] = attrs.get("name") or node.get("summary", "")
     if via:
         entry["via"] = via
     return entry
@@ -4043,6 +4370,7 @@ LINEAGE_FLOW: dict[str, str] = {
     "covers": "up", "verifies": "up",                          # tests answer the code they exercise
     "flags": "up", "cites": "up", "recorded_as": "down",       # REQ-043: a finding comes from code and a requirement, and becomes a ledger entry
     "introduced_by": "up",                                     # REQ-051: a finding comes from the commit that wrote its line
+    "violates": "up", "classified_as": "up",                   # ARB-064: a finding comes from a rule and a weakness class (hubs: never walked down into)
 }
 # Structural dependencies between code symbols. Off by default: they would drown a requirement's lineage in call graphs.
 LINEAGE_CODE_FLOW: dict[str, str] = {
@@ -4235,7 +4563,9 @@ def why(graph_path: Path, query: str) -> dict[str, Any]:
             "via": f"{node.get('file', '')}:{attrs.get('line', '')}; report {attrs.get('report', '')}",
         }]
         for e in outgoing.get(node["id"], []):
-            section = {"flags": "flagged code", "cites": "requirement", "recorded_as": "failure"}.get(e["type"])
+            section = {"flags": "flagged code", "cites": "requirement", "recorded_as": "failure", "violates": "rule", "classified_as": "cwe"}.get(e["type"])
+            if section == "cwe" and by_id.get(e["target"], {}).get("kind") != "cwe":
+                continue
             if section:
                 add(section, e["target"], "being worked when the scan ran" if e["type"] == "cites" else e.get("detail", ""))
         # REQ-051: the commit git blame holds for the line, and the requirement(s) that commit cites
@@ -4250,6 +4580,32 @@ def why(graph_path: Path, query: str) -> dict[str, Any]:
                 "id": "-", "kind": "change", "name": "uncommitted change", "requirements": [],
                 "summary": "the line has no blame: an uncommitted edit, an untracked file, or a path outside git",
             }]
+    elif kind in ("cwe", "arbiter_rule"):  # ARB-064: everything classified as this weakness / raised by this rule, and where
+        attrs = node.get("attrs") or {}
+        if kind == "arbiter_rule":  # the header already names a CWE; a rule adds its probe and classification
+            sections["arbiter_rule"] = [{
+                "id": node["id"], "kind": kind, "name": node["name"], "summary": str(attrs.get("title") or node.get("summary", "")),
+                "via": f"{attrs.get('probe') or '?'} probe; {attrs.get('findings', 0)} finding(s)",
+            }]
+        files: dict[str, str] = {}
+        for e in incoming.get(node["id"], []):
+            source = by_id.get(e["source"])
+            if source is None:
+                continue
+            if source["kind"] == "finding":
+                add("findings", e["source"], e.get("detail", ""))
+                for f in outgoing.get(e["source"], []):
+                    target = by_id.get(f["target"])
+                    if f["type"] == "flags" and target is not None and target["kind"] in ("file", "module"):
+                        files.setdefault(f["target"], f.get("detail", ""))
+            elif source["kind"] == "arbiter_rule" and e["type"] == "classified_as":
+                add("rules", e["source"], e.get("detail", ""))
+        for file_id, detail in sorted(files.items(), key=lambda pair: by_id[pair[0]].get("file") or ""):
+            add("files", file_id, detail)
+        if kind == "arbiter_rule":
+            for e in outgoing.get(node["id"], []):
+                if e["type"] == "classified_as":
+                    add("cwe", e["target"], e.get("detail", ""))
     else:
         # Rank the evidence: a requirement whose commits changed this file beats one that merely
         # declares it in scope, and a directory-wide scope is the weakest link of all.
@@ -4320,9 +4676,12 @@ def why(graph_path: Path, query: str) -> dict[str, Any]:
 
 # Every cross-layer edge type except `follows`: walking the commit chain would replay the whole history, not the change's reach.
 IMPACT_EDGE_TYPES: frozenset[str] = frozenset(edge for edge, layer in EDGE_LAYER.items() if layer != LAYER_CODE and edge != "follows")
-IMPACT_BUCKETS = ("requirements", "changelog", "failures", "tests", "suites", "rules", "commits")
+# ARB-064: findings that flag the changed code (or anything it contains) get their own bucket; `files` holds the code a
+# CWE or rule seed reaches through its findings.
+IMPACT_BUCKETS = ("requirements", "changelog", "failures", "findings", "files", "tests", "suites", "rules", "commits")
 # A changed registry, ledger or changelog must not seed every requirement, failure or entry it holds; those are reached, not changed.
-_IMPACT_NO_SEED_KINDS = {"requirement", "changelog", "commit", "failure", "suite", "external"}
+_IMPACT_NO_SEED_KINDS = {"requirement", "changelog", "commit", "failure", "suite", "external", "cwe", "arbiter_rule", "finding"}  # a finding is reached from its file, not seeded by it
+_IMPACT_HUB_KINDS = {"cwe", "arbiter_rule"}
 
 
 def _impact_relpath(path: str) -> str:
@@ -4333,8 +4692,15 @@ def _impact_relpath(path: str) -> str:
 
 
 def _impact_seeds(graph_data: dict[str, Any], rel: str) -> list[str]:
-    """The anchors `why()` uses for a path: its `file:` node, every symbol parsed from it, and the directory scopes above it."""
+    """The anchors `why()` uses for a path: its `file:` node, every symbol parsed from it, and the directory scopes above it.
+    ARB-064: a CWE id (`CWE-89`), an Arbiter rule id or a finding id seeds that node instead."""
     seeds: list[str] = []
+    normalised = normalise_cwe(rel) if re.fullmatch(r"(?i)cwe[-_ ]?\d+", rel) else []
+    for node in graph_data["nodes"]:
+        if node["kind"] in _IMPACT_HUB_KINDS and (node["id"] == rel or node["name"] == rel or (normalised and node["name"] == normalised[0])):
+            return [node["id"]]
+        if node["kind"] == "finding" and (node["id"] == rel or node["name"] == rel):
+            return [node["id"]]
     for node in graph_data["nodes"]:
         if node["kind"] in _IMPACT_NO_SEED_KINDS:
             continue
@@ -4346,13 +4712,15 @@ def _impact_seeds(graph_data: dict[str, Any], rel: str) -> list[str]:
     return seeds
 
 
-def _impact_bucket(node: dict[str, Any]) -> str | None:
+def _impact_bucket(node: dict[str, Any], via: str = "") -> str | None:
     kind = node["kind"]
-    direct = {"requirement": "requirements", "changelog": "changelog", "failure": "failures", "suite": "suites", "rule": "rules", "commit": "commits"}
+    direct = {"requirement": "requirements", "changelog": "changelog", "failure": "failures", "suite": "suites", "rule": "rules", "commit": "commits", "finding": "findings"}
     if kind in direct:
         return direct[kind]
     if (node.get("attrs") or {}).get("test") or (node.get("layer") == LAYER_ASSURANCE and kind in ("module", "file")):
         return "tests"
+    if via == "flags" and kind in ("module", "file") and not (node.get("attrs") or {}).get("directory"):
+        return "files"  # ARB-064: code reached from a CWE or rule through the findings raised on it
     return None
 
 
@@ -4395,9 +4763,12 @@ def impact(graph_path: Path, changed: list[str], depth: int = 2) -> dict[str, An
         level = hops[current]
         if level >= depth:
             continue
+        from_hub = by_id[current]["kind"] in _IMPACT_HUB_KINDS if current in by_id else False
         for other_id, edge_type in sorted(adjacency.get(current, []), key=lambda pair: ((by_id.get(pair[0]) or {}).get("name", ""), pair[1])):
             if other_id in hops or other_id not in by_id:
                 continue
+            if edge_type in _FINDING_CLASS_EDGES and not from_hub:
+                continue  # ARB-064: a CWE or rule is a hub; a change reaches its findings, never every finding of the same class
             hops[other_id] = level + 1
             reached_by[other_id] = (edge_type, current)
             queue.append(other_id)
@@ -4410,7 +4781,7 @@ def impact(graph_path: Path, changed: list[str], depth: int = 2) -> dict[str, An
         if level == 0:
             continue
         node = by_id[node_id]
-        bucket = _impact_bucket(node)
+        bucket = _impact_bucket(node, reached_by[node_id][0])
         if bucket is None:
             continue
         if bucket == "tests" and node["kind"] not in ("module", "file") and node.get("file"):
@@ -4433,8 +4804,8 @@ def impact(graph_path: Path, changed: list[str], depth: int = 2) -> dict[str, An
 def impact_summary(result: dict[str, Any]) -> str:
     """One line for the gate: `impact: 2 requirement(s), 1 failure(s), 1 suite(s), 3 test file(s), 2 rule(s); 1 path unresolved`."""
     labels = (
-        ("requirements", "requirement(s)"), ("changelog", "changelog entry(ies)"), ("failures", "failure(s)"), ("suites", "suite(s)"),
-        ("tests", "test file(s)"), ("rules", "rule(s)"), ("commits", "commit(s)"),
+        ("requirements", "requirement(s)"), ("changelog", "changelog entry(ies)"), ("failures", "failure(s)"), ("findings", "finding(s)"),
+        ("files", "file(s)"), ("suites", "suite(s)"), ("tests", "test file(s)"), ("rules", "rule(s)"), ("commits", "commit(s)"),
     )
     parts = [f"{len(result.get(key) or [])} {label}" for key, label in labels if result.get(key)]
     line = "impact: " + (", ".join(parts) if parts else "nothing in the graph is tied to the changed path(s)")
@@ -4445,7 +4816,7 @@ def impact_summary(result: dict[str, Any]) -> str:
 
 
 _TIMELINE_EDGES = {
-    t for t, layer in EDGE_LAYER.items() if t not in ("follows", "contains", "covers", "verifies", "prevented_by")
+    t for t, layer in EDGE_LAYER.items() if t not in ("follows", "contains", "covers", "verifies", "prevented_by", "violates", "classified_as")
 }
 _KIND_ORDER = {"requirement": 0, "changelog": 1, "commit": 2, "failure": 3, "finding": 4}
 
@@ -5037,6 +5408,7 @@ _DEFAULT_NODE_COLOR = "#9a9a9a"
 _KIND_RADIUS = {
     "module": 14, "class": 10, "interface": 10, "table": 12, "function": 6, "method": 6, "external": 3,
     "requirement": 12, "changelog": 8, "commit": 5, "failure": 12, "rule": 9, "file": 8, "suite": 13, "finding": 7,
+    "arbiter_rule": 9, "cwe": 11,
 }
 _SVG_BG = "#0f0f12"
 _SVG_TEXT = "#e8e8e8"
@@ -5052,6 +5424,7 @@ def _escape_svg_text(text: str) -> str:
 _KIND_COLORS = {
     "requirement": "#f2c14e", "changelog": "#8fbf6a", "commit": "#7d8590", "failure": "#ff5c5c", "rule": "#5fd0e0", "suite": "#b48ead",
     "finding": "#ff8a3d",
+    "arbiter_rule": "#d98cff", "cwe": "#ff5ca8",  # ARB-064
 }
 # REQ-043: findings are coloured by Arbiter dimension (category), not by kind, so a glance separates security from quality.
 _FINDING_DIMENSION_COLORS = {
@@ -5413,9 +5786,23 @@ def _finding_severity_rank(severity: str) -> int:
     return _FINDING_SEVERITY_ORDER.index(severity) if severity in _FINDING_SEVERITY_ORDER else len(_FINDING_SEVERITY_ORDER)
 
 
-def findings(graph_path: Path, under: str | None = None, dimension: str | None = None, severity: str | None = None, depth: int = 2) -> dict[str, Any]:
+def _rule_matcher(pattern: str | None):
+    """ARB-064: `--rule` is a glob over the rule id (`arbiter/concurrency.*`) or, without glob characters, a substring."""
+    wanted = (pattern or "").strip()
+    if not wanted:
+        return lambda rule_id: True
+    if any(char in wanted for char in "*?["):
+        return lambda rule_id: fnmatch.fnmatchcase(rule_id, wanted)
+    return lambda rule_id: wanted in rule_id
+
+
+def findings(
+    graph_path: Path, under: str | None = None, dimension: str | None = None, severity: str | None = None, depth: int = 2,
+    cwe: str | None = None, rule: str | None = None,
+) -> dict[str, Any]:
     """Finding nodes, filtered and grouped by directory, each with the requirements, failures and suites reachable within
-    `depth` hops over the non-code edges (the same links `lineage` follows)."""
+    `depth` hops over the non-code edges (the same links `lineage` follows). ARB-064: `cwe` keeps the findings classified
+    as that CWE (`CWE-89`, `89`), `rule` those whose rule id matches a glob or substring."""
     graph_data = load_graph(graph_path)
     by_id = {n["id"]: n for n in graph_data["nodes"]}
     prefix = (under or "").strip().replace("\\", "/").rstrip("/")
@@ -5423,8 +5810,10 @@ def findings(graph_path: Path, under: str | None = None, dimension: str | None =
         prefix = prefix[2:]
     want_dimension = (dimension or "").strip().lower()
     want_severity = (severity or "").strip().lower()
+    want_cwe = normalise_cwe(cwe)[0] if cwe and normalise_cwe(cwe) else ""
+    rule_ok = _rule_matcher(rule)
     depth = max(0, int(depth))
-    walkable = set(LINEAGE_FLOW) | set(LINEAGE_SINGLE_HOP)
+    walkable = (set(LINEAGE_FLOW) | set(LINEAGE_SINGLE_HOP)) - _FINDING_CLASS_EDGES
     adjacency: dict[str, list[str]] = {}
     for edge in graph_data["edges"]:
         if edge["type"] in walkable:
@@ -5478,6 +5867,10 @@ def findings(graph_path: Path, under: str | None = None, dimension: str | None =
             continue
         if want_severity and str(attrs.get("severity", "")).lower() != want_severity:
             continue
+        if want_cwe and want_cwe not in [str(c) for c in attrs.get("cwe") or []]:
+            continue
+        if not rule_ok(str(attrs.get("rule_id") or "")):
+            continue
         report = report or str(attrs.get("report") or "")
         symbol = next(
             (by_id[e["target"]]["name"] for e in out_edges.get(node["id"], [])
@@ -5489,6 +5882,8 @@ def findings(graph_path: Path, under: str | None = None, dimension: str | None =
             "id": node["id"], "name": node["name"], "file": file, "line": attrs.get("line"), "directory": attrs.get("directory_path", ""),
             "rule_id": attrs.get("rule_id", ""), "dimension": attrs.get("dimension", ""), "severity": attrs.get("severity", ""),
             "status": attrs.get("status", ""), "title": node.get("summary", ""), "tags": list(attrs.get("tags") or []), "symbol": symbol,
+            "cwe": [str(c) for c in attrs.get("cwe") or []], "controls": list(attrs.get("controls") or []), "probe": attrs.get("probe", ""),
+            "sources": list(attrs.get("sources") or ([attrs["report"]] if attrs.get("report") else [])),
             "requirements": linked["requirement"], "failures": linked["failure"], "suites": linked["suite"],
             "introduced_by": introduced_by(node),
         })
@@ -5502,12 +5897,80 @@ def findings(graph_path: Path, under: str | None = None, dimension: str | None =
         group["by_dimension"][item["dimension"]] = group["by_dimension"].get(item["dimension"], 0) + 1
         group["by_severity"][item["severity"]] = group["by_severity"].get(item["severity"], 0) + 1
         group["findings"].append(item)
+    by_cwe: dict[str, int] = {}
+    for item in selected:
+        for cwe_id in item["cwe"]:
+            by_cwe[cwe_id] = by_cwe.get(cwe_id, 0) + 1
+    sources = sorted({source for item in selected for source in item["sources"]})
     return {
-        "ok": True, "total": len(selected), "report": report, "depth": depth,
-        "filters": {"under": prefix or None, "dimension": want_dimension or None, "severity": want_severity or None},
-        "by_dimension": _count_by(selected, "dimension"), "by_severity": _count_by(selected, "severity"),
+        "ok": True, "total": len(selected), "report": report, "reports": sources, "depth": depth,
+        "filters": {"under": prefix or None, "dimension": want_dimension or None, "severity": want_severity or None, "cwe": want_cwe or None, "rule": (rule or "").strip() or None},
+        "by_dimension": _count_by(selected, "dimension"), "by_severity": _count_by(selected, "severity"), "by_cwe": by_cwe,
         "directories": directories,
     }
+
+
+def cwe_report(graph_path: Path, query: str) -> dict[str, Any]:
+    """ARB-064: everything classified as one CWE (`CWE-89`, `89`) or raised by one Arbiter rule id: the findings with
+    their files and status, the rules that carry the class, and the files reached. The MCP `graph_cwe` tool."""
+    graph_data = load_graph(graph_path)
+    by_id = {n["id"]: n for n in graph_data["nodes"]}
+    wanted = (query or "").strip()
+    normalised = normalise_cwe(wanted)
+    target = None
+    for node in graph_data["nodes"]:
+        if node["kind"] == "cwe" and (node["id"] == wanted or (normalised and node["name"] == normalised[0])):
+            target = node
+            break
+        if node["kind"] == "arbiter_rule" and (node["id"] == wanted or node["name"] == wanted):
+            target = node
+            break
+    if target is None:
+        known = sorted(n["name"] for n in graph_data["nodes"] if n["kind"] in ("cwe", "arbiter_rule"))
+        return {"ok": False, "error": "not_found", "query": wanted, "known": known[:60], "known_total": len(known)}
+    incoming: dict[str, list[dict[str, Any]]] = {}
+    outgoing: dict[str, list[dict[str, Any]]] = {}
+    for edge in graph_data["edges"]:
+        incoming.setdefault(edge["target"], []).append(edge)
+        outgoing.setdefault(edge["source"], []).append(edge)
+    attrs = target.get("attrs") or {}
+    result: dict[str, Any] = {
+        "ok": True, "id": target["id"], "kind": target["kind"], "name": target["name"],
+        "summary": attrs.get("name") or attrs.get("title") or target.get("summary", ""),
+        "findings": [], "rules": [], "files": [], "cwe": [],
+    }
+    if target["kind"] == "arbiter_rule":
+        result["probe"] = attrs.get("probe", "")
+        result["cwe"] = [by_id[e["target"]]["name"] for e in outgoing.get(target["id"], []) if e["type"] == "classified_as" and e["target"] in by_id]
+    files: dict[str, int] = {}
+    rules: dict[str, int] = {}
+    for edge in incoming.get(target["id"], []):
+        source = by_id.get(edge["source"])
+        if source is None:
+            continue
+        if source["kind"] == "finding":
+            fattrs = source.get("attrs") or {}
+            flagged = [by_id[e["target"]] for e in outgoing.get(source["id"], []) if e["type"] == "flags" and e["target"] in by_id]
+            symbol = next((n["name"] for n in flagged if n["kind"] in _FINDING_SYMBOL_KINDS), None)
+            result["findings"].append({
+                "id": source["id"], "name": source["name"], "file": source.get("file"), "line": fattrs.get("line"), "symbol": symbol,
+                "rule_id": fattrs.get("rule_id", ""), "severity": fattrs.get("severity", ""), "dimension": fattrs.get("dimension", ""),
+                "status": fattrs.get("status", ""), "title": source.get("summary", ""), "cwe": list(fattrs.get("cwe") or []),
+                "sources": list(fattrs.get("sources") or []),
+            })
+            if source.get("file"):
+                files[source["file"]] = files.get(source["file"], 0) + 1
+            if fattrs.get("rule_id"):
+                rules[str(fattrs["rule_id"])] = rules.get(str(fattrs["rule_id"]), 0) + 1
+        elif source["kind"] == "arbiter_rule":
+            rules.setdefault(source["name"], 0)
+    result["findings"].sort(key=lambda f: (_finding_severity_rank(f["severity"]), f["file"] or "", f["line"] or 0, f["name"]))
+    result["files"] = [{"file": path, "findings": count} for path, count in sorted(files.items())]
+    result["rules"] = [{"rule_id": rule_id, "findings": count} for rule_id, count in sorted(rules.items())]
+    result["total"] = len(result["findings"])
+    result["by_severity"] = _count_by(result["findings"], "severity")
+    result["by_status"] = _count_by(result["findings"], "status")
+    return result
 
 
 def describe_introduced_by(intro: dict[str, Any] | None) -> str:
@@ -5530,7 +5993,7 @@ def render_findings_tree(result: dict[str, Any]) -> str:
         f"findings: {result['total']}"
         + (f"  [{counts(result['by_severity'], _FINDING_SEVERITY_ORDER)}]" if result["by_severity"] else "")
         + (f"  [{counts(result['by_dimension'])}]" if result["by_dimension"] else "")
-        + (f"  report {result['report']}" if result.get("report") else "")
+        + (f"  reports {', '.join(result['reports'])}" if len(result.get("reports") or []) > 1 else (f"  report {result['report']}" if result.get("report") else ""))
     ]
     active = {k: v for k, v in result.get("filters", {}).items() if v}
     if active:
@@ -5545,7 +6008,8 @@ def render_findings_tree(result: dict[str, Any]) -> str:
             where = f"{item['file']}:{item['line']}" if item["line"] else item["file"]
             flag = "" if item["status"] == "new" else f" ({item['status']})"
             lines.append(f"  {item['name']}  {item['severity']:<8} {item['dimension']:<14} {where}" + (f" in {item['symbol']}" if item["symbol"] else "") + flag)
-            lines.append(f"      {item['rule_id']}  {item['title']}")
+            cwe_label = f"  [{', '.join(item['cwe'])}]" if item.get("cwe") else ""
+            lines.append(f"      {item['rule_id']}{cwe_label}  {item['title']}")
             if item.get("introduced_by"):  # REQ-051
                 lines.append("      " + describe_introduced_by(item["introduced_by"]))
             links = [
@@ -5555,6 +6019,8 @@ def render_findings_tree(result: dict[str, Any]) -> str:
             tags = [t for t in item["tags"] if not t.startswith("req:")]
             if tags:
                 links.append("tags: " + ", ".join(tags))
+            if len(item.get("sources") or []) > 1 or (item.get("sources") and result.get("reports") and len(result["reports"]) > 1):
+                links.append("from: " + ", ".join(item["sources"]))
             if links:
                 lines.append("      " + "   ".join(links))
     return "\n".join(lines)

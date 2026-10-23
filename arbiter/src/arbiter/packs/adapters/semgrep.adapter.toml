@@ -8,6 +8,11 @@ scope = "repo"
 
 [requires]
 binaries = ["semgrep"]
+# The pinned ruleset install_tools.sh fetches. Its marker is written only
+# after a complete fetch. Without it every --config below is missing, semgrep
+# exits 7 with no results, and the scan must say "not assessed" instead of
+# recording a clean pass (ARB-059).
+files = ["{cache}/semgrep-rules/.arbiter-ref"]
 # `--config auto` fetched the ruleset from semgrep.dev on every scan and used
 # the target's own project URL to do it -- fine for a one-off, wrong for an
 # unattended nightly job and unusable wherever that registry can't be
@@ -93,6 +98,8 @@ line = "start.line"
 severity = "extra.severity"
 severity_default = "medium"
 dimension = "security"
+# The tool's own weakness classification, normalised by arbiter.cwe.
+cwe = "extra.metadata.cwe"
 # extra.fix is an actual code-level fix when the rule offers one. Most
 # security-audit rules don't (the fix is context-dependent), so fall back to
 # the rule's own first reference (a specific CWE/OWASP/advisory page, not a

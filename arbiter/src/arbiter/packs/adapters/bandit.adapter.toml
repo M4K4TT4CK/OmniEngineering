@@ -55,6 +55,8 @@ line = "line_number"
 severity = "issue_severity"
 severity_default = "medium"
 dimension = "security"
+# The tool's own weakness classification, normalised by arbiter.cwe.
+cwe = "issue_cwe.id"
 remediation = "more_info"
 remediation_default = "Review Bandit check {rule_id}'s trigger at this line and apply the standard fix for that class of issue (bandit.readthedocs.io, plugin listing) -- no specific fix text is catalogued for this check id yet."
 

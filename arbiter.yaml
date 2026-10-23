@@ -34,3 +34,12 @@ suppress:
     path: "tests/test_adopt_loop.py"
     reason: "the adopt-loop test plants a TLS-verification-off request as text to prove the gate catches it; the test makes no request"
     expires: 2099-01-01
+  # Arbiter's Phase 1 python.command-injection rule flags the one shell=True
+  # call in make_ai.py: `omni test` and the gate run the suite commands the
+  # project registered in .ai/test-suites.json and its rulesets, with a shell
+  # so pipes and env assignments work. The command never comes from untrusted
+  # input. Same suppression as Arbiter's own arbiter.yaml.
+  - rule: "arbiter/python.command-injection"
+    path: "make_ai.py"
+    reason: "by design: omni test / gate run the suite command the project registered, with shell=True so pipes and env assignments work; never from untrusted input"
+    expires: 2027-10-21

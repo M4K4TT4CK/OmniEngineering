@@ -1,0 +1,19 @@
+{
+  "name": "planted-typescript-good",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "dependencies": {
+    "axios": "1.7.7",
+    "dayjs": "1.11.13",
+    "dompurify": "3.1.7",
+    "escape-html": "1.0.3",
+    "express": "4.21.1",
+    "pg": "8.13.1",
+    "react": "18.3.1"
+  },
+  "devDependencies": {
+    "typescript": "5.6.3",
+    "vitest": "2.1.4"
+  }
+}

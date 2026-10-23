@@ -46,6 +46,15 @@ class TestTemplate(unittest.TestCase):
         self.assertEqual(TEMPLATE.count("ForceGraph3D()(host)"), 1)
         self.assertIn("R3.destroy()", TEMPLATE)  # leaving 3D releases the GPU context
 
+    def test_ctrl_drag_pans_in_3d(self) -> None:
+        # Ctrl (or Cmd) + left-drag swaps the trackball's LEFT action to RIGHT's (pan)
+        # for that drag, set in the capture phase so it lands before the trackball reads it.
+        self.assertIn("function ctrlPan(el)", TEMPLATE)
+        self.assertIn("ctrlPan(host);", TEMPLATE)
+        self.assertIn("c.mouseButtons.LEFT = c.mouseButtons.RIGHT", TEMPLATE)
+        self.assertRegex(TEMPLATE, r"ev\.ctrlKey \|\| ev\.metaKey")
+        self.assertIn("Ctrl+drag", TEMPLATE)  # the mode tooltips say so
+
     def test_menus_are_collapsible_and_every_control_has_a_tooltip(self) -> None:
         self.assertGreaterEqual(len(re.findall(r'<section class="sec', TEMPLATE)), 7)
         self.assertGreaterEqual(len(re.findall(r"data-tip=", TEMPLATE)), 25)

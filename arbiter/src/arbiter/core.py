@@ -121,6 +121,9 @@ class Finding:
     probe: str = ""
     probe_version: str = ""
     controls: list[str] = field(default_factory=list)
+    # MITRE CWE ids ("CWE-89"). Separate from tags so a report, SARIF and the
+    # OmniGraph can classify findings by weakness without parsing free text.
+    cwe: list[str] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
     related: list[Location] = field(default_factory=list)  # interface findings cite both sides
     status: str = "new"  # new | existing | fixed

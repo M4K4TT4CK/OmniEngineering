@@ -435,6 +435,29 @@
       ],
       "prevention_notes": "A test that creates and removes a git repository runs git with auto-gc off; doing it in the shared helper means a new subclass cannot forget it.",
       "recurrence_of": "FAIL-017"
+    },
+    {
+      "id": "FAIL-019",
+      "date": "2026-10-23",
+      "title": "Graph left starter code detached: ESM .js specifiers, src-layout, same-package refs unresolved",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "On the interview workspace's five starters 9 of 14 code files had no resolved import/call edge; server.ts imported external:./app.js, tests/test_health.py imported external:service.main; only Ruby and Go tests had verifies edges; 561 of 1068 nodes were external placeholders",
+      "how_detected": "user report",
+      "root_cause": "Resolution only knew repository-root python modules and extension-less or .ts JS specifiers (_resolve_import_target), the generic resolver had no notion of a Go package or Java package across src/main and src/test (_resolve_generic), type references outside calls were never recorded, top-level JS code and arrow-function consts were never parsed, and every call site created an external placeholder whether or not it resolved",
+      "requirement": "REQ-055",
+      "affected": [
+        "omni_graph.py"
+      ],
+      "fix_summary": "_ImportResolver (python import roots, TS ESM specifier swaps), _GenericResolver (Go same-package and go.mod module paths, Java package and nearest-project tie-breaks, type references), JS top-level calls and arrow functions, _ExternalPruner, docs mentions",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_graph_resolution.py"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [],
+      "prevention_notes": "tests/test_graph_resolution.py builds a five-starter monorepo and asserts every test file verifies code in all five languages",
+      "recurrence_of": ""
     }
   ]
 }

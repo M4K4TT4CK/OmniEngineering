@@ -1,0 +1,689 @@
+# TypeScript and JavaScript rules. Owner: the TypeScript agent (ARB-061).
+# Schema: src/arbiter/lang_rules.py.
+#
+# `.ts` parses with the typescript grammar, `.tsx` with tsx and `.js/.mjs/.cjs`
+# with javascript. Every query here compiles under all three (the JSX rule is
+# narrowed with `files:` because the plain typescript grammar has no JSX
+# nodes); tests/test_lang_typescript.py compiles each query against each one.
+#
+# Query hygiene (tree-sitter 0.26): a predicate written INSIDE an alternation
+# `[...]` is silently dropped and the pattern matches everything, and a
+# predicate on a capture the matched branch did not bind passes vacuously. So
+# predicates sit at the top of their pattern and every rule that needs
+# per-branch conditions is written as several top-level patterns, each ending
+# in @hit. Text predicates on a block (`@b`) see trailing same-line comments,
+# which tree-sitter attaches inside the block, so block regexes do not end in `$`.
+#
+# Precision over recall: every rule is a shape model-drafted Node services
+# actually produce, and each has a correct twin in fixtures/planted/typescript.
+pack: typescript
+languages: [typescript, javascript]
+rules:
+  # ---------------------------------------------------------------- injection
+  - id: eval-call
+    title: "`eval` runs a string as code"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-95]
+    controls: [NIST-800-218:PW.5]
+    tags: [injection]
+    query: |
+      (call_expression
+        function: (identifier) @fn (#eq? @fn "eval")
+        arguments: (arguments . [(identifier) (member_expression) (subscript_expression) (call_expression)
+                                 (binary_expression) (template_string (template_substitution))])) @hit
+    description: >
+      Anything that reaches the string runs with the process's full rights.
+      A literal string is pointless but not an injection, so only a built or
+      passed-in argument is reported.
+    remediation: "Parse data with JSON.parse; never build code from input."
+
+  - id: new-function-code
+    title: "`new Function` compiles a runtime string into code"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-95]
+    controls: [NIST-800-218:PW.5]
+    tags: [injection]
+    query: |
+      (new_expression
+        constructor: (identifier) @c (#eq? @c "Function")
+        arguments: (arguments
+          [(identifier) (member_expression) (subscript_expression) (call_expression)
+           (binary_expression) (template_string (template_substitution))])) @hit
+    description: >
+      `new Function(src)` is `eval` with a different spelling: whatever reaches
+      the string argument runs with the process's full rights. Only a literal
+      body is reported as safe.
+    remediation: "Dispatch on data (a map of named handlers, JSON.parse); do not compile strings."
+
+  - id: timer-string-code
+    title: "`{text}` passes a string to a timer, which evaluates it as code"
+    severity: medium
+    confidence: high
+    dimension: security
+    cwe: [CWE-95]
+    controls: [NIST-800-218:PW.5]
+    tags: [injection]
+    query: |
+      (call_expression
+        function: (identifier) @fn (#match? @fn "^(setTimeout|setInterval)$")
+        arguments: (arguments . [(string) (template_string) (binary_expression)])) @hit
+    description: >
+      A string handed to setTimeout/setInterval is compiled and run like `eval`
+      when the timer fires. A template or concatenation there is code injection.
+    remediation: "Pass a function: `setTimeout(() => tick(), ms)`."
+
+  - id: vm-run-code
+    title: "`{text}` runs a runtime string through the `vm` module"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-95]
+    controls: [NIST-800-218:PW.5]
+    tags: [injection]
+    query: |
+      (call_expression
+        function: (member_expression
+          object: (identifier) @o (#eq? @o "vm")
+          property: (property_identifier) @m
+            (#match? @m "^(runInNewContext|runInThisContext|runInContext|compileFunction)$"))
+        arguments: (arguments
+          . [(identifier) (member_expression) (subscript_expression) (call_expression)
+             (binary_expression) (template_string (template_substitution))])) @hit
+    description: >
+      `vm` is not a security boundary: code run in a new context can reach the
+      host through the constructor chain. A non-literal source string is
+      arbitrary code execution for whoever controls it.
+    remediation: "Do not run untrusted code in-process; use a real sandbox (isolated worker, container) or a data-only DSL."
+
+  - id: sql-string-built
+    title: "SQL built from a string: `{text}`"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-89]
+    controls: [NIST-800-218:PW.5]
+    tags: [injection, sql]
+    query: |
+      (call_expression
+        function: (member_expression
+          property: (property_identifier) @m
+            (#match? @m "^(query|execute|raw|unsafe|\\$queryRawUnsafe|\\$executeRawUnsafe)$"))
+        arguments: (arguments
+          . [(template_string (template_substitution))
+             (binary_expression operator: "+")] @sql
+          (#match? @sql "(?i)\\b(select|insert|update|delete|from|where|into|values|set|drop|create|alter)\\b")
+          (#match? @sql "\\$\\{(?!\\s*([A-Z][A-Z0-9_]*|(quoted|escaped)[A-Z_][\\w]*|[\\w]*(Quoted|Escaped|Ident)|[\\w.]*escape(Identifier|Literal)\\([^}]*\\))\\s*\\})|\\+\\s*[A-Za-z_$(]"))) @hit
+    description: >
+      The first argument to `.query`/`.execute`/`.raw` is a template or
+      concatenation that splices a value into SQL text. Whoever controls the
+      value controls the statement. A substitution that is an ALL_CAPS
+      constant or an already-quoted identifier (`quotedSchema`,
+      `client.escapeIdentifier(x)`) is not reported: DDL identifiers cannot
+      be bound as parameters.
+    remediation: "Use placeholders: `query(\"... WHERE id = $1\", [id])`, or the driver's parameter binding."
+
+  - id: shell-command-built
+    title: "Shell command built from a value: `{text}`"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-78]
+    controls: [NIST-800-218:PW.5]
+    tags: [injection, shell]
+    requires_file: |
+      (string (string_fragment) @s (#match? @s "^(node:)?child_process$"))
+    query: |
+      ((call_expression
+        function: (identifier) @fn
+        arguments: (arguments
+          . [(template_string (template_substitution)) (binary_expression) (identifier) @arg
+             (member_expression) (subscript_expression) (call_expression)])) @hit
+       (#match? @fn "^(exec|execSync)$")
+       (#not-match? @arg "^[A-Z][A-Z0-9_]*$"))
+      ((call_expression
+        function: (member_expression
+          object: (identifier) @o
+          property: (property_identifier) @fn)
+        arguments: (arguments
+          . [(template_string (template_substitution)) (binary_expression) (identifier) @arg
+             (member_expression) (subscript_expression) (call_expression)])) @hit
+       (#match? @o "^(child_process|childProcess|cp)$")
+       (#match? @fn "^(exec|execSync)$")
+       (#not-match? @arg "^[A-Z][A-Z0-9_]*$"))
+    description: >
+      `exec` hands the string to `/bin/sh`. A value spliced in (a template
+      substitution, a `+`, a variable) that contains `;`, `|` or `$(...)` runs
+      as its own command.
+    remediation: "Use `execFile(\"prog\", [arg1, arg2])` or `spawn` without `shell: true`; pass arguments as an array."
+
+  - id: shell-spawn-built
+    title: "`spawn` with `shell: true` and a built command"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-78]
+    controls: [NIST-800-218:PW.5]
+    tags: [injection, shell]
+    query: |
+      ((call_expression
+        function: [(identifier) @fn
+                   (member_expression property: (property_identifier) @fn)]
+        arguments: (arguments
+          . [(template_string (template_substitution)) (binary_expression)
+             (identifier) (member_expression) (subscript_expression) (call_expression)]
+          (object) @opts)) @hit
+       (#match? @fn "^(spawn|spawnSync)$")
+       (#match? @opts "\\bshell\\s*:\\s*true"))
+    description: >
+      With `shell: true` the command string is parsed by the shell, so the
+      argument array no longer protects it: a value in the command runs as
+      shell syntax.
+    remediation: "Drop `shell: true` and pass the program and its arguments separately."
+
+  - id: html-from-request
+    title: "Response body built from request data: `{text}`"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-79]
+    controls: [NIST-800-218:PW.5]
+    tags: [injection, xss]
+    query: |
+      (call_expression
+        function: (member_expression
+          object: (identifier) @o (#match? @o "^(res|response|reply)$")
+          property: (property_identifier) @m (#match? @m "^(send|write|end)$"))
+        arguments: (arguments
+          . [(template_string) (binary_expression operator: "+")] @body
+          (#match? @body "\\breq(uest)?\\.(query|params|body)\\b")
+          (#not-match? @body "(?i)escape|sanitiz|encode"))) @hit
+    description: >
+      A value from the request is spliced straight into HTML sent back. A
+      `<script>` in the query string runs in every visitor's browser who
+      follows the link.
+    remediation: "Render through a template engine that escapes by default, or escape the value (`escape-html`) before splicing."
+
+  - id: inner-html-assigned
+    title: "`innerHTML` assigned a non-literal value"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-79]
+    controls: [NIST-800-218:PW.5]
+    tags: [injection, xss]
+    query: |
+      ([(assignment_expression
+          left: (member_expression property: (property_identifier) @p)
+          right: [(identifier) (member_expression) (subscript_expression) (call_expression)
+                  (binary_expression) (template_string (template_substitution))] @v)
+        (augmented_assignment_expression
+          left: (member_expression property: (property_identifier) @p)
+          right: [(identifier) (member_expression) (subscript_expression) (call_expression)
+                  (binary_expression) (template_string (template_substitution))] @v)]
+        (#match? @p "^(innerHTML|outerHTML)$")
+        (#not-match? @v "(?i)sanitiz|escape|purify|encode")) @hit
+    description: >
+      Whatever is assigned to `innerHTML` is parsed as markup, scripts and
+      event handlers included. Only a literal or a sanitised value is safe.
+    remediation: "Use `textContent`, build nodes with `createElement`, or sanitise with DOMPurify first."
+
+  - id: dangerously-set-inner-html
+    title: "`dangerouslySetInnerHTML` with a non-literal value"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-79]
+    controls: [NIST-800-218:PW.5]
+    tags: [injection, xss, react]
+    files: "*.[jt]sx"
+    query: |
+      (jsx_attribute
+        (property_identifier) @a (#eq? @a "dangerouslySetInnerHTML")
+        (jsx_expression (object (pair
+          value: [(identifier) (member_expression) (subscript_expression) (call_expression)
+                  (binary_expression) (template_string (template_substitution))] @v
+          (#not-match? @v "(?i)sanitiz|purify|escape"))))) @hit
+    description: >
+      React escapes everything except this prop. A value that is not a
+      literal or the output of a sanitiser is rendered as live markup.
+    remediation: "Render the value as text, or pass it through DOMPurify (`sanitize(value)`) first."
+
+  - id: request-keyed-assignment
+    title: "Object key taken from the request: `{text}`"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-1321]
+    controls: [NIST-800-218:PW.5]
+    tags: [injection, prototype-pollution]
+    query: |
+      (assignment_expression
+        left: (subscript_expression
+          index: (_) @k (#match? @k "\\breq(uest)?\\.(query|params|body)\\b"))) @hit
+    description: >
+      `obj[key] = value` with a key the caller chose lets the caller name
+      `__proto__` or `constructor`, which rewrites the prototype every object
+      in the process shares.
+    remediation: "Allow-list the keys you accept, or store in a `Map` (`map.set(key, value)`)."
+
+  - id: insecure-random-secret
+    title: "`Math.random()` used for a secret or token"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-338]
+    controls: [NIST-800-218:PW.5]
+    tags: [crypto, randomness]
+    query: |
+      ((variable_declarator name: (identifier) @n value: (_) @v) @hit
+       (#match? @n "(?i:token|secret|passw|nonce|session|salt|otp|apikey|api_?key|csrf|private_?key|signing_?key|(reset|verif|invite|confirm|auth|activation|recovery|magic)\\w*(code|key|id|link))")
+       (#match? @v "\\bMath\\.random\\s*\\("))
+      ((assignment_expression left: [(identifier) (member_expression)] @n right: (_) @v) @hit
+       (#match? @n "(?i:token|secret|passw|nonce|session|salt|otp|apikey|api_?key|csrf|private_?key|signing_?key|(reset|verif|invite|confirm|auth|activation|recovery|magic)\\w*(code|key|id|link))")
+       (#match? @v "\\bMath\\.random\\s*\\("))
+      ((pair key: (property_identifier) @n
+             value: [(call_expression function: [(identifier) (member_expression)])
+                    (binary_expression) (member_expression) (template_string)] @v) @hit
+       (#match? @n "(?i:token|secret|passw|nonce|session|salt|otp|apikey|api_?key|csrf|private_?key|signing_?key|(reset|verif|invite|confirm|auth|activation|recovery|magic)\\w*(code|key|id|link))")
+       (#match? @v "\\bMath\\.random\\s*\\("))
+      ((function_declaration name: (identifier) @n
+         body: (statement_block . (return_statement) @hit . (comment)? .))
+       (#match? @n "(?i:token|secret|passw|nonce|session|salt|otp|apikey|api_?key|csrf|private_?key|signing_?key|(reset|verif|invite|confirm|auth|activation|recovery|magic)\\w*(code|key|id|link))")
+       (#match? @hit "\\bMath\\.random\\s*\\("))
+      ((method_definition name: (property_identifier) @n
+         body: (statement_block . (return_statement) @hit . (comment)? .))
+       (#match? @n "(?i:token|secret|passw|nonce|session|salt|otp|apikey|api_?key|csrf|private_?key|signing_?key|(reset|verif|invite|confirm|auth|activation|recovery|magic)\\w*(code|key|id|link))")
+       (#match? @hit "\\bMath\\.random\\s*\\("))
+    description: >
+      `Math.random` is a seeded PRNG whose output is predictable from a few
+      samples. A token, session id, password or nonce drawn from it can be
+      guessed by anyone who has seen a few of them.
+    remediation: "Use `crypto.randomUUID()`, `crypto.randomBytes(n)` or `crypto.randomInt()`."
+
+  # ----------------------------------------------------------- availability
+  - id: fetch-no-timeout
+    title: "`fetch` with no timeout: `{text}`"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [timeout, resilience]
+    query: |
+      ((call_expression
+        function: (identifier) @fn
+        arguments: (arguments . (_) .)) @hit
+       (#eq? @fn "fetch"))
+      ((call_expression
+        function: (identifier) @fn
+        arguments: (arguments . (_) . (object) @opts .)) @hit
+       (#eq? @fn "fetch")
+       (#not-match? @opts "\\bsignal\\b|\\.\\.\\."))
+    unless_in_scope: |
+      [((identifier) @t (#match? @t "^(AbortController|AbortSignal|setTimeout)$"))
+       ((member_expression property: (property_identifier) @p) (#match? @p "^(race|timeout)$"))]
+    description: >
+      `fetch` has no default timeout. A peer that accepts the connection and
+      never answers holds this request, and the caller waiting on it, forever;
+      under load that is every worker. Only a literal options object without
+      `signal` is reported; one passed by name is left alone.
+    remediation: "Pass `signal: AbortSignal.timeout(ms)` (Node 17.3+), or an AbortController you abort from a timer."
+
+  - id: axios-no-timeout
+    title: "axios call with no timeout: `{text}`"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [timeout, resilience]
+    query: |
+      ((call_expression
+        function: (identifier) @fn
+        arguments: [(arguments . [(string) (template_string) (identifier) (member_expression) (object)] .)
+                    (arguments . (_) . (object) .)]) @hit
+       (#eq? @fn "axios")
+       (#not-match? @hit "\\btimeout\\b|\\.\\.\\."))
+      ((call_expression
+        function: (member_expression
+          object: (identifier) @o
+          property: (property_identifier) @m)
+        arguments: [(arguments . [(string) (template_string) (identifier) (member_expression)] .)
+                    (arguments . (_) . (object) .)
+                    (arguments . (_) . (_) . (object) .)]) @hit
+       (#eq? @o "axios")
+       (#match? @m "^(get|post|put|patch|delete|head|options|request)$")
+       (#not-match? @hit "\\btimeout\\b|\\.\\.\\."))
+    unless_in_file: |
+      (member_expression
+        object: (member_expression
+          object: (identifier) @a (#eq? @a "axios")
+          property: (property_identifier) @d (#eq? @d "defaults"))
+        property: (property_identifier) @t (#eq? @t "timeout"))
+    unless_in_scope: |
+      [((identifier) @t (#match? @t "^(AbortController|AbortSignal|setTimeout)$"))
+       ((member_expression property: (property_identifier) @p) (#match? @p "^(race|timeout)$"))]
+    description: >
+      axios's default timeout is 0, meaning none. A call on the global `axios`
+      with no `timeout` in its config, and no `axios.defaults.timeout` in the
+      file, waits as long as the peer keeps the socket open.
+    remediation: "Pass `{ timeout: ms }`, or create one instance with `axios.create({ timeout })` and use it everywhere."
+
+  - id: http-request-no-timeout
+    title: "`{text}` with no timeout"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [timeout, resilience]
+    query: |
+      ((call_expression
+        function: (member_expression
+          object: (identifier) @o (#match? @o "^https?$")
+          property: (property_identifier) @m (#match? @m "^(get|request)$"))) @hit
+       (#not-match? @hit "\\btimeout\\b"))
+    requires_file: |
+      (string (string_fragment) @s (#match? @s "^(node:)?https?$"))
+    unless_in_scope: |
+      [((property_identifier) @p (#match? @p "^(setTimeout|timeout|destroy)$"))
+       ((string (string_fragment) @s) (#eq? @s "timeout"))]
+    description: >
+      `http.request`/`https.get` never time out on their own: the socket
+      stays open as long as the server likes. Nothing in this call or its
+      function sets `timeout`, calls `req.setTimeout` or handles the
+      `timeout` event.
+    remediation: "Pass `{ timeout: ms }` and handle `req.on(\"timeout\", () => req.destroy())`, or use `fetch` with `AbortSignal.timeout`."
+
+  - id: retry-no-backoff
+    title: "Retry loop with no backoff or cap"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400, CWE-834]
+    controls: [NIST-800-218:PW.5]
+    tags: [retry, resilience]
+    query: |
+      [(for_statement
+         condition: (empty_statement)
+         body: (statement_block
+           (try_statement
+             body: (statement_block) @tb (#match? @tb "\\b(return|break)\\b")
+             handler: (catch_clause))))
+       (while_statement
+         condition: (parenthesized_expression (true))
+         body: (statement_block
+           (try_statement
+             body: (statement_block) @tb (#match? @tb "\\b(return|break)\\b")
+             handler: (catch_clause))))] @hit
+    unless_in_scope: |
+      [((identifier) @t (#match? @t "^(setTimeout|setImmediate|sleep|delay|backoff|wait|pause)$"))
+       ((property_identifier) @p (#match? @p "^(setTimeout|sleep|delay|backoff|wait|pause)$"))]
+    description: >
+      An unbounded loop that tries, catches and tries again with nothing in the
+      function that waits between attempts. When the dependency is down this
+      hammers it at full speed from every worker at once, and never gives up.
+    remediation: "Cap the attempts, await an exponential backoff with jitter between them, and rethrow after the last."
+
+  - id: worker-loop-no-stop
+    title: "Worker loop with no way to stop"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-835]
+    controls: [NIST-800-218:PW.5]
+    tags: [shutdown, resilience]
+    query: |
+      ([(while_statement
+          condition: (parenthesized_expression (true))
+          body: (statement_block) @b)
+        (for_statement
+          condition: (empty_statement)
+          body: (statement_block) @b)] @hit
+       (#match? @b "\\bawait\\b")
+       (#not-match? @b "\\b(break|return|yield)\\b|aborted|\\b(running|isRunning|stopped|isStopped|stopping|shouldStop|shutdown|shuttingDown|closed|closing|draining|alive|active|exiting)\\b"))
+    description: >
+      `while (true)` that awaits work and never checks a stop flag, an abort
+      signal or a `break`: the process cannot drain and exit cleanly on
+      SIGTERM, so a deploy or scale-down kills it mid-job.
+    remediation: "Loop on a flag or `AbortSignal` (`while (!signal.aborted)`), set it from the SIGTERM handler, and await the loop's promise before exiting."
+
+  # ------------------------------------------------------------ concurrency
+  - id: async-check-then-act
+    title: "Check, await, then act on shared state"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-362]
+    controls: [NIST-800-218:PW.5]
+    tags: [concurrency, race]
+    query: |
+      ((if_statement
+         condition: (parenthesized_expression
+           [(unary_expression argument: (call_expression function: (member_expression object: (_) @obj property: (property_identifier) @q)))
+            (call_expression function: (member_expression object: (_) @obj property: (property_identifier) @q))
+            (binary_expression left: (call_expression function: (member_expression object: (_) @obj property: (property_identifier) @q)))])
+         consequence: (statement_block
+           (_) @pre
+           (expression_statement [(call_expression function: (member_expression object: (_) @obj2 property: (property_identifier) @mut))
+                                  (assignment_expression left: (subscript_expression object: (_) @obj2))
+                                  (assignment_expression left: (member_expression object: (_) @obj2))]))) @hit
+       (#match? @q "^(has|includes|get|hasOwnProperty)$")
+       (#match? @pre "\\bawait\\b")
+       (#not-match? @pre "^//")
+       (#not-match? @pre "^(const|let|var)\\s+[\\w$]+\\s*=\\s*\\(?\\s*async\\b")
+       (#match? @mut "^(set|add|delete|push|splice|unshift|clear)$")
+       (#eq? @obj @obj2))
+      ((if_statement
+         condition: (parenthesized_expression
+           [(binary_expression left: (member_expression) @obj)
+            (unary_expression argument: (member_expression) @obj)
+            (member_expression) @obj])
+         consequence: (statement_block
+           (_) @pre
+           (expression_statement (assignment_expression left: (member_expression) @obj2)))) @hit
+       (#match? @pre "\\bawait\\b")
+       (#not-match? @pre "^//")
+       (#not-match? @pre "^(const|let|var)\\s+[\\w$]+\\s*=\\s*\\(?\\s*async\\b")
+       (#eq? @obj @obj2))
+    description: >
+      The `if` reads shared state, the body awaits, then changes that same
+      state. Between the check and the change the event loop runs other
+      handlers, which see the old state and pass the same check: two
+      requests both miss the cache and load, two workers both claim the job.
+      Without an `await` between check and act JavaScript cannot interleave.
+    remediation: "Store the pending promise before awaiting (`cache.set(k, load(k))`), or re-check after the await, or serialise with a per-key lock."
+
+  # ---------------------------------------------------------- error handling
+  - id: empty-catch
+    title: "Error swallowed by an empty `catch`"
+    severity: low
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-391, CWE-703]
+    controls: [NIST-800-218:PW.5]
+    tags: [error-handling]
+    # Silent when the block says why (a comment inside it) or the binding is
+    # named `_...`, the lint convention for a deliberately unused error.
+    query: |
+      (catch_clause !parameter body: (statement_block) @b
+        (#match? @b "^\\{\\s*\\}")) @hit
+      (catch_clause parameter: (identifier) @p body: (statement_block) @b
+        (#not-match? @p "^_")
+        (#match? @b "^\\{\\s*\\}")) @hit
+    unless_inside: |
+      [(for_statement body: (statement_block (try_statement handler: (catch_clause) @c)))
+       (for_in_statement body: (statement_block (try_statement handler: (catch_clause) @c)))
+       (while_statement body: (statement_block (try_statement handler: (catch_clause) @c)))
+       (do_statement body: (statement_block (try_statement handler: (catch_clause) @c)))]
+      ((comment) . (try_statement) @c)
+      (try_statement body: (statement_block (comment) @k .) handler: (catch_clause) @c
+        (#match? @k "eslint-disable[^\\n]*no-empty"))
+      ((catch_clause body: (statement_block (comment) @k)) @c
+        (#match? @k "eslint-disable[^\\n]*no-empty"))
+    description: >
+      The error is caught and dropped: no log, no rethrow, no fallback. When
+      this fails in production nothing records that it did, and the caller
+      carries on with whatever half-state the failed call left behind.
+      A block with a comment saying why, a comment right before the `try`,
+      an `eslint-disable no-empty`, or an error bound as `_...`, is taken as
+      a deliberate choice and not reported.
+    remediation: "Log it with context, rethrow, or return a documented fallback; if ignoring is right, say why in the block."
+
+  - id: empty-catch-in-loop
+    title: "Error swallowed by an empty `catch` inside a loop"
+    severity: medium
+    confidence: high
+    dimension: quality
+    cwe: [CWE-391, CWE-703]
+    controls: [NIST-800-218:PW.5]
+    tags: [error-handling]
+    query: |
+      ([(for_statement body: (statement_block (try_statement handler: (catch_clause body: (statement_block) @b) @hit)))
+        (for_in_statement body: (statement_block (try_statement handler: (catch_clause body: (statement_block) @b) @hit)))
+        (while_statement body: (statement_block (try_statement handler: (catch_clause body: (statement_block) @b) @hit)))
+        (do_statement body: (statement_block (try_statement handler: (catch_clause body: (statement_block) @b) @hit)))]
+       (#match? @b "^\\{\\s*(//[^\\n]*\\s*|/\\*[\\s\\S]*?\\*/\\s*)*\\}"))
+    # An explicit lint suppression is a reviewed decision; a bare comment is not.
+    unless_inside: |
+      (try_statement body: (statement_block (comment) @k .) handler: (catch_clause) @c
+        (#match? @k "eslint-disable[^\\n]*no-empty"))
+      ((catch_clause body: (statement_block (comment) @k)) @c
+        (#match? @k "eslint-disable[^\\n]*no-empty"))
+    description: >
+      A loop body that catches and drops every error keeps going as if each
+      iteration succeeded: a worker that fails every job and reports nothing,
+      a batch that skips records silently.
+    remediation: "Log each failure with the item it was processing, count them, and fail or alert past a threshold."
+
+  - id: promise-catch-noop
+    title: "Promise rejection swallowed: `{text}`"
+    severity: low
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-391, CWE-703]
+    controls: [NIST-800-218:PW.5]
+    tags: [error-handling]
+    query: |
+      ((call_expression
+        function: (member_expression property: (property_identifier) @m (#eq? @m "catch"))
+        arguments: (arguments
+          . [(arrow_function body: [(undefined) (null) (statement_block)])
+             (function_expression body: (statement_block))] .)) @hit
+       (#not-match? @hit "\\.(quit|end|close|disconnect|destroy|terminate|kill|release|unsubscribe)\\x28\\s*\\x29\\s*\\.catch\\x28")
+       (#match? @hit "=>\\s*(undefined|null|\\{\\s*\\})\\s*\\)$|\\)\\s*\\{\\s*\\}\\s*\\)$"))
+    # Deliberate suppression: `void p.catch(...)` (the no-floating-promises
+    # idiom), or a comment right before the statement saying why.
+    unless_inside: |
+      (unary_expression operator: "void" argument: (_) @c)
+      ((comment) . [(expression_statement) (lexical_declaration) (return_statement)] @c)
+    description: >
+      `.catch(() => {})` turns every failure of the chain into silent
+      success. The rejection is gone and nothing records that it happened.
+      Not reported: teardown calls (`quit()`, `end()`, `close()` ...), whose
+      failure leaves nothing to recover; `void p.catch(...)`; and a statement
+      with a comment right above it saying why.
+    remediation: "Log the error in the handler, or let it propagate to a handler that does."
+
+  # ------------------------------------------------------------------ stubs
+  - id: stub-throws-not-implemented
+    title: "Function body is only `{text}`"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-1164]
+    controls: [NIST-800-218:PW.5]
+    tags: [stub]
+    query: |
+      ([(function_declaration body: (statement_block . (throw_statement (new_expression arguments: (arguments . (string) @s))) @hit))
+        (method_definition body: (statement_block . (throw_statement (new_expression arguments: (arguments . (string) @s))) @hit))
+        (arrow_function body: (statement_block . (throw_statement (new_expression arguments: (arguments . (string) @s))) @hit))
+        (function_expression body: (statement_block . (throw_statement (new_expression arguments: (arguments . (string) @s))) @hit))]
+       (#match? @s "(?i)not (yet )?implemented|unimplemented|\\btodo\\b|\\bstub\\b|placeholder"))
+    description: >
+      The function's first statement throws "not implemented", so nothing
+      after it can run. On a
+      production path this is a feature that fails for every caller, and a
+      stub in a check (`verify`, `authorize`) is a check that never runs.
+    remediation: "Implement it, or remove the call path until it exists; do not ship a placeholder behind a real route."
+
+  - id: stub-returns-constant
+    title: "Function returns a constant marked TODO"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-1164]
+    controls: [NIST-800-218:PW.5]
+    tags: [stub]
+    query: |
+      ([(statement_block . (return_statement [(true) (false) (null) (undefined) (number) (string) (array) (object)]) @hit . (comment) @c .)
+        (statement_block . (comment) @c . (return_statement [(true) (false) (null) (undefined) (number) (string) (array) (object)]) @hit)]
+       (#match? @c "(?i)\\b(todo|fixme|stub|placeholder|for now|temporary|hardcoded|hard-coded)\\b"))
+    description: >
+      The function's only statement returns a fixed value and the comment
+      beside it says so. A placeholder `return true` in a check is an
+      always-yes; a placeholder `return []` is a feature that silently does
+      nothing.
+    remediation: "Implement the function or make it throw until it is, so the gap is visible instead of silent."
+
+  # ------------------------------------------------------------------ tests
+  - id: test-without-assertion
+    title: "Test `{text}` contains no assertion"
+    severity: low
+    confidence: medium
+    dimension: assurance
+    cwe: [CWE-1164]
+    controls: [NIST-800-218:PW.8]
+    tags: [assurance, test]
+    roles: [test]
+    query: |
+      ((call_expression
+        function: (identifier) @fn
+        arguments: (arguments
+          (string) @hit
+          [(function_expression body: (statement_block) @b)
+           (arrow_function parameters: (formal_parameters (_)) body: (statement_block) @b)]))
+       (#match? @fn "^(it|test)$")
+       (#not-match? @b "(?i)\\b(expect|assert\\w*|should|verify|check|validate|snapshot|throws?|rejects|resolves|toHaveBeenCalled|fail)\\b|\\b(expect|assert|verify|check|validate|ensure)(?-i:[A-Z_])\\w*\\s*\\(|[(,:]\\s*done\\s*[,)}]")
+       (#not-match? @hit "(?i)(\\bnot|\\bnever|n't|\\bwithout) throw"))
+    description: >
+      The test body has nothing that can fail: no `expect`, `assert` or
+      `should`, and `done` is not handed to anything that could call it with
+      an error. It passes whatever the code does. (Arrow-function callbacks
+      with no parameters are covered by `assurance.test-asserts-nothing`;
+      this catches `function () {}` and `(done) => {}` callbacks.) A test
+      whose title says it checks that nothing throws, or that hands `done`
+      on as a callback (`{ end: done }`), is not reported.
+    remediation: "Assert the behaviour, or say in a comment that not throwing is the assertion."
+
+  - id: skipped-test
+    title: "Test skipped unconditionally: `{text}`"
+    severity: low
+    confidence: high
+    dimension: assurance
+    cwe: [CWE-1164]
+    controls: [NIST-800-218:PW.8]
+    tags: [assurance, test]
+    roles: [test]
+    query: |
+      ((call_expression
+        function: (member_expression
+          object: (identifier) @o
+          property: (property_identifier) @p)) @hit
+       (#eq? @o "test")
+       (#match? @p "^(skip|todo)$"))
+      ((call_expression function: (identifier) @x) @hit
+       (#eq? @x "xtest"))
+    # `if (!supported) test.skip(...)` is a skip with a condition.
+    unless_inside: |
+      (if_statement [consequence: (_) @c alternative: (_) @c])
+      (ternary_expression [consequence: (_) @c alternative: (_) @c])
+    description: >
+      `test.skip`/`test.todo`/`xtest` passes forever and protects nothing.
+      (`it.skip`, `describe.skip`, `xit` and `xdescribe` are reported by
+      `assurance.permanently-skipped-test`.)
+    remediation: "Fix it, delete it, or skip with a condition and a reason."

@@ -126,9 +126,33 @@ def ts_name(language: str) -> str | None:
     return LANG_MAP.get(language)
 
 
+def grammar_for(path: str, language: str) -> str | None:
+    """The grammar to parse `path` with. `.tsx` is TypeScript to the inventory
+    but needs the tsx grammar: the plain one fails on every JSX element."""
+    ts = ts_name(language)
+    if ts == "typescript" and str(path).endswith(".tsx"):
+        return "tsx"
+    return ts
+
+
+def cached_grammars() -> set[str]:
+    """Grammars already on disk. Never downloads: a scan under the offline
+    profile must not reach the network to find out what it cannot parse."""
+    if not available():
+        return set()
+    try:
+        from tree_sitter_language_pack import downloaded_languages
+    except ImportError:  # an older pack bundles every grammar in the wheel
+        return {v for v in LANG_MAP.values()} | {"tsx"}
+    try:
+        return set(downloaded_languages())
+    except Exception:  # noqa: BLE001 - an unreadable cache is "nothing cached", reported as not assessed
+        return set()
+
+
 def parse_file(path: str, language: str):
     """Return a tree-sitter tree, or None when the language is unsupported."""
-    ts = ts_name(language)
+    ts = grammar_for(path, language)
     if not ts or not available():
         return None
     try:
@@ -144,7 +168,9 @@ def run_query(language: str, query_src: str, tree_and_src) -> list[dict]:
     if not ts or tree_and_src is None:
         return []
     tree, src = tree_and_src
-    lang = _language(ts)
+    # Compile against the grammar the tree was parsed with (tsx for a .tsx
+    # file), not the inventory language's default grammar.
+    lang = getattr(tree, "language", None) or _language(ts)
     # tree-sitter moved queries around between 0.21 and 0.26. Support both:
     # new  -> Query(language, source) + QueryCursor(query).captures(node)
     # old  -> language.query(source).captures(node)

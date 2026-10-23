@@ -15,6 +15,10 @@ For most tasks, load only:
 5. The one playbook or checklist that matches the task
 
 Then inspect only the project files named by the active requirement or prompt.
+Before editing a file, `./omni graph why <path>` lists the requirements,
+tests, earlier failures and open Arbiter findings already attached to it;
+`./omni graph why f:<id>` traces one finding to its rule, CWE, requirement
+and introducing commit.
 
 ## Escalation Rule
 

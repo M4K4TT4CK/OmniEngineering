@@ -6,7 +6,7 @@
   ],
   "counts": {
     "contested": 348,
-    "severity_disagreement": 83,
+    "severity_disagreement": 82,
     "corroborated": 290,
     "coverage_gap": 12
   },
@@ -2685,22 +2685,22 @@
       "only": "checkov"
     },
     {
-      "id": "f:0235c5c1d811",
-      "rule": "checkov/CKV2_K8S_1",
-      "title": "RoleBinding should not allow privilege escalation to a ServiceAccount or Node on other RoleBinding",
+      "id": "f:0a490355569b",
+      "rule": "checkov/CKV2_K8S_5",
+      "title": "No ServiceAccount/Node should be able to read all secrets",
       "severity": "medium",
-      "family": "privilege",
+      "family": "secret",
       "where": "infrastructure/helm-tiller/pwnchart/templates/clusterrolebinding.yaml:3",
       "tool": "checkov",
       "other_side": [],
       "only": "checkov"
     },
     {
-      "id": "f:0a490355569b",
-      "rule": "checkov/CKV2_K8S_5",
-      "title": "No ServiceAccount/Node should be able to read all secrets",
+      "id": "f:f7d5f4797424",
+      "rule": "checkov/CKV2_K8S_4",
+      "title": "ServiceAccounts and nodes that can modify services/status may set the `status.loadBalancer.ingress.ip` field to exploit ",
       "severity": "medium",
-      "family": "secret",
+      "family": "public-access",
       "where": "infrastructure/helm-tiller/pwnchart/templates/clusterrolebinding.yaml:3",
       "tool": "checkov",
       "other_side": [],
@@ -2718,11 +2718,11 @@
       "only": "checkov"
     },
     {
-      "id": "f:f7d5f4797424",
-      "rule": "checkov/CKV2_K8S_4",
-      "title": "ServiceAccounts and nodes that can modify services/status may set the `status.loadBalancer.ingress.ip` field to exploit ",
+      "id": "f:0235c5c1d811",
+      "rule": "checkov/CKV2_K8S_1",
+      "title": "RoleBinding should not allow privilege escalation to a ServiceAccount or Node on other RoleBinding",
       "severity": "medium",
-      "family": "public-access",
+      "family": "privilege",
       "where": "infrastructure/helm-tiller/pwnchart/templates/clusterrolebinding.yaml:3",
       "tool": "checkov",
       "other_side": [],
@@ -4228,22 +4228,6 @@
       "tool": "checkov",
       "other_side": [
         "arbiter/resource.database-publicly-accessible"
-      ],
-      "gap": 2
-    },
-    {
-      "id": "f:b1d592a168b0",
-      "rule": "arbiter/secrets.assigned-credential",
-      "title": "Hardcoded credential assigned to `AWS_ACCESS_KEY_ID`",
-      "severity": "medium",
-      "family": "secret",
-      "where": "root:terraform/aws/ec2.tf:15",
-      "tool": "arbiter",
-      "other_side": [
-        "checkov/CKV_AWS_46",
-        "checkov/CKV_SECRET_2",
-        "gitleaks/aws-access-token",
-        "semgrep/semgrep-rules.generic.secrets.gitleaks.aws-access-token"
       ],
       "gap": 2
     },

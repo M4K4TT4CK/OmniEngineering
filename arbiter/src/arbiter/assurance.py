@@ -144,6 +144,17 @@ _SKIPPED_TEST = re.compile(
     r"|@(?:Disabled|Ignore)\b"
 )
 
+def _in_comment(text: str, pos: int) -> bool:
+    """True when `pos` sits in a comment line or a Javadoc `{@code ...}` span.
+
+    gson's PerformanceTest wrote ``{@code @Ignore}`` in a Javadoc comment and was
+    reported as a skipped test.
+    """
+    start = text.rfind("\n", 0, pos) + 1
+    before = text[start:pos].lstrip()
+    return before.startswith(("*", "/*", "//", "#")) or "{@code" in before or "{@link" in before
+
+
 _TEST_DEF = re.compile(
     r"^\s*(?:async\s+)?def\s+(test_[A-Za-z0-9_]*)\s*\([^)]*\)\s*:"
     r"|^\s*(?:it|test)\s*\(\s*[\"'`]([^\"'`]{1,80})[\"'`]\s*,\s*(?:async\s*)?\(?\s*\)?\s*=>\s*\{"
@@ -403,6 +414,8 @@ def _untestable_tests(ctx: ProbeContext, repo_id: str) -> list[Finding]:
             continue
 
         for m in _SKIPPED_TEST.finditer(text):
+            if _in_comment(text, m.start()):
+                continue
             skipped_total += 1
             out.append(Finding(
                 rule_id="arbiter/assurance.permanently-skipped-test",

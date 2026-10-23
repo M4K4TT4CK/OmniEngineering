@@ -57,6 +57,13 @@ class Probe:
     stacks: list[str] | None = None       # None = always applicable
     binaries: list[str] = field(default_factory=list)
     modules: list[str] = field(default_factory=list)
+    # Files the probe cannot run without (an analyzer's ruleset). `{cache}`
+    # resolves to adapters.cache_dir() at check time. A missing one is a
+    # dependency this machine lacks, like a missing binary (ARB-059).
+    files: list[str] = field(default_factory=list)
+    # tree-sitter grammars the probe parses with. One that is not cached is a
+    # dependency this machine lacks: not assessed, never a clean pass.
+    grammars: list[str] = field(default_factory=list)
     network: bool = False
     model: bool = False
     multi_repo_only: bool = False
@@ -126,6 +133,19 @@ class Probe:
             import importlib.util
             if importlib.util.find_spec(mod) is None:
                 return True, f"missing python package: {mod}"
+        if self.grammars:
+            from . import ast as _ts
+            missing = sorted(set(self.grammars) - _ts.cached_grammars())
+            if missing:
+                return True, (f"missing tree-sitter grammar: {', '.join(missing)} "
+                              "(run tools/install_tools.sh)")
+        if self.files:
+            from .adapters import cache_dir
+            for spec in self.files:
+                path = Path(spec.replace("{cache}", str(cache_dir())))
+                if not path.exists():
+                    return True, (f"missing required file: {path} "
+                                  "(run tools/install_tools.sh)")
         return False, ""
 
     def applicable(self, ctx: ProbeContext) -> tuple[bool, str]:
@@ -2261,6 +2281,23 @@ try:
     _register_authored()
 except Exception:  # noqa: BLE001 - an optional probe module must not break the registry import
     pass
+
+
+# Shared state touched by concurrent workers without a lock (ARB-053, ARB-054):
+# the race model-drafted worker code most often ships with.
+try:
+    from .concurrency import register_concurrency as _register_concurrency
+    _register_concurrency()
+except Exception:  # noqa: BLE001 - an optional probe module must not break the registry import
+    pass
+
+
+# Shipped per-language rule packs (packs/rules/ast/*.yaml), one probe per pack.
+# Not wrapped in a blanket except: a pack that fails its schema must fail
+# loudly, or a typo would silently switch a whole language's checks off.
+from .lang_rules import register_lang_rules as _register_lang_rules
+
+_register_lang_rules()
 
 
 # Contracts declared in one artifact and implemented in another: an OpenAPI

@@ -115,7 +115,9 @@ adds nothing. Root cause, fix and regression test are left for the person who
 fixes it (`omni failure update FAIL-### ...`); the bridge records what the
 scanner knows and nothing it does not. The file it writes passes
 `omni failure check`, and `omni graph why <path>` then shows the finding
-beside the requirements and tests already attached to that file.
+beside the requirements and tests already attached to that file; the finding
+node itself is `recorded_as` that ledger entry, and `omni graph why f:<id>`
+walks from it to the rule, CWE, requirement and introducing commit (ARB-064).
 
 ### Adjudicating needs a terminal
 

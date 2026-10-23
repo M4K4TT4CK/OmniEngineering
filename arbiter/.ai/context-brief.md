@@ -18,7 +18,9 @@ For most tasks, load only:
 Then inspect only the project files named by the active requirement or prompt.
 `README.md` "Layout" names the module responsible for each pipeline stage.
 Before editing a file, `python omni graph why <path>` lists the requirements,
-tests and earlier failures already attached to it.
+tests, earlier failures and open Arbiter findings already attached to it;
+`python omni graph why f:<id>` traces one finding to its rule, CWE, requirement
+and introducing commit (ARB-064).
 
 ## Escalation Rule
 

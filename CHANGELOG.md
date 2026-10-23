@@ -1,4 +1,62 @@
 # Changelog
+## 2026-10-23
+### Completed
+- `REQ-055` | Code understanding | The code graph stays connected (FAIL-019). On
+the interview workspace's five starters 9 of 14 code files had no resolved
+edge; now 2 (an empty `__init__.py` and a Spring `Application` nothing names).
+TypeScript ESM specifiers resolve to their source (`./app.js` -> `app.ts`,
+`.mjs` -> `.mts`, `.cjs` -> `.cts`, index files); `.mts`/`.cts` are parsed, as
+are top-level calls and `const f = () => ...` functions. Python imports resolve
+against the importing project's roots: `src/`, pyproject/setup.cfg/pytest.ini
+`where`, `package-dir` and `pythonpath`, the first non-package directory up,
+relative imports and `from pkg import module`, so several projects in one
+repository each resolve inside themselves. Go resolves same-package calls and
+`go.mod` module-path imports; Java same-package types and annotation class
+literals (`@WebMvcTest(HealthController.class)`), with ambiguous names going to
+the nearest project; Ruby constants and `.ru`/`.rake` files. A resolved
+reference drops its `external:` placeholder, and a bare call no import explains
+(`it`, `expect`, a method on a local) gets none, listed in the caller's
+`attrs.unresolved_calls` instead: the starter workspace's graph goes from 746 to
+130 placeholders, all imports or calls into imported libraries. Test files now
+`verify` code in all five languages. Markdown docs (README, `docs/`, skills)
+get `mentions` edges to the existing files they name in backticks or link to;
+`omni graph why` lists them under docs. Tests in
+`tests/test_graph_resolution.py`.
+
+## 2026-10-22
+### Completed
+- `REQ-023` | Code understanding | The 3D graph view pans on Ctrl+drag (Cmd+drag
+on macOS) as well as right-drag: for that one drag the trackball's left button
+takes the pan action, set in a capture-phase listener before the trackball reads
+it. The 2D view already pans on any drag, Ctrl included; Ctrl+click no longer
+opens the macOS context menu on either view. The 2D and 3D tooltips say so.
+`tests/test_viewer.py` checks the handler is in the page.
+- `REQ-054` | Code understanding | Arbiter findings in the graph say what was
+found and how to fix it, and trace to the ARB requirement behind their rule.
+Finding nodes keep the rule's `description` and `remediation` (600 characters
+each, with `remediation_source`; the evidence is still never copied), shown in
+the viewer's new Finding and Fix blocks, `omni graph why`, `omni graph findings`
+and MCP `graph_findings`. New `specified_by` (arbiter_rule → requirement) and
+`mentions_rule` (changelog entry → arbiter_rule) edges: EXTRACTED from a
+`requirements` field on a report finding or rule, else INFERRED from a
+change-log bullet that names the rule or its rule pack under its ids, a pack
+header, or a registry entry. The vendored `arbiter/CHANGELOG.md` joins the graph
+as `arbiter/<date>` entries. Each finding lists `traced_to`; the viewer shows a
+"traced to" row with its own Trace button, search finds a finding by its ARB id,
+and `why`/`lineage ARB-053` reach the rules and their findings. On this
+repository's full scan 8 of 506 findings trace (to arbiter/ARB-033): Arbiter's
+records name few of the rules that fire here.
+
+## 2026-10-21
+### Completed
+- `REQ-053` | Code understanding | Arbiter Phase 1 pulled into `arbiter/`: rule
+packs for Python, TypeScript/JavaScript, Go, Java and Ruby (every planted
+defect caught in all five, nothing on the correct twins), plus precision fixes
+from real repositories. Graph: findings now `violates` an `arbiter_rule` node and
+are `classified_as` `cwe` nodes; full and gate reports are merged;
+`omni graph build --if-stale`; `omni graph findings --cwe/--rule`; `omni graph
+impact <file|CWE>`; MCP `graph_cwe`. The rebuild note prints forward slashes on
+every OS.
 
 ## 2026-10-09
 

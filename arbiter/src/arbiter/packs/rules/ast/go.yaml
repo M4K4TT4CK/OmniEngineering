@@ -1,0 +1,634 @@
+# Go rules. Owner: the Go agent. Schema: src/arbiter/lang_rules.py.
+#
+# Every rule prefers precision over recall: each is checked against the
+# planted corpus (fixtures/planted/go) and against real repositories (cobra,
+# prometheus/client_golang, govwa) before it ships. Shapes that read as
+# correct Go -- a collector goroutine that owns a map, per-goroutine slice
+# slots, a local counter, a lock held in the same function -- are twins in
+# good/ and must stay silent.
+#
+# Tree-sitter has no descendant operator, so "inside a goroutine body" is
+# spelled out as the body's own statement list plus one and two nesting
+# levels of `(_ (_ (statement_list ...)))` (a for/if/select/switch and its
+# block or case). Deeper nesting is deliberately not matched.
+pack: go
+languages: [go]
+rules:
+  # ---------------------------------------------------------------------
+  # Outbound calls with no timeout
+  # ---------------------------------------------------------------------
+  - id: http-default-client
+    title: "`{text}` uses Go's default HTTP client, which never times out"
+    severity: medium
+    confidence: high
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [timeout, reliability]
+    query: |
+      ((call_expression
+        function: (selector_expression) @fn
+        (#match? @fn "^http\\.(Get|Post|Head|PostForm)$")) @hit)
+      ((call_expression
+        function: (selector_expression
+          operand: (selector_expression) @client
+          field: (field_identifier) @method)
+        (#eq? @client "http.DefaultClient")
+        (#match? @method "^(Do|Get|Post|Head|PostForm)$")) @hit)
+    # A request built with a context deadline is bounded by that deadline.
+    unless_in_scope: |
+      ((selector_expression) @s
+        (#match? @s "^(http\\.NewRequestWithContext|context\\.(WithTimeout|WithDeadline))$"))
+    description: >-
+      net/http's package-level helpers and http.DefaultClient have a zero
+      Timeout. A slow or hung upstream holds the goroutine and its connection
+      forever, and under load that is how a dependency outage becomes yours.
+    remediation: "Use an http.Client{Timeout: ...}, or build the request with context.WithTimeout and http.NewRequestWithContext."
+
+  - id: http-client-no-timeout
+    title: "`{text}` sets no Timeout, so a hung upstream holds the connection forever"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [timeout, reliability]
+    query: |
+      ((composite_literal
+        type: (qualified_type) @t
+        body: (literal_value) @body)
+        (#eq? @t "http.Client")
+        (#not-match? @body "Timeout")) @hit
+    # Timeout assigned after construction, or deadlines carried by context:
+    # a file that attaches a context to its requests (req.WithContext,
+    # http.NewRequestWithContext) is a client whose caller owns the deadline
+    # -- the Prometheus API client is this shape. So is a client handed to an
+    # SDK whose own options set the deadline (docker's client.WithTimeout,
+    # resty's SetTimeout) -- traefik's docker provider.
+    unless_in_file: |
+      ((assignment_statement
+        left: (expression_list (selector_expression field: (field_identifier) @f)))
+        (#eq? @f "Timeout"))
+      ((selector_expression) @s
+        (#match? @s "^context\\.(WithTimeout|WithDeadline)$"))
+      ((selector_expression field: (field_identifier) @f)
+        (#match? @f "^(WithContext|NewRequestWithContext)$"))
+      ((call_expression function: (selector_expression field: (field_identifier) @f))
+        (#match? @f "^(WithTimeout|SetTimeout|WithRequestTimeout)$"))
+    description: >-
+      An http.Client literal without a Timeout (and without a Transport that
+      sets one) behaves like the default client: no overall deadline on a
+      request. Every slow dependency call then ties up a goroutine and a
+      connection for as long as the far end chooses.
+    remediation: "Set Timeout on the client, or pass a context with a deadline on every request."
+
+  - id: db-call-no-deadline
+    title: "`{text}` runs a database call with no deadline or cancellation"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [timeout, reliability, database]
+    # Two shapes, both "a context was there to use and was not":
+    #   1. a ...Context method handed context.Background() / context.TODO()
+    #      literally, so the call has no deadline whatever the caller wanted;
+    #   2. a handler or ctx-taking function that calls the context-free
+    #      Query/QueryRow/Exec/Prepare/Begin on a db / tx / conn / pool,
+    #      dropping the request's cancellation (the `noctx` linter's shape).
+    # Shape 2 is limited to files that import database/sql or sqlx, to
+    # receivers named like a database handle (url.Values.Query is not one),
+    # and (below) to functions that have a context to pass.
+    query: |
+      ((call_expression
+        function: (selector_expression field: (field_identifier) @m)
+        arguments: (argument_list . (call_expression function: (selector_expression) @bg)))
+        (#match? @m "^(QueryContext|QueryRowContext|ExecContext|PrepareContext|BeginTx|PingContext|QueryxContext|QueryRowxContext|SelectContext|GetContext|NamedExecContext|NamedQueryContext|MustExecContext|BeginTxx)$")
+        (#match? @bg "^context\\.(Background|TODO)$")) @hit
+      ((call_expression
+        function: (selector_expression operand: (_) @db field: (field_identifier) @m))
+        (#match? @m "^(Query|QueryRow|Exec|Prepare|Begin|Ping|Queryx|QueryRowx|MustExec|NamedExec|NamedQuery|Beginx)$")
+        (#match? @db "(?i)(^|\\.)(db|sqldb|database|tx|conn|pool|dbx|sqlx)$")) @hit
+    requires_file: |
+      ((import_spec path: (interpreted_string_literal) @p)
+        (#match? @p "^\"(database/sql|github.com/jmoiron/sqlx|github.com/jackc/pgx/v[0-9]+/stdlib)\"$"))
+    # Both shapes need a context in reach: a function (or closure) whose own
+    # parameters carry neither *http.Request nor context.Context has nothing
+    # better to pass -- startup code in main, a CLI command -- and is left
+    # alone. A closure inside a handler counts as its own scope.
+    unless_inside: |
+      ((function_declaration parameters: (parameter_list) @p body: (block (statement_list) @skip))
+        (#not-match? @p "\\*http\\.Request|context\\.Context"))
+      ((method_declaration parameters: (parameter_list) @p body: (block (statement_list) @skip))
+        (#not-match? @p "\\*http\\.Request|context\\.Context"))
+      ((func_literal parameters: (parameter_list) @p body: (block (statement_list) @skip))
+        (#not-match? @p "\\*http\\.Request|context\\.Context"))
+    description: >-
+      The query runs with no deadline and ignores the caller's cancellation.
+      When the database is slow or a lock is held, the request that started
+      it gives up but the query keeps its connection, and under load the
+      pool drains until every handler is waiting on it.
+    remediation: "Pass the request's context (r.Context() or the ctx parameter), bounded with context.WithTimeout, to the ...Context variant of the call."
+
+  # ---------------------------------------------------------------------
+  # Races
+  # ---------------------------------------------------------------------
+  - id: map-write-in-goroutine
+    title: "`{text}` writes a shared map from one of several goroutines with no lock held"
+    severity: high
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-362]
+    controls: [NIST-800-218:PW.5]
+    tags: [concurrency, race]
+    # Only goroutines launched inside a loop: that is N writers. A single
+    # collector goroutine that owns the map is the correct pattern and is
+    # not matched.
+    query: |
+      (for_statement body: (block (statement_list (go_statement (call_expression function: (func_literal body: (block (statement_list (assignment_statement left: (expression_list (index_expression))) @hit))))))))
+      (for_statement body: (block (statement_list (go_statement (call_expression function: (func_literal body: (block (statement_list (_ (_ (statement_list (assignment_statement left: (expression_list (index_expression))) @hit)))))))))))
+      (for_statement body: (block (statement_list (go_statement (call_expression function: (func_literal body: (block (statement_list (_ (_ (statement_list (_ (_ (statement_list (assignment_statement left: (expression_list (index_expression))) @hit))))))))))))))
+      ((for_statement body: (block (statement_list (expression_statement (call_expression function: (selector_expression field: (field_identifier) @go) arguments: (argument_list (func_literal body: (block (statement_list (assignment_statement left: (expression_list (index_expression))) @hit))))))))) (#eq? @go "Go"))
+      ((for_statement body: (block (statement_list (expression_statement (call_expression function: (selector_expression field: (field_identifier) @go) arguments: (argument_list (func_literal body: (block (statement_list (_ (_ (statement_list (assignment_statement left: (expression_list (index_expression))) @hit)))))))))))) (#eq? @go "Go"))
+    # A per-goroutine slice slot: results[i] = ... where i is the closure's
+    # own parameter, an integer-looking loop variable, or a literal.
+    unless_inside: |
+      ((func_literal parameters: (parameter_list (parameter_declaration name: (identifier) @p type: (type_identifier) @t)) body: (block (statement_list (assignment_statement left: (expression_list (index_expression index: (identifier) @i))) @slot))) (#eq? @p @i) (#match? @t "^u?int(8|16|32|64)?$"))
+      ((func_literal parameters: (parameter_list (parameter_declaration name: (identifier) @p type: (type_identifier) @t)) body: (block (statement_list (_ (_ (statement_list (assignment_statement left: (expression_list (index_expression index: (identifier) @i))) @slot)))))) (#eq? @p @i) (#match? @t "^u?int(8|16|32|64)?$"))
+      ((assignment_statement left: (expression_list (index_expression index: (identifier) @i))) @slot (#match? @i "^(i|j|k|n|idx|index|pos|off|offset|row|col|shard|slot|worker|w)$"))
+      (assignment_statement left: (expression_list (index_expression index: (int_literal)))) @slot
+    unless_in_scope: |
+      ((call_expression function: (selector_expression field: (field_identifier) @f))
+        (#match? @f "^(Lock|RLock|Store|LoadOrStore|Swap)$"))
+    description: >-
+      Go maps are not safe for concurrent writes: two goroutines writing at
+      once corrupt the map or crash the process with "concurrent map writes".
+      The goroutine here is launched in a loop, so several run at once, and
+      nothing in its body takes a lock.
+    remediation: "Guard the map with a sync.Mutex, use sync.Map, or send results on a channel to a single goroutine that owns the map."
+
+  - id: check-then-act-map
+    title: "`{text}` checks a shared map and then writes it with no lock held, in a file that starts goroutines"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-362, CWE-367]
+    controls: [NIST-800-218:PW.5]
+    tags: [concurrency, race, check-then-act]
+    # The map is a struct field (shared through the receiver) or a
+    # package-level var; a map declared in the function is local and is
+    # not matched.
+    query: |
+      ((if_statement
+        initializer: (short_var_declaration
+          left: (expression_list (identifier) (identifier) @ok)
+          right: (expression_list (index_expression operand: (selector_expression) @m1 index: (_) @k1)))
+        condition: (unary_expression operand: (identifier) @ok2)
+        consequence: (block (statement_list (assignment_statement
+          left: (expression_list (index_expression operand: (selector_expression) @m2 index: (_) @k2))))))
+        (#eq? @ok @ok2) (#eq? @m1 @m2) (#eq? @k1 @k2)) @hit
+      ((if_statement
+        condition: (unary_expression operand: (index_expression operand: (selector_expression) @m1 index: (_) @k1))
+        consequence: (block (statement_list (assignment_statement
+          left: (expression_list (index_expression operand: (selector_expression) @m2 index: (_) @k2))))))
+        (#eq? @m1 @m2) (#eq? @k1 @k2)) @hit
+      ((if_statement
+        condition: (binary_expression
+          left: (index_expression operand: (selector_expression) @m1 index: (_) @k1)
+          operator: "=="
+          right: (nil))
+        consequence: (block (statement_list (assignment_statement
+          left: (expression_list (index_expression operand: (selector_expression) @m2 index: (_) @k2))))))
+        (#eq? @m1 @m2) (#eq? @k1 @k2)) @hit
+      ((statement_list
+        (if_statement
+          initializer: (short_var_declaration
+            left: (expression_list (identifier) (identifier) @ok)
+            right: (expression_list (index_expression operand: (selector_expression) @m1 index: (_) @k1)))
+          condition: (identifier) @ok2
+          consequence: (block (statement_list (return_statement)))) @hit
+        (assignment_statement
+          left: (expression_list (index_expression operand: (selector_expression) @m2 index: (_) @k2))))
+        (#eq? @ok @ok2) (#eq? @m1 @m2) (#eq? @k1 @k2))
+      ((source_file
+        (var_declaration (var_spec name: (identifier) @d))
+        (function_declaration body: (block (statement_list
+          (if_statement
+            initializer: (short_var_declaration
+              left: (expression_list (identifier) (identifier) @ok)
+              right: (expression_list (index_expression operand: (identifier) @m1 index: (_) @k1)))
+            condition: (unary_expression operand: (identifier) @ok2)
+            consequence: (block (statement_list (assignment_statement
+              left: (expression_list (index_expression operand: (identifier) @m2 index: (_) @k2)))))) @hit))))
+        (#eq? @d @m1) (#eq? @ok @ok2) (#eq? @m1 @m2) (#eq? @k1 @k2))
+      ((source_file
+        (var_declaration (var_spec name: (identifier) @d))
+        (function_declaration body: (block (statement_list
+          (if_statement
+            initializer: (short_var_declaration
+              left: (expression_list (identifier) (identifier) @ok)
+              right: (expression_list (index_expression operand: (identifier) @m1 index: (_) @k1)))
+            condition: (identifier) @ok2
+            consequence: (block (statement_list (return_statement)))) @hit
+          (assignment_statement
+            left: (expression_list (index_expression operand: (identifier) @m2 index: (_) @k2)))))))
+        (#eq? @d @m1) (#eq? @ok @ok2) (#eq? @m1 @m2) (#eq? @k1 @k2))
+    requires_file: |
+      (go_statement) @g
+      ((call_expression function: (selector_expression field: (field_identifier) @f)
+        arguments: (argument_list (func_literal))) (#eq? @f "Go"))
+    unless_in_scope: |
+      ((call_expression function: (selector_expression field: (field_identifier) @f))
+        (#match? @f "^(Lock|RLock|LoadOrStore|Do|DoChan)$"))
+    description: >-
+      Between the check and the write another goroutine can take the same
+      key, so two callers both pass the "not present" test and both act. The
+      file starts goroutines and the function holds no lock, so nothing makes
+      the pair atomic.
+    remediation: "Hold a sync.Mutex across the check and the write, or use sync.Map.LoadOrStore."
+
+  - id: unsynchronised-counter
+    title: "`{text}` changes a shared counter from one of several goroutines with no lock or atomic"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-362, CWE-366]
+    controls: [NIST-800-218:PW.5]
+    tags: [concurrency, race, counter]
+    # Struct fields through the receiver; identifiers only when declared in
+    # the enclosing function or at package level, so a counter local to the
+    # goroutine is never matched.
+    query: |
+      (for_statement body: (block (statement_list (go_statement (call_expression function: (func_literal body: (block (statement_list [(inc_statement (selector_expression)) (dec_statement (selector_expression)) (assignment_statement left: (expression_list (selector_expression)) operator: ["+=" "-="])] @hit))))))))
+      (for_statement body: (block (statement_list (go_statement (call_expression function: (func_literal body: (block (statement_list (_ (_ (statement_list [(inc_statement (selector_expression)) (dec_statement (selector_expression)) (assignment_statement left: (expression_list (selector_expression)) operator: ["+=" "-="])] @hit)))))))))))
+      (for_statement body: (block (statement_list (go_statement (call_expression function: (func_literal body: (block (statement_list (_ (_ (statement_list (_ (_ (statement_list [(inc_statement (selector_expression)) (dec_statement (selector_expression)) (assignment_statement left: (expression_list (selector_expression)) operator: ["+=" "-="])] @hit))))))))))))))
+      ((for_statement body: (block (statement_list (expression_statement (call_expression function: (selector_expression field: (field_identifier) @go) arguments: (argument_list (func_literal body: (block (statement_list [(inc_statement (selector_expression)) (dec_statement (selector_expression)) (assignment_statement left: (expression_list (selector_expression)) operator: ["+=" "-="])] @hit))))))))) (#eq? @go "Go"))
+      ((for_statement body: (block (statement_list (expression_statement (call_expression function: (selector_expression field: (field_identifier) @go) arguments: (argument_list (func_literal body: (block (statement_list (_ (_ (statement_list [(inc_statement (selector_expression)) (dec_statement (selector_expression)) (assignment_statement left: (expression_list (selector_expression)) operator: ["+=" "-="])] @hit)))))))))))) (#eq? @go "Go"))
+      ((block (statement_list [(short_var_declaration left: (expression_list (identifier) @d)) (var_declaration (var_spec name: (identifier) @d))] (for_statement body: (block (statement_list (go_statement (call_expression function: (func_literal body: (block (statement_list [(inc_statement (identifier) @v) (dec_statement (identifier) @v) (assignment_statement left: (expression_list (identifier) @v) operator: ["+=" "-="])] @hit)))))))))) (#eq? @d @v))
+      ((block (statement_list [(short_var_declaration left: (expression_list (identifier) @d)) (var_declaration (var_spec name: (identifier) @d))] (for_statement body: (block (statement_list (go_statement (call_expression function: (func_literal body: (block (statement_list (_ (_ (statement_list [(inc_statement (identifier) @v) (dec_statement (identifier) @v) (assignment_statement left: (expression_list (identifier) @v) operator: ["+=" "-="])] @hit))))))))))))) (#eq? @d @v))
+      ((source_file (var_declaration (var_spec name: (identifier) @d)) (_ body: (block (statement_list (for_statement body: (block (statement_list (go_statement (call_expression function: (func_literal body: (block (statement_list [(inc_statement (identifier) @v) (dec_statement (identifier) @v) (assignment_statement left: (expression_list (identifier) @v) operator: ["+=" "-="])] @hit)))))))))))) (#eq? @d @v))
+      ((source_file (var_declaration (var_spec name: (identifier) @d)) (_ body: (block (statement_list (for_statement body: (block (statement_list (go_statement (call_expression function: (func_literal body: (block (statement_list (_ (_ (statement_list [(inc_statement (identifier) @v) (dec_statement (identifier) @v) (assignment_statement left: (expression_list (identifier) @v) operator: ["+=" "-="])] @hit))))))))))))))) (#eq? @d @v))
+    unless_in_scope: |
+      ((call_expression function: (selector_expression field: (field_identifier) @f))
+        (#match? @f "^(Lock|RLock)$"))
+      ((selector_expression operand: (identifier) @pkg) (#eq? @pkg "atomic"))
+    description: >-
+      `x++` is a read, an add and a write. With several goroutines doing it
+      at once, updates are lost and the total comes out low -- the classic
+      "processed 998 of 1000" bug. The goroutine is launched in a loop and
+      its body neither locks nor uses sync/atomic.
+    remediation: "Use atomic.Int64 (or atomic.AddInt64), or hold a sync.Mutex around the update."
+
+  # ---------------------------------------------------------------------
+  # Loops that never stop, or never back off
+  # ---------------------------------------------------------------------
+  - id: worker-loop-no-stop
+    title: "`for {` in a goroutine has no stop signal: no ctx.Done, quit channel, return or break"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-835]
+    controls: [NIST-800-218:PW.5]
+    tags: [concurrency, shutdown, goroutine-leak]
+    # The loop is the body of a `go func` literal, or sits at the top of a
+    # named function or method in a file that starts goroutines (the
+    # `go p.run()` shape). `main` may block forever and is left alone.
+    query: |
+      ((go_statement (call_expression function: (func_literal body: (block (statement_list
+        (for_statement !condition body: (block)) @hit)))))
+        (#match? @hit "^for\\s*\\{"))
+      ((method_declaration body: (block (statement_list
+        (for_statement !condition body: (block)) @hit)))
+        (#match? @hit "^for\\s*\\{"))
+      ((function_declaration name: (identifier) @n body: (block (statement_list
+        (for_statement !condition body: (block)) @hit)))
+        (#not-match? @n "^(main|init)$")
+        (#match? @hit "^for\\s*\\{"))
+    requires_file: |
+      (go_statement) @g
+    # A goroutine started straight from main lives exactly as long as the
+    # process; the example programs that tick a metric forever are that
+    # shape. The leak is a loop started from a constructor or handler.
+    unless_inside: |
+      ((function_declaration name: (identifier) @n body: (block (statement_list
+        (go_statement) @skip))) (#eq? @n "main"))
+      ((function_declaration name: (identifier) @n body: (block (statement_list (_ (_ (statement_list
+        (go_statement) @skip)))))) (#eq? @n "main"))
+      ((function_declaration name: (identifier) @n body: (block (statement_list (_ (_ (statement_list (_ (_ (statement_list
+        (go_statement) @skip))))))))) (#eq? @n "main"))
+    unless_in_scope: |
+      (return_statement) @x
+      (break_statement) @x
+      (goto_statement) @x
+      (select_statement) @x
+      (labeled_statement) @x
+      ((call_expression function: (identifier) @p) (#eq? @p "panic"))
+      ((call_expression function: (selector_expression field: (field_identifier) @f))
+        (#match? @f "^(Exit|Fatal|Fatalf|Fatalln|Panic|Panicf|Panicln)$"))
+    description: >-
+      Nothing can end this loop except the process dying. A graceful
+      shutdown cannot drain it, a test cannot stop it, and if the thing it
+      reads from is closed it spins on zero values at full CPU.
+    remediation: "Select on ctx.Done() or a quit channel in each iteration, and return; or range over the channel so a close ends the loop."
+
+  - id: retry-no-backoff
+    title: "`for {` retries on error with no sleep, backoff or attempt cap"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400, CWE-834]
+    controls: [NIST-800-218:PW.5]
+    tags: [retry, backoff, reliability]
+    query: |
+      ((for_statement !condition body: (block (statement_list
+        (if_statement
+          condition: (binary_expression left: (identifier) @e operator: "!=" right: (nil))
+          consequence: (block (statement_list (continue_statement) .)))))) @hit
+        (#match? @hit "^for\\s*\\{") (#match? @e "(?i)err$"))
+      ((for_statement !condition body: (block (statement_list
+        (if_statement
+          condition: (binary_expression left: (identifier) @e operator: "==" right: (nil))
+          consequence: (block (statement_list [(return_statement) (break_statement)] .)))))) @hit
+        (#match? @hit "^for\\s*\\{") (#match? @e "(?i)err$"))
+    # A loop that leaves on an error is a read loop, not a retry: nsqlookupd's
+    # protocol loop reads a line, breaks on a read error and `continue`s past
+    # a bad command. Retrying means the failure path stays in the loop.
+    unless_inside: |
+      ((for_statement body: (block (statement_list
+        (if_statement
+          condition: (binary_expression left: (identifier) @e operator: "!=" right: (nil))
+          consequence: (block (statement_list [(break_statement) (return_statement)] .)))))) @skip
+        (#match? @e "(?i)err$"))
+    # Anything that waits between attempts: a sleep, a timer, a ticker, a
+    # backoff helper, or a blocking channel receive.
+    unless_in_scope: |
+      ((call_expression function: (selector_expression field: (field_identifier) @f))
+        (#match? @f "(?i)^(Sleep|After|AfterFunc|NewTimer|NewTicker|Tick|Wait|Reset|Delay|Backoff|NextBackOff|Pause)$|backoff|retry"))
+      ((call_expression function: (identifier) @f)
+        (#match? @f "(?i)backoff|sleep|delay|wait|jitter|retry|throttle"))
+      (unary_expression operator: "<-") @recv
+      (receive_statement) @recv
+    description: >-
+      When the call fails this loop tries again immediately, as fast as the
+      CPU allows, for as long as the failure lasts. Against a dependency that
+      is already struggling that is a self-inflicted denial of service, and
+      with no attempt cap it never gives up.
+    remediation: "Sleep between attempts with exponential backoff and jitter, cap the attempts, and honour ctx.Done()."
+
+  # ---------------------------------------------------------------------
+  # Errors that vanish
+  # ---------------------------------------------------------------------
+  - id: swallowed-error
+    title: "`{text}` drops the error: nothing is logged, returned or retried"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-391, CWE-703]
+    controls: [NIST-800-218:PW.5]
+    tags: [error-handling]
+    # Shape 1: `if err != nil {}` -- empty, or holding only a TODO comment.
+    # A comment that says why the error is ignored is a decision, not a gap.
+    # Shape 2: a worker loop inside a goroutine whose only reaction to an
+    # error is `continue`.
+    query: |
+      ((if_statement
+        condition: (binary_expression left: (identifier) @e operator: "!=" right: (nil))
+        consequence: (block) @b)
+        (#match? @e "(?i)err$")
+        (#match? @b "^\\{(\\s|//[^\\n]*)*\\}$")
+        (#match? @b "(?i)^\\{\\s*\\}$|todo|fixme|xxx|implement|later")) @hit
+      (go_statement (call_expression function: (func_literal body: (block (statement_list
+        (for_statement body: (block (statement_list
+          ((if_statement
+            condition: (binary_expression left: (identifier) @e operator: "!=" right: (nil))
+            consequence: (block (statement_list . (continue_statement) .)))
+            (#match? @e "(?i)err$")) @hit))))))))
+      ((expression_statement (call_expression
+        function: (selector_expression field: (field_identifier) @go)
+        arguments: (argument_list (func_literal body: (block (statement_list
+          (for_statement body: (block (statement_list
+            ((if_statement
+              condition: (binary_expression left: (identifier) @e operator: "!=" right: (nil))
+              consequence: (block (statement_list . (continue_statement) .)))
+              (#match? @e "(?i)err$")) @hit)))))))))
+        (#eq? @go "Go"))
+    description: >-
+      The error is tested and then discarded. The caller sees success, the
+      logs show nothing, and the first sign of the failure is downstream
+      data that does not add up.
+    remediation: "Return the error, wrap it with context, or log it with the identifiers needed to find the failed item."
+
+  # ---------------------------------------------------------------------
+  # Injection
+  # ---------------------------------------------------------------------
+  - id: sql-injection
+    title: "`{text}` builds SQL by string concatenation or Sprintf"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-89]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SI-10]
+    tags: [injection, sql]
+    # Query argument positions: first for Query/Exec/QueryRow/Prepare and
+    # the gorm/sqlx builders; second after a ctx (…Context) or a
+    # destination (sqlx Select/Get); third for sqlx SelectContext/GetContext.
+    # The variable form `q := fmt.Sprintf(...); db.Query(q)` is matched when
+    # the two statements share a statement list.
+    query: |
+      ((call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (binary_expression operator: "+") @hit)) (#match? @m "^(Query|QueryRow|Exec|Prepare|Queryx|QueryRowx|MustExec|NamedQuery|NamedExec|Raw|Where|Having|Order|Group|Joins)$") (#match? @hit "(?is)^[\"`]\\s*(select|insert|update|delete|create|drop|alter|truncate|merge|with|where|and|or|order|group|having|from|set|values|join)\\b"))
+      ((call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (call_expression function: (selector_expression) @sp arguments: (argument_list . [(interpreted_string_literal) (raw_string_literal)] @fmt)) @hit)) (#match? @m "^(Query|QueryRow|Exec|Prepare|Queryx|QueryRowx|MustExec|NamedQuery|NamedExec|Raw|Where|Having|Order|Group|Joins)$") (#eq? @sp "fmt.Sprintf") (#match? @fmt "(?is)^[\"`]\\s*(select|insert|update|delete|create|drop|alter|truncate|merge|with|where|and|or|order|group|having|from|set|values|join)\\b"))
+      ((call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (_) . (binary_expression operator: "+") @hit)) (#match? @m "^(QueryContext|QueryRowContext|ExecContext|PrepareContext|QueryxContext|QueryRowxContext|Select|Get)$") (#match? @hit "(?is)^[\"`]\\s*(select|insert|update|delete|create|drop|alter|truncate|merge|with|where|and|or|order|group|having|from|set|values|join)\\b"))
+      ((call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (_) . (call_expression function: (selector_expression) @sp arguments: (argument_list . [(interpreted_string_literal) (raw_string_literal)] @fmt)) @hit)) (#match? @m "^(QueryContext|QueryRowContext|ExecContext|PrepareContext|QueryxContext|QueryRowxContext|Select|Get)$") (#eq? @sp "fmt.Sprintf") (#match? @fmt "(?is)^[\"`]\\s*(select|insert|update|delete|create|drop|alter|truncate|merge|with|where|and|or|order|group|having|from|set|values|join)\\b"))
+      ((call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (_) . (_) . (binary_expression operator: "+") @hit)) (#match? @m "^(SelectContext|GetContext)$") (#match? @hit "(?is)^[\"`]\\s*(select|insert|update|delete|create|drop|alter|truncate|merge|with|where|and|or|order|group|having|from|set|values|join)\\b"))
+      ((call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (_) . (_) . (call_expression function: (selector_expression) @sp arguments: (argument_list . [(interpreted_string_literal) (raw_string_literal)] @fmt)) @hit)) (#match? @m "^(SelectContext|GetContext)$") (#eq? @sp "fmt.Sprintf") (#match? @fmt "(?is)^[\"`]\\s*(select|insert|update|delete|create|drop|alter|truncate|merge|with|where|and|or|order|group|having|from|set|values|join)\\b"))
+      ((statement_list (short_var_declaration left: (expression_list (identifier) @qv) right: (expression_list (binary_expression operator: "+") @q)) @hit [(expression_statement (call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (identifier) @qv2))) (short_var_declaration right: (expression_list (call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (identifier) @qv2)))) (assignment_statement right: (expression_list (call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (identifier) @qv2)))) (return_statement (expression_list (call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (identifier) @qv2))))]) (#eq? @qv @qv2) (#match? @m "^(Query|QueryRow|Exec|Prepare|Queryx|QueryRowx|MustExec|NamedQuery|NamedExec|Raw)$") (#match? @q "(?is)^[\"`]\\s*(select|insert|update|delete|create|drop|alter|truncate|merge|with)\\b"))
+      ((statement_list (short_var_declaration left: (expression_list (identifier) @qv) right: (expression_list (call_expression function: (selector_expression) @sp arguments: (argument_list . [(interpreted_string_literal) (raw_string_literal)] @fmt)))) @hit [(expression_statement (call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (identifier) @qv2))) (short_var_declaration right: (expression_list (call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (identifier) @qv2)))) (assignment_statement right: (expression_list (call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (identifier) @qv2)))) (return_statement (expression_list (call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (identifier) @qv2))))]) (#eq? @qv @qv2) (#eq? @sp "fmt.Sprintf") (#match? @m "^(Query|QueryRow|Exec|Prepare|Queryx|QueryRowx|MustExec|NamedQuery|NamedExec|Raw)$") (#match? @fmt "(?is)^[\"`]\\s*(select|insert|update|delete|create|drop|alter|truncate|merge|with)\\b"))
+      ((statement_list (short_var_declaration left: (expression_list (identifier) @qv) right: (expression_list (binary_expression operator: "+") @q)) @hit [(expression_statement (call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (_) . (identifier) @qv2))) (short_var_declaration right: (expression_list (call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (_) . (identifier) @qv2)))) (assignment_statement right: (expression_list (call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (_) . (identifier) @qv2)))) (return_statement (expression_list (call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (_) . (identifier) @qv2))))]) (#eq? @qv @qv2) (#match? @m "^(QueryContext|QueryRowContext|ExecContext|PrepareContext)$") (#match? @q "(?is)^[\"`]\\s*(select|insert|update|delete|create|drop|alter|truncate|merge|with)\\b"))
+      ((statement_list (short_var_declaration left: (expression_list (identifier) @qv) right: (expression_list (call_expression function: (selector_expression) @sp arguments: (argument_list . [(interpreted_string_literal) (raw_string_literal)] @fmt)))) @hit [(expression_statement (call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (_) . (identifier) @qv2))) (short_var_declaration right: (expression_list (call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (_) . (identifier) @qv2)))) (assignment_statement right: (expression_list (call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (_) . (identifier) @qv2)))) (return_statement (expression_list (call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (_) . (identifier) @qv2))))]) (#eq? @qv @qv2) (#eq? @sp "fmt.Sprintf") (#match? @m "^(QueryContext|QueryRowContext|ExecContext|PrepareContext)$") (#match? @fmt "(?is)^[\"`]\\s*(select|insert|update|delete|create|drop|alter|truncate|merge|with)\\b"))
+    unless_inside: |
+      ((binary_expression) @skip (#match? @skip "strings\\.(Join|Repeat)\\("))
+      ((call_expression) @skip (#match? @skip "strings\\.(Join|Repeat)\\("))
+      ((short_var_declaration) @skip (#match? @skip "strings\\.(Join|Repeat)\\("))
+    description: >-
+      The SQL text is assembled from program values, so whatever a caller
+      can put in those values becomes part of the statement. Parameter
+      placeholders exist precisely so that the driver, not string handling,
+      keeps data and query apart.
+    remediation: "Use placeholders ($1 / ?) and pass the values as arguments; build identifier lists from an allowlist."
+
+  - id: command-injection
+    title: "`{text}` runs a shell with a command string that is not a literal"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-78]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SI-10]
+    tags: [injection, shell]
+    query: |
+      ((call_expression
+        function: (selector_expression) @f
+        arguments: (argument_list
+          . (interpreted_string_literal) @sh
+          . (interpreted_string_literal) @c
+          . [(identifier) (selector_expression) (binary_expression) (call_expression) (index_expression)] @cmd))
+        (#eq? @f "exec.Command")
+        (#match? @sh "^\"(/bin/|/usr/bin/|/usr/local/bin/)?(sh|bash|zsh|dash|ash|ksh|fish)\"$|^\"(cmd|cmd\\.exe|powershell|pwsh)\"$")
+        (#match? @c "^\"(-c|-lc|/[Cc]|-Command)\"$")) @hit
+      ((call_expression
+        function: (selector_expression) @f
+        arguments: (argument_list
+          . (_)
+          . (interpreted_string_literal) @sh
+          . (interpreted_string_literal) @c
+          . [(identifier) (selector_expression) (binary_expression) (call_expression) (index_expression)] @cmd))
+        (#eq? @f "exec.CommandContext")
+        (#match? @sh "^\"(/bin/|/usr/bin/|/usr/local/bin/)?(sh|bash|zsh|dash|ash|ksh|fish)\"$|^\"(cmd|cmd\\.exe|powershell|pwsh)\"$")
+        (#match? @c "^\"(-c|-lc|/[Cc]|-Command)\"$")) @hit
+    description: >-
+      `sh -c` hands the whole string to a shell, which interprets every
+      metacharacter in it. Anything a caller controls in that string --
+      a file name, a tenant id -- can end the intended command and start
+      another.
+    remediation: "Call the program directly with exec.Command(name, args...) so each argument is passed as-is; never route values through a shell string."
+
+  # ---------------------------------------------------------------------
+  # Stubs that reached a production path
+  # ---------------------------------------------------------------------
+  - id: stub-on-security-path
+    title: "`{text}` is the whole body of a security check: the check is a stub"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-1164, CWE-863]
+    controls: [NIST-800-218:PW.5]
+    tags: [stub, auth]
+    query: |
+      ((function_declaration name: (identifier) @n body: (block (statement_list (expression_statement (call_expression function: (identifier) @p arguments: (argument_list (interpreted_string_literal) @s))) @hit) @sl)) (#eq? @p "panic") (#match? @sl "^panic\\([^\\n]*$") (#match? @s "(?i)not (yet )?implemented|unimplemented|todo|implement me|stub") (#match? @n "(?i)verif|auth|check|valid|permi|allow|authori|sign|token|login|passw|access|secur|encrypt|decrypt|sanitiz|escape|csrf|guard"))
+      ((method_declaration name: (field_identifier) @n body: (block (statement_list (expression_statement (call_expression function: (identifier) @p arguments: (argument_list (interpreted_string_literal) @s))) @hit) @sl)) (#eq? @p "panic") (#match? @sl "^panic\\([^\\n]*$") (#match? @s "(?i)not (yet )?implemented|unimplemented|todo|implement me|stub") (#match? @n "(?i)verif|auth|check|valid|permi|allow|authori|sign|token|login|passw|access|secur|encrypt|decrypt|sanitiz|escape|csrf|guard"))
+      ((function_declaration name: (identifier) @n body: (block (comment) @c (statement_list (return_statement) @hit) @sl)) (#match? @c "(?i)\\bTODO\\b|\\bFIXME\\b|\\bXXX\\b|\\bstub\\b|not (yet )?implemented|placeholder|implement (this|me|later)") (#match? @sl "^return\\b[^\\n]*$") (#match? @hit "^return\\s+(nil|true|false|0|\"\")(,\\s*nil)?$") (#match? @n "(?i)verif|auth|check|valid|permi|allow|authori|sign|token|login|passw|access|secur|encrypt|decrypt|sanitiz|escape|csrf|guard"))
+      ((source_file (comment) @c . (function_declaration name: (identifier) @n body: (block (statement_list (return_statement) @hit) @sl))) (#match? @c "(?i)\\bTODO\\b|\\bFIXME\\b|\\bXXX\\b|\\bstub\\b|not (yet )?implemented|placeholder|implement (this|me|later)") (#match? @sl "^return\\b[^\\n]*$") (#match? @hit "^return\\s+(nil|true|false|0|\"\")(,\\s*nil)?$") (#match? @n "(?i)verif|auth|check|valid|permi|allow|authori|sign|token|login|passw|access|secur|encrypt|decrypt|sanitiz|escape|csrf|guard"))
+      ((method_declaration name: (field_identifier) @n body: (block (comment) @c (statement_list (return_statement) @hit) @sl)) (#match? @c "(?i)\\bTODO\\b|\\bFIXME\\b|\\bXXX\\b|\\bstub\\b|not (yet )?implemented|placeholder|implement (this|me|later)") (#match? @sl "^return\\b[^\\n]*$") (#match? @hit "^return\\s+(nil|true|false|0|\"\")(,\\s*nil)?$") (#match? @n "(?i)verif|auth|check|valid|permi|allow|authori|sign|token|login|passw|access|secur|encrypt|decrypt|sanitiz|escape|csrf|guard"))
+      ((source_file (comment) @c . (method_declaration name: (field_identifier) @n body: (block (statement_list (return_statement) @hit) @sl))) (#match? @c "(?i)\\bTODO\\b|\\bFIXME\\b|\\bXXX\\b|\\bstub\\b|not (yet )?implemented|placeholder|implement (this|me|later)") (#match? @sl "^return\\b[^\\n]*$") (#match? @hit "^return\\s+(nil|true|false|0|\"\")(,\\s*nil)?$") (#match? @n "(?i)verif|auth|check|valid|permi|allow|authori|sign|token|login|passw|access|secur|encrypt|decrypt|sanitiz|escape|csrf|guard"))
+    description: >-
+      A function named like an authentication, authorisation or validation
+      step has no implementation: it panics, or returns a constant under a
+      TODO. If anything calls it, the check either crashes the request or
+      -- worse -- passes everything. Model-drafted code produces these
+      when the hard part is deferred and the caller is wired up anyway.
+    remediation: "Implement the check before anything depends on it, or make the stub fail closed (return an error / false) and block the merge until it is real."
+
+  - id: stub-not-implemented
+    title: "`{text}` is the whole function body: a stub on a production path"
+    severity: medium
+    confidence: high
+    dimension: quality
+    cwe: [CWE-1164]
+    controls: [NIST-800-218:PW.5]
+    tags: [stub]
+    query: |
+      ((function_declaration name: (identifier) @n body: (block (statement_list (expression_statement (call_expression function: (identifier) @p arguments: (argument_list (interpreted_string_literal) @s))) @hit) @sl)) (#eq? @p "panic") (#match? @sl "^panic\\([^\\n]*$") (#match? @s "(?i)not (yet )?implemented|unimplemented|todo|implement me|stub") (#not-match? @n "(?i)verif|auth|check|valid|permi|allow|authori|sign|token|login|passw|access|secur|encrypt|decrypt|sanitiz|escape|csrf|guard"))
+      ((method_declaration name: (field_identifier) @n body: (block (statement_list (expression_statement (call_expression function: (identifier) @p arguments: (argument_list (interpreted_string_literal) @s))) @hit) @sl)) (#eq? @p "panic") (#match? @sl "^panic\\([^\\n]*$") (#match? @s "(?i)not (yet )?implemented|unimplemented|todo|implement me|stub") (#not-match? @n "(?i)verif|auth|check|valid|permi|allow|authori|sign|token|login|passw|access|secur|encrypt|decrypt|sanitiz|escape|csrf|guard"))
+    description: >-
+      The function exists, is exported or called, and does nothing but
+      panic. In a server that is a crash on the first request to reach it;
+      in a worker it is a dead job. Tests that never route here keep passing.
+    remediation: "Implement it, or return an explicit `errors.ErrUnsupported`-style error and make callers handle it."
+
+  - id: stub-returns-nil
+    title: "`{text}` under a TODO is the whole function body: a stub that reports success"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-1164]
+    controls: [NIST-800-218:PW.5]
+    tags: [stub]
+    query: |
+      ((function_declaration name: (identifier) @n body: (block (comment) @c (statement_list (return_statement) @hit) @sl)) (#match? @c "(?i)\\bTODO\\b|\\bFIXME\\b|\\bXXX\\b|\\bstub\\b|not (yet )?implemented|placeholder|implement (this|me|later)") (#match? @sl "^return\\b[^\\n]*$") (#match? @hit "^return\\s+(nil|true|false|0|\"\")(,\\s*nil)?$") (#not-match? @n "(?i)verif|auth|check|valid|permi|allow|authori|sign|token|login|passw|access|secur|encrypt|decrypt|sanitiz|escape|csrf|guard"))
+      ((source_file (comment) @c . (function_declaration name: (identifier) @n body: (block (statement_list (return_statement) @hit) @sl))) (#match? @c "(?i)\\bTODO\\b|\\bFIXME\\b|\\bXXX\\b|\\bstub\\b|not (yet )?implemented|placeholder|implement (this|me|later)") (#match? @sl "^return\\b[^\\n]*$") (#match? @hit "^return\\s+(nil|true|false|0|\"\")(,\\s*nil)?$") (#not-match? @n "(?i)verif|auth|check|valid|permi|allow|authori|sign|token|login|passw|access|secur|encrypt|decrypt|sanitiz|escape|csrf|guard"))
+      ((method_declaration name: (field_identifier) @n body: (block (comment) @c (statement_list (return_statement) @hit) @sl)) (#match? @c "(?i)\\bTODO\\b|\\bFIXME\\b|\\bXXX\\b|\\bstub\\b|not (yet )?implemented|placeholder|implement (this|me|later)") (#match? @sl "^return\\b[^\\n]*$") (#match? @hit "^return\\s+(nil|true|false|0|\"\")(,\\s*nil)?$") (#not-match? @n "(?i)verif|auth|check|valid|permi|allow|authori|sign|token|login|passw|access|secur|encrypt|decrypt|sanitiz|escape|csrf|guard"))
+      ((source_file (comment) @c . (method_declaration name: (field_identifier) @n body: (block (statement_list (return_statement) @hit) @sl))) (#match? @c "(?i)\\bTODO\\b|\\bFIXME\\b|\\bXXX\\b|\\bstub\\b|not (yet )?implemented|placeholder|implement (this|me|later)") (#match? @sl "^return\\b[^\\n]*$") (#match? @hit "^return\\s+(nil|true|false|0|\"\")(,\\s*nil)?$") (#not-match? @n "(?i)verif|auth|check|valid|permi|allow|authori|sign|token|login|passw|access|secur|encrypt|decrypt|sanitiz|escape|csrf|guard"))
+    description: >-
+      The function returns a constant success value and a comment says the
+      real work is still to do. Callers cannot tell: the export "succeeds",
+      the schedule "parses", and the gap only shows up as missing data.
+    remediation: "Implement it, or return an explicit not-implemented error so callers and tests see the gap."
+
+  # ---------------------------------------------------------------------
+  # Randomness
+  # ---------------------------------------------------------------------
+  - id: insecure-random-token
+    title: "`{text}` builds a secret from math/rand, which is predictable"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-338]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-13]
+    tags: [randomness, crypto]
+    # The file imports math/rand (and not crypto/rand), and the value or
+    # function is named like a secret.
+    query: |
+      ((short_var_declaration
+        left: (expression_list (identifier) @n)
+        right: (expression_list (_) @v)) @hit
+        (#match? @n "(?i)token|secret|passw|nonce|session|salt|api_?key|otp|csrf|signing_?key|secret_?key|private_?key")
+        (#not-match? @n "(?i)tokeni[sz]")
+        (#match? @v "\\b(rand|rng|rnd|mrand|mathrand)\\.(Intn?|Int31n?|Int63n?|Uint32|Uint64|Read|Perm|Shuffle|Float32|Float64|IntN|Int32N|Int64N|UintN|N)\\("))
+      ((assignment_statement
+        left: (expression_list [(identifier) (selector_expression)] @n)
+        right: (expression_list (_) @v)) @hit
+        (#match? @n "(?i)token|secret|passw|nonce|session|salt|api_?key|otp|csrf|signing_?key|secret_?key|private_?key")
+        (#not-match? @n "(?i)tokeni[sz]")
+        (#match? @v "\\b(rand|rng|rnd|mrand|mathrand)\\.(Intn?|Int31n?|Int63n?|Uint32|Uint64|Read|Perm|Shuffle|Float32|Float64|IntN|Int32N|Int64N|UintN|N)\\("))
+      ((var_declaration (var_spec name: (identifier) @n value: (expression_list (_) @v))) @hit
+        (#match? @n "(?i)token|secret|passw|nonce|session|salt|api_?key|otp|csrf|signing_?key|secret_?key|private_?key")
+        (#not-match? @n "(?i)tokeni[sz]")
+        (#match? @v "\\b(rand|rng|rnd|mrand|mathrand)\\.(Intn?|Int31n?|Int63n?|Uint32|Uint64|Read|Perm|Shuffle|Float32|Float64|IntN|Int32N|Int64N|UintN|N)\\("))
+      ((function_declaration name: (identifier) @n body: (block) @v) @hit
+        (#match? @n "(?i)token|secret|passw|nonce|session|salt|api_?key|otp|csrf|signing_?key|secret_?key|private_?key")
+        (#not-match? @n "(?i)tokeni[sz]|pars|valid|verif|check|decode|read|load|lookup|get|find|has|is[A-Z]|revoke|delete|expire|refresh")
+        (#match? @v "\\b(rand|rng|rnd|mrand|mathrand)\\.(Intn?|Int31n?|Int63n?|Uint32|Uint64|Read|Perm|Shuffle|Float32|Float64|IntN|Int32N|Int64N|UintN|N)\\("))
+      ((method_declaration name: (field_identifier) @n body: (block) @v) @hit
+        (#match? @n "(?i)token|secret|passw|nonce|session|salt|api_?key|otp|csrf|signing_?key|secret_?key|private_?key")
+        (#not-match? @n "(?i)tokeni[sz]|pars|valid|verif|check|decode|read|load|lookup|get|find|has|is[A-Z]|revoke|delete|expire|refresh")
+        (#match? @v "\\b(rand|rng|rnd|mrand|mathrand)\\.(Intn?|Int31n?|Int63n?|Uint32|Uint64|Read|Perm|Shuffle|Float32|Float64|IntN|Int32N|Int64N|UintN|N)\\("))
+    requires_file: |
+      ((import_spec path: (interpreted_string_literal) @p) (#match? @p "^\"math/rand(/v2)?\"$"))
+    unless_in_file: |
+      ((import_spec path: (interpreted_string_literal) @p) (#eq? @p "\"crypto/rand\""))
+    description: >-
+      math/rand is a deterministic generator: anyone who sees a few outputs
+      (or guesses the seed, which is often the clock) can predict the rest.
+      A session token, reset link or nonce built from it can be forged.
+    remediation: "Use crypto/rand (rand.Read, or rand.Int with a big.Int bound) for anything an attacker must not guess."
+
+  # ---------------------------------------------------------------------
+  # Tests that cannot fail
+  # ---------------------------------------------------------------------
+  - id: test-skipped-unconditionally
+    title: "`{text}` is the first statement of the test: it never runs"
+    severity: low
+    confidence: high
+    dimension: assurance
+    cwe: [CWE-1164]
+    controls: [NIST-800-218:PW.8, NIST-800-53r5:SA-11]
+    tags: [assurance, test]
+    roles: [test]
+    # The bare `t.Skip()` is already reported by assurance.permanently-
+    # skipped-test; this is the reasoned skip (`t.Skip("flaky")`,
+    # `t.Skipf(...)`) placed before anything else in a Test function.
+    query: |
+      ((function_declaration
+        name: (identifier) @n
+        parameters: (parameter_list (parameter_declaration type: (pointer_type (qualified_type) @t)))
+        body: (block (statement_list . (expression_statement (call_expression
+          function: (selector_expression) @f
+          arguments: (argument_list (_))) @hit))))
+        (#match? @n "^Test")
+        (#eq? @t "testing.T")
+        (#match? @f "^t\\.Skipf?$"))
+    description: >-
+      The skip has a reason but no condition, so the test is skipped on
+      every machine, every time. It counts as a test and protects nothing;
+      a skip behind `testing.Short()` or a platform check is a different
+      thing and is not reported.
+    remediation: "Fix the test or delete it; if it must be skipped somewhere, put the skip behind a condition."
