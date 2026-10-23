@@ -15,6 +15,12 @@ from arbiter.judgement import Provider, Unavailable
 from arbiter.policy import load_config
 from arbiter.report import render_console, render_markdown
 
+
+# These tests need tree-sitter grammars; the fast CI tier installs none.
+_needs_ts = pytest.mark.skipif(
+    not __import__("arbiter.ast", fromlist=["available"]).available(),
+    reason="tree-sitter not installed")
+
 APP = '''import subprocess
 from flask import Flask, request
 
@@ -313,6 +319,7 @@ def test_offline_and_ci_never_verify(tree, monkeypatch):
     assert called == []
 
 
+@_needs_ts
 def test_assisted_profile_verifies_and_reports(tree, monkeypatch):
     root, _inv = tree
     fake = FakeProvider(replies=[_reply("rejected", "cmd is a constant here", line=None)])

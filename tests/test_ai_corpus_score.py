@@ -11,6 +11,12 @@ import sys
 import pytest
 from helpers import ROOT
 
+
+# These tests need tree-sitter grammars; the fast CI tier installs none.
+_needs_ts = pytest.mark.skipif(
+    not __import__("arbiter.ast", fromlist=["available"]).available(),
+    reason="tree-sitter not installed")
+
 _spec = importlib.util.spec_from_file_location("ai_corpus_score", ROOT / "tools" / "ai_corpus_score.py")
 acs = importlib.util.module_from_spec(_spec)
 sys.modules["ai_corpus_score"] = acs
@@ -131,6 +137,7 @@ def test_precision_by_category_and_severity_counts_every_verdict():
     assert sev == ["high", "medium", "low"]
 
 
+@_needs_ts
 def test_aggregate_only_output_names_no_rule_file_or_finding(tmp_path):
     app = tmp_path / "python" / "tiny"
     (app / "app").mkdir(parents=True)

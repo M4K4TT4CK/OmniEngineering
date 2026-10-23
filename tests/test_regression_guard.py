@@ -12,6 +12,12 @@ import time
 import pytest
 from helpers import ROOT
 
+
+# These tests need tree-sitter grammars; the fast CI tier installs none.
+_needs_ts = pytest.mark.skipif(
+    not __import__("arbiter.ast", fromlist=["available"]).available(),
+    reason="tree-sitter not installed")
+
 _spec = importlib.util.spec_from_file_location("regression_guard", ROOT / "tools" / "regression_guard.py")
 rg = importlib.util.module_from_spec(_spec)
 sys.modules["regression_guard"] = rg
@@ -192,6 +198,7 @@ def test_the_heldout_guard_target_is_aggregate_only():
     assert set(snap) == {"target", "aggregate", "arbiter_commit", "_about", "count", "digest", "score"}
 
 
+@_needs_ts
 def test_heldout_aggregate_snapshot_matches(capsys):
     """The held-out score has not moved. A failure says only that it moved;
     if the change is intended, run `python tools/regression_guard.py update

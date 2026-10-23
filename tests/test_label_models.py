@@ -10,6 +10,12 @@ import pytest
 from helpers import ROOT
 
 
+# These tests need tree-sitter grammars; the fast CI tier installs none.
+_needs_ts = pytest.mark.skipif(
+    not __import__("arbiter.ast", fromlist=["available"]).available(),
+    reason="tree-sitter not installed")
+
+
 def _load(name: str, path):
     spec = importlib.util.spec_from_file_location(name, path)
     mod = importlib.util.module_from_spec(spec)
@@ -67,6 +73,7 @@ def test_excerpt_without_a_function_is_a_window():
     assert ">>   50 line50" in ex and "line19" not in ex and "line20" in ex
 
 
+@_needs_ts
 def test_blind_removes_comments_and_juliet_names_keeps_lines(tmp_path):
     src = ("public class CWE89_SQL_Injection__x_01 extends AbstractTestCase {\n"
            "    /* FLAW: concatenated */\n"
@@ -106,6 +113,7 @@ def test_owasp_labels_by_case_truth_and_cwe():
     assert all(r["held_out"] and r["labeller"] == "ground-truth" for r in out)
 
 
+@_needs_ts
 def test_juliet_side_from_method_and_class_names(tmp_path):
     src = ("public class X {\n"
            "    public void bad() throws Throwable\n    {\n        run(a);\n    }\n"
@@ -286,6 +294,7 @@ def test_ground_truth_sample_skips_items_an_earlier_round_used(tmp_path, monkeyp
     assert all(it["source"] == "calibration:owasp-java" and "truth" in it for it in its)
 
 
+@_needs_ts
 def test_planted_blind_drops_markers_docstrings_and_cwe_names():
     src = ('"""CWE-798: credentials written into the module."""\nimport os\n\n'
            'PW = "q8Vz!m2Lr7#tKw4P"  # expect: arbiter/secrets.assigned-credential\n')
@@ -296,6 +305,7 @@ def test_planted_blind_drops_markers_docstrings_and_cwe_names():
     assert g.blind_path("cwe25/cwe798_hardcoded.py", "planted") == "hardcoded.py"
 
 
+@_needs_ts
 def test_twin_line_follows_test_title_then_function_name():
     bad = 'it("drains a batch", async () => {\n  await drain([job]);\n});\n'
     good = 'const x = 1;\nit("drains a batch", async () => {\n  expect(await drain([job])).toBe(0);\n});\n'
@@ -359,6 +369,7 @@ def test_resilience_claim_does_not_assert_indefinite_blocking():
         assert cat == "resilience" and "indefinitely" not in text and "no explicit" in text
 
 
+@_needs_ts
 def test_blinded_item_shows_cross_file_definition_without_its_comments(tmp_path):
     main = ("package org.owasp.benchmark.testcode;\n\npublic class BenchmarkTest00001 {\n"
             "    public void doPost(HttpServletRequest request) {\n"

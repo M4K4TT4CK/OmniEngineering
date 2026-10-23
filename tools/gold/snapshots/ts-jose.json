@@ -1,8 +1,9 @@
 {
  "target": "ts-jose",
  "pinned_sha": "2cddc59c0592a851876a717ae39c59d41751cd72",
- "arbiter_commit": "53586a6d4aa5f3f9359a2d869de75eb43f2e2b27",
- "count": 112,
+ "arbiter_commit": "46e52c3bc61705bce7d712cad7dd4abeeae0aabb",
+ "recorded": "2026-10-23",
+ "count": 110,
  "by_rule": {
   "arbiter/assurance.blanket-suppression": 39,
   "arbiter/assurance.suppression-census": 1,
@@ -16,7 +17,7 @@
   "arbiter/typescript.empty-catch-in-loop": 3,
   "arbiter/typescript.fetch-no-timeout": 1,
   "arbiter/typescript.promise-catch-noop": 1,
-  "arbiter/typescript.shell-command-built": 4
+  "arbiter/typescript.shell-command-built": 2
  },
  "findings": [
   "arbiter/assurance.blanket-suppression\tsrc/jwks/remote.ts\t18",
@@ -128,8 +129,6 @@
   "arbiter/typescript.fetch-no-timeout\ttap/jwks.ts\t11",
   "arbiter/typescript.promise-catch-noop\tsrc/lib/deflate.ts\t37",
   "arbiter/typescript.shell-command-built\ttools/docs.cjs\t32",
-  "arbiter/typescript.shell-command-built\ttools/postbump.cjs\t37",
-  "arbiter/typescript.shell-command-built\ttools/postbump.cjs\t41",
-  "arbiter/typescript.shell-command-built\ttools/prebump.cjs\t12"
+  "arbiter/typescript.shell-command-built\ttools/postbump.cjs\t37"
  ]
 }

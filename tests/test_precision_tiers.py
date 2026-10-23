@@ -20,6 +20,12 @@ from arbiter.engine import run_scan
 from arbiter.policy import DEFAULTS, evaluate_gate, load_config
 from arbiter.report import render_console, render_markdown, write_sarif
 
+
+# These tests need tree-sitter grammars; the fast CI tier installs none.
+_needs_ts = pytest.mark.skipif(
+    not __import__("arbiter.ast", fromlist=["available"]).available(),
+    reason="tree-sitter not installed")
+
 RULE = "arbiter/python.sql-injection"
 
 
@@ -188,6 +194,7 @@ def test_a_misspelt_tier_mode_is_an_error(tmp_path):
         evaluate_gate(_report(), _cfg(tier_mode="strict"))
 
 
+@_needs_ts
 def test_a_real_scan_with_a_seeded_ledger_gates_on_the_verified_finding_only(tmp_path):
     """End to end: the planted Python sql-injection finding is verified by a
     ledger at 0.99+ under the offline profile and fails a tiered gate; every
@@ -223,6 +230,7 @@ def test_an_old_report_loads_as_advisory_or_inferred_never_verified():
     assert Finding.from_dict(d).tier == "verified"   # a report written with tiers keeps them
 
 
+@_needs_ts
 def test_report_round_trips_tiers_requirements_and_the_rules_block():
     rep = run_scan([str(ROOT / "fixtures" / "planted" / "python" / "bad")], _cfg(), use_cache=False, use_adapters=False)
     sql = next(f for f in rep.active() if f.rule_id == RULE)

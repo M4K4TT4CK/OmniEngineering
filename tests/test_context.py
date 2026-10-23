@@ -3,6 +3,13 @@ from __future__ import annotations
 
 from arbiter import context
 from arbiter.inventory import FileInfo, Inventory
+import pytest
+
+
+# These tests need tree-sitter grammars; the fast CI tier installs none.
+_needs_ts = pytest.mark.skipif(
+    not __import__("arbiter.ast", fromlist=["available"]).available(),
+    reason="tree-sitter not installed")
 
 FLASK = '''from flask import request
 import subprocess
@@ -65,6 +72,7 @@ def _repo(files: dict[str, str]) -> context.RepoView:
     return context.RepoView(paths=list(files), read_raw=lambda rel: files.get(rel, ""))
 
 
+@_needs_ts
 def test_python_decorator_and_route_are_in_the_excerpt():
     ctx = context.build(FLASK, "app/handler.py", 11)
     assert '@app.route("/benchmark/cmdi-00/Handler", methods=["POST"])' in ctx.text
@@ -79,6 +87,7 @@ def test_typescript_decorators_are_part_of_the_function():
     assert "@Get('/x')" in ctx.text and "@UseGuards(A)" in ctx.text and "class C {" in ctx.text
 
 
+@_needs_ts
 def test_express_route_registration_is_shown():
     src = ("const express = require('express');\nconst app = express();\n\n"
            "function show(req, res) {\n  res.send(req.query.q);\n}\n\n"
@@ -88,6 +97,7 @@ def test_express_route_registration_is_shown():
     assert "app.get('/show', show);" in ctx.text
 
 
+@_needs_ts
 def test_cross_file_definition_on_the_taint_path_is_shown_and_resolved_by_type():
     repo = _repo({"src/org/example/web/Handler.java": JAVA_MAIN,
                   "src/org/example/helpers/SafeRequest.java": JAVA_HELPER,
@@ -110,6 +120,7 @@ def test_a_name_alone_never_pulls_in_another_file():
     assert ctx.definitions == [] and "safe" not in ctx.text
 
 
+@_needs_ts
 def test_python_import_resolution():
     main = ("from helpers.util import clean\n\n\ndef run(x):\n    y = clean(x)\n"
             "    return os.system(y)\n")
@@ -118,6 +129,7 @@ def test_python_import_resolution():
     assert ctx.definitions == [("helpers/util.py", "clean")] and "return 'safe'" in ctx.text
 
 
+@_needs_ts
 def test_excerpt_is_bounded_masked_and_deterministic():
     body = "\n".join(f"    v{i} = h{i % 5}(v{i - 1})" for i in range(1, 400))
     helpers = "\n".join(f"def h{k}(x):\n" + "\n".join(f"    x = x + {j}" for j in range(80)) + "\n    return x\n"
@@ -140,6 +152,7 @@ def test_excerpt_is_bounded_masked_and_deterministic():
     assert "x = x + 40" not in a.text
 
 
+@_needs_ts
 def test_blinding_transform_and_shown_path_apply_to_other_files():
     repo = context.RepoView(
         paths=["src/org/example/web/Handler.java", "src/org/example/helpers/SafeRequest.java"],
@@ -151,6 +164,7 @@ def test_blinding_transform_and_shown_path_apply_to_other_files():
     assert "safe source" not in ctx.text and "--- hidden/SafeRequest.java:" in ctx.text
 
 
+@_needs_ts
 def test_verify_excerpt_uses_the_inventory_for_cross_file_definitions(tmp_path):
     from arbiter import verify
     from arbiter.core import Finding, Location
@@ -214,6 +228,7 @@ public class Case extends AbstractTestCase {
 '''
 
 
+@_needs_ts
 def test_callers_shown_when_the_tainted_value_is_a_parameter():
     ctx = context.build(JAVA_SINK, "Case.java", 6)
     assert ctx.callers == [13, 18]                      # at most two, in file order
@@ -222,12 +237,14 @@ def test_callers_shown_when_the_tainted_value_is_a_parameter():
     assert '>>    6' in ctx.text and 'data = "foo";' in ctx.text
 
 
+@_needs_ts
 def test_no_callers_when_the_value_is_not_a_parameter():
     ctx = context.build(JAVA_SINK, "Case.java", 28)
     assert ctx.callers == []
     assert 32 not in ctx.lines
 
 
+@_needs_ts
 def test_caller_limit_and_long_callers_are_windowed():
     body = "\n".join(f"    x{i} = {i}" for i in range(60))
     src = ("def sink(arg):\n    os.system('ls ' + arg)\n\n\n"
@@ -242,6 +259,7 @@ def test_caller_limit_and_long_callers_are_windowed():
     assert off.callers == [] and call_line not in off.lines
 
 
+@_needs_ts
 def test_parameter_names_across_languages():
     cases = {
         ("a.py", "python"): ("class C:\n    def f(self, a, b: int = 2, *rest, **kw):\n        return a\n", 3),

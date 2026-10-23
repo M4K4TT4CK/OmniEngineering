@@ -9,6 +9,13 @@ from __future__ import annotations
 
 from arbiter.engine import run_scan
 from arbiter.policy import load_config
+import pytest
+
+
+# These tests need tree-sitter grammars; the fast CI tier installs none.
+_needs_ts = pytest.mark.skipif(
+    not __import__("arbiter.ast", fromlist=["available"]).available(),
+    reason="tree-sitter not installed")
 
 DESTRUCTIVE = "arbiter/aiapp.unauthenticated-destructive-route"
 RELAY = "arbiter/aiapp.open-mail-relay"
@@ -128,6 +135,7 @@ def test_a_map_of_fresh_ids_that_is_never_emptied_is_reported(tmp_path):
     assert _findings(tmp_path, {"queue.ts": STORE_TS}) == [(STORE, "queue.ts", 8)]
 
 
+@_needs_ts
 def test_eviction_elsewhere_in_the_file_silences_it(tmp_path):
     src = STORE_TS.replace("    return job;\n  }\n",
                            "    return job;\n  }\n\n  done(id: string) {\n    this.jobs.delete(id);\n  }\n")
