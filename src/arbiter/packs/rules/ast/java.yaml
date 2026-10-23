@@ -1475,3 +1475,54 @@ rules:
       (169.254.169.254, localhost admin ports) and learn from the delivery
       status whether they answered.
     remediation: "Resolve the host, refuse loopback, site-local, link-local and any-local addresses, and connect to the address you checked; or keep an allowlist of callback hosts."
+
+  - id: image-decode-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` decodes an image without checking its dimensions first"
+    severity: high
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-409, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, decompression-bomb, ai-code]
+    # ImageIO.read allocates the full raster from the header. Reading the
+    # size through an ImageReader (getWidth(0)/getHeight(0) before read)
+    # anywhere in the file is taken as the check.
+    query: |
+      ((method_invocation object: (identifier) @o name: (identifier) @m)
+        (#eq? @o "ImageIO") (#eq? @m "read")) @hit
+    unless_in_file: |
+      ((identifier) @i (#match? @i "^(ImageReader|getImageReaders|getImageReadersByFormatName|getImageReadersBySuffix)$"))
+    description: >-
+      A small PNG can declare 50000 x 50000 pixels; `ImageIO.read` then
+      allocates a raster of gigabytes before anything checks the size, and
+      one upload throws OutOfMemoryError for the whole JVM. An upload size
+      limit does not help: the file is small, the image it declares is not.
+    remediation: "Open an `ImageReader` on an `ImageInputStream`, check `getWidth(0)` and `getHeight(0)` against a limit, then `reader.read(0)`."
+
+  - id: decompress-read-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` reads a decompressed stream with no size limit"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-409, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, decompression-bomb, ai-code]
+    query: |
+      ((method_invocation name: (identifier) @m arguments: (argument_list))
+        (#match? @m "^(readAllBytes)$")) @hit
+      ((method_invocation object: (identifier) @o name: (identifier) @m)
+        (#match? @o "^(IOUtils|ByteStreams)$") (#match? @m "^(toByteArray|toString)$")) @hit
+    requires_in_scope: |
+      ((object_creation_expression type: (type_identifier) @t)
+        (#match? @t "^(GZIPInputStream|InflaterInputStream|ZipInputStream|GzipCompressorInputStream|BZip2CompressorInputStream|XZCompressorInputStream|ZstdInputStream|BrotliInputStream|DeflateCompressorInputStream)$"))
+    unless_in_scope: |
+      ((identifier) @i (#match? @i "^(readNBytes|BoundedInputStream|LimitedInputStream|getSize|getCompressedSize)$"))
+      ((identifier) @i (#match? @i "(?i)^max_?(size|bytes|len|length|uncompressed)|_?limit$"))
+    description: >-
+      Compressed input expands by up to ~1000x (deflate) or far more
+      (nested archives). Reading the decompressing stream to the end keeps
+      going until the output ends, so a 1 MB upload can become gigabytes of
+      heap.
+    remediation: "Read at most `max + 1` bytes (`in.readNBytes(max + 1)`) and refuse output longer than `max`; for zip entries check the running total, not the declared size."

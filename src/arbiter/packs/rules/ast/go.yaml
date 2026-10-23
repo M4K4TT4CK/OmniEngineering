@@ -1271,3 +1271,81 @@ rules:
       (169.254.169.254, localhost admin ports) and learn from the delivery
       status whether they answered.
     remediation: "Resolve the host and refuse non-public addresses at connect time (a net.Dialer Control hook checking ip.IsPrivate/IsLoopback/IsLinkLocalUnicast), or keep an allowlist of callback hosts."
+
+  - id: image-decode-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` decodes an image without checking its dimensions first"
+    severity: high
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-409, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, decompression-bomb, ai-code]
+    # image.Decode allocates width x height x 4 bytes from the header before
+    # reading a pixel. image.DecodeConfig anywhere in the file is taken as
+    # the dimension check.
+    query: |
+      ((call_expression function: (selector_expression) @fn)
+        (#match? @fn "^(image|png|jpeg|gif|bmp|tiff|webp)\\.Decode$")) @hit
+    unless_in_file: |
+      ((call_expression function: (selector_expression field: (field_identifier) @f))
+        (#eq? @f "DecodeConfig"))
+    description: >-
+      A PNG of a few kilobytes can declare 50000 x 50000 pixels. Decoding
+      it allocates the full canvas, about 10 GB, before anything checks the
+      size, so one upload takes the process down. Bounding the file size
+      does not help: the bomb is small; the image it declares is not.
+    remediation: "Call `image.DecodeConfig` first (rewind the reader) and refuse widths, heights or width*height above a limit before `image.Decode`."
+
+  - id: decompress-read-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` reads a decompressed stream with no size limit"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-409, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, decompression-bomb, ai-code]
+    query: |
+      ((call_expression function: (selector_expression) @fn
+         arguments: (argument_list . (identifier) @src .))
+        (#match? @fn "^(io|ioutil)\\.ReadAll$")) @hit
+    requires_in_scope: |
+      ((call_expression function: (selector_expression) @fn)
+        (#match? @fn "^(gzip|zlib|flate|bzip2|lzw|zstd|snappy|lz4|brotli)\\.(NewReader|NewReaderDict)$"))
+    unless_in_scope: |
+      ((call_expression function: (selector_expression field: (field_identifier) @f))
+        (#match? @f "^(LimitReader|MaxBytesReader|CopyN|NewLimitedReader)$"))
+      ((field_identifier) @f (#eq? @f "LimitedReader"))
+    description: >-
+      Compressed input expands by up to ~1000x (gzip) or far more (nested
+      archives). `io.ReadAll` on the decompressing reader keeps going until
+      the output ends, so a 1 MB request can become gigabytes in memory.
+    remediation: "Wrap the reader: `io.ReadAll(io.LimitReader(zr, max+1))` and refuse output longer than `max`."
+
+  - id: request-body-read-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` reads the whole request body with no size limit"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-770, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, unbounded-input, ai-code]
+    query: |
+      ((call_expression function: (selector_expression) @fn
+         arguments: (argument_list . (selector_expression) @b .))
+        (#match? @fn "^(io|ioutil)\\.ReadAll$")
+        (#match? @b "^(r|req|request)\\.Body$")) @hit
+    unless_in_scope: |
+      ((call_expression function: (selector_expression field: (field_identifier) @f))
+        (#match? @f "^(LimitReader|MaxBytesReader)$"))
+      ((selector_expression field: (field_identifier) @f) (#eq? @f "ContentLength"))
+      ([(identifier) (field_identifier)] @m (#match? @m "(?i)max_?(body|request|payload)_?(size|bytes|len)|body_?(size_?)?limit"))
+    # The last line: traefik reads the whole body only on the branch its
+    # configuration chose (`maxBodySize < 0`), a decision not a gap.
+    description: >-
+      net/http puts no limit on a request body. `io.ReadAll(r.Body)` reads
+      whatever the client sends into memory, so a few concurrent requests
+      with multi-gigabyte bodies exhaust the server.
+    remediation: "Wrap it first: `r.Body = http.MaxBytesReader(w, r.Body, max)`, and return 413 on the resulting error."

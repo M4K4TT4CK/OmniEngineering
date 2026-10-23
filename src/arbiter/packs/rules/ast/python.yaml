@@ -936,3 +936,87 @@ rules:
       (169.254.169.254, localhost admin ports) and learn from the delivery
       status whether they answered.
     remediation: "Resolve the host with `socket.getaddrinfo`, refuse any address that is not `ipaddress.ip_address(a).is_global`, and connect to the checked address; or keep an allowlist of callback hosts."
+
+  - id: image-bomb-check-disabled
+    requirements: [ARB-083]
+    title: "`{text}` switches off Pillow's decompression-bomb check"
+    severity: high
+    confidence: high
+    dimension: quality
+    cwe: [CWE-409, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, decompression-bomb, ai-code]
+    query: |
+      ((assignment left: (attribute) @a right: (none)) @hit
+        (#match? @a "^(PIL\\.)?Image\\.MAX_IMAGE_PIXELS$"))
+    description: >-
+      Pillow refuses images above ~179 million pixels because a small file
+      can declare a huge canvas. With the limit set to None a few-kilobyte
+      upload makes the decoder allocate gigabytes.
+    remediation: "Keep the default, or set `Image.MAX_IMAGE_PIXELS` to the largest image the service really accepts; check `img.size` before `load()`/`thumbnail()`."
+
+  - id: decompress-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` decompresses with no limit on the output"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-409, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, decompression-bomb, ai-code]
+    # One-shot decompression of a non-literal: the whole output is built in
+    # memory. A scope that checks a size (max_length, a length comparison
+    # against a named limit) is not reported.
+    query: |
+      ((call function: (attribute) @fn arguments: (argument_list . [(identifier) (attribute) (call) (subscript)]))
+        (#match? @fn "^(gzip|zlib|bz2|lzma|brotli|zstd|zstandard)\\.decompress$")) @hit
+      ((call function: (attribute object: (_) @o attribute: (identifier) @m) arguments: (argument_list))
+        (#eq? @m "extractall") (#match? @o "(?i)zip|archive|zf|^z$")) @hit
+    # Only data from a request in the same function: Django decompresses
+    # its own signed values and cache files, which an attacker cannot shape.
+    requires_in_scope: |
+      ((identifier) @i (#match? @i "^(request|req|upload|uploaded|uploaded_file|files)$"))
+    unless_in_scope: |
+      ((keyword_argument name: (identifier) @k) (#match? @k "^(max_length|max_output_size|bufsize)$"))
+      ((identifier) @i (#match? @i "(?i)^max_|_max$|limit|file_size|infolist"))
+    description: >-
+      Compressed data expands by ~1000x (gzip) or far more (nested
+      archives). Decompressing a client's payload in one call, or extracting
+      a client's zip without totalling the entry sizes, lets a 1 MB upload
+      become gigabytes of memory or disk.
+    remediation: "Use `zlib.decompressobj().decompress(data, max_length)` and refuse more; for zips sum `ZipInfo.file_size` (and check the ratio) before extracting."
+
+  - id: request-body-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` reads the request body with no size limit configured"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-770, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, unbounded-input, ai-code]
+    # Flask: an app created in a file that reads request bodies and never
+    # sets MAX_CONTENT_LENGTH. Starlette/FastAPI: `await request.body()` in
+    # a function that checks no content length.
+    query: |
+      ((call function: (identifier) @fn arguments: (argument_list . (identifier) @n)) @hit
+        (#eq? @fn "Flask") (#eq? @n "__name__"))
+      ((await (call function: (attribute object: (identifier) @o attribute: (identifier) @m) arguments: (argument_list))) @hit
+        (#eq? @o "request") (#match? @m "^(body|json|form)$"))
+    requires_file: |
+      ((attribute object: (identifier) @o attribute: (identifier) @m)
+        (#eq? @o "request") (#match? @m "^(get_json|json|data|get_data|files|form|stream|body)$"))
+    # aiohttp caps a body at client_max_size (1 MiB) by default.
+    unless_in_file: |
+      ((string (string_content) @s) (#eq? @s "MAX_CONTENT_LENGTH"))
+      ((identifier) @s (#eq? @s "MAX_CONTENT_LENGTH"))
+      (import_statement name: (dotted_name) @m (#match? @m "^aiohttp")) @x
+      (import_from_statement module_name: (dotted_name) @m (#match? @m "^aiohttp")) @x
+    unless_in_scope: |
+      ((string (string_content) @s) (#match? @s "(?i)^content-length$"))
+      ((identifier) @i (#match? @i "(?i)^max_?(body|request|content|payload|upload)|body_?limit"))
+    description: >-
+      Neither Flask nor Starlette limits a request body by default, so the
+      server reads whatever the client sends into memory before any
+      validation runs. A few concurrent multi-gigabyte requests exhaust it.
+    remediation: "Flask: set `app.config[\"MAX_CONTENT_LENGTH\"]`. Starlette/FastAPI: refuse on Content-Length and read `request.stream()` up to a limit (or cap it at the proxy)."

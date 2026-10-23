@@ -1265,3 +1265,90 @@ rules:
       (169.254.169.254, localhost admin ports) and learn from the delivery
       status whether they answered.
     remediation: "Resolve the host, refuse non-public addresses (and pin the connection to the checked address, e.g. an undici Agent with a lookup that rejects them), or keep an allowlist of callback hosts."
+
+  - id: image-pixel-limit-disabled
+    requirements: [ARB-083]
+    title: "`{text}` switches off sharp's pixel limit"
+    severity: high
+    confidence: high
+    dimension: quality
+    cwe: [CWE-409, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, decompression-bomb, ai-code]
+    query: |
+      ((pair key: (property_identifier) @k value: [(false) (number)] @v) @hit
+        (#eq? @k "limitInputPixels") (#match? @v "^(false|0)$"))
+    description: >-
+      sharp refuses images above ~268 million pixels because a small file
+      can declare a huge canvas. `limitInputPixels: false` (or 0) removes
+      that, so a few-kilobyte upload makes libvips allocate gigabytes.
+    remediation: "Keep the default, or set `limitInputPixels` to the largest image the service accepts."
+
+  - id: decompress-sync-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` decompresses with no limit on the output"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-409, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, decompression-bomb, ai-code]
+    query: |
+      ((call_expression function: [(identifier) (member_expression)] @fn
+         arguments: (arguments . [(identifier) (member_expression) (call_expression)] .))
+        (#match? @fn "(^|\\.)(gunzipSync|inflateSync|inflateRawSync|unzipSync|brotliDecompressSync)$")) @hit
+    requires_in_scope: |
+      ((identifier) @i (#match? @i "^(req|request|ctx|body|upload|file|files|payload)$"))
+    unless_in_scope: |
+      ((property_identifier) @p (#eq? @p "maxOutputLength"))
+    description: >-
+      Compressed data expands by ~1000x or more. zlib's sync calls build
+      the whole output in memory, so a 1 MB request body can become
+      gigabytes, blocking the event loop until the process dies.
+    remediation: "Pass `{ maxOutputLength: limit }` (Node >= 14.5) and answer 413 on the RangeError, or stream through a counting Transform."
+
+  - id: upload-memory-storage-unbounded
+    requirements: [ARB-083]
+    title: "multer buffers whole uploads in memory with no file-size limit"
+    severity: medium
+    confidence: high
+    dimension: quality
+    cwe: [CWE-770, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, upload, ai-code]
+    query: |
+      ((call_expression function: (identifier) @fn arguments: (arguments . (object) @o)) @hit
+        (#eq? @fn "multer")
+        (#match? @o "memoryStorage")
+        (#not-match? @o "fileSize"))
+    description: >-
+      memoryStorage keeps each uploaded file as a Buffer, and multer sets no
+      size limit by default. One client streaming a multi-gigabyte upload,
+      or a handful in parallel, exhausts the process.
+    remediation: "Set `limits: { fileSize, files }`, or use disk storage (or a streaming upload to object storage) for anything large."
+
+  - id: request-body-accumulated-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` accumulates the request body with no size limit"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-770, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, unbounded-input, ai-code]
+    # A raw `req.on("data", ...)` handler that appends chunks and never
+    # compares a running length with a limit or destroys the stream.
+    query: |
+      ((call_expression
+         function: (member_expression object: (identifier) @o property: (property_identifier) @m)
+         arguments: (arguments . (string (string_fragment) @ev) . [(arrow_function) (function_expression)] @h))
+        (#match? @o "^(req|request|incoming)$") (#eq? @m "on") (#eq? @ev "data")
+        (#match? @h "(push|concat|\\+=)")
+        (#not-match? @h "(length|size|byteLength|limit|destroy|LIMIT|MAX)")) @hit
+    unless_in_scope: |
+      ((member_expression property: (property_identifier) @p) (#match? @p "^(length|byteLength)$"))
+    description: >-
+      Node's http server has no body limit. Collecting every `data` chunk
+      until `end` holds the whole body in memory, however large the client
+      makes it.
+    remediation: "Count bytes in the handler and `req.destroy()` with 413 past a limit, or use a body parser with `limit` (express.json, raw-body)."
