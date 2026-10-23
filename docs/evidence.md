@@ -140,7 +140,9 @@ python tools/corpus.py --counts     # needs nothing cloned
 | **Teaching material** | 5 | 1 | 4 |
 | **All** | **41** | **5** | **36** |
 
-The measured figures below come from the last recorded corpus run. Its
+The measured figures below come from the last recorded corpus run, from
+September 2026 (the table dates from 2026-09-12). That predates the language
+rule packs (added from 2026-10-20), so it says nothing about them. Its
 vulnerable population was 14 repositories — it predates the two Go repositories
 added after `tools/worklist.py` reported Go as 811,194 lines of well-maintained
 code with 62 lines of broken code to compare against. Rerun `tools/corpus.py` to
