@@ -17,7 +17,12 @@ rg = importlib.util.module_from_spec(_spec)
 sys.modules["regression_guard"] = rg
 _spec.loader.exec_module(rg)
 
+from arbiter import ast as _ts  # noqa: E402
 from arbiter import lang_rules  # noqa: E402
+
+# Snapshots were recorded with the grammars installed; without them every
+# pack rule is skipped and the guard would report them all as gone.
+needs_ts = pytest.mark.skipif(not _ts.available(), reason="tree-sitter not installed")
 
 TARGET = ROOT / "fixtures" / "planted" / "python" / "bad"
 RULE = "arbiter/python.sql-injection"
@@ -64,6 +69,7 @@ def test_machine_factor_scales_up_but_never_tightens():
 
 # --- the committed snapshots ---------------------------------------------------
 
+@needs_ts
 def test_in_tree_snapshots_match(capsys):
     """The CI guard itself for the trees in this repository. A failure here
     is a changed finding set: if the change is intended, run
@@ -88,12 +94,14 @@ def test_every_pinned_guard_target_is_a_gold_pin_with_a_snapshot():
 
 # --- seeded regressions: each guard must fail --------------------------------
 
+@needs_ts
 def test_snapshot_guard_passes_on_the_unchanged_tree(snapdir):
     t = _record(snapdir, seconds=60.0)
     lines: list[str] = []
     assert _check(t, lines, do_snap=True, do_perf=True) == 0, lines
 
 
+@needs_ts
 def test_snapshot_guard_fails_when_a_rule_is_deleted(snapdir, monkeypatch):
     t = _record(snapdir, seconds=60.0)
     real = lang_rules.load_packs()
@@ -107,6 +115,7 @@ def test_snapshot_guard_fails_when_a_rule_is_deleted(snapdir, monkeypatch):
     assert any(RULE in line and "no longer fire" in line for line in lines), lines
 
 
+@needs_ts
 def test_perf_guard_fails_when_a_probe_gets_slower(snapdir, monkeypatch):
     _, secs = rg.timed_scan(TARGET)  # warm: grammars and compiled packs loaded
     _, secs = rg.timed_scan(TARGET)
@@ -124,6 +133,7 @@ def test_perf_guard_fails_when_a_probe_gets_slower(snapdir, monkeypatch):
     assert any(line.startswith("FAIL seed: scan") for line in lines), lines
 
 
+@needs_ts
 def test_perf_guard_is_not_fooled_by_a_slowdown_that_also_hits_the_reference(snapdir, monkeypatch):
     """The machine factor is measured live here. A reference that ran
     Arbiter would slow down with the seeded sleep and scale the budget up

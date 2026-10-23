@@ -99,6 +99,7 @@ def test_the_committed_corpus_labels_point_at_real_lines():
         assert m["prompt"] and m["model"] and m["date"]
 
 
+@pytest.mark.skipif(not __import__("arbiter.ast", fromlist=["available"]).available(), reason="tree-sitter not installed")
 def test_end_to_end_scan_of_a_tiny_app(tmp_path):
     app = tmp_path / "python" / "tiny"
     (app / "app").mkdir(parents=True)

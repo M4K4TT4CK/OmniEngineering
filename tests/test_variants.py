@@ -10,6 +10,11 @@ import sys
 import pytest
 from helpers import ROOT
 
+from arbiter import ast as _ts  # noqa: E402
+
+# Every variant is a tree-sitter rewrite; the fast CI tier installs no grammars.
+pytestmark = pytest.mark.skipif(not _ts.available(), reason="tree-sitter not installed")
+
 _spec = importlib.util.spec_from_file_location("variants", ROOT / "tools" / "variants.py")
 vt = importlib.util.module_from_spec(_spec)
 sys.modules["variants"] = vt

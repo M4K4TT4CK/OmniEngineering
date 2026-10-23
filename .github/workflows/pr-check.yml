@@ -183,7 +183,9 @@ jobs:
           python -m pip install --upgrade pip
           # mcp and api: the slow tier includes the scans that go through the
           # hosted surfaces, and those skip without their extras.
-          pip install -e .[dev,mcp,api]
+          # ast: the regression guards below compare against snapshots taken
+          # with the grammars installed.
+          pip install -e .[dev,mcp,api,ast]
 
       # The same installer the Linux cell uses, so the tier runs the same
       # tools a laptop installs. A tool it could not fetch is a skip, printed
