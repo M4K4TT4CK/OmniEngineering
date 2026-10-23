@@ -1142,3 +1142,65 @@ rules:
       a skip behind `testing.Short()` or a platform check is a different
       thing and is not reported.
     remediation: "Fix the test or delete it; if it must be skipped somewhere, put the skip behind a condition."
+
+  # ---------------------------------------------------------------------
+  # Defect classes found in AI-written code (ARB-083)
+  # ---------------------------------------------------------------------
+  # Each shape below is one a reviewer labelled in model-written services
+  # (fixtures/ai-corpus) that no earlier rule covered. All start advisory.
+  - id: ignored-encode-error
+    requirements: [ARB-083]
+    title: "`{text}` discards the encode error"
+    severity: low
+    confidence: high
+    dimension: quality
+    cwe: [CWE-252]
+    controls: [NIST-800-218:PW.5]
+    tags: [error-handling, ai-code]
+    # A bare expression statement: the error result is not assigned, not
+    # even to `_`. `_ = enc.Encode(v)` is a decision and is not reported.
+    query: |
+      (expression_statement (call_expression
+        function: (selector_expression
+          operand: (call_expression function: (selector_expression) @mk
+            (#match? @mk "^(json|xml|gob)\\.NewEncoder$"))
+          field: (field_identifier) @f (#eq? @f "Encode"))) @hit)
+    description: >-
+      `json.NewEncoder(w).Encode(v)` returns an error when the value cannot
+      be encoded or the client has gone away mid-write. As a bare statement
+      that error is dropped: a handler that sent half a body, or none, logs
+      nothing and the failure is invisible in production.
+    remediation: "Check it: `if err := json.NewEncoder(w).Encode(v); err != nil { log... }`, or write `_ =` where ignoring it is deliberate."
+
+  - id: ignored-exec-error
+    requirements: [ARB-083]
+    title: "`{text}` runs SQL and drops the error"
+    severity: low
+    confidence: high
+    dimension: quality
+    cwe: [CWE-252]
+    controls: [NIST-800-218:PW.5]
+    tags: [error-handling, database, ai-code]
+    # database/sql's Exec returns (Result, error); called as a statement
+    # both are thrown away. The receiver must read as a database handle
+    # and the first argument be SQL text (a string literal), so an Exec on
+    # some other type (a template, a command runner) is not matched.
+    query: |
+      (expression_statement (call_expression
+        function: (selector_expression operand: (_) @recv field: (field_identifier) @f)
+        arguments: (argument_list . [(raw_string_literal) (interpreted_string_literal)] @sql))
+        (#match? @f "^(Exec|ExecContext)$")
+        (#match? @recv "(?i)(^|\\.)(db|tx|conn|pool|sqldb|database)$")
+        (#match? @sql "(?i)^.\\s*(insert|update|delete|create|drop|alter|replace|pragma|begin|commit|vacuum)\\b")) @hit
+      (expression_statement (call_expression
+        function: (selector_expression operand: (_) @recv field: (field_identifier) @f)
+        arguments: (argument_list . (_) . [(raw_string_literal) (interpreted_string_literal)] @sql))
+        (#eq? @f "ExecContext")
+        (#match? @recv "(?i)(^|\\.)(db|tx|conn|pool|sqldb|database)$")
+        (#match? @sql "(?i)^.\\s*(insert|update|delete|create|drop|alter|replace|pragma|begin|commit|vacuum)\\b")) @hit
+    description: >-
+      The statement is executed and its error discarded. A failed delete,
+      insert or migration leaves the data in a state the code believes it
+      changed, and nothing records why: an expired-token purge that keeps
+      failing lets the table grow with no sign anywhere.
+    remediation: "Handle the error (`if _, err := db.Exec(...); err != nil { ... }`) or log it; write `_, _ =` only where ignoring it is a documented decision."
