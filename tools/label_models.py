@@ -799,13 +799,53 @@ def items_from_planted(categories: set[str], cap: int | None = None) -> list[dic
 # check (a SHA pin, a lockfile, a file that exists, a test path), compare the
 # model label with it. The labellers saw the repo facts in their prompt, so
 # this measures whether they follow facts, not an independent truth -- except
-# the SHA-pin and test-path checks, which they were never shown.
+# the SHA-pin, test-path and suppression-names-a-rule checks, which they were
+# never shown.
 # ---------------------------------------------------------------------------
 
 _SHA_PIN = re.compile(r"uses:\s*['\"]?[^@\s'\"]+@[0-9a-f]{40}\b")
 _TEST_PATH = re.compile(r"(?i)(^|/)(tests?|spec|__tests__|testdata|test-?fixtures?|fixtures?|examples?|samples?|"
                         r"docs?|cookbook|itest|testsuite|integration-test|e2e|dummyserver|caddytest)(/|$)|"
                         r"(^|/)[^/]*(_test|\.test|\.spec|_spec|Test|Tests)\.\w+$|(^|/)test_[^/]*$")
+
+
+# A suppression directive and, when it names rules, the names (group
+# `named`). Written here from each tool's syntax, not taken from Arbiter's
+# SUPPRESSION_PATTERNS, so the check is independent of the rule it checks.
+# `@ts-ignore` / `@ts-expect-error` and `NOSONAR` cannot name a rule at all.
+_SUPPRESSION_DIRECTIVES = [
+    re.compile(r"#\s*noqa\b(?P<named>\s*:\s*[A-Z]+[0-9]+)?", re.I),
+    re.compile(r"#\s*type:\s*ignore\b(?P<named>\[[^\]]+\])?"),
+    re.compile(r"#\s*pyright:\s*ignore\b(?P<named>\[[^\]]+\])?"),
+    re.compile(r"#\s*nosec\b(?P<named>[ \t]+B\d{3}|[ \t]+G\d{3})?"),
+    re.compile(r"#\s*pylint:\s*disable\s*=\s*(?P<named>(?!all\b)[\w-]+)?"),
+    re.compile(r"#\s*rubocop:\s*disable\b(?P<named>[ \t]+(?!all\b)[A-Z]\w*/\w+)?"),
+    re.compile(r"//\s*@ts-(?:ignore|expect-error|nocheck)\b()?"),
+    re.compile(r"(?://|/\*)\s*eslint-disable(?:-next-line|-line)?\b(?P<named>[ \t]+(?!\*/|--)[@\w/-]+)?"),
+    re.compile(r"//\s*nolint\b(?P<named>:\w+)?"),
+    re.compile(r"(?://|#)\s*NOSONAR\b()?"),
+    re.compile(r"@SuppressWarnings\(\s*(?P<all>\"all\")?"),
+]
+
+
+def suppression_fact(line: str) -> tuple[str, str] | None:
+    """Whether the suppression on `line` names a rule: ("tp", ...) when it
+    names none, ("fp", ...) when it does, None when the line holds no
+    directive outside a string literal."""
+    for rx in _SUPPRESSION_DIRECTIVES:
+        m = rx.search(line)
+        if not m:
+            continue
+        before = line[:m.start()]
+        if before.count('"') % 2 or before.count("'") % 2 or before.count("`") % 2:
+            continue        # inside a string literal: not a directive
+        groups = m.groupdict()
+        if "all" in groups:
+            return ("tp", "suppresses \"all\"") if groups["all"] else ("fp", "names the warnings it suppresses")
+        if groups.get("named"):
+            return "fp", f"names a rule ({groups['named'].strip(' :')})"
+        return "tp", "the suppression names no rule"
+    return None
 
 
 def fact_truth(rec: dict, root: Path) -> tuple[str, str] | None:
@@ -820,6 +860,8 @@ def fact_truth(rec: dict, root: Path) -> tuple[str, str] | None:
         if "uses:" not in ln or re.search(r"uses:\s*['\"]?(\./|docker://)", ln):
             return None
         return ("fp", "pinned to a full commit SHA") if _SHA_PIN.search(ln) else ("tp", "uses a tag or branch")
+    if rule == "arbiter/assurance.blanket-suppression":
+        return suppression_fact(ln)
     if rule.startswith("arbiter/supply.unpinned-"):
         here = (root / path).parent
         locks = [n for n in _LOCKS if (here / n).exists() or (root / n).exists()]
