@@ -1822,6 +1822,38 @@
         "Two existing graph-findings tests were updated: a finding now also has its rule one step away, and the no-report hint mentions arbiter scan.",
         "tests/test_gate_hook post-commit rebuild test fails on this WSL machine on untouched main as well (passes in CI); not changed here."
       ]
+    },
+    {
+      "id": "REQ-054",
+      "category": "Code understanding",
+      "title": "Arbiter findings show the finding text and the fix, and trace to the ARB requirement behind their rule",
+      "description": "omni graph showed a finding's title, rule and location but not what Arbiter found or how to fix it, and a full scan (no req: tags) left every finding with no route to an ARB id. Findings now carry the rule author's description and remediation (trimmed, never the evidence) in the graph, the viewer's Finding and Fix blocks, omni graph why/findings and MCP graph_findings. Each arbiter_rule is specified_by the requirement behind it: EXTRACTED from a requirements field on the report's finding or rule metadata, else INFERRED from a change-log bullet that names the rule (or its rule pack) under ARB ids, a rule pack header, or a registry entry's text; the vendored arbiter/CHANGELOG.md joins the graph with mentions_rule edges. The finding lists traced_to ids; why, lineage and viewer search reach an ARB id's rules and findings.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "omni_graph.py",
+        "make_ai.py",
+        ".ai/graph-viewer/viewer.html",
+        "tests/test_graph_arb_trace.py",
+        "docs/arbiter-integration.md",
+        ".ai/project-configuration.md"
+      ],
+      "acceptance_criteria": [
+        "finding description and remediation reach the graph and viewer and evidence does not",
+        "a full-scan finding traces to the ARB id a changelog bullet names beside its rule",
+        "bare and arbiter/ prefixed rule ids resolve and unknown ids are ignored",
+        "a requirements field in the report is read as EXTRACTED",
+        "omni graph why and lineage of an ARB id list its rules and findings"
+      ],
+      "validation_required": [
+        "unittest",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog",
+        "docs/arbiter-integration.md"
+      ],
+      "risk_notes": []
     }
   ]
 }

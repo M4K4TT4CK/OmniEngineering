@@ -178,7 +178,10 @@ Each arrow is enforced, not advisory:
 `--out` directory (override with `findings_report` in `.ai/graph-config.json`;
 `null` disables) and adds one `finding` node per unsuppressed finding. Only
 the id, location, rule, dimension, severity, status, tags and title are
-copied; the evidence snippet never reaches the graph or the viewer.
+copied, and (REQ-054) the rule author's `description` and `remediation` (the
+finding text and the fix, each trimmed to 600 characters) with its
+`remediation_source`; the evidence snippet, which quotes the scanned code, never
+reaches the graph or the viewer.
 
 Edges:
 
@@ -189,6 +192,21 @@ Edges:
 | `cites` | finding → requirement | context: a requirement being worked when the scan ran (from the `req:` tag); it did not necessarily write the line |
 | `recorded_as` | finding → failure | the ledger entry it became after adjudication, in this ledger or a vendored workspace's (`arbiter/FAIL-042`) |
 | `contains` | directory → file / subdirectory, and a vendored workspace's registry or ledger → its entries | the tree from the root down to the file, or to `arbiter/FAIL-042` |
+| `specified_by` | arbiter_rule → requirement | REQ-054: the ARB-### (or REQ-###) id behind the rule. EXTRACTED when the report declares `requirements` on the finding or in its `rules` metadata; INFERRED when a change-log bullet names the rule in backticks under the ids that lead the bullet (the ARB-053, ARB-054 bullet names `concurrency.check-then-act-unlocked`), names the rule pack that defines it (`packs/rules/ast/{python,go}.yaml`), a pack's header cites the id, or a registry entry's text names the rule |
+| `mentions_rule` | changelog entry → arbiter_rule | REQ-054: the entry names the rule id (with or without `arbiter/`) or its pack; the vendored `arbiter/CHANGELOG.md` joins the graph as `arbiter/<date>` entries for this |
+
+**Traced to an ARB id.** A full scan carries no `req:` tags, so the
+`specified_by` edge is the route from any finding to the requirement behind its
+rule: finding → `violates` → rule → `specified_by` → `arbiter/ARB-053`. The
+finding records the names in `attrs.traced_to`. `omni graph why f:<id>` prints
+the finding text, the fix and a `traced to` section; `omni graph why ARB-053`
+lists its `arbiter rules` and their `findings`; `omni graph lineage ARB-053
+--down` reaches them; the viewer's finding panel shows "Finding" and "Fix"
+blocks and one "traced to" row per requirement with its own Trace button, and a
+search for `ARB-053` lists the findings traced to it. Only rules a record names
+are traced: nothing is guessed from file scopes, so on a repository whose
+findings come mostly from ruff, bandit and the complexity rules most findings
+have no traced id until Arbiter declares `requirements` per rule.
 
 **Who introduced it.** The `req:` tags are context: Arbiter tags a finding with
 every requirement the commits since the base cite, so a finding raised during a

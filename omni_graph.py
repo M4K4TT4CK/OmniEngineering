@@ -33,6 +33,7 @@ import random
 import re
 import shlex
 import subprocess
+import textwrap
 import urllib.error
 import urllib.request
 from collections import deque
@@ -118,6 +119,7 @@ EDGE_LAYER = {
     "touches": LAYER_GOVERNANCE,  # requirement -> file/module it changes or is scoped to
     "records": LAYER_GOVERNANCE,  # changelog entry -> requirement it reports
     "mentions": LAYER_GOVERNANCE,  # changelog entry -> file it names
+    "mentions_rule": LAYER_GOVERNANCE,  # REQ-054: changelog entry -> arbiter_rule whose id it names in backticks
     "delivers": LAYER_HISTORY,  # commit -> requirement it implements
     "modifies": LAYER_HISTORY,  # commit -> file it changed
     "logged_in": LAYER_HISTORY,  # commit -> changelog entry it added or edited
@@ -139,6 +141,8 @@ EDGE_LAYER = {
     # ARB-064: traceability from a finding to the rule it violates and the weakness class it belongs to
     "violates": LAYER_ASSURANCE,  # finding -> arbiter_rule it was raised by
     "classified_as": LAYER_ASSURANCE,  # finding -> cwe, and arbiter_rule -> cwe (the rule's declared classification)
+    # REQ-054: the requirement behind a rule, so every finding traces to an ARB-### id in one hop past its rule
+    "specified_by": LAYER_ASSURANCE,  # arbiter_rule -> requirement a changelog entry names beside the rule id (INFERRED)
 }
 
 # ARB-064: names for the CWE ids Arbiter's own rules declare plus the CWE Top 25, so a `cwe` node reads as more than a
@@ -2605,10 +2609,7 @@ def _requirement_regex(root: Path, ids: list[str]) -> re.Pattern:
             return re.compile(override)
         except re.error:
             pass
-    if not ids:
-        return re.compile(r"(?!x)x")
-    alternation = "|".join(re.escape(rid) for rid in sorted(ids, key=len, reverse=True))
-    return re.compile(rf"(?<![A-Za-z0-9_-])(?:{alternation})(?![A-Za-z0-9_])(?!-[A-Za-z0-9])")
+    return _id_regex(ids)
 
 
 def _find_ids(pattern: re.Pattern, text: str) -> list[str]:
@@ -2710,6 +2711,77 @@ def _changelog_paths(root: Path) -> list[str]:
     return [rel for rel in graph_config(root)["changelog_files"] if (root / rel).is_file()]
 
 
+def _changelog_prefix(order: int, rel: str) -> str:
+    return "changelog:" if order == 0 else f"changelog:{re.sub(r'[^A-Za-z0-9]+', '-', rel).strip('-').lower()}:"
+
+
+def _changelog_entry_id(prefix: str, entry: dict[str, Any], seen_ids: dict[str, int]) -> tuple[str, str]:
+    """The node id and display name of one parsed changelog entry, `~2`, `~3` ... for a repeated heading."""
+    if entry["date"] and entry["seq"] or (entry["date"] and not entry["version"]):
+        base = f"{prefix}{entry['date']}" + (f"#{entry['seq']}" if entry["seq"] else "")
+        name = entry["date"] + (f" ({entry['seq']})" if entry["seq"] else "")
+    elif entry["version"]:
+        base = f"{prefix}v{entry['version']}"
+        name = f"v{entry['version']}" + (f" ({entry['date']})" if entry["date"] else "")
+    else:
+        base = prefix + re.sub(r"[^A-Za-z0-9]+", "-", entry["heading"]).strip("-").lower()
+        name = _short(entry["heading"], 60)
+    seen_ids[base] = seen_ids.get(base, 0) + 1
+    return (base if seen_ids[base] == 1 else f"{base}~{seen_ids[base]}"), name
+
+
+def _id_regex(ids: list[str]) -> re.Pattern:
+    """Matches exactly these requirement ids as whole tokens (ARB-048, not ARB-0481 or XARB-048)."""
+    if not ids:
+        return re.compile(r"(?!x)x")
+    alternation = "|".join(re.escape(rid) for rid in sorted(ids, key=len, reverse=True))
+    return re.compile(rf"(?<![A-Za-z0-9_-])(?:{alternation})(?![A-Za-z0-9_])(?!-[A-Za-z0-9])")
+
+
+def vendored_changelogs(root: Path) -> list[tuple[str, str]]:
+    """REQ-054: (workspace, changelog path) for every vendored workspace that keeps a CHANGELOG.md."""
+    return [(workspace, f"{workspace}/CHANGELOG.md") for workspace in vendored_workspaces(root) if (root / workspace / "CHANGELOG.md").is_file()]
+
+
+def _add_vendored_changelogs(graph: Graph, root: Path, index: _LayerIndex, stats: dict[str, Any], found: list[str]) -> None:
+    """REQ-054: every vendored workspace's change log as `changelog` nodes (`changelog:arbiter-changelog-md:2026-10-21`),
+    each `records` the workspace's own requirements it names (ids and their aliases), hung under the log's file node.
+    Paths it names are not linked: the workspace's code is outside this graph's scope."""
+    stats.setdefault("vendored_changelog_entries", 0)
+    for order, (workspace, rel) in enumerate(vendored_changelogs(root), 1):
+        try:
+            text = (root / rel).read_text(encoding="utf-8", errors="replace")
+        except OSError as exc:
+            found.append(f"{rel}: cannot be read ({exc.strerror or exc})")
+            continue
+        lookup = _workspace_requirement_lookup(graph, workspace)
+        pattern = _id_regex(list(lookup))
+        source = _vendored_source_node(graph, index, workspace, rel, "change log", LAYER_GOVERNANCE)
+        prefix = _changelog_prefix(order, rel)
+        seen_ids: dict[str, int] = {}
+        for entry in parse_changelog(text):
+            node_id, name = _changelog_entry_id(prefix, entry, seen_ids)
+            body = "\n".join(entry["body"])
+            requirements = sorted({lookup[r] for r in _find_ids(pattern, entry["heading"] + "\n" + body) if r in lookup})
+            graph.add_node(
+                GraphNode(
+                    node_id, "changelog", f"{workspace}/{name}", f"{workspace}/{name}", rel, entry["start"], entry["end"], None,
+                    _short(entry["title"], 300),
+                    {
+                        "date": entry["date"], "heading": entry["heading"], "version": entry["version"],
+                        "requirements": _requirement_names(graph, requirements)[:30], "workspace": workspace,
+                    },
+                    LAYER_GOVERNANCE,
+                )
+            )
+            stats["changelog_entries"] += 1
+            stats["vendored_changelog_entries"] += 1
+            if source is not None:
+                graph.add_edge(source.id, node_id, "contains", "EXTRACTED", "changelog", "entry of the vendored change log")
+            for req_id in requirements:
+                graph.add_edge(node_id, req_id, "records", "EXTRACTED", "changelog", "requirement id named in the entry")
+
+
 def add_governance_layer(graph: Graph, root: Path) -> dict[str, Any]:
     """Requirements and changelog entries, linked to the files they declare or name."""
     index = _LayerIndex(graph, root)
@@ -2749,7 +2821,7 @@ def add_governance_layer(graph: Graph, root: Path) -> dict[str, Any]:
     changelogs = _changelog_paths(root)
     seen_ids: dict[str, int] = {}
     for order, rel in enumerate(changelogs):
-        prefix = "changelog:" if order == 0 else f"changelog:{re.sub(r'[^A-Za-z0-9]+', '-', rel).strip('-').lower()}:"
+        prefix = _changelog_prefix(order, rel)
         try:
             text = (root / rel).read_text(encoding="utf-8", errors="replace")
         except OSError as exc:
@@ -2759,17 +2831,7 @@ def add_governance_layer(graph: Graph, root: Path) -> dict[str, Any]:
         if not entries:
             found.append(f"{rel}: no dated or versioned headings found, so it contributes no changelog entries")
         for entry in entries:
-            if entry["date"] and entry["seq"] or (entry["date"] and not entry["version"]):
-                base = f"{prefix}{entry['date']}" + (f"#{entry['seq']}" if entry["seq"] else "")
-                name = entry["date"] + (f" ({entry['seq']})" if entry["seq"] else "")
-            elif entry["version"]:
-                base = f"{prefix}v{entry['version']}"
-                name = f"v{entry['version']}" + (f" ({entry['date']})" if entry["date"] else "")
-            else:
-                base = prefix + re.sub(r"[^A-Za-z0-9]+", "-", entry["heading"]).strip("-").lower()
-                name = _short(entry["heading"], 60)
-            seen_ids[base] = seen_ids.get(base, 0) + 1
-            node_id = base if seen_ids[base] == 1 else f"{base}~{seen_ids[base]}"
+            node_id, name = _changelog_entry_id(prefix, entry, seen_ids)
             body = "\n".join(entry["body"])
             requirements = sorted(set(_find_ids(req_pattern, entry["heading"] + "\n" + body)))
             graph.add_node(
@@ -2797,6 +2859,8 @@ def add_governance_layer(graph: Graph, root: Path) -> dict[str, Any]:
                 if target is not None:
                     graph.add_edge(node_id, target.id, "mentions", "EXTRACTED", "changelog", f"path named in the entry: {token}")
                     mentioned += 1
+
+    _add_vendored_changelogs(graph, root, index, stats, found)  # REQ-054
 
     if not items and not any(problem.startswith(tuple(cfg["requirements_files"])) for problem in found):
         found.append(
@@ -2984,10 +3048,13 @@ def add_history_layer(graph: Graph, root: Path, max_commits: int = DEFAULT_MAX_C
     cfg = graph_config(root)
     changelog_set = set(_changelog_paths(root))
     skip_paths = changelog_set | set(cfg["requirements_files"])
-    entry_by_heading = {n.attrs.get("heading"): n.id for n in graph.nodes.values() if n.kind == "changelog" and n.attrs.get("heading")}
+    entry_by_heading = {
+        n.attrs.get("heading"): n.id for n in graph.nodes.values()
+        if n.kind == "changelog" and n.attrs.get("heading") and not n.attrs.get("workspace")  # REQ-054: a vendored log's headings are its own
+    }
     entry_reqs: dict[str, list[str]] = {}
     for edge in graph.edges:
-        if edge.type == "records":
+        if edge.type == "records" and not graph.nodes[edge.source].attrs.get("workspace"):
             entry_reqs.setdefault(edge.source, []).append(edge.target)
     entries_for_req: dict[str, list[str]] = {}
     for entry_id, reqs in entry_reqs.items():
@@ -3289,6 +3356,7 @@ def add_assurance_layer(graph: Graph, root: Path) -> dict[str, Any]:
     ]
     detections.extend(_add_vendored_failures(graph, root, index, stats))  # REQ-052
     _add_finding_nodes(graph, root, index, detections, stats, unresolved)  # REQ-043
+    trace_rules_to_requirements(graph, root, stats)  # REQ-054
     _link_directory_contents(graph)  # REQ-043: directory -> file / subdirectory `contains` edges
     stats["unresolved"] = len(unresolved)
     if unresolved:
@@ -3346,8 +3414,12 @@ def check_failure_ledger(root: Path) -> dict[str, Any]:
 # `flags` the file (and the function, class or method whose span holds the
 # line), `cites` the requirements its `req:<ID>` tags name, and is
 # `recorded_as` the failure-ledger entry whose how_detected quotes its id.
-# Only the finding's identity, location, rule and category are copied: never
-# the evidence, description or remediation text, which may quote the code.
+# The finding's identity, location, rule and category are copied, and (REQ-054)
+# its `description` and `remediation`, each trimmed to 600 characters: both are
+# written by the rule's author (the pack's or probe's prose about the defect
+# class and its fix), so the graph can say what was found and how to fix it
+# without carrying the scanned repository's text. The `evidence` is never
+# copied: it is the matched source line, and may quote the code (or a secret).
 # --------------------------------------------------------------------------
 
 ARBITER_GATE_RULE_ID = "completion.arbiter_gate"
@@ -3359,7 +3431,12 @@ _FINDING_LINK_EDGES = {"flags", "cites", "recorded_as", "introduced_by", "violat
 # ARB-064: the edges that tie a finding to its classification. They fan out through a CWE or rule hub, so the
 # walks that collect a finding's context (`findings`, `impact` from a file) never follow them inward.
 _FINDING_CLASS_EDGES = frozenset({"violates", "classified_as"})
-_FINDING_ATTR_KEYS = ("rule_id", "probe", "dimension", "severity", "status", "tags", "cwe", "controls", "line", "directory_path", "report", "sources")
+_FINDING_ATTR_KEYS = (
+    "rule_id", "probe", "dimension", "severity", "status", "tags", "cwe", "controls", "line", "directory_path", "report", "sources",
+    "description", "remediation", "remediation_source",  # REQ-054: the rule author's account of the defect and its fix
+    "requirements",  # REQ-054: requirement ids the report itself declares for the finding or its rule (read as EXTRACTED)
+)
+_FINDING_TEXT_LIMIT = 600  # the failure ledger's fix_summary limit
 _REPORT_CACHE: dict[str, tuple[int, Any]] = {}
 
 
@@ -3499,9 +3576,36 @@ def _repo_prefixes(root: Path, data: dict[str, Any]) -> dict[str, str]:
     return prefixes
 
 
+def _id_list(value: Any) -> list[str]:
+    """A `requirements` value as a list of ids: a list of strings, or one string ("ARB-061" / "ARB-061, ARB-062")."""
+    if isinstance(value, str):
+        value = re.split(r"[,\s]+", value)
+    if not isinstance(value, list):
+        return []
+    return [str(v).strip() for v in value if isinstance(v, (str, int)) and str(v).strip()]
+
+
+def _report_rule_requirements(data: dict[str, Any]) -> dict[str, list[str]]:
+    """REQ-054: rule id -> requirement ids from a report's rule metadata, when Arbiter writes it: a top-level `rules`
+    list of {id|rule_id, requirements} or a mapping {rule_id: {requirements}}. {} for a report without one."""
+    rules = data.get("rules")
+    pairs: list[tuple[Any, Any]] = []
+    if isinstance(rules, list):
+        pairs = [(r.get("rule_id") or r.get("id"), r.get("requirements")) for r in rules if isinstance(r, dict)]
+    elif isinstance(rules, dict):
+        pairs = [(k, v.get("requirements") if isinstance(v, dict) else v) for k, v in rules.items()]
+    found: dict[str, list[str]] = {}
+    for rule_id, value in pairs:
+        ids = _id_list(value)
+        if rule_id and ids:
+            found[str(rule_id)] = ids
+    return found
+
+
 def load_findings(root: Path, report: Path, problems: list[str] | None = None) -> list[dict[str, Any]]:
     """The unsuppressed findings of an Arbiter report, reduced to the fields the graph keeps (never the evidence):
-    id, rule_id, probe, dimension, severity, status, tags, cwe, controls, title, path (graph-root relative), line."""
+    id, rule_id, probe, dimension, severity, status, tags, cwe, controls, title, path (graph-root relative), line, and
+    (REQ-054) description, remediation and remediation_source, trimmed."""
     rel = _report_rel(root, report)
     data = _read_report(report, problems, rel)
     if not isinstance(data, dict) or not isinstance(data.get("findings"), list):
@@ -3509,6 +3613,7 @@ def load_findings(root: Path, report: Path, problems: list[str] | None = None) -
             problems.append(f"{rel}: no `findings` list in the report")
         return []
     prefixes = _repo_prefixes(root, data)
+    declared = _report_rule_requirements(data)
     items: list[dict[str, Any]] = []
     for raw in data["findings"]:
         if not isinstance(raw, dict) or not raw.get("id") or raw.get("suppressed"):
@@ -3532,6 +3637,10 @@ def load_findings(root: Path, report: Path, problems: list[str] | None = None) -
             "dimension": str(raw.get("dimension") or "other"), "severity": str(raw.get("severity") or "info"),
             "status": str(raw.get("status") or "new"), "tags": tags, "cwe": normalise_cwe(raw.get("cwe") or []), "controls": controls,
             "title": _short(raw.get("title"), 300), "path": path, "line": line, "directory_path": parent, "report": rel, "sources": [rel],
+            "description": _short(raw.get("description"), _FINDING_TEXT_LIMIT),
+            "remediation": _short(raw.get("remediation"), _FINDING_TEXT_LIMIT),
+            "remediation_source": _short(raw.get("remediation_source"), 300),
+            "requirements": list(dict.fromkeys(_id_list(raw.get("requirements")) + declared.get(str(raw.get("rule_id") or ""), []))),
         })
     return items
 
@@ -3562,10 +3671,13 @@ def load_merged_findings(root: Path, reports: list[Path], problems: list[str] | 
                 existing["status"] = item["status"]
                 if item["line"] is not None:
                     existing["line"] = item["line"]
-            for key in ("cwe", "controls", "tags"):
+            for key in ("cwe", "controls", "tags", "requirements"):
                 for value in item[key]:
                     if value not in existing[key]:
                         existing[key].append(value)
+            for key in ("description", "remediation", "remediation_source"):  # REQ-054: the newer report's text when it has one
+                if item[key] and (overrides or not existing[key]):
+                    existing[key] = item[key]
     return list(merged.values())
 
 
@@ -3743,6 +3855,248 @@ def _classify_finding(graph: Graph, item: dict[str, Any], node_id: str, stats: d
             if cwe not in rule_node.attrs["cwe"]:
                 rule_node.attrs["cwe"].append(cwe)
             graph.add_edge(rule_node.id, cwe_id, "classified_as", "EXTRACTED", "arbiter-report", f"{item['rule_id']} findings carry {cwe}")
+
+
+# REQ-054: the requirement behind each Arbiter rule, so a finding traces to an ARB-### id on a full scan too (a full
+# scan carries no `req:` tags). Arbiter keeps no rule -> requirement table, but its records name rules where they
+# were specified: a change-log bullet such as "- ARB-053, ARB-054 | New `concurrency` probe ...
+# `concurrency.check-then-act-unlocked` reports ...", and a registry entry whose text names the rule id. Each such
+# mention becomes `specified_by` (arbiter_rule -> requirement, INFERRED: the record names both, it does not declare
+# the link) and, from a change log, `mentions_rule` (changelog entry -> arbiter_rule). A rule id may be written with
+# or without its `arbiter/` prefix; ids no finding raised have no rule node and are ignored. A bullet that names a
+# rule pack file (`packs/rules/ast/{python,go}.yaml`, braces expanded) names every rule the pack defines
+# (`arbiter/<pack>.<id>`), and a pack whose header comment cites an id (`Owner: ... (ARB-061)`) is specified by it.
+_BULLET_START = re.compile(r"^[-*+]\s+")
+_BACKTICK_SPAN = re.compile(r"`([^`]{1,200})`")
+_BULLET_HEAD_LIMIT = 200  # the ids a bullet serves lead it (`- ARB-053, ARB-054 | ...`, `- FAIL-050 (ARB-048) | ...`)
+
+
+def changelog_bullets(text: str) -> list[tuple[int, int, str]]:
+    """(first line, last line, text) of every top-level bullet in a change log; indented lines and sub-bullets belong
+    to the bullet above them, a heading or a fenced block's end closes it."""
+    bullets: list[tuple[int, int, str]] = []
+    current: list[Any] | None = None
+    in_fence = False
+    for number, line in enumerate(text.splitlines(), 1):
+        if line.lstrip().startswith(("```", "~~~")):
+            in_fence = not in_fence
+        if not in_fence and _MD_HEADING.match(line):
+            current = None
+            continue
+        if not in_fence and _BULLET_START.match(line):
+            current = [number, number, [line]]
+            bullets.append(current)  # type: ignore[arg-type]
+        elif current is not None:
+            current[1] = number
+            current[2].append(line)
+    return [(start, end, "\n".join(lines)) for start, end, lines in bullets]
+
+
+def _rule_ids_in(text: str, rules: dict[str, str], backticked: bool) -> list[tuple[str, str]]:
+    """(token as written, rule node id) for every known rule id in `text`: inside backticks (a line wrap inside the
+    span is closed up, so `drift.doc-references-` / `missing-file` reads as one id), or anywhere as a whole token."""
+    found: dict[str, str] = {}
+    if backticked:
+        for span in _BACKTICK_SPAN.findall(text):
+            token = re.sub(r"\s+", "", span).rstrip(".,;:)")
+            node_id = rules.get(token)
+            if node_id:
+                found.setdefault(node_id, token)
+    else:
+        for token, node_id in rules.items():
+            if re.search(rf"(?<![\w./-]){re.escape(token)}(?![\w-]|\.\w)", text):
+                found.setdefault(node_id, token)
+    return [(token, node_id) for node_id, token in found.items()]
+
+
+_PACK_PATH = re.compile(r"^[\w./{},-]+\.ya?ml$")
+_PACK_KEY = re.compile(r"^pack:\s*['\"]?([\w-]+)")
+_PACK_RULE = re.compile(r"^\s{0,4}-\s+id:\s*['\"]?([\w.-]+)")
+
+
+def _expand_braces(token: str) -> list[str]:
+    """`ast/{python,go}.yaml` -> [`ast/python.yaml`, `ast/go.yaml`] (one level, as change logs write it)."""
+    match = re.search(r"\{([^{}]*)\}", token)
+    if not match:
+        return [token]
+    return [expanded for part in match.group(1).split(",") for expanded in _expand_braces(token[:match.start()] + part.strip() + token[match.end():])]
+
+
+def _rule_pack(root: Path, rel: str) -> tuple[list[str], str] | None:
+    """(rule ids `arbiter/<pack>.<id>`, header comment) of a rule pack file, or None when the file defines no rules.
+    The pack name is its `pack:` key, else the file's stem (`resource.yaml` -> `resource`)."""
+    try:
+        lines = (root / rel).read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return None
+    pack = next((m.group(1) for m in map(_PACK_KEY.match, lines) if m), Path(rel).stem)
+    ids = [m.group(1) for m in map(_PACK_RULE.match, lines) if m]
+    if not ids or not any(line.startswith("rules:") for line in lines):
+        return None
+    header = "\n".join(line for line in lines[:40] if line.startswith("#"))
+    return [f"arbiter/{pack}.{rule}" for rule in ids], header
+
+
+def _pack_files_named(root: Path, workspace: str | None, bullet: str) -> list[tuple[str, str]]:
+    """(token as written, graph-root relative path) for every rule pack file a bullet names in backticks, looked up
+    relative to the workspace, its `src/` and each `src/<package>/` (where Arbiter keeps `packs/`)."""
+    base = root / workspace if workspace else root
+    found: list[tuple[str, str]] = []
+    for span in _BACKTICK_SPAN.findall(bullet):
+        token = re.sub(r"\s+", "", span)
+        if not _PACK_PATH.match(token):
+            continue
+        for candidate in _expand_braces(token):
+            candidate = candidate[2:] if candidate.startswith("./") else candidate
+            for path in [base / candidate, base / "src" / candidate, *sorted(base.glob(f"src/*/{candidate}"))]:
+                if path.is_file():
+                    found.append((candidate, path.relative_to(root).as_posix()))
+                    break
+    return found
+
+
+class _RuleTracer:
+    """REQ-054: one pass that adds `specified_by` (and `mentions_rule`) edges for the Arbiter rules in a graph, one
+    method per kind of record that names a rule beside a requirement id."""
+
+    def __init__(self, graph: Graph, root: Path) -> None:
+        self.graph, self.root = graph, root
+        self.counts = {"specified_by": 0, "mentions_rule": 0, "traced_findings": 0}
+        self.rules: dict[str, str] = {}
+        for node in graph.nodes.values():
+            if node.kind == "arbiter_rule":
+                self.rules[node.name] = node.id
+                if node.name.startswith("arbiter/"):
+                    self.rules.setdefault(node.name[len("arbiter/"):], node.id)
+        self.root_lookup = _requirement_lookup(graph) if self.rules else {}
+        self.packs: dict[str, tuple[list[str], str] | None] = {}
+
+    def lookup(self, workspace: str | None) -> dict[str, str]:
+        return _workspace_requirement_lookup(self.graph, workspace) if workspace else self.root_lookup
+
+    def pack(self, rel: str) -> tuple[list[str], str] | None:
+        if rel not in self.packs:
+            self.packs[rel] = _rule_pack(self.root, rel)
+        return self.packs[rel]
+
+    def specify(self, rule_id: str, req_id: str, token: str, where: str, how: str, provenance: str = "INFERRED") -> None:
+        req_name = self.graph.nodes[req_id].name
+        detail = f"{where} declares {req_name} for `{token}`" if provenance == "EXTRACTED" else f"{where} names `{token}` under {req_name}"
+        before = len(self.graph.edges)
+        self.graph.add_edge(rule_id, req_id, "specified_by", provenance, how, detail)
+        self.counts["specified_by"] += len(self.graph.edges) - before
+        attrs = self.graph.nodes[rule_id].attrs
+        if req_name not in attrs.setdefault("requirements", []):
+            attrs["requirements"].append(req_name)
+        places = attrs.setdefault("specified_in", [])
+        if where not in places and len(places) < 10:
+            places.append(where)
+
+    def resolve(self, raw_id: str) -> str | None:
+        node = self.graph.nodes.get(f"req:{raw_id}")
+        return node.id if node is not None and node.kind == "requirement" else self.root_lookup.get(raw_id)
+
+    def from_report(self) -> None:
+        """A finding's (or its rule's) `requirements` as the report declares them: EXTRACTED, the report states it."""
+        violated = {e.source: e.target for e in self.graph.edges if e.type == "violates"}
+        for node in list(self.graph.nodes.values()):
+            if node.kind != "finding" or node.id not in violated:
+                continue
+            rule_id = violated[node.id]
+            for req_id in filter(None, map(self.resolve, node.attrs.get("requirements") or [])):
+                self.specify(rule_id, req_id, self.graph.nodes[rule_id].name, str(node.attrs.get("report") or "the report"), "arbiter-report", "EXTRACTED")
+
+    def named_in_bullet(self, workspace: str | None, bullet: str) -> list[tuple[str, str]]:
+        named = _rule_ids_in(bullet, self.rules, backticked=True)
+        for token, pack_rel in _pack_files_named(self.root, workspace, bullet):
+            for full in (self.pack(pack_rel) or ([], ""))[0]:
+                if full in self.rules and all(rule_id != self.rules[full] for _, rule_id in named):
+                    named.append((f"{token} ({full})", self.rules[full]))
+        return named
+
+    def from_changelog(self, workspace: str | None, rel: str) -> None:
+        try:
+            text = (self.root / rel).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return
+        lookup = self.lookup(workspace)
+        pattern = _id_regex(list(lookup))
+        entries = [n for n in self.graph.nodes.values() if n.kind == "changelog" and n.file == rel and n.start_line]
+        for start, _end, bullet in changelog_bullets(text):
+            named = self.named_in_bullet(workspace, bullet)
+            if not named:
+                continue
+            head = bullet.split("|", 1)[0] if "|" in bullet[:_BULLET_HEAD_LIMIT] else bullet
+            requirements = list(dict.fromkeys(lookup[r] for r in _find_ids(pattern, head) if r in lookup))
+            entry = next((n for n in entries if n.start_line <= start <= (n.end_line or n.start_line)), None)
+            for token, rule_id in named:
+                if entry is not None:
+                    before = len(self.graph.edges)
+                    self.graph.add_edge(entry.id, rule_id, "mentions_rule", "EXTRACTED", "changelog", f"rule named in the entry: `{token}` ({rel}:{start})")
+                    self.counts["mentions_rule"] += len(self.graph.edges) - before
+                for req_id in requirements:
+                    self.specify(rule_id, req_id, token, f"{rel}:{start}", "changelog")
+
+    def from_registry(self, workspace: str | None, rel: str) -> None:
+        data = _read_json_file(self.root / rel)
+        items = data if isinstance(data, list) else (data.get("requirements") if isinstance(data, dict) else None)
+        if workspace:
+            lookup = _workspace_requirement_lookup(self.graph, workspace)
+        else:
+            lookup = {n.name: n.id for n in self.graph.nodes.values() if n.kind == "requirement" and not n.attrs.get("workspace")}
+        for item in items or []:
+            if not isinstance(item, dict) or str(item.get("id") or "") not in lookup:
+                continue
+            text = " ".join(str(item.get(key) or "") for key in ("title", "description")) + " " + " ".join(str(c) for c in item.get("acceptance_criteria") or [])
+            for token, rule_id in _rule_ids_in(text, self.rules, backticked=False):
+                self.specify(rule_id, lookup[str(item["id"])], token, f"{rel} ({item['id']})", "requirements-registry")
+
+    def from_pack_headers(self, workspace: str) -> None:
+        """A pack whose header comment cites an id ("Owner: ... (ARB-061)") specifies every rule it defines."""
+        lookup = _workspace_requirement_lookup(self.graph, workspace)
+        pattern = _id_regex(list(lookup))
+        for path in sorted((self.root / workspace).glob("src/*/packs/rules/**/*.y*ml")):
+            pack_rel = path.relative_to(self.root).as_posix()
+            pack = self.pack(pack_rel)
+            if not pack:
+                continue
+            cited = list(dict.fromkeys(lookup[r] for r in _find_ids(pattern, pack[1]) if r in lookup))
+            for full in (rule for rule in pack[0] if rule in self.rules):
+                for req_id in cited:
+                    self.specify(self.rules[full], req_id, full, f"{pack_rel} (header)", "rule-pack")
+
+    def mark_findings(self) -> None:
+        traced: dict[str, set[str]] = {}
+        for edge in self.graph.edges:
+            if edge.type == "specified_by":
+                traced.setdefault(edge.source, set()).add(self.graph.nodes[edge.target].name)
+        for edge in self.graph.edges:
+            if edge.type == "violates" and edge.target in traced:
+                self.graph.nodes[edge.source].attrs["traced_to"] = sorted(traced[edge.target])
+                self.counts["traced_findings"] += 1
+        for rule_id in traced:
+            self.graph.nodes[rule_id].attrs["requirements"] = sorted(self.graph.nodes[rule_id].attrs.get("requirements") or [])
+
+
+def trace_rules_to_requirements(graph: Graph, root: Path, stats: dict[str, Any] | None = None) -> dict[str, int]:
+    """REQ-054: `specified_by` edges from the report's own `requirements` (EXTRACTED), then from the change logs (the
+    root's and every vendored workspace's, with `mentions_rule`), the registries and the rule packs (INFERRED); then
+    `traced_to` (requirement names) on every finding whose rule has one."""
+    tracer = _RuleTracer(graph, root)
+    if tracer.rules:
+        tracer.from_report()
+        for workspace, rel in [(None, rel) for rel in _changelog_paths(root)] + list(vendored_changelogs(root)):
+            tracer.from_changelog(workspace, rel)
+        registries = [(None, rel) for rel in graph_config(root)["requirements_files"]]
+        registries += [(ws, f"{ws}/{VENDORED_REGISTRY}") for ws in vendored_workspaces(root)]
+        for workspace, rel in registries:
+            tracer.from_registry(workspace, rel)
+        for workspace in vendored_workspaces(root):
+            tracer.from_pack_headers(workspace)
+        tracer.mark_findings()
+    if stats is not None:
+        stats.update(tracer.counts)
+    return tracer.counts
 
 
 # REQ-051: who introduced the line. One `git blame --porcelain` per distinct file, all of its flagged lines batched
@@ -4342,11 +4696,11 @@ def _node_brief(node: dict[str, Any], via: str = "") -> dict[str, Any]:
     if attrs.get("workspace"):  # REQ-052
         entry["workspace"] = attrs["workspace"]
     if node["kind"] == "finding":  # REQ-043: the rule and category are what a reader needs to act on a finding
-        for key in ("rule_id", "dimension", "line", "cwe"):
+        for key in ("rule_id", "dimension", "line", "cwe", "traced_to"):  # REQ-054: traced_to, the ids behind the rule
             if attrs.get(key) is not None:
                 entry[key] = attrs[key]
     elif node["kind"] == "arbiter_rule":  # ARB-064
-        for key in ("probe", "cwe", "findings"):
+        for key in ("probe", "cwe", "findings", "requirements"):
             if attrs.get(key) is not None:
                 entry[key] = attrs[key]
     elif node["kind"] == "cwe":  # ARB-064
@@ -4371,6 +4725,7 @@ LINEAGE_FLOW: dict[str, str] = {
     "flags": "up", "cites": "up", "recorded_as": "down",       # REQ-043: a finding comes from code and a requirement, and becomes a ledger entry
     "introduced_by": "up",                                     # REQ-051: a finding comes from the commit that wrote its line
     "violates": "up", "classified_as": "up",                   # ARB-064: a finding comes from a rule and a weakness class (hubs: never walked down into)
+    "specified_by": "up", "mentions_rule": "down",             # REQ-054: a rule comes from a requirement; a change-log entry names the rule
 }
 # Structural dependencies between code symbols. Off by default: they would drown a requirement's lineage in call graphs.
 LINEAGE_CODE_FLOW: dict[str, str] = {
@@ -4515,6 +4870,11 @@ def why(graph_path: Path, query: str) -> dict[str, Any]:
                 add("commits", e["source"])
             elif e["type"] == "arose_in":
                 add("failures", e["source"])
+            elif e["type"] == "specified_by":  # REQ-054: the Arbiter rules this requirement specified, and what they found
+                add("arbiter rules", e["source"], e.get("detail", ""))
+                for f in incoming.get(e["source"], []):
+                    if f["type"] == "violates":
+                        add("findings", f["source"], f"raised by {by_id.get(e['source'], {}).get('name', '?')}")
     elif kind == "failure":
         for e in outgoing.get(node["id"], []):
             section = {"affects": "affected code", "arose_in": "requirement", "prevented_by": "prevented by", "fixed_by": "fix commits", "recurs": "repeats"}.get(e["type"])
@@ -4561,7 +4921,15 @@ def why(graph_path: Path, query: str) -> dict[str, Any]:
             "summary": f"{attrs.get('severity', '?')} {attrs.get('dimension', '?')} finding ({attrs.get('status', '?')}): {node.get('summary', '')}",
             "severity": attrs.get("severity", ""), "status": attrs.get("status", ""), "dimension": attrs.get("dimension", ""),
             "via": f"{node.get('file', '')}:{attrs.get('line', '')}; report {attrs.get('report', '')}",
+            # REQ-054: what the rule found and how to fix it, in the rule author's words
+            "description": attrs.get("description", ""), "remediation": attrs.get("remediation", ""),
+            "remediation_source": attrs.get("remediation_source", ""),
         }]
+        for e in outgoing.get(node["id"], []):  # REQ-054: the requirement(s) behind the rule it violates
+            if e["type"] == "violates":
+                for r in outgoing.get(e["target"], []):
+                    if r["type"] == "specified_by":
+                        add("traced to", r["target"], f"via {by_id.get(e['target'], {}).get('name', '?')}: {r.get('detail', '')}")
         for e in outgoing.get(node["id"], []):
             section = {"flags": "flagged code", "cites": "requirement", "recorded_as": "failure", "violates": "rule", "classified_as": "cwe"}.get(e["type"])
             if section == "cwe" and by_id.get(e["target"], {}).get("kind") != "cwe":
@@ -4606,6 +4974,11 @@ def why(graph_path: Path, query: str) -> dict[str, Any]:
             for e in outgoing.get(node["id"], []):
                 if e["type"] == "classified_as":
                     add("cwe", e["target"], e.get("detail", ""))
+                elif e["type"] == "specified_by":  # REQ-054
+                    add("specified by", e["target"], e.get("detail", ""))
+            for e in incoming.get(node["id"], []):
+                if e["type"] == "mentions_rule":
+                    add("changelog", e["source"], e.get("detail", ""))
     else:
         # Rank the evidence: a requirement whose commits changed this file beats one that merely
         # declares it in scope, and a directory-wide scope is the weakest link of all.
@@ -5886,6 +6259,9 @@ def findings(
             "sources": list(attrs.get("sources") or ([attrs["report"]] if attrs.get("report") else [])),
             "requirements": linked["requirement"], "failures": linked["failure"], "suites": linked["suite"],
             "introduced_by": introduced_by(node),
+            # REQ-054: the rule author's account of the defect and its fix, and the requirement(s) behind the rule
+            "description": attrs.get("description", ""), "remediation": attrs.get("remediation", ""),
+            "remediation_source": attrs.get("remediation_source", ""), "traced_to": list(attrs.get("traced_to") or []),
         })
     selected.sort(key=lambda f: (f["directory"], _finding_severity_rank(f["severity"]), f["file"], f["line"] or 0, f["name"]))
     directories: list[dict[str, Any]] = []
@@ -5941,6 +6317,7 @@ def cwe_report(graph_path: Path, query: str) -> dict[str, Any]:
     }
     if target["kind"] == "arbiter_rule":
         result["probe"] = attrs.get("probe", "")
+        result["requirements"] = list(attrs.get("requirements") or [])  # REQ-054
         result["cwe"] = [by_id[e["target"]]["name"] for e in outgoing.get(target["id"], []) if e["type"] == "classified_as" and e["target"] in by_id]
     files: dict[str, int] = {}
     rules: dict[str, int] = {}
@@ -5956,7 +6333,7 @@ def cwe_report(graph_path: Path, query: str) -> dict[str, Any]:
                 "id": source["id"], "name": source["name"], "file": source.get("file"), "line": fattrs.get("line"), "symbol": symbol,
                 "rule_id": fattrs.get("rule_id", ""), "severity": fattrs.get("severity", ""), "dimension": fattrs.get("dimension", ""),
                 "status": fattrs.get("status", ""), "title": source.get("summary", ""), "cwe": list(fattrs.get("cwe") or []),
-                "sources": list(fattrs.get("sources") or []),
+                "sources": list(fattrs.get("sources") or []), "traced_to": list(fattrs.get("traced_to") or []),
             })
             if source.get("file"):
                 files[source["file"]] = files.get(source["file"], 0) + 1
@@ -5981,6 +6358,20 @@ def describe_introduced_by(intro: dict[str, Any] | None) -> str:
         return "introduced by  uncommitted change"
     requirements = ", ".join(intro.get("requirements") or []) or "no requirement cited"
     return f"introduced by  {intro['commit']} {_short(intro.get('subject'), 90)} ({requirements})"
+
+
+def describe_finding_text(item: dict[str, Any], indent: str = "      ", width: int = 110) -> list[str]:
+    """REQ-054: `finding  <description>` and `fix      <remediation> (source)`, wrapped, for the text renderers."""
+    lines: list[str] = []
+    for label, key in (("finding", "description"), ("fix", "remediation")):
+        text = str(item.get(key) or "").strip()
+        if key == "remediation" and text and item.get("remediation_source"):
+            text += f" (source: {item['remediation_source']})"
+        if text:
+            wrapped = textwrap.wrap(text, width=max(40, width - len(indent) - 9)) or [text]
+            lines.append(f"{indent}{label:<8} {wrapped[0]}")
+            lines.extend(f"{indent}{'':<8} {rest}" for rest in wrapped[1:])
+    return lines
 
 
 def render_findings_tree(result: dict[str, Any]) -> str:
@@ -6012,6 +6403,9 @@ def render_findings_tree(result: dict[str, Any]) -> str:
             lines.append(f"      {item['rule_id']}{cwe_label}  {item['title']}")
             if item.get("introduced_by"):  # REQ-051
                 lines.append("      " + describe_introduced_by(item["introduced_by"]))
+            if item.get("traced_to"):  # REQ-054: the requirement(s) behind the rule
+                lines.append("      traced to  " + ", ".join(item["traced_to"]))
+            lines.extend(describe_finding_text(item))
             links = [
                 f"{label}: {', '.join(values[:_FINDING_TREE_LINKS])}" + (f" +{len(values) - _FINDING_TREE_LINKS} more" if len(values) > _FINDING_TREE_LINKS else "")
                 for label, values in (("requirements", item["requirements"]), ("failures", item["failures"]), ("suites", item["suites"])) if values

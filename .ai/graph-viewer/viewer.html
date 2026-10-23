@@ -95,6 +95,10 @@
   #detail h3{margin:0 0 4px;font-size:16px;word-break:break-word}
   #detail .where{color:var(--dim);word-break:break-all;margin-bottom:8px}
   #detail .summary{white-space:pre-wrap;word-break:break-word;background:var(--panel2);border-left:3px solid var(--accent);padding:7px 9px;margin:8px 0;max-height:150px;overflow:auto}
+  #detail .fblock{margin:8px 0}   /* REQ-054: the finding text and its fix */
+  #detail .fblock .fl{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin-bottom:2px}
+  #detail .fblock .fx{white-space:pre-wrap;word-break:break-word;background:var(--panel2);border-left:3px solid var(--accent);padding:7px 9px;line-height:1.45}
+  #detail .fblock.fix .fx{border-left-color:#7ee787}
   #detail h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:14px 0 6px}
   .crumbs{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin:6px 0 8px}
   .crumbs button{padding:2px 8px;font-size:12px}
@@ -300,8 +304,8 @@
   var ROLE_COLORS = { controller: '#e0475c', service: '#4fb3bf', repository: '#c9a869', entity: '#ffb454', component: '#9ece6a', configuration: '#b48ead', table: '#00c2ff' };
   var LANG_COLORS = { python: '#e0475c', javascript: '#4fb3bf', typescript: '#c9a869', java: '#f0a23c', sql: '#b48ead', go: '#5fd0e0', rust: '#e58b5a', csharp: '#8fbf6a' };
   var TYPE_COLORS = {
-    dark: { calls: '#d4d8e0', imports: '#7fd0dc', inherits: '#ff6b81', implements: '#ffc36b', defines: '#8d8d99', references: '#c792ea', maps_to: '#f78c6c', uses: '#8a8a99', touches: '#f2c14e', records: '#8fbf6a', mentions: '#6f9a55', delivers: '#c9d1d9', modifies: '#7d8590', verifies: '#5fd0e0', affects: '#ff5c5c', arose_in: '#ff9f6b', guards: '#7ee787', prevented_by: '#5fd0e0', fixed_by: '#7ee787', recurs: '#ff5c5c', logged_in: '#8fbf6a', follows: '#5a6270', contains: '#b48ead', covers: '#c9a0dc', flags: '#ff8a3d', cites: '#ffb000', recorded_as: '#ff4d4d', introduced_by: '#a06cff' },
-    light: { calls: '#4a5160', imports: '#1b7f96', inherits: '#c2334d', implements: '#b7791f', defines: '#8a92a0', references: '#7a4bb0', maps_to: '#c0562b', uses: '#8a92a0', touches: '#a67100', records: '#3f8a3f', mentions: '#5b8a4a', delivers: '#5a6472', modifies: '#7d8590', verifies: '#0f8aa0', affects: '#c92a2a', arose_in: '#c2611f', guards: '#1f9a53', prevented_by: '#0f8aa0', fixed_by: '#1f9a53', recurs: '#c92a2a', logged_in: '#3f8a3f', follows: '#8a92a0', contains: '#7a4bb0', covers: '#8b5cc4', flags: '#c2611f', cites: '#a67100', recorded_as: '#c92a2a', introduced_by: '#7a4bb0' } };
+    dark: { calls: '#d4d8e0', imports: '#7fd0dc', inherits: '#ff6b81', implements: '#ffc36b', defines: '#8d8d99', references: '#c792ea', maps_to: '#f78c6c', uses: '#8a8a99', touches: '#f2c14e', records: '#8fbf6a', mentions: '#6f9a55', delivers: '#c9d1d9', modifies: '#7d8590', verifies: '#5fd0e0', affects: '#ff5c5c', arose_in: '#ff9f6b', guards: '#7ee787', prevented_by: '#5fd0e0', fixed_by: '#7ee787', recurs: '#ff5c5c', logged_in: '#8fbf6a', follows: '#5a6270', contains: '#b48ead', covers: '#c9a0dc', flags: '#ff8a3d', cites: '#ffb000', recorded_as: '#ff4d4d', introduced_by: '#a06cff', specified_by: '#f2c14e', mentions_rule: '#6f9a55' },
+    light: { calls: '#4a5160', imports: '#1b7f96', inherits: '#c2334d', implements: '#b7791f', defines: '#8a92a0', references: '#7a4bb0', maps_to: '#c0562b', uses: '#8a92a0', touches: '#a67100', records: '#3f8a3f', mentions: '#5b8a4a', delivers: '#5a6472', modifies: '#7d8590', verifies: '#0f8aa0', affects: '#c92a2a', arose_in: '#c2611f', guards: '#1f9a53', prevented_by: '#0f8aa0', fixed_by: '#1f9a53', recurs: '#c92a2a', logged_in: '#3f8a3f', follows: '#8a92a0', contains: '#7a4bb0', covers: '#8b5cc4', flags: '#c2611f', cites: '#a67100', recorded_as: '#c92a2a', introduced_by: '#7a4bb0', specified_by: '#a67100', mentions_rule: '#5b8a4a' } };
   var TYPE_TIP = {
     calls: 'A function or method calls another.', imports: 'A file imports another.', defines: 'Contains: a file defines a class, a class defines a method.', inherits: 'A class extends another.', implements: 'A class implements an interface.',
     references: 'A table has a foreign key to another.', maps_to: 'An entity class is mapped to a table.', uses: 'A weaker reference to another symbol.', touches: 'A requirement touches a file: declared in its scope, or changed by its commits.',
@@ -311,7 +315,9 @@
     fixed_by: 'A commit fixed this failure.', recurs: 'A failure repeats an earlier one.',
     flags: 'An Arbiter finding was raised on this file, or inside this function, class or method.', cites: 'Context: this requirement was being worked when the scan ran (the finding\'s req:<ID> tag). It did not necessarily write the line.', recorded_as: 'A finding was adjudicated into this failure-ledger entry (its how_detected names the finding).',
     introduced_by: 'REQ-051: git blame holds this commit for the finding\'s line; the requirement that commit delivers is the one that introduced it.',
-    violates: 'ARB-064: the Arbiter rule that raised this finding.', classified_as: 'ARB-064: the CWE weakness class this finding (or rule) is classified as.' };
+    violates: 'ARB-064: the Arbiter rule that raised this finding.', classified_as: 'ARB-064: the CWE weakness class this finding (or rule) is classified as.',
+    specified_by: 'REQ-054: the requirement (ARB-### or REQ-###) behind this Arbiter rule: a change-log entry or registry entry names the rule beside the id. Inferred, not declared.',
+    mentions_rule: 'REQ-054: a change-log entry names this Arbiter rule id.' };
   var THEMES = {
     dark: { stage: '#0f0f12', text: '#e8e8e8', dim: '#3a3a48', select: '#ffffff', chain: '#ffc300', up: '#35d0e6', path: '#ff4fd8', halo: '#0f0f12', edge: '#6b7280' },
     light: { stage: '#dde1e6', text: '#23272e', dim: '#b3b9c3', select: '#101318', chain: '#b07d00', up: '#0b7d92', path: '#c2189c', halo: '#dde1e6', edge: '#7b8492' } };
@@ -408,7 +414,8 @@
     arose_in: 'up', affects: 'up', guards: 'up', prevented_by: 'down', fixed_by: 'down', covers: 'up', verifies: 'up',
     flags: 'up', cites: 'up', recorded_as: 'down',       // REQ-043: a finding comes from code and a requirement, and becomes a ledger entry
     introduced_by: 'up',                                   // REQ-051: a finding comes from the commit that wrote its line
-    violates: 'up', classified_as: 'up' };                 // ARB-064: a finding comes from a rule and a weakness class
+    violates: 'up', classified_as: 'up',                   // ARB-064: a finding comes from a rule and a weakness class
+    specified_by: 'up', mentions_rule: 'down' };           // REQ-054: a rule comes from a requirement; a change-log entry names the rule
   var LCODE = { calls: 'up', imports: 'up', inherits: 'up', implements: 'up', uses: 'up', references: 'up', maps_to: 'up' };
   var LHOP = { follows: 'up', recurs: 'up' };            // sequence links: shown one step from the node asked about, never walked on
   var lineageOpts = { dir: 'both', depth: 4, code: false }, LINEAGE_CAP = 400;
@@ -1195,7 +1202,8 @@
   var lastResults = [], resIdx = -1, RESULT_CAP = 400, ADD_CAP = 800, timer = null;
   function haystack(n) {
     if (n._h) return n._h; var a = n.attrs || {};
-    n._h = [n.name, n.qn, n.file, n.summary, n.kind, layerName(n), n.lang, dateOf(n), (a.requirements || []).join(' '), a.workspace, a.bare_id, a.status, a.category, a.symptom, a.root_cause, a.command, a.framework, a.rule_id, a.severity, a.dimension, (a.tags || []).join(' ')].join(' ').toLowerCase(); return n._h;
+    n._h = [n.name, n.qn, n.file, n.summary, n.kind, layerName(n), n.lang, dateOf(n), (a.requirements || []).join(' '), a.workspace, a.bare_id, a.status, a.category, a.symptom, a.root_cause, a.command, a.framework, a.rule_id, a.severity, a.dimension, (a.tags || []).join(' '),
+      a.description, a.remediation, (a.traced_to || []).join(' ')].join(' ').toLowerCase(); return n._h;   // REQ-054: the finding text, its fix and the ids behind its rule
   }
   function parseQuery(raw) {
     var f = {}, terms = [];
@@ -1367,7 +1375,10 @@
     (out[id] || []).forEach(function (i) { var e = edges[i]; if (e.type === 'cites' && byId[e.t]) { if (!req) req = e.t; context.push(e.t); } if (e.type === 'recorded_as' && !fail && byId[e.t]) fail = e.t; if (e.type === 'introduced_by' && !commit && byId[e.t]) commit = e.t; });
     var delivered = [];   // REQ-051: the requirement(s) the introducing commit delivers
     if (commit) (out[commit] || []).forEach(function (i) { var e = edges[i]; if (e.type === 'delivers' && byId[e.t]) delivered.push(e.t); });
-    return { requirement: req, failure: fail, context: context, commit: commit, introducing: delivered[0] || null, delivered: delivered };
+    var traced = [];   // REQ-054: the requirement(s) behind the rule this finding violates: [rule, requirement, how]
+    (out[id] || []).forEach(function (i) { var e = edges[i]; if (e.type !== 'violates' || !byId[e.t]) return;
+      (out[e.t] || []).forEach(function (j) { var r = edges[j]; if (r.type === 'specified_by' && byId[r.t]) traced.push({ rule: e.t, req: r.t, detail: r.detail || '' }); }); });
+    return { requirement: req, failure: fail, context: context, commit: commit, introducing: delivered[0] || null, delivered: delivered, traced: traced };
   }
   function traceButton(label, target, what, from) {
     var tip = target ? 'Draw the chain of links from this finding to ' + byId[target].name + '.' : 'No ' + what + ' is tied to this finding, so there is nothing to trace to.';
@@ -1387,6 +1398,10 @@
       row.appendChild(el('span', 'n', f[1])); d.appendChild(row);
     });
     if (n.summary) d.appendChild(el('div', 'summary', n.summary));
+    // REQ-054: what the rule found and how to fix it (the rule author's words; the evidence line is never in the graph)
+    [['Finding', a.description, ''], ['Fix', a.remediation ? a.remediation + (a.remediation_source ? '\n(source: ' + a.remediation_source + ')' : '') : '', ' fix']].forEach(function (b) {
+      if (!b[1]) return; var box = el('div', 'fblock' + b[2]); box.appendChild(el('span', 'fl', b[0])); box.appendChild(el('div', 'fx', b[1])); d.appendChild(box);
+    });
     var tags = (a.tags || []).filter(function (t) { return t.indexOf('req:') !== 0; }); if (tags.length) d.appendChild(el('div', 'dim', 'tags: ' + tags.join(', ')));
     var links = findingLinks(n.id), row = el('div', 'row');
     // REQ-051: who introduced the line (git blame at the scanned commit), and the requirement(s) that commit delivers
@@ -1397,6 +1412,14 @@
     } else intro.appendChild(el('span', 'n', a.introduced_by === 'uncommitted' ? 'uncommitted change (no blame for this line)' : 'unknown (rebuild the graph with omni graph build)'));
     intro.setAttribute('data-tip', links.commit ? 'git blame holds ' + byId[links.commit].name + ' for ' + where + '.' : 'The line has no blame: an uncommitted edit, an untracked file, or a path outside git.');
     d.appendChild(intro);
+    // REQ-054: the ARB-### / REQ-### requirement(s) behind the rule, each with its own trace (finding → rule → requirement)
+    links.traced.forEach(function (t) {
+      var req = byId[t.req], tr = el('div', 'edge'); tr.style.cursor = 'default'; tr.appendChild(el('span', 't', 'traced to'));
+      var rb = el('button', 'mini', req.name); rb.type = 'button'; rb.setAttribute('data-tip', 'Select ' + req.name + '.'); rb.addEventListener('click', function () { select(t.req); }); tr.appendChild(rb);
+      tr.appendChild(el('span', 'n', ' ' + (req.summary || '') + '  · via ' + byId[t.rule].name));
+      var go = el('button', 'mini', 'Trace'); go.type = 'button'; go.setAttribute('data-tip', 'Draw finding → ' + byId[t.rule].name + ' → ' + req.name + '. ' + t.detail); go.addEventListener('click', function () { traceThrough(n.id, t.rule, t.req); }); tr.appendChild(go);
+      tr.setAttribute('data-tip', t.detail || ('The rule ' + byId[t.rule].name + ' is specified by ' + req.name + '.')); d.appendChild(tr);
+    });
     if (links.context.length) { var ctx = el('div', 'edge'); ctx.style.cursor = 'default'; ctx.appendChild(el('span', 't', 'context')); ctx.appendChild(el('span', 'n', links.context.map(function (r) { return byId[r].name; }).join(', ') + ' · being worked when the scan ran')); ctx.setAttribute('data-tip', 'The req:<ID> tags: the requirements open when the scan ran, not necessarily the one that wrote the line.'); d.appendChild(ctx); }
     var introBtn = actionButton('Trace to introducing requirement', links.introducing ? 'Draw finding → ' + byId[links.commit].name + ' → ' + byId[links.introducing].name + '.' : (links.commit ? 'The introducing commit cites no requirement in the registry.' : 'No introducing commit is known for this finding.'),
       function () { if (links.introducing) traceThrough(n.id, links.commit, links.introducing); }, links.introducing ? 'primary' : '');

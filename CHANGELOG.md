@@ -1,4 +1,22 @@
 # Changelog
+## 2026-10-22
+### Completed
+- `REQ-054` | Code understanding | Arbiter findings in the graph say what was
+found and how to fix it, and trace to the ARB requirement behind their rule.
+Finding nodes keep the rule's `description` and `remediation` (600 characters
+each, with `remediation_source`; the evidence is still never copied), shown in
+the viewer's new Finding and Fix blocks, `omni graph why`, `omni graph findings`
+and MCP `graph_findings`. New `specified_by` (arbiter_rule → requirement) and
+`mentions_rule` (changelog entry → arbiter_rule) edges: EXTRACTED from a
+`requirements` field on a report finding or rule, else INFERRED from a
+change-log bullet that names the rule or its rule pack under its ids, a pack
+header, or a registry entry. The vendored `arbiter/CHANGELOG.md` joins the graph
+as `arbiter/<date>` entries. Each finding lists `traced_to`; the viewer shows a
+"traced to" row with its own Trace button, search finds a finding by its ARB id,
+and `why`/`lineage ARB-053` reach the rules and their findings. On this
+repository's full scan 8 of 506 findings trace (to arbiter/ARB-033): Arbiter's
+records name few of the rules that fire here.
+
 ## 2026-10-21
 ### Completed
 - `REQ-053` | Code understanding | Arbiter Phase 1 pulled into `arbiter/`: rule

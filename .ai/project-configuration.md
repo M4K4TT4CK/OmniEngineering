@@ -49,7 +49,11 @@ report together), every unsuppressed finding becomes a `finding` node with its
 `rule_id`, `severity`, `cwe` and `controls`. Edges: `flags` the file and its
 smallest enclosing symbol, `violates` an `arbiter_rule` node, `classified_as`
 each `cwe` node, `cites` the requirement in its `req:<ID>` tag, and
-`introduced_by` the commit `git blame` holds for its line.
+`introduced_by` the commit `git blame` holds for its line. REQ-054: it also
+carries the rule's `description` and `remediation` (never the evidence), and
+its rule is `specified_by` the ARB-###/REQ-### id a report `requirements` field,
+change-log bullet, rule pack or registry entry names beside it, so the finding
+lists `traced_to` ids on a full scan too.
 
 - `./omni graph build --if-stale` rebuilds only when HEAD or a report changed.
 - `./omni graph findings --cwe CWE-89 --rule 'arbiter/python.*' --under src/`

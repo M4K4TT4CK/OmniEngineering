@@ -2765,6 +2765,9 @@ def run_graph_why(args: argparse.Namespace) -> int:
         print("  " + omni_graph.describe_introduced_by(
             {"commit": item["name"], "subject": item.get("summary"), "requirements": item.get("requirements")} if item.get("kind") == "commit" else {"commit": None}
         ))
+    for item in result["sections"].get("finding") or []:  # REQ-054: what was found and the fix, in full
+        for text_line in omni_graph.describe_finding_text(item, indent="  "):
+            print(text_line)
     if not result["sections"]:
         print("  Nothing in the governance or assurance layers touches this node.")
         print("  (If you expected something, rebuild with `omni graph build` and check `omni graph show --all --layer governance`.)")
@@ -2774,7 +2777,7 @@ def run_graph_why(args: argparse.Namespace) -> int:
         "files modified", "files mentioned", "previous commit", "next commit", "test files", "tests", "test suites", "covers",
         "guards", "regression tests", "failures", "repeats", "repeated by", "prevented by",
         "rules and playbooks from those failures", "failures it prevents", "rules", "gaps",
-        "finding", "flagged code", "rule", "cwe", "arbiter_rule", "findings", "files",  # REQ-043 / ARB-064
+        "finding", "traced to", "flagged code", "rule", "cwe", "arbiter_rule", "specified by", "arbiter rules", "findings", "files",  # REQ-043 / ARB-064 / REQ-054
     ]
     for section in sorted(result["sections"], key=lambda name: order.index(name) if name in order else len(order)):
         items = result["sections"][section]
