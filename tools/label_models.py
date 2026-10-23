@@ -175,6 +175,15 @@ CLAIMS: list[tuple[str, str, str]] = [
     ("arbiter/resource.k8s-writable-root-filesystem", "iac", "a container in this Kubernetes workload does not set readOnlyRootFilesystem: true."),
     ("arbiter/resource.k8s-capabilities-not-dropped", "iac", "a container in this Kubernetes workload does not drop Linux capabilities (drop: [ALL])."),
     ("arbiter/resource.k8s-mutable-image-tag", "iac", "a container image is referenced by a mutable tag (such as latest) rather than a digest."),
+    # Rules for defect classes found in AI-written code (ARB-083), 2026-10-23.
+    ("*.ignored-encode-error", "resilience", "an error returned while writing a response body is discarded, so a failed or partial write goes unnoticed."),
+    ("*.ignored-exec-error", "resilience", "the error from a database statement is discarded, so a failed write or delete is treated as if it succeeded."),
+    ("*.mail-*", "auth-crypto", "a mail connection is made over TLS without verifying the server's certificate, or allows falling back to an unencrypted connection, so credentials or messages can be intercepted."),
+    ("*.image-*", "resilience", f"an image from {_OUTSIDE} is decoded with no limit on its pixel dimensions, so a small file can make the process allocate a very large amount of memory."),
+    ("*.decompress-*", "resilience", f"compressed data from {_OUTSIDE} is decompressed with no limit on the output size, so a small input can expand to exhaust memory or disk."),
+    ("*.request-body-*", "resilience", "a request body is read into memory with no maximum size, so one large request can exhaust the process's memory."),
+    ("*.upload-memory-storage-unbounded", "resilience", "uploaded files are held in memory with no size limit, so one large upload can exhaust the process's memory."),
+    ("*.requeue-without-delay", "resilience", "a failed job is put back on the queue immediately with no delay or attempt limit, so a persistent failure loops as fast as the worker can run."),
 ]
 _CWE_CLAIMS = {"CWE-400": "resilience", "CWE-1164": "stubs"}
 
