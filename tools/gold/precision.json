@@ -46,17 +46,17 @@
    }
   },
   "arbiter/assurance.blanket-suppression": {
-   "tp": 125,
+   "tp": 150,
    "fp": 0,
    "unsure": 0,
-   "n": 125,
+   "n": 150,
    "held_out": {
-    "tp": 18,
+    "tp": 20,
     "fp": 0,
     "unsure": 0
    },
    "precision": 1.0,
-   "wilson_lower": 0.9702,
+   "wilson_lower": 0.975,
    "wilson_upper": 1.0,
    "kappa": null,
    "kappa_pairs": 0,
@@ -68,12 +68,12 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 125,
+   "population": 150,
    "dimension": "",
    "cwe": [],
    "fp_notes": [],
    "admitted": true,
-   "admitted_reason": "lower bound 0.970 on 125 labels",
+   "admitted_reason": "lower bound 0.975 on 150 labels",
    "updated": "2026-10-23",
    "snapshot_counts": {
     "planted": 0,
@@ -3213,9 +3213,9 @@
   },
   "arbiter/ruby.sql-injection": {
    "tp": 0,
-   "fp": 19,
+   "fp": 10,
    "unsure": 0,
-   "n": 19,
+   "n": 10,
    "held_out": {
     "tp": 0,
     "fp": 0,
@@ -3223,7 +3223,7 @@
    },
    "precision": 0.0,
    "wilson_lower": 0.0,
-   "wilson_upper": 0.1682,
+   "wilson_upper": 0.2775,
    "kappa": null,
    "kappa_pairs": 0,
    "observed_agreement": null,
@@ -3231,22 +3231,21 @@
     "claude-opus-5-5:prosecutor+defender/v3"
    ],
    "sources": [
-    "ai-corpus-model",
     "gold-model"
    ],
    "dates": {},
-   "population": 19,
+   "population": 10,
    "dimension": "security",
    "cwe": [
     "CWE-89"
    ],
    "fp_notes": [],
    "admitted": false,
-   "admitted_reason": "19 label(s), 30 needed",
+   "admitted_reason": "10 label(s), 30 needed",
    "updated": "2026-10-23",
    "snapshot_counts": {
     "planted": 5,
-    "ai-corpus": 1
+    "ai-corpus": 0
    }
   },
   "arbiter/ruby.ssrf-stored-callback": {
@@ -3697,38 +3696,37 @@
    }
   },
   "arbiter/supply.unpinned-action": {
-   "tp": 113,
-   "fp": 3,
+   "tp": 196,
+   "fp": 0,
    "unsure": 0,
-   "n": 116,
+   "n": 196,
    "held_out": {
-    "tp": 17,
-    "fp": 1,
+    "tp": 30,
+    "fp": 0,
     "unsure": 0
    },
-   "precision": 0.9741,
-   "wilson_lower": 0.9267,
-   "wilson_upper": 0.9912,
+   "precision": 1.0,
+   "wilson_lower": 0.9808,
+   "wilson_upper": 1.0,
    "kappa": null,
    "kappa_pairs": 0,
    "observed_agreement": null,
    "labellers": [
-    "claude-opus-5-5:prosecutor+defender+adjudicator/v3",
     "claude-opus-5-5:prosecutor+defender/v3"
    ],
    "sources": [
     "gold-model"
    ],
    "dates": {},
-   "population": 116,
+   "population": 196,
    "dimension": "",
    "cwe": [
     "CWE-1357",
     "CWE-494"
    ],
    "fp_notes": [],
-   "admitted": false,
-   "admitted_reason": "lower bound 0.927 on 116 labels, below 0.97",
+   "admitted": true,
+   "admitted_reason": "lower bound 0.981 on 196 labels",
    "updated": "2026-10-23",
    "snapshot_counts": {
     "planted": 0,
