@@ -174,10 +174,15 @@ Each arrow is enforced, not advisory:
 
 ## 5. Findings in the graph, and how to trace one
 
-`omni graph build` reads the newest `report.json` under the gate rule's
-`--out` directory (override with `findings_report` in `.ai/graph-config.json`;
-`null` disables) and adds one `finding` node per unsuppressed finding. Only
-the id, location, rule, dimension, severity, status, tags and title are
+`omni graph build` reads two reports: the newest full report under
+`arbiter-out/` (from `omni arbiter baseline` or `arbiter scan`) as the base,
+and the newest report under the gate rule's `--out` directory on top of it,
+whose statuses win for the findings it holds. `findings_report` in
+`.ai/graph-config.json` names one report instead, and `null` disables the
+findings. It adds one `finding` node per unsuppressed finding. `omni gate`
+rebuilds an existing graph when HEAD, a report, a registry or the ledger moved
+(the same check as `omni graph build --if-stale`). Only the id, location,
+rule, CWE ids, controls, dimension, severity, status, tags and title are
 copied, and (REQ-054) the rule author's `description` and `remediation` (the
 finding text and the fix, each trimmed to 600 characters) with its
 `remediation_source`; the evidence snippet, which quotes the scanned code, never
@@ -188,6 +193,8 @@ Edges:
 | Edge | From → to | Meaning |
 |---|---|---|
 | `flags` | finding → file, and the function/class whose span covers the line | where it sits in the code |
+| `violates` | finding → arbiter_rule | the rule that raised it; the rule node carries its probe, and every finding of the rule hangs off it |
+| `classified_as` | finding (and its rule) → cwe | each CWE the finding or rule declares; `omni graph why CWE-89`, `omni graph impact CWE-89`, `omni graph findings --cwe CWE-89` and the `graph_cwe` MCP tool start here |
 | `introduced_by` | finding → commit | the commit `git blame` holds for the line (REQ-051); the commit's `delivers` edge names the requirement that introduced it |
 | `cites` | finding → requirement | context: a requirement being worked when the scan ran (from the `req:` tag); it did not necessarily write the line |
 | `recorded_as` | finding → failure | the ledger entry it became after adjudication, in this ledger or a vendored workspace's (`arbiter/FAIL-042`) |
@@ -252,8 +259,9 @@ Walkthrough:
 
 ```bash
 ./omni gate                                   # Arbiter writes arbiter-out/omni-gate/report.json
-./omni graph build                            # findings become nodes
+./omni graph build --if-stale                 # findings become nodes (omni gate also does this)
 ./omni graph findings --tree --severity high  # roll-up by directory, counts by category and severity
+./omni graph findings --cwe CWE-89 --rule 'arbiter/python.*' --under src/
 ./omni graph why f:17a59c37fc20               # the file, the symbol, who introduced the line, the context requirement, the failure (if adjudicated)
 ./omni graph view --focus f:17a59c37fc20 --open
 #   the detail panel shows path:line with a copy button and an editor link,
@@ -266,8 +274,8 @@ arbiter review arbiter-out/omni-gate/report.json --apply queue.md --ledger .ai/f
 ./omni graph why arbiter/FAIL-042             # an entry of the vendored Arbiter ledger, with its workspace, requirement and tests
 ```
 
-The same queries are MCP tools (`graph_why`, `graph_findings`, `graph_impact`,
-`graph_lineage`, `graph_trace`, `arbiter_review_queue`), so an assistant can run
+The same queries are MCP tools (`graph_why`, `graph_findings`, `graph_cwe`,
+`graph_impact`, `graph_lineage`, `graph_trace`, and Arbiter's `arbiter_review_queue`), so an assistant can run
 the whole trace without leaving the conversation.
 
 The viewer side of that trace is proven in a browser, not only read from the

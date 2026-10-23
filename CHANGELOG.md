@@ -13,6 +13,24 @@ it copies, `--tools` says `claude` also copies the clarify skill, `graph build
 --if-stale` no longer cites a `make scan` target this repository does not have,
 requirement ids are dropped from flag help, and `failure show|list|search`,
 `test remove` and `test add --kind|--notes` get help text.
+README: the Quick Start now reaches a passing `omni gate` in a fresh repository
+(it needed `--tools all --include-legal`, a README and changelog, and Arbiter
+or the `completion.arbiter_gate` rule switched to `recommended`, none of which
+it said); a Command Reference table lists every subcommand; adoption options
+and what each copies are one table, and the copied requirements registry and
+required gate rules are stated; `omni update` lists the files it merges and
+the five it never touches; the graph covers all 22 parsed languages,
+`--if-stale`, `graph schema`, CWE and rule queries, the finding edges
+(`violates`, `classified_as`, `introduced_by`, `specified_by`,
+`mentions_rule`) and doc `mentions`; the viewer's upstream/downstream colours,
+colour modes, mouse and keyboard controls (Ctrl+drag pan) are described; the
+MCP section lists all 14 tools including `graph_cwe` and the `.mcp.json`
+entry; the `clarify` skill has a section; editing `.ai/entrypoints/` is
+replaced by the `make_ai.py` source `omni sync` regenerates them from; the
+symlink alternative is removed (doctor reports symlinked shims as drift); the
+Pattern tree is a compact, current listing. `docs/arbiter-integration.md`
+adds the `violates` and `classified_as` edges, the two-report findings source,
+the gate's graph rebuild and `graph_cwe`.
 - `REQ-056` | Requirements | `clarify` skill for gathering requirements in plan
 mode (`.claude/skills/clarify/SKILL.md`): frame the problem, read the code and
 `omni graph why` before asking, ask at most 4 ranked questions per round,
