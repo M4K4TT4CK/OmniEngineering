@@ -1922,7 +1922,7 @@
       "title": "Rules for defect classes found in AI-written code",
       "description": "On the 25-app AI-written development corpus (fixtures/ai-corpus) Arbiter caught 2 of 117 labelled code defects and none of the 11 high-severity ones; the misses cluster in classes no rule covered. Add advisory rules, in each of Python, TypeScript/JavaScript, Go, Java and Ruby where the class applies: unbounded memory (decompression bombs, image decode without a pixel bound, request bodies read whole with no limit, in-memory job/result maps that only grow), unauthenticated destructive or mail-sending endpoints (app-level probe), SMTP/TLS without certificate verification or with opportunistic STARTTLS, Go errors discarded by an expression statement (Encode, Exec), retries scheduled with a constant delay, and server-side fetches of stored callback URLs with no internal-address block. Each rule ships with planted bad/good twins, is triaged on the gold set and real corpora, stays within its gold budget, or is dropped.",
       "priority": "high",
-      "status": "pending",
+      "status": "completed",
       "minimum_access_scope": [
         "src/arbiter/packs/rules/ast/python.yaml",
         "src/arbiter/packs/rules/ast/typescript.yaml",
@@ -1955,7 +1955,8 @@
       ],
       "risk_notes": [
         "rules tuned on 25 development apps can overfit: the held-out corpus is the honest measure and was not read",
-        "app-level auth detection is name-based and can be fooled by auth done outside the repository (a gateway)"
+        "app-level auth detection is name-based and can be fooled by auth done outside the repository (a gateway)",
+        "Dev-corpus code recall 2% to 28%, precision 9% to 52%; held-out 10 of 142 (aggregate only). New rules stay advisory until the ledger admits them."
       ]
     }
   ]
