@@ -13,6 +13,13 @@ by the nightly cycle; see [ci.md](ci.md#continuous-training).
 - [Severity earned by measurement](#severity-earned-by-measurement)
 - [Evidence the tool did not generate for itself](#evidence-the-tool-did-not-generate-for-itself)
 
+Precision on real code (which findings are true positives, and which rules may
+block a gate) is measured separately, from ground truth and model labels, in
+[precision.md](precision.md#current-numbers). As of 2026-10-23 no rule is
+declared verified, every finding is advisory, and no 99% precision claim is
+made. Recall on real code is low; see
+[testing-harness.md](testing-harness.md#what-the-numbers-say).
+
 ---
 
 ## Confidence, honestly bounded
@@ -30,8 +37,11 @@ the code under analysis, so it is decidable and enumerable.
 ## Claim integrity
 
 Every report carries a claim ledger: each assertion with the checks that support
-it and the checks that abstained. Ten invariants forbid a claim from outrunning
-its basis, and the engine verifies its own report before writing it.
+it and the checks that abstained. Twelve invariants (CI-1 to CI-12,
+`src/arbiter/claims.py`) forbid a claim from outrunning its basis, and the
+engine verifies its own report before writing it. `tools/integrity.py` adds two
+harness checks of its own: CI-13 (cacheable probes are file-local) and CI-14
+(a changed file misses the adapter memo).
 
 ```bash
 arbiter verify arbiter-out/report.json --show-claims
@@ -42,16 +52,18 @@ python tools/integrity.py --probes 6
 |---|---|
 | Reports enumerated exhaustively over the bounded state space | **3,188,646** |
 | Integrity failures | **0** |
-| Invariants declared / proven enforced by mutation | **10 / 10** |
+| Invariants declared / mutations tested / unenforced | **12 / 11 / 0** |
+
+Figures from `--probes 6` on 2026-10-23 (130 s). CI and the nightly cycle run
+the default, `--probes 5`, a smaller space.
 
 Exhaustive over that space is a stronger statement than six nines within it —
 and says nothing outside it, which is why the bound is stated rather than
 extrapolated.
 
-For verdict correctness, `arbiter learn` reports measured per-rule precision with
-a Wilson lower bound, and a rule under 20 adjudicated observations reports as
-**unproven** rather than inheriting a flattering estimate from a handful of
-samples.
+For verdict correctness on your own repository, `arbiter learn` reports
+per-rule precision from human verdicts, and a rule with too few of them reports
+as unproven ([calibration.md](calibration.md)).
 
 ## Injection training
 
@@ -61,16 +73,18 @@ Seeds come from the corpus rather than from templates, because effective sample
 size is bounded by generator diversity, not by trial count.
 
 ```bash
-python tools/inject.py --trials 40000 --knowledge .arbiter/knowledge.json
+python tools/inject.py --trials 20000 --knowledge .arbiter/knowledge.json   # the nightly default; counts accumulate
 ```
+
+Cumulative, from `.arbiter/knowledge.json` as of 2026-10-23:
 
 | | Result |
 |---|---|
-| Trials | 30,000 across 15 rules |
-| Recall | **15,000 / 15,000** |
-| Specificity | **15,000 / 15,000** |
-| Rules with controls | **15 / 15** |
-| Per-rule Wilson lower bound | 0.995 – 0.999 |
+| Trials | 928,000 across 27 rules |
+| Recall on planted defects | **508,501 / 508,502** |
+| Specificity on controls | **419,498 / 419,498** |
+| Rules with controls | **27 / 27** |
+| Per-rule Wilson lower bound on recall | 0.9986 – 0.9999 |
 
 Every rule has controls. That row matters more than the other two: a rule with
 measured recall and no controls could be firing on everything and the numbers
@@ -78,7 +92,10 @@ would still look perfect. Six rules were in exactly that state until controls
 were written for them.
 
 Read the result honestly. It measures whether a rule detects defects drawn from a
-generator, against controls drawn from the same generator. It is evidence about
+generator, against controls drawn from the same generator. It is not recall on
+real code, which is far lower (28% on the AI-written development corpus, the
+corpus the newest rules were written for; see
+[testing-harness.md](testing-harness.md#what-the-numbers-say)). It is evidence about
 rule mechanics, not about code in the wild — which is why synthetic observations
 are kept in a separate ledger from human adjudication and `arbiter learn`
 reports them apart. Calibration reads only the adjudicated ledger.
@@ -267,4 +284,8 @@ up fitted to its own practice set. The
 corpus tool reports both rates — and prints its own caveat, because a per-KLOC
 rate over a handful of repositories is as much about what those repositories
 contain as about whether the rules generalize. The figure that survives a small
-sample is the count of build-breaking findings, and that one is zero.
+sample is the count of build-breaking findings, and that one was zero when
+measured (`tools/corpus.py`; the run is not kept in `tools/gold/results/`).
+This is the `tools/corpus.py` holdout. The precision ledger uses a separate
+held-out split, `tools/gold/heldout.json`
+([testing-harness.md](testing-harness.md#5-ground-truth-and-model-labels)).

@@ -63,7 +63,8 @@ agreement 17% — 8 matched, 15 only in A, 24 only in B
 8 severity disagreements: Arbiter rates a public bucket critical, Checkov CE rates it medium
 ```
 
-Checkov goes far deeper on Terraform than Arbiter's 13 native rules, and the 24
+Checkov goes far deeper on Terraform than Arbiter's resource rules (13 when
+this sample was recorded; 28 in `packs/rules/resource.yaml` today), and the 24
 findings only it produced are real. What the comparison shows is that the two are
 complementary, that severity calibration differs sharply, and that nothing
 Arbiter found was invented.

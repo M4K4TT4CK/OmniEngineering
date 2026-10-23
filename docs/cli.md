@@ -102,7 +102,8 @@ arbiter scan . --cache-path /tmp/arbiter-cache.json
 ```
 
 The file-local probes (`secrets`, `supply_chain`, `ast_metrics`,
-`house_rules_ast`, `authored`) keep their per-file findings in
+`house_rules_ast`, `authored`, `concurrency` and the `lang_<pack>` language
+packs) keep their per-file findings in
 `.arbiter/cache.json` under the first target, keyed on the file's bytes, the
 configuration, the probe and Arbiter versions and a digest of Arbiter's own
 source. An unchanged file under unchanged rules is served from the cache; an
