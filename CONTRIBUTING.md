@@ -12,7 +12,7 @@ This matches the contribution rule in the project `LICENSE`.
 
 Useful contributions include:
 
-- Bug fixes in `make_ai.py` or `omni`.
+- Bug fixes in `omni`, `make_ai.py`, `omni_graph.py` or `omni_mcp.py`.
 - Better validation checks.
 - New assistant adapters.
 - Improved playbooks and checklists.
@@ -25,12 +25,18 @@ Useful contributions include:
 ## Contribution Expectations
 
 - Keep changes focused and reviewable.
-- Preserve the repo-local, no-MCP, dependency-light architecture unless a
-  requirement explicitly changes that direction.
+- Preserve the repo-local, standard-library-only design: the workspace must
+  work without MCP and without third-party packages (tree-sitter for
+  `omni graph build` and Arbiter stay optional), unless a requirement
+  explicitly changes that direction.
 - Do not add secrets, private project data, customer data, logs, local
   environment files, or generated dependency folders.
 - Keep public docs useful to other engineering teams, not only one local setup.
-- Run `./omni doctor` before submitting.
+- Before submitting, run `python3 -m unittest discover -s tests`,
+  `./omni doctor` and `./omni gate`. The gate wants a requirement
+  (`./omni requirement add`) and a `CHANGELOG.md` entry that cites it.
+- Do not change `arbiter/`: it is a vendored subtree of a separately licensed
+  project; send Arbiter changes upstream.
 
 ## Forks And Naming
 

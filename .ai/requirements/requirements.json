@@ -1918,7 +1918,7 @@
       "title": "Documentation matches the CLI and code",
       "description": "README, docs/, .ai context files, entrypoints, playbooks, adapters, checklists and CLI help describe the commands, flags, paths, config keys and behaviour that exist today; a new adopter can go from clone to adopt to a first passing gate by following the README; context files loaded on every task carry no stale or duplicated text.",
       "priority": "medium",
-      "status": "pending",
+      "status": "completed",
       "minimum_access_scope": [
         "README.md",
         "CONTRIBUTING.md",
@@ -1946,7 +1946,9 @@
         "README",
         "CHANGELOG"
       ],
-      "risk_notes": []
+      "risk_notes": [
+        "Verified: unit tests exit 0 (512 tests), omni gate exit 0, README Quick Start run end to end in a fresh repository."
+      ]
     }
   ]
 }

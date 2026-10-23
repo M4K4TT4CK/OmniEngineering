@@ -34,6 +34,9 @@ the gate's graph rebuild and `graph_cwe`.
 `tests/test_docs.py` fails when a subcommand, MCP tool or graph-config key is
 missing from the README, or when an internal Markdown link or anchor (outside
 `arbiter/`) does not resolve.
+CONTRIBUTING names all four CLI files, drops the "no-MCP" claim (there is an
+optional MCP server) and asks for the tests and the gate, not only doctor; the
+testing playbook's default checks are ones an adopter can run.
 - `REQ-056` | Requirements | `clarify` skill for gathering requirements in plan
 mode (`.claude/skills/clarify/SKILL.md`): frame the problem, read the code and
 `omni graph why` before asking, ask at most 4 ranked questions per round,

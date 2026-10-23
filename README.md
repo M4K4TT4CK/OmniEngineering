@@ -710,7 +710,7 @@ map.
 | `omni gate [--no-memo]` | Run the completion rulepack against the change set; exit 1 on a failed required rule. `--hook` is the Claude Code Stop-hook mode. |
 | `omni waive RULE --reason TEXT [--requirement ID]` | Record an auditable waiver for one gate rule (appended to `.ai/gate-waivers.jsonl`). |
 | `omni hook install [--settings FILE]` | Add the Claude Code Stop hook that runs `omni gate --hook` (default `.claude/settings.json`). |
-| `omni hook install-git [--force] [--with-graph-rebuild]` | Add a git pre-commit hook that runs `omni gate`; optionally a post-commit graph rebuild. |
+| `omni hook install-git [--force] [--with-graph-rebuild]` | Write `.githooks/pre-commit` (runs `omni gate`) and set `core.hooksPath`; commit `.githooks/` so other clones can opt in. Optionally a post-commit graph rebuild. |
 | `omni rule add --rulepack ALIAS --statement TEXT` | Add a rule to a rulepack. |
 | `omni graph build / show / trace / why / lineage / timeline / impact / findings / sources / schema / benchmark / render / view` | The project graph ([Code Graph](#code-graph-omni-graph)). |
 | `omni mcp serve / tools` | The MCP server ([MCP server](#mcp-server-the-graph-as-tools-for-any-assistant)). |
@@ -1300,7 +1300,8 @@ omni requirement add \
   --acceptance "Checklist exists,Doctor passes"
 ```
 
-If `--id` is omitted, the CLI assigns the next `REQ-###` ID.
+If `--id` is omitted, the CLI assigns the next `REQ-###` ID. Unless given, the
+status is `proposed`, the priority `medium` and the category `General`.
 
 Writing that by hand for every commit is exactly the manual overhead this workspace exists to cut down
 on. Draft it instead, then edit the draft rather than starting from nothing:
