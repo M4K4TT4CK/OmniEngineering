@@ -311,7 +311,10 @@ def test_shipped_packs_say_what_a_person_must_still_check(tmp_path):
     for fw in load_frameworks():
         for c in fw.controls:
             assert c.residual, f"{fw.id}:{c.id} does not say what remains for a person"
-            if c.automatable != "none":
+            # A per-language control (the CWE Top 25) may have no check in any
+            # language; each cell then reads as a gap, out of reach or n/a,
+            # and a non-applying cell must say why (enforced at load).
+            if c.automatable != "none" and not c.languages:
                 assert c.satisfied_by, f"{fw.id}:{c.id} claims automatable with no checks"
                 assert c.machine_scope, f"{fw.id}:{c.id} does not say what it can establish"
 

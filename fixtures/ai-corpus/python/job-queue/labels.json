@@ -1,0 +1,140 @@
+{
+  "app": "python/job-queue",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "handlers.py",
+      "line": 29,
+      "cwe": [
+        "CWE-22",
+        "CWE-73"
+      ],
+      "category": "path-traversal",
+      "severity": "high",
+      "justification": "When IMAGE_ROOT is unset (the default) any absolute or ../ path from the HTTP payload is accepted, so an unauthenticated client can make the server open any readable file and write `<name>_resized<ext>` next to it anywhere on disk. Confinement should be mandatory, not opt-in.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "handlers.py",
+      "line": 94,
+      "cwe": [
+        "CWE-295"
+      ],
+      "category": "tls-disabled",
+      "severity": "high",
+      "justification": "smtp.starttls() is called without an SSL context; smtplib then uses an unverified stdlib context, so the SMTP server certificate is not checked and a MITM can capture SMTP_USER/SMTP_PASSWORD sent by login(). Pass ssl.create_default_context().",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "handlers.py",
+      "line": 89,
+      "cwe": [
+        "CWE-295"
+      ],
+      "category": "tls-disabled",
+      "severity": "high",
+      "justification": "smtplib.SMTP_SSL is created without a context, which likewise defaults to no certificate verification on the implicit-TLS port 465 path, exposing credentials and mail to MITM.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "api.py",
+      "line": 33,
+      "cwe": [
+        "CWE-306"
+      ],
+      "category": "missing-authn",
+      "severity": "medium",
+      "justification": "POST /jobs is unauthenticated, so anyone who can reach the API can send arbitrary email through the configured SMTP account (spam relay) and trigger reads/writes of server files; the README itself warns not to expose it.",
+      "source": "independent"
+    },
+    {
+      "id": "D5",
+      "file": "handlers.py",
+      "line": 66,
+      "cwe": [
+        "CWE-20"
+      ],
+      "category": "unhandled-input-error",
+      "severity": "medium",
+      "justification": "The recipient is only checked to be a non-empty string; a comma-separated list of addresses lets one job mail many people, and malformed values only fail inside the worker (where the error is retried 3 more times) instead of being rejected with 422.",
+      "source": "independent"
+    },
+    {
+      "id": "D6",
+      "file": "jobqueue.py",
+      "line": 50,
+      "cwe": [
+        "CWE-770"
+      ],
+      "category": "unbounded-memory",
+      "severity": "medium",
+      "justification": "The work queue has no maxsize and submit never applies back-pressure, so a burst of submissions grows memory without limit instead of returning 429/503.",
+      "source": "independent"
+    },
+    {
+      "id": "D7",
+      "file": "jobqueue.py",
+      "line": 48,
+      "cwe": [
+        "CWE-401",
+        "CWE-770"
+      ],
+      "category": "unbounded-memory",
+      "severity": "medium",
+      "justification": "Finished jobs (including full payloads and results) are kept in _jobs forever with no TTL or eviction, so memory grows with every job until the process is OOM-killed (acknowledged in the README).",
+      "source": "independent"
+    },
+    {
+      "id": "D8",
+      "file": "jobqueue.py",
+      "line": 129,
+      "cwe": [],
+      "category": "retry-no-backoff",
+      "severity": "low",
+      "justification": "Retries use a fixed retry_delay (1 s) with no exponential backoff or jitter, so a transient SMTP outage is hammered with four attempts in ~3 s and all queued jobs retry in lockstep.",
+      "source": "independent"
+    },
+    {
+      "id": "D9",
+      "file": "jobqueue.py",
+      "line": 69,
+      "cwe": [],
+      "category": "logic-bug",
+      "severity": "low",
+      "justification": "stop() enqueues the None sentinels behind every job already waiting in the queue, so shutdown blocks until the whole backlog is processed rather than just the running jobs as the docstring claims, which can stall a graceful shutdown indefinitely.",
+      "source": "independent"
+    },
+    {
+      "id": "D10",
+      "file": "requirements.txt",
+      "line": 1,
+      "end_line": 5,
+      "cwe": [
+        "CWE-1104"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "fastapi, uvicorn, pillow, pytest and httpx are completely unpinned, making builds non-reproducible and exposed to breaking or malicious releases.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": [
+    {
+      "rule": "arbiter/assurance.test-asserts-nothing",
+      "file": "test_jobqueue.py",
+      "line": 91,
+      "reason": "the test asserts through its helpers: the Barrier(3, timeout=5) breaks unless three jobs run at once, the job then fails, and wait_for(..., SUCCEEDED) raises; it can fail"
+    },
+    {
+      "rule": "arbiter/authored.undeclared-import",
+      "file": "api.py",
+      "line": 8,
+      "reason": "pydantic is FastAPI's own dependency and BaseModel is FastAPI's documented request-model API; requirements.txt declares fastapi"
+    }
+  ]
+}

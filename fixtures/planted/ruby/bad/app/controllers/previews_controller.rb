@@ -6,7 +6,13 @@ require "faraday"
 class PreviewsController < ApplicationController
   def show
     conn = Faraday.new(request: { open_timeout: 3, timeout: 5 })
-    resp = conn.get(params.require(:url)) # gap: CWE-918 - nothing in this build reports it (docs/cwe-top25.md)
+    resp = conn.get(params.require(:url)) # expect: arbiter/ruby.ssrf-request-url
     render json: { status: resp.status, body: resp.body.to_s[0, 200] }
+  end
+
+  def feed
+    uri = URI(params[:feed_url])
+    body = Net::HTTP.get(uri) # expect: arbiter/ruby.ssrf-request-url, arbiter/ruby.http-no-timeout
+    render plain: body[0, 200]
   end
 end

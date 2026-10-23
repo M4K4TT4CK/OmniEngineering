@@ -190,7 +190,11 @@ restricts a rule to paths matching an fnmatch glob, or any glob of a list
 (`*` also crosses `/`): the JSX rules read `*.[jt]sx`, the RSpec rules
 `*_spec.rb`, and `ruby.csrf-protection-off-in-production` reads
 `config/environments/production.rb` at the root or under any directory,
-because the same line is Rails' generated default in `test.rb`. The schema is documented at the top of
+because the same line is Rails' generated default in `test.rb`. A Python rule
+may also give `safe_splice_calls` and `safe_splice_names` (regexes): a hit that
+builds a string is skipped when every value spliced into it is a literal, a
+call or name those match, or a local whose every assignment in the enclosing
+function is (`python.sql-injection`; one function, no data flow). The schema is documented at the top of
 `src/arbiter/lang_rules.py`, and a pack that breaks it fails at import.
 Rule ids are `arbiter/<pack>.<id>`; each carries its CWE.
 
@@ -223,18 +227,20 @@ named language. A scan that finds none of them says nothing about them.
 
 | Language | Not assessed: does not apply | Not assessed: out of reach for single-file checks | Applies, but no check yet (gap) |
 |---|---|---|---|
-| Python | 787, 125, 416, 119 (memory-safe); 476 (`None` access raises); 190 (arbitrary-precision ints) | 862, 863, 306, 269, 20; 918 beyond one function | 434, 77; 200 except `debug=True` |
-| TypeScript / JavaScript | 787, 125, 416, 119; 476 (`undefined` access raises); 190 (`number` is a double) | 862, 863, 306, 269, 20; 918 beyond one function | 352, 434, 77, 918 |
-| Go | 787, 125, 416, 119 (outside `unsafe`); 94 (no runtime eval); 502 (stdlib decoders fill declared types) | 862, 863, 306, 269, 20, 476 (nil-flow analysis), 352 (absent middleware); 918 beyond one function | 22, 434, 77, 918, 190 |
-| Java | 787, 125, 416, 119 (outside JNI) | 862, 863, 306, 269, 20, 476 (nullness analysis); 918 beyond one function | 79, 77, 918, 190 |
-| Ruby | 787, 125, 416, 119 (outside C extensions); 476 (`nil` access raises); 190 (arbitrary-precision ints) | 862, 863, 306, 269, 20; 918 beyond one function | 352, 22, 434, 77, 200, 918 |
+| Python | 787, 125, 416, 119 (memory-safe); 476 (`None` access raises); 190 (arbitrary-precision ints) | 862, 863, 306, 269, 20; 918 beyond one function; 434, 77 beyond one function | none |
+| TypeScript / JavaScript | 787, 125, 416, 119; 476 (`undefined` access raises); 190 (`number` is a double) | 862, 863, 306, 269, 20; 918, 434 and 77 beyond one function; 352 as a missing CSRF middleware | none |
+| Go | 787, 125, 416, 119 (outside `unsafe`); 94 (no runtime eval); 502 (stdlib decoders fill declared types) | 862, 863, 306, 269, 20, 476 (nil-flow analysis), 352 (absent middleware); 22, 434, 77 and 918 beyond one function | none |
+| Java | 787, 125, 416, 119 (outside JNI) | 862, 863, 306, 269, 20, 476 (nullness analysis); 79, 918, 77, 190 and 434 beyond one function | none |
+| Ruby | 787, 125, 416, 119 (outside C extensions); 476 (`nil` access raises); 190 (arbitrary-precision ints) | 862, 863, 306, 269, 20; 22, 434, 77 and 918 beyond one function | none |
 
 Gap cells that semgrep or bandit cover only when installed are listed as
 covered in `docs/cwe-top25.md`. Without the analyzers they fall back to the
 native column there. In a scan, an analyzer that did not run is already
-reported as not assessed (see [Native probes](#native-probes)). The CWE-level
-rows above are not yet in the controls coverage report; see ARB-062 in
-`.ai/requirements/requirements.json`.
+reported as not assessed (see [Native probes](#native-probes)). The same
+cells are the `cwe-top25-2024` control pack, so a scan's controls report says
+per language which weaknesses were assessed, which are gaps, which are out of
+reach and which do not apply (`arbiter controls --framework CWE-Top25-2024`;
+see [compliance.md](compliance.md#cwe-top-25-per-language)).
 
 ## Machine-authored code
 

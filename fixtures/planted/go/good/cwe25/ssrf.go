@@ -32,3 +32,24 @@ func Preview(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 	_, _ = io.Copy(w, io.LimitReader(resp.Body, 4096))
 }
+
+// Ping posts only to an https callback on an allowlisted host.
+func Ping(w http.ResponseWriter, r *http.Request) {
+	u, err := url.Parse(r.FormValue("callback"))
+	if err != nil || u.Scheme != "https" || !allowedHosts[u.Hostname()] {
+		http.Error(w, "callback not allowed", http.StatusBadRequest)
+		return
+	}
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodPost, u.String(), nil)
+	if err != nil {
+		http.Error(w, "bad callback", http.StatusBadRequest)
+		return
+	}
+	resp, err := previewClient.Do(req)
+	if err != nil {
+		http.Error(w, "callback failed", http.StatusBadGateway)
+		return
+	}
+	_ = resp.Body.Close()
+	w.WriteHeader(http.StatusNoContent)
+}

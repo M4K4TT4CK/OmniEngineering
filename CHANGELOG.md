@@ -5,6 +5,137 @@ under `[Unreleased]` (there are no release tags yet) and reference the
 `REQ-###` they serve. Rationale belongs in `.ai/project-context.md`.
 
 ## [Unreleased]
+### 2026-10-22 (round 2: scan speed)
+- ARB-076 | Per-repository facts are built once per scan, not once per file. `probe_authored` called `facts.setdefault(key, _ecosystem_facts(...))`, which evaluates its argument every time, so each Go, Java or Ruby file rebuilt its repository's declared and local names -- every manifest and, for Java, every file's `package` line: 8,546 rebuilds on keycloak, 1,808 s of 2,486 s under cProfile. `apply_scope_notes` had the same shape per finding (1,026 extractions, 6.7 s). `probe_doc_drift` built each repository's code blob by repeated concatenation, copying the whole blob per file (458 s). `tests/test_scan_once_per_repo.py` counts the calls during a 12-file Java scan.
+- ARB-076 | The assigned-credential pattern is tried only near its keywords: every `_ASSIGNED_SECRET` match starts at most 24 characters before a credential word and the pattern has no anchors or lookbehind, so `_assigned_secret_matches` runs `match` only at those starts and yields exactly what `finditer` did (31.0 s -> 6.8 s of regex on keycloak). `tests/test_secrets_scan_equivalence.py` checks the keyword list and bound against the pattern text and the output against `finditer` on hand-written, random and real inputs; change the pattern and update both.
+- ARB-076 | Scan seconds per repository, same machine, `tools/gold_benchmark.py --only java-keycloak,ruby-rails,ts-nest,go-grpc,py-celery --jobs 4 --no-fail --raw`, before (`24b2b54`) -> after: java-keycloak 1,819.4 -> 79.0, ruby-rails 133.3 -> 24.0, go-grpc 24.9 -> 14.9, ts-nest 15.0 -> 7.6, py-celery 8.2 -> 6.0; wall clock 30:19 -> 1:19. The gold report is identical apart from its timestamp, commit and seconds: 2,559 findings, every raw finding equal and in the same order, per-rule counts and breaches equal. Full `Finding.to_dict()` output (ids, lines, titles, descriptions, evidence, scope notes) is identical on all five repositories. Keycloak's largest probes now are `lang_java` (35 s), `secrets` (24 s), `authored` (14 s), `ast_metrics` (10 s).
+### 2026-10-22 (round 2 precision: secrets and suppression)
+- ARB-065 | `assurance.blanket-suppression`: a blanket directive followed by a written reason (two words of prose after it, separators and a second comment marker skipped) is not reported; TypeScript cannot name an error in `@ts-expect-error`/`@ts-ignore`, so a reason is all its author can give (otel-js `// @ts-expect-error access internal property for testing`, axios `// @ts-expect-error -- the encoding opt-in only accepts booleans`, celery `# type: ignore  # whole point here ...`). A `@ts-*`, `eslint-disable` or `nolint` directive matched later inside a comment, after a quote or backtick, or on a `*` block-comment line is prose about the directive and is no longer counted, in the census either (jose's JSDoc `* // @ts-ignore` example, its tools/declaration-comments.js). A bare directive, or one followed by a lone token (`// @ts-expect-error TS2345`), is still blanket. Generated and vendored paths were already skipped.
+- ARB-065 | `secrets.private-key`: a data file (no inventory language: `.pem`, `.key`, `.key.insecure`, `.txt`) under a fixture-data directory (`testdata/`, `test-data/`, `fixtures*/`, `__fixtures__/`, `vectors/`, `test-vectors/`) is not reported (grpc-go testdata/x509, etcd tests/fixtures, cryptography vectors). Every other test-path key stays reported at low and tagged `test-fixture`, as since round 1 (tests/certs, examples/, integration/…/tls, keys written into test code). Test material also covers `testsuite/`, `test-suite(s)/`, `dummyserver/`, a `t/` directory, modules named `fixture(s)*` and `*localhost*.key|pem`: keycloak's testsuite PKI, urllib3's dummyserver/certs, celery's t/unit/security, jose's tap/fixtures.ts and caddy's caddytest/caddy.localhost.key were 19 critical, high-confidence reports and are now low. No private-key finding on gold is high any more.
+- ARB-065 | `secrets.assigned-credential`, all post-match filters (the `_ASSIGNED_SECRET` patterns are unchanged): the symbol is read back to its first character before the echo checks, because the 24-character prefix cut `LOGOUT_TRIGGERED_BY_ACTION_TOKEN` short; a quoted value that spells its symbol plus at most one naming word (keycloak Messages.java `EXPIRED_ACTION_TOKEN_NO_SESSION = "expiredActionTokenNoSessionMessage"`), or is a letters-only snake_case identifier sharing a word with it (`FORM_PASSWORD = "j_password"`, `_aj_hash_with_indifferent_access`), is a key name; dotted names of three or more segments may carry a digit run per segment (`org.apache.tomcat.manager2.CsrfFilter.token`, grpc's `type.googleapis.com/...v3.AccessTokenCredentials`, which was high); variable references (`$dir/private/ca.key.pem`, `$${project.version}`), interpolated strings (rubygems' `credential_info`, which was high), unquoted values ending in `;` (axios index.d.cts `token: CancelToken;`), Fetch credential modes (`same-origin`, `include`, `omit`), and symbols naming a password hash (`encodedPassword`, `PWD_MD5`, `*_SHA*`; not `DEFAULT_ENCODED_SECRET_KEY`) are skipped, as are fixture-data files as above (cryptography's RFC 8032 `SECRET =` vectors, coredns testdata/*.private). Weak secrets spelled as words (`"super-secret-key"`), snake_case passphrases sharing no word with their symbol, JWTs and test credentials stay reported.
+- ARB-065 | Gold benchmark, all 24 repositories, native checks, `--jobs 6`, against `24b2b54` (6,085.9 KLOC): `assurance.blanket-suppression` 280 to 150 (0.046 to 0.0246), `secrets.private-key` 260 to 114 (0.0427 to 0.0187), `secrets.assigned-credential` 210 to 142 (0.0345 to 0.0233); budget 0.03, all three within it; every removed finding was read. 7,385 findings, 6 over budget (3 accepted). Planted corpus unchanged at 100% with 0 on good twins and 0 unmarked. `tests/test_probes_precision_secrets_suppression.py` (7 tests, each failing before the change).
+### 2026-10-22 (round 2: controls)
+- ARB-062 | Fixed FAIL-055: `controls._probe_of("house/x")` returned `house`, which is not a probe, so a control backed by a house rule always read not assessed. `house/<id>` now maps to `house_rules_ast` for an `ast_query` rule and `house_rules` otherwise, from the scan configuration; `arbiter controls` on a saved report (no configuration) requires both house probes, and an id the configuration does not define reads not assessed. Every rule-id prefix the scanner can emit is enumerated from the source and asserted to map to a registered probe, and a real scan over every planted tree asserts each finding's recorded probe is the one `_probe_of` names (`tests/test_controls_probe_mapping.py`). No shipped pack maps a house rule, so shipped output does not change.
+- ARB-062 | Language-pack rules' `controls:` declarations now assess the control they name: a control gains `declared_by` and a `languages` cell per pack (`satisfied`, `violated`, `not_assessed`, `absent`). A declaration does not override a control the pack marks `not_automatable` (NIST 800-53 IA-2; the reason names the disagreeing rules), and `controls.unresolved_declarations()` lists the ones no pack enumerates (800-53 SC-13, SC-23, SI-10, SI-11; OWASP ASVS). Shipped output changes only for SSDF PW.5 and PW.8 and 800-53 IA-5, SA-11 and SC-8: on spring-petclinic (native only) PW.8 goes from satisfied to violated (3 `java.test-without-assertion` findings); on the other four sample repos nothing changes in a native-only run, where PW.5 stays not assessed because semgrep and bandit did not run. With the analyzers, PW.5 can now read violated by a language rule. IaC rules' declarations are still not wired.
+- ARB-062 | New control pack `cwe-top25-2024`: one control per 2024 CWE Top 25 weakness, each with one cell per language (`applies`, `not_applicable` with a reason, `out_of_reach` with a reason) and the docs/cwe-top25.md mark. An applying cell is assessed by the language pack's rules tagged with the CWE, so a new tagged rule assesses it with no pack edit. A sixth control state, `not_applicable` (distinct from `not_automatable`), for a weakness no language of the codebase can have; per-language cell states add `out_of_reach` and `absent`. The scan report's controls summary and `arbiter controls` show per language: assessed, violated, not run, gap, out of reach, n/a. `tests/test_controls_cwe_top25.py` holds every cell to the doc matrix (N cell has a native rule, other applying cells none, the Native column matches) and runs each planted bad tree end to end. Framework packs print no `not_applicable` row unless it is non-zero; `counts` gains a `not_applicable` key (0) for every pack.
+### 2026-10-22 (round 2: testing harness)
+- ARB-065 | AI-written-code corpus (`fixtures/ai-corpus/`): five interview-style tasks in five languages, 25 apps generated by headless `claude -p --model sonnet` (claude-sonnet-5-5) runs with file tools only and a neutral prompt (`tools/ai_corpus_generate.py`; prompt, model and date per app in `manifest.json`), copied in as data and never built or run. 172 defects were labelled by reading the code before Arbiter ran (commit a02f048), then reconciled: every in-scope native finding is a TP or a listed false alarm with its reason. `tools/ai_corpus_score.py` scores recall and precision per language and category (2-line tolerance, CWE or `category_rules` match, unreviewed findings counted as FP). First result: 2 of 117 code defects detected, 2 of 31 code findings true; dependency pinning 52/55. Two Arbiter defects surfaced: `drift.documented-env-var-absent` does not read `config.ru`, and `assurance.test-asserts-nothing` anchors one line early after a blank line (`^\s*` under `re.M`).
+- ARB-065 | `tools/label_sample.py`: a stratified labelling sheet from a gold run (`--raw`), with code context and a blank verdict column, and a scorer for precision per rule with 95% Wilson intervals, a stratum-weighted overall estimate, and Cohen's kappa between two labellers with the disagreements listed.
+- ARB-065 | `tools/regression_guard.py`: finding snapshots and scan-time budgets for `fixtures/planted`, `fixtures/ai-corpus` and four small pinned gold repositories (`tools/gold/guards.json`, `tools/gold/snapshots/`). The budget is scaled by a pure-Python calibration workload, because a reference that ran Arbiter slowed down with a seeded `sleep` and hid it. In-tree snapshots run in the fast tier; the pinned repositories are fetched at their pins and checked in the slow-tier job. Tests prove each guard fails on a deleted rule and on a seeded sleep.
+- ARB-065 | `tools/variants.py`: semantics-preserving rewrites of the planted bad fixtures (rename, hoist, helper, move, string style) in all five languages, with each marker tracked to its new line, giving robustness per rule. First sweep: 404/486 kept (83%). Hoisting the sink argument into a temporary (57/83) or passing it through a helper (60/83) loses the most; `typescript.html-from-request`, the Ruby and Go command-injection rules, and the TypeScript and Ruby sql rules are the least robust.
+- ARB-065 | `arbiter.yaml` suppresses `ruff/*` under `fixtures/**`, as it already did for every other analyzer, so the corpus never reaches the self-gate. `docs/testing-harness.md` documents all four instruments and their numbers.
+### 2026-10-22 (CWE Top 25 round 2: Go and Ruby)
+- ARB-062 | Native rules for ranked gaps 5-8 and 10 in Go and Ruby, each a
+same-function source-to-sink rule: a request value (Go `r.URL.Query().Get`,
+`r.FormValue`, `r.PathValue`, `mux.Vars`, `chi.URLParam`, gin/echo/fiber
+`c.Query`/`c.Param`; Ruby `params[...]`, `params.require/fetch`,
+`request.params`) written in the sink call, or assigned to a local that a later
+statement of the same block passes to it (tied with `#eq?` up to six levels
+below the assignment's sibling; no schema change). `path-traversal-request`
+(CWE-22; `filepath.Join`/`os.Open`/`http.ServeFile`/`c.File`, `File.join`/
+`Rails.root.join`/`File.read`/`send_file`/`render file:`; silent with
+`filepath.IsLocal`/`Base`/`Rel`, `strings.HasPrefix`, `os.OpenRoot`,
+`File.basename`, `start_with?`, `include?`, `=~`), `upload-client-filename`
+(CWE-434; `header.Filename`/`part.FileName()` in a multipart handler,
+`original_filename` or Rack's `params[:f][:filename]`, in a path that is
+written; silent with an extension/MIME allowlist or a basename),
+`ssrf-request-url` (CWE-918; `http.Get`, `*Client.Get`, `http.NewRequest*`;
+Net::HTTP, Faraday, HTTParty, RestClient, http.rb, `URI.open`, a `conn`/`client`
+local; silent with a literal scheme and host or a host check) and
+`argument-injection` (CWE-77/88; `exec.Command`/`system`/`Open3`/`IO.popen` with
+a literal git/curl/ssh/rsync/tar/... and a request value, no `"--"`), all high
+severity, medium confidence; Go also gains `parsed-int-narrowed` (CWE-190/681,
+medium: `strconv.Atoi` or a 64-bit `ParseInt`/`ParseUint` narrowed to
+`int32`/`int16`/`int8`/`uint*` with no comparison in between). The nine `gap:`
+markers became `expect:`; the Go argument-injection pair is now an HTTP handler,
+and Go SSRF/path and Ruby SSRF gained a variable-form pair. Planted Go 60/60,
+Ruby 64/64. Real code: the gold Go and Ruby repositories (1687 KLOC) give none
+of the nine rules a finding; corpus-go, corpus-clean, rack and sinatra none;
+railsgoat two, both true. Matrix: Go 22, 434, 77, 918, 190 and Ruby 22, 434,
+77, 918 are N; Go native 6 to 11 and Ruby 9 to 13, no gaps left in either.
+Decisions recorded 2026-10-22: the variable tie stays within one block (no
+cross-branch or closure flow); Ruby's broad `include?`/`=~` guards on
+path-traversal stay (precision first); an untrusted function parameter is not an
+argument-injection source (it needs interprocedural taint or a name heuristic).
+### 2026-10-22 (CWE Top 25 round 2: TypeScript and Python)
+- ARB-062 | Native rules for ranked gaps 3, 5, 6 and 8 (`docs/cwe-top25.md`)
+in TypeScript and Python, same-function form. TypeScript:
+`ssrf-request-url` (CWE-918, high severity, medium confidence: `fetch`,
+axios, got, ky, needle, superagent, `http(s).get/request`, undici, called
+with `req`/`ctx` `.query`/`.body`/`.params` as the URL or its start, directly
+or through one local, `const { url } = req.body` included; a fixed origin
+before the value, an allowlist or a `.hostname` check is not reported),
+`argument-injection` (CWE-77/88: `execFile`/`spawn`/`execa` running git,
+curl, ssh, rsync, tar and similar tools with a request value in the argv
+array and no `"--"`; a value bound to its option or a `startsWith("-")`
+check is not reported), `upload-client-filename` (CWE-434: multer
+`diskStorage` named by `originalname`, formidable `originalFilename` or
+`originalname` in a write/rename/copy path, express-fileupload `mv`; silent
+with a `fileFilter`, MIME check, sanitiser or basename in scope),
+`csrf-unsafe-methods-ignored` (CWE-352, high/high: csurf `ignoreMethods`
+listing POST/PUT/PATCH/DELETE) and `session-cookie-cross-site` (CWE-352,
+medium: a session-library cookie with `sameSite: "none"` in a file that
+mentions no CSRF token). Python: `argument-injection` (subprocess argv
+lists and `asyncio.create_subprocess_exec`), `upload-client-filename`
+(Flask `save(f.filename)`, `open(..., "wb")` with `.filename`/`.name`,
+Django `storage.save(f.name, f)`, only in a function that handles an
+upload; silent with `secure_filename`, a uuid name, an allowlist or a MIME
+check) and `debug-mode-enabled` (CWE-200/489: literal `debug=True` in
+`app.run`, `FastAPI`/`Starlette`, `app.debug`, `app.config["DEBUG"]`). A
+local is tied to its sink by a regex backreference over the enclosing
+function in `requires_in_scope`; no schema change. Python 918 stays
+semgrep-only. The planted good twin `server.ts` `/convert` route, which
+passed `req.body.file` to ImageMagick, now rejects a leading `-`. `gap:`
+markers TS 77, 434, 918 and Python 77, 434 became `expect:`; new pairs for
+the TS CSRF weakenings; the TS missing-middleware CSRF line keeps its
+`gap:` marker. Planted: Python 57/57, TypeScript 72/72, 0 on good twins, 0
+unmarked. Real code: the SSRF lessons in juice-shop
+(`profileImageUrlUpload`) and nodegoat (`research.js`) are reported, both
+true positives; nothing else in corpus-typescript, the three Django
+applications, corpus-clean or the gold TypeScript and Python repositories
+(0 gold findings from the new rules). Matrix: TypeScript 352, 434, 77 and
+918 and Python 434 and 77 to N; native cells TypeScript 8 to 12, Python 9
+to 11; neither language has a gap cell left. `docs/probes.md` not-assessed
+rows updated.
+### 2026-10-22 (CWE Top 25 round 2: Java)
+- ARB-062 | Java native rules for the gaps left after round 1, each in the
+same-method form: a value bound from the request (`@RequestParam`,
+`@PathVariable`, `@RequestHeader`, JAX-RS `@QueryParam`/`@PathParam`/`@FormParam`,
+`String x = request.getParameter(...)`) reaching the sink in the method that
+binds it. CWE-79: `java.xss-unescaped-html` (high/medium; the bound string
+beside an HTML literal in a `return`, `body(...)` or `ok(...)`, or a servlet
+that reads the request and prints a non-constant into a `text/html` page; a
+file that applies an HTML encoder is skipped, since OWASP Benchmark escapes in
+a helper). CWE-918: `java.ssrf-request-url` (high/medium; the bound name or
+`"http://" +` it as the URL of `new URL`, `URI.create`, `new HttpGet`,
+`Jsoup.connect`, RestTemplate, WebClient `.uri` or OkHttp `.url`, in a method
+that makes a request; a fixed host, a `getHost()` check or an allowlist is
+not reported). CWE-77/88: `java.argument-injection` (high/medium; the bound
+name as a `ProcessBuilder`/`exec(String[])`/`command` element for git, curl,
+ssh, rsync, tar and other option parsers, with no `"--"` before it).
+CWE-190: `java.parsed-number-narrowed` (`(byte)`/`(short)` of
+`Integer.parseInt`, `(int)` of `Long.parseLong`; radix forms,
+`Number.intValue()` bodies and byte-array fills skipped) and
+`java.parsed-count-overflow` (a parsed count multiplied into an allocation
+with no range check); the planted `int * int` total became these forms.
+CWE-434: `java.upload-client-filename` (high/medium; `getOriginalFilename()`
+or `getSubmittedFileName()` in a write path, no `FilenameUtils.getName`,
+`getFileName()` or extension check). Planted pairs for all five; the gap:
+markers for Java 79, 77, 918 and 190 are expect: markers. Java Top 25: native
+8 to 13 cells, caught by anything 11 to 15 of 15, no Java gap left. Real
+code: WebGoat 3 true positives (the reflected-XSS lesson, the WebWolf upload,
+the zip upload); 17 false positives fixed and pinned by tests (a parameter's
+`.length()` beside HTML, a directory named after the user, a logged path, a
+zip entry name, gson's `intValue`, tomcat's drawboard colour bytes). Gold Java
+repositories (httpclient, netty, spring-security, tomcat, and keycloak scanned
+with the Java pack alone): 0 findings from the new rules. OWASP Benchmark Java: XSS recall 0 to 0.894 at FPR 0.455
+(score 0.44); cmdi, sqli and weak randomness unchanged; in-scope recall 1.0
+to 0.97, FPR 0.565 to 0.537, score 0.435 to 0.432.
+### 2026-10-22 (round 2 precision: tests, imports, SQL)
+- ARB-065 | `assurance.test-asserts-nothing` reads each test's own body: Python through `ast`, JS/TS and Go by matching its braces. The old span ran to the next test, which is the conditional-skip blind spot the user asked about: the NEXT test's `@pytest.mark.skip`, `it.skip(` or `t.Skip()` hid a test that asserts nothing; a skip under a branch (`if testing.Short() { t.Skip() }`) hid the test though `permanently-skipped-test` does not report it either; and an unconditionally skipped test was reported by both rules. Now a test that never runs (an unconditional skip on it or its class, an unconditional `pytest.skip()`/`t.Skip()` at the top of its body, an enclosing `describe.skip`) is left to `permanently-skipped-test`, and one with `skipif`, `xfail(<cond>)` or a skip under a branch is judged on its body. That surfaced 13 aiohttp tests that only call the code, two of them missing an `assert` (`await response.read() == payload`, `resp.text is None`). Also counted as asserting, as round 1 did for the Java and TypeScript rules: node:assert functions called bare (98 of undici's 100), `pytest.warns`/`deprecated_call`/`fail`, `with *raises*(...)` helpers, `self.fail`, `ensure*`, a Promise `reject`, a same-file helper or decorator that asserts (axios `testHeaderValue`, nest `equalTest`, Django `@test_mutation()`), a name or body comment saying not raising is the check, Go's `writer{t: t}`. Not tests: pytest-benchmark tests (cryptography `tests/bench`, 25), nested defs, `test_*` outside a test module (Django `runner.py`), fixtures and functions that return or yield. `_TEST_DEF` anchors on `^[ \t]*`: `^\s*` took the blank lines above a test and reported it on the first (from the harness agent). Python test methods (`def test_x(self)`) were never judged, because the delegated-helper pattern matched their own `def` line; `JUDGE_PYTHON_METHODS = False` keeps that scope by decision (user, 2026-10-22), and turning it on is a separate later step (+357 on gold: Django 226, celery 105, urllib3 16, cryptography 10; of 15 read, 14 only call the code, 1 is an empty inherited-test override). Gold 257 to 74 (0.0422 to 0.0122 per KLOC, budget 0.03).
+- ARB-065 | `authored.undeclared-import` reads more of what declares a dependency. Java: a `groupId` given as a Maven property (netty's conscrypt), Gradle build files named for their module (`spring-security-oauth2-client.gradle`), sub-groups of a listed provider (`io.projectreactor.tools`), and provider tables for packages named for neither group nor artifact (Selenium, 44 of keycloak's 158; GraalVM svm, RXTX, uap-java, HtmlUnit 2, Saxon, `ldapsdk`) or guaranteed by a declared dependency (Quarkus/RESTEasy to `jakarta.inject`/`jakarta.annotation`, Infinispan to JGroups and RxJava 3, the Quarkus Operator SDK, Agroal, XNIO, `jakarta.json`, `jakarta.ws.rs`, Jackson 3 from httpcore5-jackson3, R2DBC from spring-r2dbc, Netty from rsocket, JSpecify from Guava, Jakarta Mail from Angus Mail). Python: imports under `if TYPE_CHECKING:` or a `sys.version_info` branch, function-local imports in a module that handles ImportError (the `shell` commands' IPython/bpython), a module tried once and imported again later, a framework's own requirements (FastAPI to pydantic/starlette, Flask to werkzeug/jinja2/click/..., Django to asgiref/sqlparse, requests to urllib3/idna/certifi, gevent/eventlet to greenlet, pymongo to bson, boto3 to botocore, Sphinx to docutils), Pyodide's `js`; test-role files are skipped as for Go, Java and Ruby (celery's `t/`). JS: no check without a package.json (urllib3's lone eslint config); a module a bundler config serves is local (keycloak's "message-bundle"). Ruby: named Bundler gemfiles (`*_gems.rb`), bundler/inline gemfiles, `rescue LoadError` requires, `rails` bringing its components. Gold 237 to 3 (0.0389 to 0.0005): tomcat's jdt and bnd (declared only in its Ant build) and puma's ffi (shipped by JRuby).
+- ARB-065 | `python.sql-injection` follows a spliced local one step inside its function. Pack schema: Python-only `safe_splice_calls` and `safe_splice_names` (regexes, validated at load, documented in lang_rules.py and docs/probes.md). A value is safe when it is a literal, a quoting call, a safe name, `str()` of one, a `sep.join(...)` of quoted names or `%s` placeholders, a conditional of safe values, `sql.Identifier`/`Literal`, SQLAlchemy `type.compile(dialect)`, or a local every assignment of which is safe; a parameter, loop variable or container filled later is not. Gold 29 to 21 (0.0389 to 0.0282, budget 0.03): Django's cache backend `table = quote_name(...)` (4), createcachetable, oracle `cache_key`, `str(constraint_sql)`, celery's session.py. The 21 left splice parameters or method results, which needs data flow (Milestone 3).
+- ARB-065 | Gold benchmark, all 24 repositories, native checks, `--jobs 6`, against `24b2b54`: 7,729 to 7,304 findings, 9 to 6 rules over budget (3 accepted; the three above leave); no other rule's count moved. Planted 100% in every language, 0 on good twins, 0 unmarked.
 ### 2026-10-22 (round 1 decisions)
 - ARB-065 | Gold budgets gain `accepted_breaches`: a rule over budget by a recorded decision stays in the report and in `rules_over_budget`, and the run fails again only if its rate passes a ceiling set about 10% above the rate at the decision (`failing_breaches`, tested). Recorded on 2026-10-22 by the user: `java.test-without-assertion` is a known breach (0.066/KLOC; its remaining findings are tests that only call the code), and `assurance.permanently-skipped-test` (0.0315) and `typescript.test-without-assertion` (0.034) are accepted overages. The run on the 1047341 report has 9 over budget, 3 of them accepted, and 6 failing.
 - ARB-065 | Decisions recorded by the user on 2026-10-22: the test-file exclusions in 1047341 and c4d8bfe stand (TLS off for a test's own local server, `override_settings(DEBUG=True)`, empty skipped tests, Java `@Override` tests). The three Django applications stay a separate corpus, not gold, so Python denominators don't move. Checking `assurance.test-asserts-nothing` for the same conditional-skip blind spot is round 2 work.

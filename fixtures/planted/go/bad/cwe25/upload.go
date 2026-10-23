@@ -17,7 +17,7 @@ func UploadAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer file.Close()
-	dst, err := os.Create(filepath.Join(uploadDir, header.Filename)) // gap: CWE-434 - nothing in this build reports it (docs/cwe-top25.md)
+	dst, err := os.Create(filepath.Join(uploadDir, header.Filename)) // expect: arbiter/go.upload-client-filename
 	if err != nil {
 		http.Error(w, "cannot store", http.StatusInternalServerError)
 		return

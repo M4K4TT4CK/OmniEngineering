@@ -1,0 +1,118 @@
+{
+  "app": "go/job-queue",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "main.go",
+      "line": 83,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "server-no-timeout",
+      "severity": "medium",
+      "justification": "http.ListenAndServe uses a zero-config http.Server with no ReadHeaderTimeout/ReadTimeout/WriteTimeout, so slowloris-style clients can exhaust connections.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "main.go",
+      "line": 21,
+      "cwe": [
+        "CWE-306"
+      ],
+      "category": "missing-authn",
+      "severity": "medium",
+      "justification": "POST /jobs is unauthenticated, so anyone reaching the API can send arbitrary emails (any recipient, subject, body) through the configured SMTP account -- an open spam/phishing relay -- and trigger file reads/writes under IMAGE_ROOT. README notes no auth, but this is a blocker for anything beyond localhost.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "queue.go",
+      "line": 114,
+      "cwe": [
+        "CWE-770",
+        "CWE-401"
+      ],
+      "category": "unbounded-memory",
+      "severity": "medium",
+      "justification": "Every submitted job (with payload and result) is stored in q.jobs forever; there is no eviction/TTL, so memory grows without bound under sustained use. QUEUE_SIZE bounds only pending jobs, not retained ones.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "jobs.go",
+      "line": 92,
+      "cwe": [
+        "CWE-409",
+        "CWE-400"
+      ],
+      "category": "unbounded-memory",
+      "severity": "medium",
+      "justification": "image.Decode runs on the source file without checking its dimensions via image.DecodeConfig; maxDimension only bounds the output, so a small image declaring huge dimensions (decompression bomb) can exhaust memory in a worker.",
+      "source": "independent"
+    },
+    {
+      "id": "D5",
+      "file": "jobs.go",
+      "line": 98,
+      "cwe": [
+        "CWE-770",
+        "CWE-20"
+      ],
+      "category": "logic-bug",
+      "severity": "medium",
+      "justification": "When height is 0 it is derived as sb.Dy()*w/sb.Dx() without re-checking maxDimension; e.g. a 1x10000 source with width 10000 gives h=100,000,000 and image.NewRGBA tries to allocate ~4 TB, panicking/OOMing the process.",
+      "source": "independent"
+    },
+    {
+      "id": "D6",
+      "file": "jobs.go",
+      "line": 194,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "missing-timeout",
+      "severity": "medium",
+      "justification": "smtp.SendMail has no dial/IO timeout and ignores the job context; a slow or blackholed SMTP server blocks a worker forever, and a few such jobs stall the whole pool (Close also hangs on wg.Wait).",
+      "source": "independent"
+    },
+    {
+      "id": "D7",
+      "file": "jobs.go",
+      "line": 116,
+      "cwe": [
+        "CWE-59",
+        "CWE-22"
+      ],
+      "category": "path-traversal",
+      "severity": "low",
+      "justification": "The output path '<name>-resized.<ext>' is not confined: os.Create follows an existing symlink at that path (possibly pointing outside IMAGE_ROOT) and silently overwrites any existing file of that name. Would require a fix comment (O_EXCL / re-confine).",
+      "source": "independent"
+    },
+    {
+      "id": "D8",
+      "file": "queue.go",
+      "line": 196,
+      "cwe": [],
+      "category": "retry-no-backoff",
+      "severity": "low",
+      "justification": "Retries use a fixed 2s delay with no exponential backoff or jitter, and every error (including permanent ones like invalid path or SMTP auth failure) is retried. Low impact but worth a fix for transient SMTP outages.",
+      "source": "independent"
+    },
+    {
+      "id": "D9",
+      "file": "main.go",
+      "line": 58,
+      "cwe": [
+        "CWE-252"
+      ],
+      "category": "ignored-error",
+      "severity": "low",
+      "justification": "writeJSON discards the json.Encode error, so failed responses go unlogged.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

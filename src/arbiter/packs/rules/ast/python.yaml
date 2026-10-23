@@ -294,6 +294,17 @@ rules:
       (binary_operator left: (string) @s operator: "%"
         (#match? @s "%%s") (#not-match? @s "'%s'")) @x
       ((string (interpolation)) @x (#match? @x "%%s") (#not-match? @x "'%s'|'\\{"))
+    # Round 2 (ARB-065): the same atoms, followed one step into the enclosing
+    # function. A spliced local is safe when every assignment to it there is
+    # (`table = connection.ops.quote_name(self._table)` before `"DELETE FROM
+    # %s" % table`, Django's cache backend; `col_name =
+    # preparer.quote_identifier(...)`, celery), as is `str()` of a SQL
+    # fragment, a `", ".join(...)` of quoted names, a conditional between
+    # literals, psycopg's `sql.Identifier`/`sql.Literal`, and SQLAlchemy's
+    # `type.compile(dialect)`. A parameter or loop variable is never safe:
+    # nothing here follows a value across a call.
+    safe_splice_calls: "(?:\\w+\\.)*(?:quote_?\\w*|qn2?|escape_\\w+|format_table|Identifier|Literal|Placeholder)|(?:\\w+\\.)+compile"
+    safe_splice_names: "(?:\\w+\\.)*[A-Z][A-Z0-9_]+|\\w*sql"
     description: >-
       The value is spliced into the statement text, so whoever controls it
       controls the query. This is the shape every SQL-injection exploit
@@ -652,3 +663,148 @@ rules:
       Keep the check and send the token (`{% csrf_token %}`, or the
       `csrftoken` cookie in an `X-CSRFToken` header for fetch). An API view
       should authenticate each request with a token, not the session cookie.
+
+  # --------------------------------------------------------------------------
+  # CWE Top 25 round 2 (ARB-062). A request value is Flask's
+  # `request.args|form|json|values|data|get_json()`, Django's
+  # `request.GET|POST|data`, DRF/Starlette `request.query_params`. Reaching
+  # the sink through one local is tied by a backreference over the
+  # enclosing function (`v = request...` then the sink with `v`); a value
+  # passed through a helper is out of reach.
+  # --------------------------------------------------------------------------
+  - id: argument-injection
+    title: "Request value passed as an argument with no `--`: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-77, CWE-88]
+    controls: [NIST-800-53r5:SI-10, OWASP-ASVS:5.3.8]
+    tags: [injection, shell, argument-injection, security]
+    # An argv list (no shell) whose program is a tool that parses options
+    # from any position, with no "--" element ending them.
+    query: |
+      ((call function: (attribute object: (identifier) @o attribute: (identifier) @m)
+         arguments: (argument_list . (list . (string (string_content) @tool)) @arr)) @hit
+        (#eq? @o "subprocess")
+        (#match? @m "^(run|call|check_call|check_output|Popen)$")
+        (#match? @tool "(^|/)(git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|find|sendmail|ffmpeg|ffprobe|convert|magick|docker|kubectl|npm|npx|pip|openssl|gpg)$")
+        (#not-match? @arr "[\"']--[\"']")
+        (#match? @arr "[\\[,]\\s*(str\\()?[A-Za-z_][\\w.]*(\\[[^\\]]*\\]|\\([^)]*\\))?\\s*[,\\]]"))
+      ((call function: (identifier) @m
+         arguments: (argument_list . (list . (string (string_content) @tool)) @arr)) @hit
+        (#match? @m "^(run|check_call|check_output|Popen)$")
+        (#match? @tool "(^|/)(git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|find|sendmail|ffmpeg|ffprobe|convert|magick|docker|kubectl|npm|npx|pip|openssl|gpg)$")
+        (#not-match? @arr "[\"']--[\"']")
+        (#match? @arr "[\\[,]\\s*(str\\()?[A-Za-z_][\\w.]*(\\[[^\\]]*\\]|\\([^)]*\\))?\\s*[,\\]]"))
+      ((call function: (attribute object: (identifier) @o attribute: (identifier) @m)
+         arguments: (argument_list . (string (string_content) @tool)) @arr) @hit
+        (#eq? @o "asyncio")
+        (#eq? @m "create_subprocess_exec")
+        (#match? @tool "(^|/)(git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|find|sendmail|ffmpeg|ffprobe|convert|magick|docker|kubectl|npm|npx|pip|openssl|gpg)$")
+        (#not-match? @arr "[\"']--[\"']"))
+    requires_in_scope: |
+      ((function_definition) @f
+        (#match? @f "(?s)(\\b(?P<v>[A-Za-z_]\\w*)\\s*(:\\s*[\\w\\[\\], |.]+)?=\\s*(str\\()?\\s*request\\.(args|form|json|values|data|files|GET|POST|query_params|get_json\\(\\))\\b.*(subprocess\\.\\w+|\\brun|\\bcheck_call|\\bcheck_output|\\bPopen|create_subprocess_exec)\\(\\s*\\[?\\s*[\"'][^\"']*[\"'][^\\]\\)]*?,\\s*(str\\()?(?P=v)\\b(?!\\s*[.(\\[])|(subprocess\\.\\w+|\\brun|\\bcheck_call|\\bcheck_output|\\bPopen|create_subprocess_exec)\\(\\s*\\[?\\s*[\"'][^\"']*[\"'][^\\]\\)]*?,\\s*(str\\()?request\\.(args|form|json|values|data|GET|POST|query_params|get_json\\(\\))\\b)"))
+    # A check that the value cannot start with `-` is the other fix.
+    unless_in_scope: |
+      ((call function: (attribute attribute: (identifier) @m)
+         arguments: (argument_list . (string (string_content) @s)))
+        (#eq? @m "startswith") (#eq? @s "-"))
+    description: >-
+      The program is run without a shell, so `;` and `$(...)` are inert,
+      but the program reads its own options. A request value such as
+      `--upload-pack=touch /tmp/x` (git), `-o /etc/cron.d/x` (curl) or
+      `-oProxyCommand=...` (ssh) is taken as an option, which can run a
+      command or overwrite a file.
+    remediation: "Put `\"--\"` before the first value argument (`[\"git\", \"clone\", \"--\", url, dest]`) and validate the value (scheme check with `urlparse`, or reject a leading `-`)."
+
+  - id: upload-client-filename
+    title: "Upload stored under the client's filename: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-434]
+    controls: [NIST-800-53r5:SI-10, OWASP-ASVS:12.2.1]
+    tags: [upload, file, security]
+    # Flask/Werkzeug `FileStorage.filename`, FastAPI/Starlette
+    # `UploadFile.filename` and Django `UploadedFile.name` in the path of a
+    # save or a write, in a function that handles an upload.
+    query: |
+      ((call function: (attribute attribute: (identifier) @m)
+         arguments: (argument_list . (_) @a)) @hit
+        (#eq? @m "save")
+        (#match? @a "\\.filename\\b|^\\w+\\.name$"))
+      ((call function: [(identifier) (attribute)] @m
+         arguments: (argument_list . (_) @a . (string) @mode)) @hit
+        (#match? @m "^(open|aiofiles\\.open|io\\.open)$")
+        (#match? @a "\\.filename\\b|\\b\\w+\\.name\\b")
+        (#match? @mode "^[rbuf]*[\"'][rbt]*[wax]"))
+      ((call function: [(identifier) (attribute)] @m
+         arguments: (argument_list . (_) @a (keyword_argument name: (identifier) @k value: (string) @mode))) @hit
+        (#match? @m "^(open|aiofiles\\.open|io\\.open)$")
+        (#eq? @k "mode")
+        (#match? @a "\\.filename\\b|\\b\\w+\\.name\\b")
+        (#match? @mode "^[rbuf]*[\"'][rbt]*[wax]"))
+      ((call function: (attribute object: (_) @p attribute: (identifier) @m)) @hit
+        (#match? @m "^(write_bytes|write_text)$")
+        (#match? @p "\\.filename\\b"))
+      ((call function: (attribute object: (identifier) @o attribute: (identifier) @m)
+         arguments: (argument_list (_) @a)) @hit
+        (#match? @o "^(shutil|os)$")
+        (#match? @m "^(move|copy|copyfile|rename|replace)$")
+        (#match? @a "\\.filename\\b"))
+    requires_in_scope: |
+      ((function_definition) @f
+        (#match? @f "\\brequest\\.(files|FILES)\\b|\\bUploadFile\\b|\\bFileStorage\\b|\\bUploadedFile\\b"))
+    unless_in_scope: |
+      ((identifier) @i
+        (#match? @i "(?i)^(secure_filename|basename|get_valid_filename|get_valid_name|uuid\\d?|token_hex|token_urlsafe|splitext|imghdr|filetype|magic|allowed_file|\\w*allowed\\w*|\\w*allow_?list\\w*|\\w*whitelist\\w*|validate_\\w*)$"))
+      ((attribute attribute: (identifier) @a)
+        (#match? @a "^(mimetype|content_type|suffix|endswith)$"))
+    description: >-
+      The file is written under the name the client sent. The client picks
+      the extension, so a file meant to be an image is stored as `.html`,
+      `.svg` or `.py` and served back or run from the upload directory; a
+      name with `../` (where the framework does not strip it) writes
+      outside it, and the same name overwrites another user's upload.
+      Nothing in the function checks the type or cleans the name.
+    remediation: "Name the stored file yourself (`uuid4().hex` plus an extension from an allowlist checked against the content type), or at least `werkzeug.utils.secure_filename`, and cap the size (`MAX_CONTENT_LENGTH`)."
+
+  - id: debug-mode-enabled
+    title: "Debug mode switched on in code: `{text}`"
+    severity: medium
+    confidence: high
+    dimension: security
+    cwe: [CWE-200, CWE-489]
+    controls: [NIST-800-53r5:CM-7, OWASP-ASVS:14.3.2]
+    tags: [information-exposure, debug, flask, fastapi, security]
+    # Only the literal `True`: `debug=os.environ.get(...)` is configuration.
+    # Django's `DEBUG = True` in settings is already
+    # `authored.security-check-disabled`.
+    query: |
+      ((call function: (attribute attribute: (identifier) @m)
+         arguments: (argument_list (keyword_argument name: (identifier) @k value: (true)) @hit))
+        (#eq? @m "run")
+        (#match? @k "^(debug|use_debugger)$"))
+      ((call function: [(identifier) (attribute)] @c
+         arguments: (argument_list (keyword_argument name: (identifier) @k value: (true)) @hit))
+        (#match? @c "^(\\w+\\.)*(FastAPI|Starlette)$")
+        (#eq? @k "debug"))
+      ((assignment left: (attribute object: (identifier) @o attribute: (identifier) @k) right: (true)) @hit
+        (#match? @o "^(app|application)$")
+        (#eq? @k "debug"))
+      ((assignment left: (subscript value: (attribute object: (identifier) @o attribute: (identifier) @cfg)
+                                  subscript: (string (string_content) @k))
+                   right: (true)) @hit
+        (#match? @o "^(app|application)$")
+        (#eq? @cfg "config")
+        (#eq? @k "DEBUG"))
+    requires_file: |
+      ((identifier) @i (#match? @i "^(Flask|FastAPI|Starlette|flask|fastapi|starlette)$"))
+    description: >-
+      Flask's debug mode serves the Werkzeug debugger: an interactive
+      Python console in the browser behind a PIN that leaks through the
+      same tracebacks, and full tracebacks with local values on every
+      error. FastAPI and Starlette with `debug=True` return the traceback
+      to the client. Left in code, it ships.
+    remediation: "Read the flag from configuration (`debug=os.environ.get(\"FLASK_DEBUG\") == \"1\"`) and run behind gunicorn/uvicorn in production."

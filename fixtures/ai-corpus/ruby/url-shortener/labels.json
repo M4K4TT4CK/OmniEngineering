@@ -1,0 +1,42 @@
+{
+  "app": "ruby/url-shortener",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "app.rb",
+      "line": 81,
+      "cwe": [
+        "CWE-918"
+      ],
+      "category": "ssrf",
+      "severity": "low",
+      "justification": "The SSRF blocklist only covers loopback/RFC1918/link-local plus the exact addresses 0.0.0.0 and ::; it misses 0.0.0.0/8, CGNAT 100.64.0.0/10, 198.18.0.0/15, multicast/broadcast and NAT64 64:ff9b::/96, so the title fetcher can still reach some non-public targets. I'd ask for an allowlist of global unicast instead of a hand-picked denylist.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "app.rb",
+      "line": 114,
+      "cwe": [
+        "CWE-390"
+      ],
+      "category": "swallowed-exception",
+      "severity": "low",
+      "justification": "`rescue StandardError; nil` swallows every fetch failure (DNS, TLS, bugs such as NoMethodError) with no logging, so a broken title fetcher fails silently in production. Returning nil is by design, but the error should at least be logged.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "test/app_test.rb",
+      "line": 139,
+      "cwe": [],
+      "category": "test-ineffective",
+      "severity": "low",
+      "justification": "test_fetcher_refuses_localhost cannot fail: port 9 on 127.0.0.1 normally refuses connections and the fetcher returns nil on any error, so the test passes even if the SSRF guard is removed. It should stub the connection or assert that no connection was attempted.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

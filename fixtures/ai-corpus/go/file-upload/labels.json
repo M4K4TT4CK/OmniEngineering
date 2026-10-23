@@ -1,0 +1,58 @@
+{
+  "app": "go/file-upload",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "main.go",
+      "line": 238,
+      "cwe": [
+        "CWE-409",
+        "CWE-400"
+      ],
+      "category": "unbounded-memory",
+      "severity": "high",
+      "justification": "image.Decode is called on an arbitrary uploaded file without first checking dimensions via image.DecodeConfig; a tiny PNG/GIF declaring e.g. 50000x50000 pixels makes the decoder allocate gigabytes (decompression bomb), crashing the service from one unauthenticated request.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "main.go",
+      "line": 49,
+      "cwe": [
+        "CWE-306"
+      ],
+      "category": "missing-authn",
+      "severity": "medium",
+      "justification": "All endpoints, including DELETE /files/{name} and uploads, are unauthenticated: anyone who can reach the service can delete every stored file or fill the disk (no quota). README acknowledges it, but it should not go to production this way.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "main.go",
+      "line": 335,
+      "end_line": 339,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "server-no-timeout",
+      "severity": "low",
+      "justification": "http.Server sets only ReadHeaderTimeout; with 100 MB uploads and no ReadTimeout/WriteTimeout/IdleTimeout, slow-body clients can pin goroutines and file descriptors indefinitely.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "main.go",
+      "line": 64,
+      "cwe": [
+        "CWE-252"
+      ],
+      "category": "ignored-error",
+      "severity": "low",
+      "justification": "writeJSON discards the json.Encode error, so failed responses go unlogged.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

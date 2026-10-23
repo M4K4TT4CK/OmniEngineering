@@ -1,0 +1,70 @@
+{
+  "app": "python/url-shortener",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "app.py",
+      "line": 81,
+      "cwe": [
+        "CWE-918",
+        "CWE-367"
+      ],
+      "category": "ssrf",
+      "severity": "medium",
+      "justification": "The public-IP check (line 77) resolves the hostname separately from the actual connect in opener.open, so DNS rebinding (or a multi-A record) lets a create request make the server fetch an internal/metadata address; the README admits this. Fix by connecting to the validated IP (or re-checking the peer address).",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "app.py",
+      "line": 88,
+      "cwe": [
+        "CWE-755"
+      ],
+      "category": "unhandled-input-error",
+      "severity": "low",
+      "justification": "Only URLError/OSError/ValueError/LookupError are caught; http.client.HTTPException subclasses such as IncompleteRead or LineTooLong from a hostile target server propagate and turn link creation into a 500 instead of the documented 'title is null' behaviour.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "app.py",
+      "line": 118,
+      "cwe": [
+        "CWE-404"
+      ],
+      "category": "resource-leak",
+      "severity": "low",
+      "justification": "`with sqlite3.connect(...)` only commits/rolls back; it does not close the connection, so every create_app call leaks a SQLite handle (should use contextlib.closing or call close()).",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "app.py",
+      "line": 103,
+      "cwe": [
+        "CWE-770"
+      ],
+      "category": "unbounded-input",
+      "severity": "low",
+      "justification": "No MAX_CONTENT_LENGTH is configured, so request.get_json reads an arbitrarily large request body into memory; the 256 KiB cap only applies to the fetched page, not to incoming requests.",
+      "source": "independent"
+    },
+    {
+      "id": "D5",
+      "file": "requirements.txt",
+      "line": 1,
+      "end_line": 2,
+      "cwe": [
+        "CWE-1104"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependencies use open-ended `>=` ranges (flask>=3.0, pytest>=8.0), so builds are not reproducible and can pick up breaking or compromised releases.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

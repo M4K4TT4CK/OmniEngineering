@@ -1081,3 +1081,239 @@ rules:
     remediation: >
       Log the exception with an incident id and return a fixed message. Put
       caller-facing text in your own exception types and return only those.
+
+  # ------------------------------------------------- CWE Top 25, round 2 --
+  # ARB-062: the Java gaps left after round 1 (docs/cwe-top25.md): 79, 918,
+  # 77/88, 190 and a native 434. Each is the same-method form: a value bound
+  # from the request (`@RequestParam`, `@PathVariable`, JAX-RS `@QueryParam`
+  # and friends, or `String x = request.getParameter(...)`) reaching the sink
+  # in the method that binds it. The regexes are long because one
+  # `#match?` on the whole method is the only way to tie the bound name to
+  # its use at any nesting depth; a back-reference (\1 / \2) does the tying.
+
+  - id: xss-unescaped-html
+    title: "Request value written into HTML without encoding: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-79]
+    controls: [NIST-800-218:PW.5]
+    tags: [injection, xss]
+    query: |
+      ; Spring: return "<h1>" + q + "</h1>";  ResponseEntity.ok(...).body("<p>" + name)
+      ((return_statement (binary_expression) @v) @hit
+        (#match? @v "\"[^\"\\n]*<(?:[a-zA-Z][\\w-]*|/[a-zA-Z])[^\"\\n]*\""))
+      ((method_invocation name: (identifier) @n arguments: (argument_list . (binary_expression) @v .)) @hit
+        (#match? @n "^(ok|body|bodyValue|send|write|append)$")
+        (#match? @v "\"[^\"\\n]*<(?:[a-zA-Z][\\w-]*|/[a-zA-Z])[^\"\\n]*\""))
+      ; servlet: response.getWriter().println(<non-constant>)
+      ((method_invocation object: (method_invocation name: (identifier) @w)
+          name: (identifier) @n arguments: (argument_list) @args) @hit
+        (#eq? @w "getWriter") (#match? @n "^(print|println|write|append|printf|format)$")
+        (#not-match? @args "^\\((?:\\s|,|\\+|\"(?:[^\"\\\\\\n]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)'|(?:[\\w.]*\\.)?[A-Z][A-Z0-9_]*\\b|\\d+|(?:java\\.util\\.)?Locale\\.[A-Z]+|true|false|null)*\\)$"))
+      ; PrintWriter out = response.getWriter(); out.println(<non-constant>)
+      ((method_invocation object: (identifier) @o name: (identifier) @n arguments: (argument_list) @args) @hit
+        (#match? @o "^(out|writer|pw|printWriter|respWriter|responseWriter)$")
+        (#match? @n "^(print|println|write|append|printf|format)$")
+        (#not-match? @args "^\\((?:\\s|,|\\+|\"(?:[^\"\\\\\\n]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)'|(?:[\\w.]*\\.)?[A-Z][A-Z0-9_]*\\b|\\d+|(?:java\\.util\\.)?Locale\\.[A-Z]+|true|false|null)*\\)$"))
+    # The Spring forms need the bound parameter itself spliced next to an
+    # HTML literal; the servlet forms need a request read and an HTML page
+    # (text/html content type or an HTML literal) in the same method.
+    requires_in_scope: |
+      ((method_declaration) @m (#match? @m "(?s)@(?:RequestParam|PathVariable|RequestHeader|CookieValue|MatrixVariable|QueryParam|PathParam|FormParam|HeaderParam|CookieParam)\\b(?:\\s*\\((?:[^()\"]|\"(?:[^\"\\\\\\n]|\\\\.)*\")*\\))?\\s+(?:final\\s+)?(?:@\\w+(?:\\([^()]*\\))?\\s+)*(?:java\\.lang\\.)?(?:String|String\\s*\\[\\s*\\]|(?:List|Optional|Set|Collection)\\s*<\\s*String\\s*>)\\s+(\\w+).*(?:\"[^\"\\n]*<(?:[a-zA-Z][\\w-]*|/[a-zA-Z])[^\"\\n]*\"[^;]*\\+\\s*\\1\\b(?!\\s*\\.\\s*(?:length|size|isEmpty|isBlank|hashCode|equals\\w*|compareTo\\w*|matches|startsWith|endsWith|contains|indexOf)\\s*\\()|\\b\\1\\s*\\+[^;]*\"[^\"\\n]*<(?:[a-zA-Z][\\w-]*|/[a-zA-Z])[^\"\\n]*\")"))
+      ((method_declaration) @m (#match? @m "(?s)^(?=.*getWriter\\s*\\()(?=.*\\b(?:getParameter|getParameterValues|getParameterMap|getParameterNames|getHeader|getHeaders|getQueryString|getCookies|getPathInfo|getRequestURI|getRequestURL)\\s*\\()(?=.*(?:setContentType\\s*\\(\\s*\"text/html|\"[^\"\\n]*<(?:[a-zA-Z][\\w-]*|/[a-zA-Z])[^\"\\n]*\"))"))
+    # An HTML encoder applied anywhere in the file: in the method, or in a
+    # helper the value passes through (`bar = new Test().doSomething(param)`
+    # whose body is `HtmlUtils.htmlEscape(param)`, OWASP Benchmark), which a
+    # method-scoped check cannot follow. Test support is skipped too.
+    unless_in_file: |
+      ((program) @p (#match? @p "\\b(?:htmlEscape\\w*|escapeHtml\\w*|escapeXml\\w*|encodeForHTML\\w*|encodeForXML\\w*|forHtml\\w*|forXml\\w*|htmlEncode\\w*|encodeHtml\\w*|sanitize\\w*|HTMLFilter\\.filter|htmlElementContent|escapeHTML|Jsoup\\.clean|HtmlUtils\\.\\w+|Encode\\.for\\w+)\\s*\\("))
+      ((import_declaration) @i
+        (#match? @i "\\b(org\\.junit|junit\\.framework|org\\.testng|org\\.assertj|org\\.hamcrest|org\\.mockito|com\\.google\\.common\\.truth|com\\.google\\.common\\.testing|org\\.openjdk\\.jmh|com\\.code_intelligence\\.jazzer)\\."))
+    description: >
+      A value from the request is concatenated into an HTML response with
+      no encoding, so `<script>` in a parameter runs in the victim's
+      browser under this site's origin: session theft, actions as the user.
+    remediation: >
+      Render through a template engine that escapes by default (Thymeleaf
+      `th:text`, JSP `<c:out>`), or encode every value with
+      `HtmlUtils.htmlEscape` / OWASP `Encode.forHtml` before writing it.
+      Return JSON from APIs instead of hand-built HTML.
+
+  - id: ssrf-request-url
+    title: "Server-side request to a URL taken from the request: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-918]
+    controls: [NIST-800-218:PW.5]
+    tags: [injection, ssrf]
+    query: |
+      ; new URL(u)  new URI(u)  new HttpGet(u)
+      ((object_creation_expression type: (_) @t arguments: (argument_list . (_) @a)) @hit
+        (#match? @t "^((java\\.net\\.)?(URL|URI)|Http(Get|Post|Put|Delete|Head|Patch|Options))$")
+        (#match? @a "^(?:[a-z_]\\w*\\s*(?:\\+.*)?|\"(?:https?|ftp|gopher|file)?:?//\"\\s*\\+\\s*[a-z_].*)$"))
+      ; URI.create(u)  Jsoup.connect(u)
+      ((method_invocation object: (identifier) @o name: (identifier) @n arguments: (argument_list . (_) @a)) @hit
+        (#match? @o "^(URI|Jsoup)$") (#match? @n "^(create|connect)$")
+        (#match? @a "^(?:[a-z_]\\w*\\s*(?:\\+.*)?|\"(?:https?|ftp|gopher|file)?:?//\"\\s*\\+\\s*[a-z_].*)$"))
+      ; RestTemplate / WebClient / OkHttp builders: rest.getForObject(u, ...)  .uri(u)  .url(u)
+      ((method_invocation name: (identifier) @n arguments: (argument_list . (_) @a)) @hit
+        (#match? @n "^(getForObject|getForEntity|postForObject|postForEntity|postForLocation|patchForObject|headForHeaders|exchange|uri|url)$")
+        (#match? @a "^(?:[a-z_]\\w*\\s*(?:\\+.*)?|\"(?:https?|ftp|gopher|file)?:?//\"\\s*\\+\\s*[a-z_].*)$"))
+    # The bound parameter itself (or "http://" + it) is the sink's URL, and
+    # the method makes a request (a bare `URI.create` only parses).
+    requires_in_scope: |
+      ((method_declaration) @m (#match? @m "(?s)(?:@(?:RequestParam|PathVariable|RequestHeader|CookieValue|MatrixVariable|QueryParam|PathParam|FormParam|HeaderParam|CookieParam)\\b(?:\\s*\\((?:[^()\"]|\"(?:[^\"\\\\\\n]|\\\\.)*\")*\\))?\\s+(?:final\\s+)?(?:@\\w+(?:\\([^()]*\\))?\\s+)*(?:java\\.lang\\.)?(?:String|String\\s*\\[\\s*\\]|(?:List|Optional|Set|Collection)\\s*<\\s*String\\s*>)\\s+(\\w+)|\\bString\\s+(\\w+)\\s*=\\s*(?:\\w+\\.)*(?:getParameter|getHeader|getQueryString|getPathInfo|getRequestURI|getRequestURL)\\s*\\().*(?:\\bnew\\s+(?:java\\.net\\.)?(?:URL|URI)|\\bnew\\s+Http(?:Get|Post|Put|Delete|Head|Patch|Options)|\\bURI\\.create|\\bJsoup\\.connect|\\.(?:getForObject|getForEntity|postForObject|postForEntity|postForLocation|patchForObject|headForHeaders|exchange|uri|url))\\s*\\(\\s*(?:\"(?:https?|ftp|gopher|file)?:?//\"\\s*\\+\\s*)?(?:\\1|\\2)\\b(?!\\s*[.(\\[])") (#match? @m "(?s)\\.(?:send|sendAsync|openConnection|openStream|execute|executeOpen|retrieve|exchange|exchangeToMono|getForObject|getForEntity|postForObject|postForEntity|postForLocation|patchForObject|headForHeaders|newCall|getContent|get|post)\\s*\\(|\\bJsoup\\.connect\\s*\\(|\\bnew\\s+Http(?:Get|Post|Put|Delete|Head|Patch|Options)\\s*\\("))
+    unless_in_scope: |
+      ; the host is read back and checked, or an allowlist is consulted
+      ((method_declaration) @m (#match? @m "\\.getHost\\s*\\(\\s*\\)|\\.getAuthority\\s*\\(\\s*\\)|(?i:allow(?:ed)?_?(?:hosts?|list|domains?|urls?)|white_?list|safe_?(?:hosts?|domains?))|\\bisAllowed\\w*\\s*\\(|\\bvalidate\\w*(?:Url|Uri|Host)\\w*\\s*\\(|\\bcheck\\w*(?:Url|Uri|Host)\\w*\\s*\\("))
+    unless_in_file: *test_support
+    description: >
+      The server makes a request to a URL its caller chose. The caller
+      reaches what only the server can: cloud metadata
+      (169.254.169.254), admin consoles and databases on the internal
+      network, `file:` URLs.
+    remediation: >
+      Do not take a URL from the caller. Take an id and look the URL up, or
+      parse it, require https and check the host against an allowlist
+      (resolve it and refuse private ranges), and turn redirects off.
+
+  - id: argument-injection
+    title: "Request value passed to a program before `--` ends its options: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-88, CWE-77]
+    controls: [NIST-800-218:PW.5]
+    tags: [injection, command]
+    query: |
+      ; new ProcessBuilder("git", "clone", url, dir)  new ProcessBuilder(List.of("rsync", "-a", src, dst))
+      ((object_creation_expression type: (_) @t arguments: (argument_list) @a) @hit
+        (#match? @t "(^|\\.)ProcessBuilder$") (#match? @a "^\\(?\\s*(?:(?:java\\.util\\.)?(?:List\\.of|Arrays\\.asList)\\s*\\(\\s*|new\\s+String\\s*\\[\\s*\\]\\s*\\{\\s*)?\"(?:/usr/bin/|/bin/)?(?:git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|find|xargs|grep|sed|docker|kubectl|helm|ffmpeg|convert|magick|gs|psql|mysql|mysqldump|pg_dump|openssl|gpg|sendmail|mail|tcpdump|nmap|ping|wkhtmltopdf|soffice|libreoffice|pandoc|less|man|java|npm|pip)\"(?:\\s*,\\s*(?:\"(?!--\"|--end-of-options\")(?:[^\"\\\\\\n]|\\\\.)*\"|[A-Z][A-Z0-9_]*))*\\s*,\\s*[a-z_]"))
+      ; Runtime.getRuntime().exec(new String[] {"curl", url})  pb.command("git", ..., x)
+      ((method_invocation name: (identifier) @n arguments: (argument_list) @a) @hit
+        (#match? @n "^(exec|command)$") (#match? @a "^\\(?\\s*(?:(?:java\\.util\\.)?(?:List\\.of|Arrays\\.asList)\\s*\\(\\s*|new\\s+String\\s*\\[\\s*\\]\\s*\\{\\s*)?\"(?:/usr/bin/|/bin/)?(?:git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|find|xargs|grep|sed|docker|kubectl|helm|ffmpeg|convert|magick|gs|psql|mysql|mysqldump|pg_dump|openssl|gpg|sendmail|mail|tcpdump|nmap|ping|wkhtmltopdf|soffice|libreoffice|pandoc|less|man|java|npm|pip)\"(?:\\s*,\\s*(?:\"(?!--\"|--end-of-options\")(?:[^\"\\\\\\n]|\\\\.)*\"|[A-Z][A-Z0-9_]*))*\\s*,\\s*[a-z_]"))
+    # The request-bound name is itself an element, before any "--".
+    requires_in_scope: |
+      ((method_declaration) @m (#match? @m "(?s)(?:@(?:RequestParam|PathVariable|RequestHeader|CookieValue|MatrixVariable|QueryParam|PathParam|FormParam|HeaderParam|CookieParam)\\b(?:\\s*\\((?:[^()\"]|\"(?:[^\"\\\\\\n]|\\\\.)*\")*\\))?\\s+(?:final\\s+)?(?:@\\w+(?:\\([^()]*\\))?\\s+)*(?:java\\.lang\\.)?(?:String|String\\s*\\[\\s*\\]|(?:List|Optional|Set|Collection)\\s*<\\s*String\\s*>)\\s+(\\w+)|\\bString\\s+(\\w+)\\s*=\\s*(?:\\w+\\.)*(?:getParameter|getHeader|getQueryString|getPathInfo|getRequestURI|getRequestURL)\\s*\\().*(?:\\bnew\\s+ProcessBuilder\\s*\\(\\s*(?:(?:java\\.util\\.)?(?:List\\.of|Arrays\\.asList)\\s*\\(\\s*)?|\\.exec\\s*\\(\\s*new\\s+String\\s*\\[\\s*\\]\\s*\\{\\s*|\\.command\\s*\\(\\s*(?:(?:List\\.of|Arrays\\.asList)\\s*\\(\\s*)?)\"(?:/usr/bin/|/bin/)?(?:git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|find|xargs|grep|sed|docker|kubectl|helm|ffmpeg|convert|magick|gs|psql|mysql|mysqldump|pg_dump|openssl|gpg|sendmail|mail|tcpdump|nmap|ping|wkhtmltopdf|soffice|libreoffice|pandoc|less|man|java|npm|pip)\"(?:\\s*,\\s*(?:\"(?!--\"|--end-of-options\")(?:[^\"\\\\\\n]|\\\\.)*\"|[\\w.]+(?:\\(\\s*\\))?))*?\\s*,\\s*(?:\\1|\\2)\\s*[,)}]"))
+    unless_in_file: *test_support
+    description: >
+      No shell is involved, but the program parses its own options: a value
+      starting with `-` is read as one. `--upload-pack=...` to git,
+      `-o ProxyCommand=...` to ssh, `-e` to rsync, `--output` to curl and
+      `--checkpoint-action` to tar all run commands or write files.
+    remediation: >
+      Put `"--"` before the first value the caller controls, and reject
+      values that start with `-` (validate a URL's scheme, a name against an
+      allowlist).
+
+  - id: parsed-number-narrowed
+    title: "Parsed number cast to a narrower type keeps only its low bits: `{text}`"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-190, CWE-197]
+    controls: [NIST-800-218:PW.5]
+    tags: [integer-overflow]
+    query: |
+      ; (byte) Integer.parseInt(s)   (short) Integer.parseInt(s)   (int) Long.parseLong(s)
+      ; A radix argument is the hex-byte idiom ("ff" -> (byte) 255) and is not reported.
+      ((cast_expression type: (integral_type) @ty
+          value: (method_invocation object: (_) @c name: (identifier) @m arguments: (argument_list . (_) .))) @hit
+        (#match? @ty "^(byte|short)$") (#match? @c "^(java\\.lang\\.)?Integer$") (#eq? @m "parseInt"))
+      ((cast_expression type: (integral_type) @ty
+          value: (method_invocation object: (_) @c name: (identifier) @m arguments: (argument_list . (_) .))) @hit
+        (#match? @ty "^(byte|short|int)$") (#match? @c "^(java\\.lang\\.)?Long$") (#eq? @m "parseLong"))
+    # Number.intValue()/shortValue()/byteValue() narrow by contract (gson's
+    # LazilyParsedNumber), and `buf[i] = (byte) Integer.parseInt(...)` fills a
+    # byte array with 0-255 values on purpose (tomcat's drawboard colours).
+    unless_inside: |
+      ((method_declaration name: (identifier) @n) @m (#match? @n "^(intValue|shortValue|byteValue)$"))
+      ((assignment_expression left: (array_access) right: (cast_expression type: (integral_type) @ty)) @a
+        (#eq? @ty "byte"))
+    unless_in_file: *test_support
+    description: >
+      A number parsed from text is cast to a narrower type, which silently
+      keeps only the low bits: "300" as a byte is 44, "3000000000" as an
+      int is negative. A limit, a port or a timeout read from input becomes
+      a different, valid-looking value instead of an error.
+    remediation: >
+      Parse straight into the type you need (`Byte.parseByte`,
+      `Short.parseShort`, `Integer.parseInt`), or convert with
+      `Math.toIntExact`, so an out-of-range value throws.
+
+  - id: parsed-count-overflow
+    title: "Allocation size multiplies a parsed count with no range check: `{text}`"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-190]
+    controls: [NIST-800-218:PW.5]
+    tags: [integer-overflow]
+    query: |
+      ; new byte[count * SIZE]   ByteBuffer.allocate(n * k)
+      ((array_creation_expression dimensions: (dimensions_expr (binary_expression operator: "*"))) @hit)
+      ((array_creation_expression dimensions: (dimensions_expr (parenthesized_expression (binary_expression operator: "*")))) @hit)
+      ((method_invocation name: (identifier) @n arguments: (argument_list . (binary_expression operator: "*") .)) @hit
+        (#match? @n "^(allocate|allocateDirect)$"))
+    # The multiplied count is parsed in this method (`int n = Integer.parseInt(...)`)
+    # and never compared, clamped or checked before the multiply.
+    requires_in_scope: |
+      ((method_declaration) @m (#match? @m "(?s)\\b(?:int|long|var|Integer|Long)\\s+(\\w+)\\s*=\\s*(?:Integer\\.(?:parseInt|valueOf)|Long\\.(?:parseLong|valueOf)|Short\\.parseShort)\\s*\\(.*(?:\\bnew\\s+[\\w.]+\\s*\\[|\\ballocate(?:Direct)?\\s*\\()[^;\\]]*(?:\\b\\1\\s*\\*|\\*\\s*\\(?\\s*\\1\\b)"))
+    unless_in_scope: |
+      ((method_declaration) @m (#match? @m "(?s)\\b(?:int|long|var|Integer|Long)\\s+(\\w+)\\s*=\\s*(?:Integer\\.(?:parseInt|valueOf)|Long\\.(?:parseLong|valueOf)|Short\\.parseShort)\\s*\\(.*(?:\\b\\1\\s*(?:<=?|>=?)(?!<)|(?<![<>])(?:<=?|>=?)\\s*\\1\\b|Math\\.(?:min|max|clamp|multiplyExact|addExact|toIntExact)\\s*\\([^;]*\\b\\1\\b|checkIndex\\s*\\([^;]*\\b\\1\\b|checkArgument\\s*\\([^;]*\\b\\1\\b|Preconditions\\.\\w+\\s*\\([^;]*\\b\\1\\b)"))
+    unless_in_file: *test_support
+    description: >
+      A count parsed from input is multiplied into an allocation size. Past
+      `Integer.MAX_VALUE` the product wraps negative (an exception at best)
+      or to a small positive number, so the buffer is far smaller than the
+      count the rest of the code loops over.
+    remediation: >
+      Range-check the count before using it (`if (n < 0 || n > MAX)`), or
+      compute the size with `Math.multiplyExact`.
+
+  - id: upload-client-filename
+    title: "Upload stored under the client's file name: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-434]
+    controls: [NIST-800-218:PW.5]
+    tags: [upload, path]
+    query: |
+      ; file.transferTo(...)  Files.copy(in, ...)  dir.resolve(name)  Paths.get(dir, name)
+      ; new File(dir, name)  new FileOutputStream(...): naming the client's file name
+      ((method_invocation name: (identifier) @n) @hit
+        (#match? @n "^(transferTo|resolve)$")
+        (#match? @hit "(?s)\\((.*)(?:getOriginalFilename|getSubmittedFileName|(?<![\\w.])(?:[a-z]\\w*(?:File|Original|Upload|Submitted|Client)[Nn]ame|(?:file|original|upload|submitted|client)_?[Nn]ame|filename|fname|name)\\b(?!\\s*\\())"))
+      ((method_invocation object: (_) @o name: (identifier) @n) @hit
+        (#match? @o "^((java\\.nio\\.file\\.)?(Files|Paths|Path)|(org\\.apache\\.commons\\.io\\.)?FileUtils|FileCopyUtils)$")
+        (#match? @n "^(copy|write|move|newOutputStream|createFile|get|of|copyInputStreamToFile|writeByteArrayToFile|copyToFile)$")
+        (#match? @hit "(?s)\\((.*)(?:getOriginalFilename|getSubmittedFileName|(?<![\\w.])(?:[a-z]\\w*(?:File|Original|Upload|Submitted|Client)[Nn]ame|(?:file|original|upload|submitted|client)_?[Nn]ame|filename|fname|name)\\b(?!\\s*\\())"))
+      ((object_creation_expression type: (_) @t) @hit
+        (#match? @t "^((java\\.io\\.)?(File|FileOutputStream|FileWriter))$")
+        (#match? @hit "(?s)\\((.*)(?:getOriginalFilename|getSubmittedFileName|(?<![\\w.])(?:[a-z]\\w*(?:File|Original|Upload|Submitted|Client)[Nn]ame|(?:file|original|upload|submitted|client)_?[Nn]ame|filename|fname|name)\\b(?!\\s*\\())"))
+    # One finding per statement: a sink nested in another sink's arguments
+    # (`transferTo(new File(dir, name))`) is the same write.
+    unless_inside: |
+      (method_invocation name: (identifier) @n arguments: (argument_list) @in
+        (#match? @n "^(transferTo|resolve|copy|write|move|newOutputStream|createFile|get|of|copyInputStreamToFile|writeByteArrayToFile|copyToFile)$"))
+      (object_creation_expression type: (_) @t arguments: (argument_list) @in
+        (#match? @t "^((java\\.io\\.)?(File|FileOutputStream|FileWriter))$"))
+      ; a path that is only logged (`log.debug("saved to {}", new File(dir, name))`)
+      (method_invocation object: (identifier) @o arguments: (argument_list) @in
+        (#match? @o "^(log|logger|LOG|LOGGER|Log|Logger)$"))
+    requires_in_scope: |
+      ((method_declaration) @m (#match? @m "(?s)(?:\\bString\\s+(\\w+)\\s*=\\s*[\\w.]*\\.(?:getOriginalFilename|getSubmittedFileName)\\s*\\(\\s*\\)\\s*;.*(?:transferTo|Files\\.(?:copy|write|move|newOutputStream|createFile)|new\\s+(?:java\\.io\\.)?(?:File|FileOutputStream|FileWriter)|Paths\\.get|Path\\.of|\\.resolve)\\s*\\([^;]*\\b\\1\\b|(?:transferTo|Files\\.(?:copy|write|move|newOutputStream|createFile)|new\\s+(?:java\\.io\\.)?(?:File|FileOutputStream|FileWriter)|Paths\\.get|Path\\.of|\\.resolve)\\s*\\([^;]*\\.(?:getOriginalFilename|getSubmittedFileName)\\s*\\(\\s*\\))") (#match? @m "(?s)\\btransferTo\\s*\\(|\\bFiles\\.(?:copy|write|move|newOutputStream)\\s*\\(|\\bnew\\s+(?:java\\.io\\.)?(?:FileOutputStream|FileWriter)\\s*\\(|\\.write\\s*\\("))
+    unless_in_scope: |
+      ((method_declaration) @m (#match? @m "(?s)FilenameUtils\\.(?:getName|getExtension|getBaseName)\\s*\\(|\\.getFileName\\s*\\(\\s*\\)|(?i:allowed_?(?:ext|types?|suffix)\\w*|white_?list)|\\.endsWith\\s*\\(|lastIndexOf\\s*\\(\\s*(?:\"\\.\"|'\\.')|\\bgetExtension\\s*\\("))
+    unless_in_file: *test_support
+    description: >
+      The file is written under the name the client sent. `shell.jsp` (or
+      `.php`, `.html`, `.svg`) in a served directory runs or renders as this
+      site, and `../` in the name writes outside the upload directory.
+    remediation: >
+      Generate the stored name (`UUID.randomUUID()`), choose the extension
+      from an allowlist of content types you checked, store outside the web
+      root, and keep the client's name only as data.

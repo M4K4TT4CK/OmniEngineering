@@ -45,7 +45,12 @@ app.get("/uptime", (_req: Request, res: Response) => {
 });
 
 app.post("/convert", (req: Request, res: Response) => {
-  const child = spawn("convert", [String(req.body.file), "out.png"]);
+  const file = String(req.body.file);
+  if (file.startsWith("-")) {
+    res.sendStatus(400);
+    return;
+  }
+  const child = spawn("convert", [file, "out.png"]);
   child.on("close", (code) => res.json({ code }));
 });
 

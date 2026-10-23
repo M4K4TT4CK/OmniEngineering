@@ -1,0 +1,200 @@
+{
+  "app": "typescript/file-upload",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "src/app.ts",
+      "line": 41,
+      "end_line": 42,
+      "cwe": [
+        "CWE-770",
+        "CWE-400"
+      ],
+      "category": "unbounded-memory",
+      "severity": "medium",
+      "justification": "multer.memoryStorage buffers each upload, up to 50 MiB by default, fully in RAM before writing it to disk, and nothing limits concurrent uploads. A few dozen parallel uploads exhaust process memory. Disk/stream storage is the fix.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "package.json",
+      "line": 14,
+      "cwe": [
+        "CWE-1395",
+        "CWE-400"
+      ],
+      "category": "vulnerable-dependency",
+      "severity": "medium",
+      "justification": "multer 1.4.5-lts.1 (range ^1.4.5-lts.1 stays on 1.x) has known DoS advisories (CVE-2025-47935 stream/memory leak, CVE-2025-47944 crash on malformed multipart) that were fixed only in multer 2.x.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "src/app.ts",
+      "line": 114,
+      "end_line": 119,
+      "cwe": [
+        "CWE-306"
+      ],
+      "category": "missing-authn",
+      "severity": "medium",
+      "justification": "Any client can delete any stored file, and upload or download too, because no authentication or ownership exists. The README only says to put a gateway in front. I would block on at least protecting the destructive DELETE route.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "src/app.ts",
+      "line": 136,
+      "end_line": 138,
+      "cwe": [
+        "CWE-755"
+      ],
+      "category": "swallowed-exception",
+      "severity": "low",
+      "justification": "The bare catch maps every sharp/IO failure (thumbnail dir missing, disk full, permission error) to 415 'not a supported image' and drops the real error, so operational failures look like client errors and are never logged.",
+      "source": "independent"
+    },
+    {
+      "id": "D5",
+      "file": "package.json",
+      "line": 13,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D6",
+      "file": "package.json",
+      "line": 14,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D7",
+      "file": "package.json",
+      "line": 15,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D8",
+      "file": "package.json",
+      "line": 18,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D9",
+      "file": "package.json",
+      "line": 19,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D10",
+      "file": "package.json",
+      "line": 20,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D11",
+      "file": "package.json",
+      "line": 21,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D12",
+      "file": "package.json",
+      "line": 22,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D13",
+      "file": "package.json",
+      "line": 23,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D14",
+      "file": "package.json",
+      "line": 24,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D15",
+      "file": "package.json",
+      "line": 25,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": [
+    {
+      "rule": "arbiter/typescript.promise-catch-noop",
+      "file": "src/app.ts",
+      "line": 148,
+      "reason": "not swallowed: the null is the not-found signal, checked on the next line and turned into a 404"
+    }
+  ]
+}

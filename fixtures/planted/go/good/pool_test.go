@@ -14,6 +14,18 @@ func TestSubmitQueuesJob(t *testing.T) {
 	}
 }
 
+func TestSubmitTwice(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow")
+	}
+	p := NewPool(2)
+	p.Submit(Job{ID: "a"})
+	p.Submit(Job{ID: "a"})
+	if got := len(p.jobs); got != 2 {
+		t.Fatalf("queued %d jobs, want 2", got)
+	}
+}
+
 func TestHeartbeatStops(t *testing.T) {
 	if testing.Short() {
 		t.Skip("heartbeat test waits on a real ticker")

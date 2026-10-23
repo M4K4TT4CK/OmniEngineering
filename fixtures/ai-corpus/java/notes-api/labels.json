@@ -1,0 +1,46 @@
+{
+  "app": "java/notes-api",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "src/main/java/notes/App.java",
+      "line": 181,
+      "cwe": [
+        "CWE-20",
+        "CWE-755"
+      ],
+      "category": "unhandled-input-error",
+      "severity": "medium",
+      "justification": "ctx.bodyAsClass() throws Jackson's parse exception (not a Javalin HttpResponseException) on malformed JSON, and a literal 'null' body yields c == null and an NPE, so /signup and /login answer 500 with a stack trace logged instead of 400; the test at AppTest line 76 expecting 400 for 'not json' would fail.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "src/main/java/notes/App.java",
+      "line": 189,
+      "cwe": [
+        "CWE-20",
+        "CWE-755"
+      ],
+      "category": "unhandled-input-error",
+      "severity": "medium",
+      "justification": "Same as credentials(): malformed or null JSON bodies to POST/PUT /notes reach the generic Exception handler and return 500 instead of 400.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "README.md",
+      "line": 8,
+      "cwe": [
+        "CWE-1059"
+      ],
+      "category": "doc-drift",
+      "severity": "low",
+      "justification": "'mvn exec:java' on a clean checkout does not compile the sources (exec:java is not bound to a lifecycle phase), so the documented run command fails with ClassNotFoundException; it needs 'mvn compile exec:java'.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

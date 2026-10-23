@@ -13,6 +13,7 @@ Five government framework packs ship with Arbiter:
 | `hipaa-security-rule` | HIPAA Security Rule (45 CFR 164 Subpart C) — 32 of 59 standards and implementation specifications |
 | `soc2-tsc-2017` | SOC 2, AICPA Trust Services Criteria 2017 — 29 of 61 criteria |
 | `cis-controls-v8` | CIS Controls v8 — 41 of 153 safeguards, implementation group in the title |
+| `cwe-top25-2024` | 2024 CWE Top 25, with per-language applicability (see [below](#cwe-top-25-per-language)) |
 
 Each is an **independent** pack — controls map straight to checks, never routed
 through a hub framework, because chaining two approximate crosswalks produces a
@@ -20,10 +21,11 @@ compliance claim two translations removed from anything that ran.
 
 Packs are data files in `src/arbiter/packs/controls/`, not code.
 
-## The five states
+## The states
 
 Every control resolves to one of five states, and the split between the last
-three is the entire point:
+three is the entire point (a sixth, `not_applicable`, exists only for packs
+with per-language applicability; see [below](#cwe-top-25-per-language)):
 
 | State | Meaning |
 |---|---|
@@ -75,6 +77,60 @@ Rules declare the controls they support:
   any_of: [storage_encrypted, StorageEncrypted, encrypted, KmsKeyId]
   severity: high
   controls: [NIST-800-53r5:SC-28]
+```
+
+A **language-pack** rule's declaration (`packs/rules/ast/<lang>.yaml`,
+`controls: [NIST-800-218:PW.5]`) is a check for that control, beside the
+pack's own `satisfied_by`. The control then carries `declared_by` (the rules)
+and `languages` (one cell per language pack, with its own state), so PW.5
+reads violated by `go.http-default-client` in Go while Python ran clean, and
+not assessed when the Java grammar is missing in a codebase with Java. A
+declaration does not override a pack that marks the control
+`not_automatable` (NIST 800-53 IA-2): the state stands and the reason says
+which rules disagree. A declaration naming a control no pack enumerates
+(`NIST-800-53r5:SI-10`, `OWASP-ASVS:*`) assesses nothing;
+`controls.unresolved_declarations()` lists them. Declarations on the IaC rules
+(`packs/rules/resource.yaml`) are not wired yet: those controls list their
+checks in `satisfied_by`.
+
+### Which probe a check needs
+
+A control is only satisfied when the probe behind each of its checks ran.
+`arbiter/<lang>.*` needs `lang_<lang>`, `arbiter/resource.*`
+`resource_policy`, `<adapter>/*` that adapter, and `house/<id>` (your
+`arbiter.yaml` rules) `house_rules_ast` for an `ast_query` rule and
+`house_rules` for the other types. `arbiter controls` reading a saved
+`report.json` does not have the configuration, so it requires both house
+probes; a `house/` id the configuration does not define reads not assessed.
+
+## CWE Top 25, per language
+
+`cwe-top25-2024` has one control per weakness of the 2024 Top 25, and each
+control one cell per language pack, transcribed from the matrix in
+[`docs/cwe-top25.md`](cwe-top25.md):
+
+| Cell `status` | Means | Cell state in a scan |
+|---|---|---|
+| `applies` | the weakness can occur; the language pack's rules tagged with its CWE (and the control's `satisfied_by`) assess it | `satisfied`, `violated` or `not_assessed`, or `no_coverage` when no native rule covers it (the gap) |
+| `out_of_reach` | it can occur, but no single-file check can establish it | `out_of_reach` (a partial signal, Go's `stub-on-security-path` for CWE-863, can still make it `violated`; its silence is never a pass) |
+| `not_applicable` | it cannot occur in this language (memory safety; 190 in Python, Ruby, TypeScript; 94 and 502 in Go) | `not_applicable` |
+
+A language with no files in the codebase is `absent`. The control takes its
+worst cell: violated, not assessed, gap or out of reach (`no_coverage`), then
+satisfied, and `not_applicable` only when every language present is n/a for
+it, a state distinct from `not_automatable` (nothing for a person to assess
+either). Checks are not listed per cell: a rule tagged `cwe: [CWE-22]` in
+`go.yaml` assesses the Go CWE-22 cell the day it lands, and
+`tests/test_controls_cwe_top25.py` then fails until the doc matrix says N.
+Only native checks count; a cell that semgrep or bandit covers (S, B) reads as
+a gap, with the doc mark in the reason.
+
+```console
+$ arbiter controls arbiter-out/report.json --framework CWE-Top25-2024
+    ...
+    language     assessed violated  not_run   gap   OOR   n/a  absent
+    go                  6        3        0     6     7     6       0
+    typescript          8        2        0     6     5     6       0
 ```
 
 ## Commercial packs

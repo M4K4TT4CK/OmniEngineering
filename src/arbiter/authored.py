@@ -98,6 +98,105 @@ _MODULE_TO_PACKAGE = {
 # dependency. Its absence from the manifest is the point, not a defect.
 _OPTIONAL_IMPORT_BLOCK = re.compile(r"^[ \t]*try:[^\n]*\n(?:[ \t]+[^\n]*\n|\s*\n)*", re.M)
 
+# Imports that are not runtime requirements of the module (round 2, ARB-065):
+#   * under `if TYPE_CHECKING:` -- read by the type checker only; urllib3's
+#     `typing_extensions` (8 of its 11 findings);
+#   * under `if sys.version_info ...:` or its `else:` -- the backport for an
+#     older interpreter, celery's `from backports.zoneinfo import ZoneInfo`;
+#   * inside a function, in a module that handles ImportError -- a lazily
+#     tried optional tool, as Django's and celery's `shell` commands try
+#     IPython, then bpython, then the plain console.
+_HANDLES_IMPORT_ERROR = re.compile(r"\bexcept\b[^\n:]*\b(?:ImportError|ModuleNotFoundError)\b")
+_TYPE_CHECKING_IF = re.compile(r"^\s*if\s+(?:typing\.)?TYPE_CHECKING\s*:")
+_VERSION_IF = re.compile(r"^\s*(?:if|elif)\s+[^\n]*\bsys\.version_info\b")
+_DEF_LINE = re.compile(r"^\s*(?:async\s+)?def\s")
+
+
+def _indent(line: str) -> int:
+    return len(line) - len(line.lstrip())
+
+
+def _openers(lines: list[str], idx: int) -> list[int]:
+    """Line numbers of the blocks enclosing line `idx`, innermost first."""
+    out, level = [], _indent(lines[idx])
+    for j in range(idx - 1, -1, -1):
+        if level == 0:
+            break
+        line = lines[j]
+        if line.strip() and _indent(line) < level:
+            out.append(j)
+            level = _indent(line)
+    return out
+
+
+def _version_branch(lines: list[str], j: int) -> bool:
+    """True when the block opened at line `j` is a branch of a version check."""
+    if _VERSION_IF.match(lines[j]):
+        return True
+    if not re.match(r"^\s*(?:else|elif\b)", lines[j]):
+        return False
+    level = _indent(lines[j])
+    for k in range(j - 1, -1, -1):
+        line = lines[k]
+        if not line.strip() or _indent(line) > level:
+            continue
+        if _indent(line) < level:
+            return False
+        if _VERSION_IF.match(line):
+            return True
+        if not re.match(r"^\s*elif\b", line):
+            return False
+    return False
+
+
+def _guarded_import(lines: list[str], idx: int, handles_absence: bool) -> bool:
+    for j in _openers(lines, idx):
+        if _TYPE_CHECKING_IF.match(lines[j]) or _version_branch(lines, j):
+            return True
+        if handles_absence and _DEF_LINE.match(lines[j]):
+            return True
+    return False
+
+
+# Modules a declared package guarantees, used directly. Each entry is a
+# documented install requirement of the provider (round 2 gold, celery): gevent
+# and eventlet require greenlet; pymongo ships `bson` and `gridfs`; boto3
+# requires botocore; Sphinx requires docutils; the google-cloud-* clients share
+# the `google` namespace; pytest-celery's `all` extra (celery's t/smoke
+# workers) requires pytest-docker-tools. A provider ending in `-` is a name prefix.
+_PY_TRANSITIVE = {
+    "greenlet": ("gevent", "eventlet"),
+    "bson": ("pymongo",),
+    "gridfs": ("pymongo",),
+    "botocore": ("boto3", "aiobotocore"),
+    "docutils": ("sphinx", "sphinx-"),
+    "google": ("google-",),
+    "pytest_docker_tools": ("pytest-celery",),
+    # Frameworks' own install requirements, which model-written apps import
+    # beside them (harness agent, round 2): FastAPI requires Starlette and
+    # Pydantic; Flask requires Werkzeug, Jinja2, itsdangerous, click and
+    # blinker (and Jinja2 MarkupSafe); Django requires asgiref and sqlparse;
+    # requests requires urllib3, idna, certifi and charset-normalizer.
+    "pydantic": ("fastapi",),
+    "pydantic_core": ("fastapi", "pydantic"),
+    "starlette": ("fastapi",),
+    "werkzeug": ("flask",),
+    "jinja2": ("flask",),
+    "itsdangerous": ("flask",),
+    "click": ("flask",),
+    "blinker": ("flask",),
+    "markupsafe": ("flask", "jinja2"),
+    "asgiref": ("django",),
+    "sqlparse": ("django",),
+    "urllib3": ("requests",),
+    "idna": ("requests", "httpx"),
+    "certifi": ("requests", "httpx"),
+    "charset_normalizer": ("requests",),
+}
+# Modules the runtime provides rather than an installed package: Pyodide's
+# `js` bridge and `pyodide` itself (urllib3's emscripten backend).
+_PY_RUNTIME_PROVIDED = frozenset({"js", "pyodide"})
+
 # Build scripts declare their own build-time requirements elsewhere (PEP 518),
 # so an import here says nothing about the runtime manifest.
 _BUILD_SCRIPT = re.compile(r"(^|/)(setup\.py|conftest\.py|noxfile\.py|tasks\.py)$")
@@ -148,7 +247,9 @@ def is_manifest_path(path: str) -> bool:
     directory is a requirement file whatever it is called.
     """
     name = path.rsplit("/", 1)[-1]
-    if name in _MANIFESTS or _PY_REQUIREMENT_FILE.match(name) or name.endswith(_eco.GEMSPEC_SUFFIX):
+    if name in _MANIFESTS or _PY_REQUIREMENT_FILE.match(name) \
+            or name.endswith((_eco.GEMSPEC_SUFFIX, *_eco.GRADLE_SUFFIXES)) \
+            or _eco.ruby_is_gemfile(name):
         return True
     parent = path[: -len(name)]
     return name.lower().endswith((".txt", ".in")) and bool(_PY_REQUIREMENT_DIR.search(parent))
@@ -466,12 +567,27 @@ def _workspace_packages(ctx: ProbeContext, repo_id: str) -> set[str]:
             head = str(alias).split("*")[0].rstrip("/").lower()
             if head:
                 out.add(head)
+    # A bundler plugin can serve a module that exists nowhere on disk:
+    # keycloak's admin-ui imports "message-bundle", which its vite.config.ts
+    # resolves (`if (source === "message-bundle")`). A specifier compared
+    # with `===` or given as an alias key in a bundler config is local.
+    for f in ctx.inventory.text_files():
+        if f.repo_id != repo_id or not _BUNDLER_CONFIG.match(Path(f.path).name):
+            continue
+        for m in _BUNDLER_VIRTUAL.finditer(_read(f) or ""):
+            out.add((m.group(1) or m.group(2) or m.group(3)).lower())
     # An organisation scope used by any local package is local for all of them,
     # in both the bare and the @-scoped spelling: a package.json named
     # "juice-shop" is the sibling that `@juice-shop/models` refers to.
     out |= {n.split("/")[0] for n in list(out) if n.startswith("@")}
     out |= {f"@{n}" for n in list(out) if not n.startswith("@")}
     return out
+
+
+_BUNDLER_CONFIG = re.compile(r"^(?:vite|rollup|webpack|esbuild|rspack)\.config\.[cm]?[jt]s$")
+_BUNDLER_VIRTUAL = re.compile(
+    r"""===\s*['"]([^'"./][^'"]*)['"]|['"]([^'"./][^'"]*)['"]\s*===|"""
+    r"""\balias\s*:\s*\{[^}]*?['"]([^'"./][^'"]*)['"]\s*:""")
 
 
 def _local_modules(ctx: ProbeContext, repo_id: str) -> set[str]:
@@ -506,6 +622,8 @@ def probe_authored(ctx: ProbeContext) -> list[Finding]:
         declared, has_manifest = _declared_dependencies(ctx, repo.id)
         local = _local_modules(ctx, repo.id)
         workspace = _workspace_packages(ctx, repo.id)
+        node_manifest = any(f.repo_id == repo.id and Path(f.path).name == "package.json"
+                            for f in ctx.inventory.text_files())
         facts: dict = {}
         for f in ctx.inventory.text_files():
             if f.repo_id != repo.id or f.role in ("generated", "data", "docs"):
@@ -514,11 +632,17 @@ def probe_authored(ctx: ProbeContext) -> list[Finding]:
             if not text:
                 continue
             if f.language in _eco.ECOSYSTEM_OF:
-                out.extend(_undeclared_other(f, text, facts.setdefault(
-                    (repo.id, f.language), _ecosystem_facts(ctx, repo.id, f.language))))
+                # Computed once per (repository, language). `setdefault` with
+                # the call as its argument rebuilt the facts -- every manifest
+                # and every Java file's package -- for each file, which was
+                # 88 s of keycloak `services/` alone (ARB-076).
+                key = (repo.id, f.language)
+                if key not in facts:
+                    facts[key] = _ecosystem_facts(ctx, repo.id, f.language)
+                out.extend(_undeclared_other(f, text, facts[key]))
             else:
                 out.extend(_undeclared_imports(f, text, declared, local, has_manifest,
-                                               workspace, online))
+                                               workspace, online, node_manifest))
             out.extend(_stubs(f, text))
             out.extend(_disabled_checks(f, text))
             out.extend(_unkept_promises(f, text))
@@ -526,7 +650,8 @@ def probe_authored(ctx: ProbeContext) -> list[Finding]:
 
 
 def _undeclared_imports(f, text, declared, local, has_manifest,
-                        workspace=frozenset(), online=False) -> list[Finding]:
+                        workspace=frozenset(), online=False,
+                        node_manifest=True) -> list[Finding]:
     # With no manifest at all there is nothing to be missing from, and every
     # import would be reported. That is a repository shape, not a defect.
     if not has_manifest or _NOT_SHIPPED.search(f.path):
@@ -535,18 +660,34 @@ def _undeclared_imports(f, text, declared, local, has_manifest,
     if f.language == "python":
         if _BUILD_SCRIPT.search(f.path):
             return []
-        stdlib = set(getattr(sys, "stdlib_module_names", ()))
+        if f.role == "test":
+            return []   # as for Go, Java and Ruby: `t/` (celery) is not `tests/`
+        stdlib = set(getattr(sys, "stdlib_module_names", ())) | _PY_RUNTIME_PROVIDED
         clean = _strip_prose(text)
         # Spans covered by a try: block, where an absent package is deliberate.
         optional = [(m.start(), m.end()) for m in _OPTIONAL_IMPORT_BLOCK.finditer(clean)]
-        for m in _PY_IMPORT.finditer(clean):
-            name = m.group(1) or m.group(2)
+        imports = [(m, m.group(1) or m.group(2)) for m in _PY_IMPORT.finditer(clean)]
+        # A module imported under try anywhere in the file is optional in all
+        # of it: celery's mongodb backend tries `import pymongo` and later,
+        # under `if pymongo:`, imports `from pymongo import uri_parser`.
+        tried = {n for m, n in imports if n and any(a <= m.start() < b for a, b in optional)}
+        handles_absence = bool(_HANDLES_IMPORT_ERROR.search(clean))
+        lines = clean.split("\n")
+        for m, name in imports:
             if not name or name.startswith("_"):
                 continue
-            if any(a <= m.start() < b for a, b in optional):
+            if any(a <= m.start() < b for a, b in optional) or name in tried:
+                continue
+            # From the name, not the match: `^\s*` also takes the blank lines above.
+            if _guarded_import(lines, clean.count("\n", 0, m.start(m.lastindex)),
+                               handles_absence):
                 continue
             low = name.lower().replace("_", "-")
             alias = _MODULE_TO_PACKAGE.get(name.lower(), _MODULE_TO_PACKAGE.get(name))
+            providers = _PY_TRANSITIVE.get(name.lower(), ())
+            if any(p in declared or (p.endswith("-") and any(d.startswith(p) for d in declared))
+                   for p in providers):
+                continue
             if (low in declared or name in stdlib or low in local
                     or name.lower() in local or (alias and alias in declared)
                     or (alias and alias not in declared and alias == low)):
@@ -558,6 +699,11 @@ def _undeclared_imports(f, text, declared, local, has_manifest,
             out.append(_import_finding(f, text, name, "python",
                                        package_exists("python", name) if online else None))
     elif f.language in ("javascript", "typescript"):
+        # A Python project's lone `eslint.config.cjs` (urllib3) has no
+        # package.json to be missing from, the same as a repository with no
+        # manifest at all.
+        if not node_manifest:
+            return []
         names = {(m.group(1) or m.group(2)) for m in _JS_IMPORT.finditer(text)}
         for spec in sorted(n for n in names if n):
             if spec.startswith((".", "/", "#", "node:")):
@@ -586,7 +732,9 @@ def _ecosystem_facts(ctx: ProbeContext, repo_id: str, language: str) -> dict:
     files = [f for f in whole.text_files() if f.repo_id == repo_id]
     wanted = _eco.MANIFESTS_OF[language]
     manifests = [f for f in files if Path(f.path).name in wanted
-                 or (language == "ruby" and f.path.endswith(_eco.GEMSPEC_SUFFIX))]
+                 or (language == "ruby" and (f.path.endswith(_eco.GEMSPEC_SUFFIX)
+                                             or _eco.ruby_is_gemfile(Path(f.path).name)))
+                 or (language == "java" and f.path.endswith(_eco.GRADLE_SUFFIXES))]
     declared: set[str] = set()
     local: set[str] = set()
     per_module: dict[str, set[str]] = {}
@@ -648,8 +796,11 @@ def _undeclared_other(f, text, facts: dict) -> list[Finding]:
         names = [(n, ".".join(n.split(".")[:3])) for n in _eco.java_imports(text)
                  if not _eco.java_resolves(n, declared, local)]
     else:
-        names = [(n, n.split("/")[0]) for n in _eco.ruby_imports(text)
-                 if not _eco.ruby_resolves(n, declared, local)]
+        declared = declared | _eco.ruby_inline_declared(text)
+        rescued = _eco.ruby_optional_spans(text)
+        names = [(n, n.split("/")[0]) for n, pos in _eco.ruby_import_sites(text)
+                 if not any(a <= pos < b for a, b in rescued)
+                 and not _eco.ruby_resolves(n, declared, local)]
     for raw, key in names:
         if key in seen:
             continue
