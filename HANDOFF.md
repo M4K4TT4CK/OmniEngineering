@@ -25,19 +25,22 @@ transports (ARB-010) passed their requirement-specific tests and the full Linux
 completion gate, then closed in that dependency order. Their outcomes are in
 `CHANGELOG.md`, `.ai/project-context.md`, and the requirement archive.
 
-Two requirements are active. ARB-005 (licensing): the owner chose Apache-2.0 on
-2026-10-21 and `LICENSE` carries it, which meets its first three acceptance
-criteria; the fourth is the L-6 redistribution review for bundling the
-analyzers, which has to be performed and signed by a person — do not represent
-engineering work as resolving it. ARB-024 (exercise the Windows
-code paths in CI) is engineering work and is unblocked.
+Four requirements are pending (`python omni requirement list --status
+pending`). ARB-005 (licensing): the owner chose Apache-2.0 on 2026-10-21 and
+`LICENSE` carries it, which meets its first three acceptance criteria; the
+fourth is the L-6 redistribution review for bundling the analyzers, which has
+to be performed and signed by a person — do not represent engineering work as
+resolving it. ARB-062 (CWE Top 25 per language), ARB-063 (install and test on
+Windows, Linux and macOS) and ARB-064 (every finding traceable in OmniGraph)
+are engineering work. Later items are `proposed`.
 
 ## Validation
 
 The configured completion commands are:
 
 ```bash
-PYTHONPATH=src python -m pytest -q
+PYTHONPATH=src python -m pytest -q -rs -m "not slow"   # the fast tier; -m slow after ./tools/install_tools.sh
+PYTHONPATH=src python tools/precision_guard.py check
 python omni doctor
 python omni gate
 ```

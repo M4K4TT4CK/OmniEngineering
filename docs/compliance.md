@@ -1,6 +1,9 @@
 # Control Coverage
 
-Five government framework packs ship with Arbiter:
+Ten control packs ship with Arbiter: five government frameworks, four
+commercial ones and the CWE Top 25. `--framework` takes the framework id that
+`arbiter controls --list` prints (for example `NIST-800-218`), not the pack
+file name.
 
 | Pack | Framework |
 |---|---|
@@ -113,7 +116,7 @@ control one cell per language pack, transcribed from the matrix in
 |---|---|---|
 | `applies` | the weakness can occur; the language pack's rules tagged with its CWE (and the control's `satisfied_by`) assess it | `satisfied`, `violated` or `not_assessed`, or `no_coverage` when no native rule covers it (the gap) |
 | `out_of_reach` | it can occur, but no single-file check can establish it | `out_of_reach` (a partial signal, Go's `stub-on-security-path` for CWE-863, can still make it `violated`; its silence is never a pass) |
-| `not_applicable` | it cannot occur in this language (memory safety; 190 in Python, Ruby, TypeScript; 94 and 502 in Go) | `not_applicable` |
+| `not_applicable` | it cannot occur in this language (memory safety; 476 in Python, TypeScript and Ruby; 190 in Python, Ruby, TypeScript; 94 and 502 in Go) | `not_applicable` |
 
 A language with no files in the codebase is `absent`. The control takes its
 worst cell: violated, not assessed, gap or out of reach (`no_coverage`), then
@@ -125,12 +128,15 @@ either). Checks are not listed per cell: a rule tagged `cwe: [CWE-22]` in
 Only native checks count; a cell that semgrep or bandit covers (S, B) reads as
 a gap, with the doc mark in the reason.
 
+On a scan of `fixtures/planted/go` and `fixtures/planted/typescript`
+(`--no-adapters`, 2026-10-23):
+
 ```console
 $ arbiter controls arbiter-out/report.json --framework CWE-Top25-2024
     ...
     language     assessed violated  not_run   gap   OOR   n/a  absent
-    go                  6        3        0     6     7     6       0
-    typescript          8        2        0     6     5     6       0
+    go                 12       12        0     1     6     6       0
+    typescript         12       12        0     2     5     6       0
 ```
 
 ## Commercial packs

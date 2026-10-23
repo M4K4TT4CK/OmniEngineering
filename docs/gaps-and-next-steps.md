@@ -5,6 +5,19 @@ Where Arbiter and its workspace tooling (OmniEngineering, "omni") stand on
 and a three-milestone sequence. Written for the product's future, not for
 one demo. (ARB-067)
 
+> **Status 2026-10-23: this is a 2026-10-21 snapshot.** Since it was written,
+> these have shipped (see CHANGELOG.md): native rules for all ten ranked CWE
+> gaps (one planted gap remains, TypeScript 352 in its absent-middleware
+> form); occurrence ids (ARB-080); the query cache (ARB-076); the import fix
+> (ARB-078); per-language CWE controls; one-hop data flow (`dataflow.py`,
+> `taint:`); precision tiers, the per-rule ledger and its CI guard; the model
+> verification pass (`assisted`); regression guards, mutation variants and
+> the AI-written corpora; and rules for AI-written-code defect classes
+> (ARB-083). The language packs now hold 176 rules (263 shipped in all).
+> Figures below are as of 2026-10-21 unless marked. Current measurements:
+> [precision.md](precision.md#current-numbers) and
+> [testing-harness.md](testing-harness.md).
+
 ## How claims are labelled
 
 ARB-074 asks every report to say how it knows what it says. This one does.
@@ -188,7 +201,7 @@ gold set now holds 4 or 5 per language (`tools/gold/repos.json`) **[M]**.
 | No macOS CI | the `pr-check.yml` matrix is `[ubuntu-latest, windows-latest]` on 3.11, plus ubuntu on 3.10 | [M] |
 | Windows runs no analyzers and no self-gate | `if: runner.os == 'Linux'` on the install and self-gate steps | [M] `pr-check.yml` |
 | No `tools/install_tools.ps1` | file absent | [M] |
-| No OS or Python classifiers in `pyproject.toml` | `grep classifiers` finds none | [M] |
+| Only a licence classifier in `pyproject.toml`; no OS or Python-version classifiers | `grep -A3 classifiers pyproject.toml` | [M] |
 | Path-separator bugs reach code that Linux tests pass | Windows CI caught a backslash in a graph rebuild message (commit `da26819`) | [M] |
 | A test passes in CI and fails locally | OmniEngineering `tests/test_gate_hook` (post-commit) fails on WSL and passes in CI | [M] observed tonight; cause not established |
 | Python 3.12 and 3.13 untested | matrix covers 3.10 and 3.11 only | [M] |
@@ -212,7 +225,7 @@ gold set now holds 4 or 5 per language (`tools/gold/repos.json`) **[M]**.
 |---|---|---|
 | No "why did this fire" or "why didn't it" | ARB-067 is proposed, not built | [M] registry |
 | MCP can scan, gate, queue and draft reviews, but cannot propose a fix or verify one | four tools in `docs/mcp.md`; ARB-066 proposed | [M] |
-| Feedback verdicts do not move rule confidence | ARB-067 acceptance criterion 2, not built | [M] |
+| Feedback verdicts move confidence (`learn.apply`), but the next scan does not cite the verdict that moved it | ARB-067 acceptance criterion 2 | [M] |
 | Agent numbers can come from the wrong install | a precision run imported the shared copy instead of the worktree (ARB-072 description) | [M] |
 
 ---

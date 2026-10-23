@@ -23,10 +23,19 @@ rest) are bash, not PowerShell; run those specific steps from Git Bash
 
 ## Install
 
+Arbiter is not on PyPI yet. Install from a checkout:
+
 ```bash
-pip install -e .
+git clone https://github.com/paukennick/arbiter && cd arbiter
+python -m venv .venv && . .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install -e ".[ast]"                             # ast: the language rule packs
+./tools/install_tools.sh                            # optional: analyzers and tree-sitter grammars
 arbiter scan ./my-repo
 ```
+
+or straight from GitHub: `pip install "arbiter-eval[ast] @ git+https://github.com/paukennick/arbiter"`.
+Without the `ast` extra Arbiter still runs; the language packs and AST
+metrics report as not assessed.
 
 ### With OmniEngineering
 
@@ -48,9 +57,11 @@ the wiring.
 
 | Extra | Install | Enables |
 |---|---|---|
-| `ast` | `pip install -e ".[ast]"` | `ast_metrics` and `house_rules_ast` — function length, cyclomatic complexity and nesting depth from a real parse tree, in 11 languages, plus your own tree-sitter queries |
-| `dev` | `pip install -e ".[dev]"` | the test suite (pytest) |
-| `tools` | `pip install -e ".[tools]"` | external analyzers as Python packages |
+| `ast` | `pip install -e ".[ast]"` | the language rule packs (`lang_python`, `lang_typescript`, `lang_go`, `lang_java`, `lang_ruby`: 176 of the 263 shipped rules), `ast_metrics` (function length, complexity and nesting in 11 languages), `aiapp`'s function boundaries and your own tree-sitter queries (`house_rules_ast`) |
+| `dev` | `pip install -e ".[dev]"` | the test suite (pytest, hypothesis) |
+| `tools` | `pip install -e ".[tools]"` | external analyzers as Python packages (ruff, bandit, checkov, semgrep; gitleaks comes from `install_tools.sh`) |
+| `mcp` | `pip install -e ".[mcp]"` | `arbiter mcp`, the MCP server ([docs/mcp.md](docs/mcp.md)) |
+| `api` | `pip install -e ".[api]"` | `arbiter api serve`, the hosted HTTPS API ([docs/hosted-api.md](docs/hosted-api.md)) |
 
 Every extra is genuinely optional. A probe whose dependency is absent reports as
 *not assessed* with the dependency named, and the coverage figure drops by
@@ -62,9 +73,14 @@ exactly what was not checked. Nothing silently becomes a pass.
 ./tools/install_tools.sh
 ```
 
-Installs checkov, semgrep, bandit, ruff and gitleaks at pinned versions.
-Optional: a missing analyzer is recorded as not assessed with the binary named.
-Nothing here fails a build.
+Installs checkov, semgrep, bandit, ruff and gitleaks at pinned versions, and
+caches the tree-sitter grammars the language packs need (`ARBITER_GRAMMARS`,
+default `python javascript typescript tsx go java ruby`; needs the `ast` extra
+and network). Scans never download a grammar, so one not cached here reports
+as not assessed — including the Rust, PHP, C, C++ and shell grammars
+`ast_metrics` can use unless you add them to `ARBITER_GRAMMARS`. Everything
+here is optional: a missing analyzer is recorded as not assessed with the
+binary named. Nothing here fails a build.
 
 Arbiter does not vendor or redistribute these tools. Their licenses are listed
 in [NOTICE.md](NOTICE.md).
