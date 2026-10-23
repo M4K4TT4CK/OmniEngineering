@@ -482,7 +482,8 @@ rules:
          (#match? @source "^\\(*[\"'](?i:\\s*(select|insert|update|delete|notify|with|where|order|create|drop|alter)\\b)"))
       sinks: |
         ((call method: (identifier) @m arguments: (argument_list . (_) @sink)) @hit
-         (#match? @m "^(where|rewhere|not|find_by_sql|count_by_sql|execute|exec_query|exec_update|exec_delete|exec_insert|select_all|select_one|select_value|select_values|select_rows|query|exec|exec_params|prepare|order|reorder|group|having|joins|update_all|delete_all)$"))
+         (#match? @m "^(where|rewhere|not|find_by_sql|count_by_sql|execute|exec_query|exec_update|exec_delete|exec_insert|select_all|select_one|select_value|select_values|select_rows|query|exec|exec_params|prepare|order|reorder|group|having|joins|update_all|delete_all)$")
+         (#not-match? @hit "^(::)?(Kernel|Process|IO|Open3)\\."))
       sanitizers: |
         ((call method: (identifier) @m) @sanitizer
          (#match? @m "^(to_i|to_f|quote|quote_table_name|quote_column_name|sanitize_sql\\w*|escape_string|escape_literal)$"))
@@ -528,10 +529,11 @@ rules:
       mode: nonconst
       sinks: |
         ((call !receiver method: (identifier) @m arguments: (argument_list . (_) @sink (pair)* .)) @hit
-         (#match? @m "^(system|exec|spawn)$"))
+         (#match? @m "^(system|exec|spawn)$") (#not-match? @sink "^\\*"))
         ((call receiver: (constant) @r method: (identifier) @m arguments: (argument_list . (_) @sink (pair)* .)) @hit
          (#match? @r "^(Open3|IO|Kernel|Process)$")
-         (#match? @m "^(capture2|capture2e|capture3|popen|popen2|popen2e|popen3|pipeline|pipeline_r|pipeline_w|system|spawn|exec)$"))
+         (#match? @m "^(capture2|capture2e|capture3|popen|popen2|popen2e|popen3|pipeline|pipeline_r|pipeline_w|system|spawn|exec)$")
+         (#not-match? @sink "^\\*"))
       sanitizers: |
         ((call method: (identifier) @m) @sanitizer (#match? @m "^(shellescape|shelljoin|escape|to_i|to_f|pid)$"))
         ((call receiver: (constant) @c method: (identifier) @m) @sanitizer (#eq? @c "Shellwords"))

@@ -584,7 +584,13 @@ class Interp:
                 return env, None
             b = node.child_by_field_name("body")
             e2, last = self.exec(b, dict(env), returns) if b is not None else (env, None)
-            return (e2 if truth else self.join_env(env, e2)), last
+            if truth:
+                return e2, last
+            skipped = dict(env)
+            falsy = self._falsy_name(node.child_by_field_name("condition")) if t == "if_modifier" else None
+            if falsy is not None:
+                skipped[falsy] = clean(None)
+            return self.join_env(skipped, e2), last
         if t in ("for_statement", "for_in_statement", "enhanced_for_statement", "while_statement",
                  "do_statement", "while", "until", "for", "while_modifier", "until_modifier",
                  "for_clause", "range_clause"):
@@ -668,11 +674,15 @@ class Interp:
         if b is None:
             return dict(a)
         out = dict(a)
+        # a local first set on one path only is nil on the other (Ruby,
+        # Python); block-scoped languages never see it after the branch
+        missing = clean(None) if self.lang in ("ruby", "python") else UNK
         for k, v in b.items():
-            out[k] = join(out.get(k), v) if k in out else join(UNK if k not in a else None, v)
-        for k in a:
-            if k not in b:
-                out[k] = join(a[k], UNK) if False else a[k]
+            out[k] = join(out.get(k), v) if k in out else join(missing, v)
+        if self.lang in ("ruby", "python"):
+            for k in a:
+                if k not in b:
+                    out[k] = join(a[k], missing)
         return out
 
     def truth(self, av: AV | None):
@@ -685,6 +695,16 @@ class Interp:
             return bool(c)
         except Exception:  # noqa: BLE001
             return None
+
+    def _falsy_name(self, cond):
+        """`if v` / `unless v`: the name whose value is falsy (nil, false,
+        "", 0: constant either way) on the branch where the test fails."""
+        while cond is not None and cond.type in ("parenthesized_expression", "parenthesized_statements") \
+                and named(cond):
+            cond = named(cond)[0]
+        if cond is not None and cond.type in ("identifier", "instance_variable"):
+            return text(cond)
+        return None
 
     def exec_if(self, node, env, returns):
         cond_n = node.child_by_field_name("condition")
@@ -705,10 +725,14 @@ class Interp:
             a_env = self.run_branch(cons, dict(env), returns) if cons is not None else dict(env)
         b_env = None
         if truth is not True:
+            start = dict(env)
+            falsy = self._falsy_name(cond_n) if node.type != "unless" else None
+            if falsy is not None:
+                start[falsy] = clean(None)
             if alts:
-                b_env = self.run_alts(alts, dict(env), returns)
+                b_env = self.run_alts(alts, start, returns)
             else:
-                b_env = dict(env)
+                b_env = start
         if truth is True:
             return a_env
         if truth is False:
@@ -1293,6 +1317,8 @@ class Interp:
             if all(isinstance(p.const, str) for p in parts):
                 return clean("".join(p.const for p in parts))
             return clean()
+        if t in ("string_array", "symbol_array"):
+            return mix(parts)  # `%w[git log #{ref}]` is an argv, not one string
         return _built(mix(parts))
 
     def heredoc_body(self, beginning):
@@ -1579,10 +1605,14 @@ class Interp:
                     self.bind(p if p.type == "identifier" else (named(p)[0] if named(p) else p), el, inner)
             b = blk.child_by_field_name("body")
             if b is not None:
-                inner = self.exec_body(b, inner, [])[0] or inner
+                inner_env, last = self.exec_body(b, inner, [])
+                inner = inner_env or inner
                 for k, v in inner.items():
                     if k in env:
                         env[k] = join(env[k], v)
+                if name in ("map", "collect", "flat_map", "filter_map", "map!", "collect!") and last is not None:
+                    # the list holds what the block returns
+                    return AV(last.kind, NOCONST, None, last.via, None, last.built)
         if t in ("new_expression", "object_creation_expression"):
             if name in ("ArrayList", "LinkedList", "Vector", "Array") and not args:
                 return self.mk_list([])
