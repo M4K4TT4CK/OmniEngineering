@@ -61,8 +61,9 @@ writing root shims. No OmniEngineering upstream ever became available on this
 machine (checked both `~/dev/STEP-Migration` and
 `~/Documents/GitHub/STEP-Migration` again before writing these — neither has
 them), so they were authored directly for arbiter instead of continuing to
-wait: seven adapter guides, the public-release checklist (marked not
-applicable while arbiter stays proprietary), and two rule packs matching
+wait: seven adapter guides, the public-release checklist (not applicable
+while arbiter was proprietary; it applies since the 2026-10-21 move to
+Apache-2.0, see `docs/licensing.md`), and two rule packs matching
 `.ai/schemas/rulepack.schema.json`. They are arbiter-specific, not upstream
 content, and are wired into `.ai/context-manifest.json`.
 
