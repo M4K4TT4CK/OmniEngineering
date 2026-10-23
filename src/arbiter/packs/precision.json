@@ -1044,17 +1044,17 @@
   },
   "arbiter/java.command-injection": {
    "tp": 572,
-   "fp": 750,
+   "fp": 303,
    "unsure": 0,
-   "n": 1322,
+   "n": 875,
    "held_out": {
     "tp": 571,
-    "fp": 750,
+    "fp": 303,
     "unsure": 0
    },
-   "precision": 0.4327,
-   "wilson_lower": 0.4062,
-   "wilson_upper": 0.4595,
+   "precision": 0.6537,
+   "wilson_lower": 0.6216,
+   "wilson_upper": 0.6845,
    "kappa": null,
    "kappa_pairs": 0,
    "observed_agreement": null,
@@ -1069,17 +1069,17 @@
     "owasp-java"
    ],
    "dates": {},
-   "population": 1322,
+   "population": 875,
    "dimension": "security",
    "cwe": [
     "CWE-78"
    ],
    "fp_notes": [],
    "admitted": false,
-   "admitted_reason": "lower bound 0.406 on 1322 labels, below 0.97",
+   "admitted_reason": "lower bound 0.622 on 875 labels, below 0.97",
    "updated": "2026-10-23",
    "snapshot_counts": {
-    "planted": 6,
+    "planted": 7,
     "ai-corpus": 0
    }
   },
@@ -1271,17 +1271,17 @@
   },
   "arbiter/java.sql-string-built": {
    "tp": 2492,
-   "fp": 3295,
+   "fp": 1142,
    "unsure": 0,
-   "n": 5787,
+   "n": 3634,
    "held_out": {
     "tp": 2492,
-    "fp": 3295,
+    "fp": 1142,
     "unsure": 0
    },
-   "precision": 0.4306,
-   "wilson_lower": 0.4179,
-   "wilson_upper": 0.4434,
+   "precision": 0.6857,
+   "wilson_lower": 0.6705,
+   "wilson_upper": 0.7006,
    "kappa": null,
    "kappa_pairs": 0,
    "observed_agreement": null,
@@ -1295,17 +1295,17 @@
     "owasp-java"
    ],
    "dates": {},
-   "population": 5787,
+   "population": 3634,
    "dimension": "security",
    "cwe": [
     "CWE-89"
    ],
    "fp_notes": [],
    "admitted": false,
-   "admitted_reason": "lower bound 0.418 on 5787 labels, below 0.97",
+   "admitted_reason": "lower bound 0.670 on 3634 labels, below 0.97",
    "updated": "2026-10-23",
    "snapshot_counts": {
-    "planted": 8,
+    "planted": 9,
     "ai-corpus": 0
    }
   },
@@ -1575,17 +1575,17 @@
   },
   "arbiter/java.xss-unescaped-html": {
    "tp": 382,
-   "fp": 95,
+   "fp": 53,
    "unsure": 0,
-   "n": 477,
+   "n": 435,
    "held_out": {
     "tp": 382,
-    "fp": 95,
+    "fp": 53,
     "unsure": 0
    },
-   "precision": 0.8008,
-   "wilson_lower": 0.7627,
-   "wilson_upper": 0.8342,
+   "precision": 0.8782,
+   "wilson_lower": 0.8441,
+   "wilson_upper": 0.9056,
    "kappa": null,
    "kappa_pairs": 0,
    "observed_agreement": null,
@@ -1597,14 +1597,14 @@
     "owasp-java"
    ],
    "dates": {},
-   "population": 477,
+   "population": 435,
    "dimension": "security",
    "cwe": [
     "CWE-79"
    ],
    "fp_notes": [],
    "admitted": false,
-   "admitted_reason": "lower bound 0.763 on 477 labels, below 0.97",
+   "admitted_reason": "lower bound 0.844 on 435 labels, below 0.97",
    "updated": "2026-10-23",
    "snapshot_counts": {
     "planted": 3,
@@ -1652,17 +1652,17 @@
   },
   "arbiter/python.command-injection": {
    "tp": 7,
-   "fp": 8,
+   "fp": 7,
    "unsure": 0,
-   "n": 15,
+   "n": 14,
    "held_out": {
     "tp": 7,
-    "fp": 7,
+    "fp": 6,
     "unsure": 0
    },
-   "precision": 0.4667,
-   "wilson_lower": 0.2481,
-   "wilson_upper": 0.6988,
+   "precision": 0.5,
+   "wilson_lower": 0.268,
+   "wilson_upper": 0.732,
    "kappa": null,
    "kappa_pairs": 0,
    "observed_agreement": null,
@@ -1675,17 +1675,17 @@
     "owasp-python"
    ],
    "dates": {},
-   "population": 15,
+   "population": 14,
    "dimension": "security",
    "cwe": [
     "CWE-78"
    ],
    "fp_notes": [],
    "admitted": false,
-   "admitted_reason": "15 label(s), 30 needed",
+   "admitted_reason": "14 label(s), 30 needed",
    "updated": "2026-10-23",
    "snapshot_counts": {
-    "planted": 4,
+    "planted": 5,
     "ai-corpus": 0
    }
   },
