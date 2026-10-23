@@ -107,7 +107,11 @@ Per rule:
 | `precision`, `wilson_lower`, `wilson_upper` | over all labels |
 | `kappa`, `kappa_pairs`, `observed_agreement` | Cohen's κ between the first two labellers of each finding |
 | `labellers`, `sources`, `dates` | who labelled, which corpora, first and last label date |
-| `population` | findings of the rule in the sampled run (from `stratum_size`), for weighting |
+| `population`, `held_out_population` | findings of the rule in the runs its labels were drawn from, all and held-out (sums of its strata); `null` when any label's population is unknown |
+| `population_unknown` | labelled findings whose stratum has no recorded population (0 when every one is known) |
+| `strata` | one row per (source, language): `population`, `held_out_population`, and `tp`/`fp`/`unsure` all and held-out |
+| `source_population` | the rule's population per source, all and held-out, including strata no label was drawn from |
+| `weighted` | the stratified precision over all labels (below), with `pooled` for comparison; `null` when a population is unknown |
 | `dimension`, `cwe` | the categories the claim is broken down by |
 | `admitted`, `admitted_reason` | computed from the counts (below) |
 | `fp_notes` | known false-positive patterns; the verify pass puts them in its prompt |
@@ -127,14 +131,79 @@ rule-of-three figure of about 300 is a one-sided bound; this is two-sided).
 One FP moves those to roughly 200 and 470.
 
 **Tier claim** (`tier` in the ledger): over the rules that are declared
-verified *and* admitted, held-out labels only. Each rule is a stratum
-weighted by its population; the point estimate is the weighted precision and
-the interval is Wilson on Kish's effective sample size
-`1 / Σ (w_r² / n_r)`. A single stratum reduces to its plain Wilson interval;
-a loud rule labelled thinly widens the interval rather than hiding behind a
-quiet, well-labelled one. `claim` is true where the lower bound is ≥ 0.99
-(`bar.tier_lower`). The same is computed per category (the rule's dimension,
-and each of its CWEs).
+verified *and* admitted, held-out labels only, as a stratified estimate
+weighted by population (next section). `claim` is true where the bound
+`claim_lower` is ≥ 0.99 (`bar.tier_lower`). The same is computed per
+category (the rule's dimension, and each of its CWEs).
+
+### Population weights
+
+A rule's labels are a sample, and not a proportional one: `label_models.py
+--per-rule` and `label_sample.py` allocate by the square root of a stratum's
+size or by a per-rule budget, so a quiet stratum is labelled far more
+densely than a loud one. Pooling the labels would let the quiet stratum
+speak for the loud one. The claim is about the findings Arbiter reports, so
+each stratum is weighted back to the number of findings it was drawn from.
+
+**Strata.** A stratum is (rule, source, language): the sampler's own
+(rule, language) strata within one source run (`gold-model` is one gold
+run; each ground-truth benchmark and the AI corpus are their own). Every
+label record carries its stratum's population (see Label format below,
+`stratum_size` and the fields beside it), recorded at sampling time from
+the population the sampler drew from. For the held-out claim the
+population is the stratum's held-out part (`stratum_held_out_size`, the
+findings in held-out repositories): the sample is a simple random sample
+of the stratum, so its held-out labels are a random sample of that part.
+
+**Estimate.** Over the strata h with at least one decided (tp/fp) held-out
+label, with N_h held-out findings, n_h decided labels and p_h = tp_h / n_h:
+
+    W_h = N_h / Σ N_h           p = Σ W_h p_h
+    n_Kish = 1 / Σ (W_h² / n_h)
+    V = Σ W_h² p_h (1 − p_h) / n_h       n_design = p (1 − p) / V
+    n_eff = min(n_Kish, n_design)        (n_Kish when V = 0)
+    [lower, upper] = Wilson(p · n_eff, n_eff)
+
+`n_Kish` is the loss from unequal weights and stays defined when every
+stratum is all-TP, which is exactly the case a 99% claim is made in. The
+design-based `n_design` comes from the stratified variance and is the
+smaller of the two when a heavy stratum is both thinly labelled and less
+precise than the rest; taking the minimum keeps the bound from borrowing
+confidence from the well-labelled strata. One stratum gives its plain
+Wilson interval. There is no finite-population correction: the claim is
+about the rule on code like the corpus, not about these particular
+findings, so a census stratum (every finding labelled) still carries the
+sampling error of its n_h.
+
+**Coverage.** Held-out findings of a verified rule in strata with no
+decided held-out label (a language the sample missed, or labels that were
+all `unsure`) are not estimated. They count against the claim as if every
+one were a false positive: `coverage` is the labelled strata's share of
+the rules' held-out population (`source_population`), and the claim bound
+is `claim_lower = coverage × lower`. Since the true precision is at least
+`coverage × p_labelled`, the bound stays valid.
+
+**Unknown populations are not guessed.** A stratum any of whose labels has
+no recorded `stratum_size` is unknown as a whole. The rule's `population`
+is `null`, `population_unknown` counts its labels, `show` lists it, and a
+tier or category containing it has no estimate (`population_unknown` names
+the rules) and no claim. The CI guard fails a declared-verified rule with
+an unknown population. Admission (`n`, Wilson lower, κ) is per rule on its
+own labels and does not need populations.
+
+Two records of one stratum with different sizes are refused at build:
+labels drawn from different runs belong under different `source` names.
+
+**Backfill.** Labels written before 2026-10-23 (round 4) had no
+population. `tools/label_populations.py backfill` recomputes it with no
+model calls: `gold-model.jsonl` from the gold run its `--per-rule` sample
+was drawn from (`tools/gold/results/2026-10-23-gold-report-relabel.json.gz`,
+matched by repository and finding id, rule, language and split checked),
+and the AI corpus, the CVE suspects and the ground-truth files as censuses
+(every finding labelled, so a stratum's population is its records). It
+writes only the population fields and refuses any other change; a label it
+cannot match gets `stratum_size: null` and `sampling: "unknown: <why>"`.
+`--check` fails when a file is out of date (a test holds it).
 
 **Final verdict per finding.** Ground truth wins; then the adjudicator's
 label; then the labellers' when every TP/FP among them agrees. A
@@ -151,7 +220,9 @@ when
    (`tools/gold/snapshots/`) is more than 20% above its `snapshot_counts`
    and the ledger entry is not newer than the snapshot: the rule now fires on
    code its labels never saw;
-4. the ledger and its packaged copy differ.
+4. the ledger and its packaged copy differ;
+5. a rule declared verified has labels with no recorded population
+   (`population_unknown`), so the tier claim cannot weight it.
 
 Each failure is seeded in `tests/test_precision_ledger.py`.
 
@@ -165,7 +236,7 @@ a person) writes the same.
 starting with `#` are skipped:
 
 ```json
-{"finding_id": "gold-2026-10-22:f:3f9a0c1d2e4b", "rule_id": "arbiter/python.sql-injection", "label": "fp", "labeller": "claude-opus-5-5/prompt-a@v1", "source": "gold", "held_out": true, "role": "labeller", "date": "2026-10-22", "note": "table name is a module constant", "language": "python", "stratum_size": 41}
+{"finding_id": "gold-2026-10-22:f:3f9a0c1d2e4b", "rule_id": "arbiter/python.sql-injection", "label": "fp", "labeller": "claude-opus-5-5/prompt-a@v1", "source": "gold", "held_out": true, "role": "labeller", "date": "2026-10-22", "note": "table name is a module constant", "language": "python", "stratum_size": 41, "stratum_held_out_size": 12, "rule_population": 55, "rule_held_out_population": 15, "sampling": "stratified"}
 ```
 
 Required:
@@ -186,7 +257,10 @@ Optional:
 | `role` | `labeller` (default), `adjudicator` (decides a disagreement; wins over labellers) or `ground_truth` (published truth; wins over everything) |
 | `date` | ISO date of the label |
 | `note` | free text; on an `fp` label it is added to the rule's `fp_notes`, which the verify pass reads |
-| `language`, `stratum_size` | the sampling stratum and its population, for weighting (label_sample.py writes both) |
+| `language`, `stratum_size` | the sampling stratum (with `rule_id` and `source`) and how many findings it held when the sample was drawn; required for a rule to be verified (`### Population weights`). `label_models.py`, the ground-truth writers and label_sample.py sheets write it |
+| `stratum_held_out_size` | how many of the stratum's findings are in the held-out split |
+| `rule_population`, `rule_held_out_population` | the rule's findings in the same run, all and held-out, including strata the sample did not reach (for `coverage`) |
+| `sampling` | `stratified`, `census` (every finding labelled), or `unknown: <why>` from the backfill |
 | `dimension`, `cwe` | categories, when the rule's own metadata does not carry them |
 
 Rules for producers:
@@ -216,6 +290,18 @@ and `v3` model labels for 120 rules. **2 are admitted**:
 exactly at the bar). No rule is declared verified, so every finding is
 advisory. There is no verified-tier precision figure and no category
 claim. `tools/precision_guard.py check` passes.
+
+**Populations (round 4).** Every label the ledger reads now carries its
+stratum's population (backfilled, none unknown). `java.weak-random-for-
+secret` is one census stratum (OWASP Java, 218 findings, all held out), so
+nothing changes for it. `assurance.blanket-suppression`'s population is
+150 (Python 62, TypeScript 88), not the 125 labels it fell back to, and
+its held-out population is 20 (18 labelled, all tp; weighted lower 0.824
+on n_eff 18). Were both declared verified, the held-out tier estimate would
+be 1.0 with a lower bound of 0.984 on n_eff 235.8 over 238 held-out
+findings (coverage 1.0): no 99% claim. The previous method gave 0.966 on
+n_eff 108, because it weighted each rule's held-out labels by its whole
+population (dev and held-out) and the label count stood in for that.
 
 **Labeller calibration** is how far a model label can be trusted. It is
 measured blind against truth the labellers never saw, and it bounds every

@@ -229,6 +229,33 @@ def label(finding: dict, verdict: str, *, labeller: str, source: str, held_out: 
     return rec
 
 
+def census_population(records: list[dict], how: str = "census") -> list[dict]:
+    """Label records that cover every finding of their population (a
+    ground-truth benchmark labels each finding it can judge; the AI corpus
+    and the CVE suspects are labelled whole), with the population fields of
+    docs/precision.md ("Population weights"): each (source, rule, language)
+    stratum's population is the records in it. Returns new records; the
+    labels are untouched."""
+    from collections import Counter
+    size: Counter = Counter()
+    held: Counter = Counter()
+    rule_size: Counter = Counter()
+    rule_held: Counter = Counter()
+    for r in records:
+        k = (r["source"], r["rule_id"], r.get("language") or "")
+        size[k] += 1
+        held[k] += bool(r["held_out"])
+        rule_size[k[:2]] += 1
+        rule_held[k[:2]] += bool(r["held_out"])
+    out = []
+    for r in records:
+        k = (r["source"], r["rule_id"], r.get("language") or "")
+        out.append({**r, "stratum_size": size[k], "stratum_held_out_size": held[k],
+                    "rule_population": rule_size[k[:2]], "rule_held_out_population": rule_held[k[:2]],
+                    "sampling": how})
+    return out
+
+
 def _open(path: Path, mode: str):
     import gzip
     if path.suffix == ".gz":
