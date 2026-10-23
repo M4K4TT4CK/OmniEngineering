@@ -16,3 +16,12 @@ def import_repo() -> dict:
     dest = tempfile.mkdtemp()
     subprocess.run(["git", "clone", "--", repo_url, dest], check=True, timeout=120)
     return {"path": dest}
+
+
+@app.get("/reachable")
+def reachable() -> dict:
+    url = request.args["url"]
+    if url.startswith("-"):
+        abort(400)
+    out = subprocess.run(["curl", "-sI", url], capture_output=True, timeout=10)
+    return {"ok": out.returncode == 0}

@@ -5,6 +5,46 @@ under `[Unreleased]` (there are no release tags yet) and reference the
 `REQ-###` they serve. Rationale belongs in `.ai/project-context.md`.
 
 ## [Unreleased]
+### 2026-10-22 (CWE Top 25 round 2: TypeScript and Python)
+- ARB-062 | Native rules for ranked gaps 3, 5, 6 and 8 (`docs/cwe-top25.md`)
+in TypeScript and Python, same-function form. TypeScript:
+`ssrf-request-url` (CWE-918, high severity, medium confidence: `fetch`,
+axios, got, ky, needle, superagent, `http(s).get/request`, undici, called
+with `req`/`ctx` `.query`/`.body`/`.params` as the URL or its start, directly
+or through one local, `const { url } = req.body` included; a fixed origin
+before the value, an allowlist or a `.hostname` check is not reported),
+`argument-injection` (CWE-77/88: `execFile`/`spawn`/`execa` running git,
+curl, ssh, rsync, tar and similar tools with a request value in the argv
+array and no `"--"`; a value bound to its option or a `startsWith("-")`
+check is not reported), `upload-client-filename` (CWE-434: multer
+`diskStorage` named by `originalname`, formidable `originalFilename` or
+`originalname` in a write/rename/copy path, express-fileupload `mv`; silent
+with a `fileFilter`, MIME check, sanitiser or basename in scope),
+`csrf-unsafe-methods-ignored` (CWE-352, high/high: csurf `ignoreMethods`
+listing POST/PUT/PATCH/DELETE) and `session-cookie-cross-site` (CWE-352,
+medium: a session-library cookie with `sameSite: "none"` in a file that
+mentions no CSRF token). Python: `argument-injection` (subprocess argv
+lists and `asyncio.create_subprocess_exec`), `upload-client-filename`
+(Flask `save(f.filename)`, `open(..., "wb")` with `.filename`/`.name`,
+Django `storage.save(f.name, f)`, only in a function that handles an
+upload; silent with `secure_filename`, a uuid name, an allowlist or a MIME
+check) and `debug-mode-enabled` (CWE-200/489: literal `debug=True` in
+`app.run`, `FastAPI`/`Starlette`, `app.debug`, `app.config["DEBUG"]`). A
+local is tied to its sink by a regex backreference over the enclosing
+function in `requires_in_scope`; no schema change. Python 918 stays
+semgrep-only. The planted good twin `server.ts` `/convert` route, which
+passed `req.body.file` to ImageMagick, now rejects a leading `-`. `gap:`
+markers TS 77, 434, 918 and Python 77, 434 became `expect:`; new pairs for
+the TS CSRF weakenings; the TS missing-middleware CSRF line keeps its
+`gap:` marker. Planted: Python 57/57, TypeScript 72/72, 0 on good twins, 0
+unmarked. Real code: the SSRF lessons in juice-shop
+(`profileImageUrlUpload`) and nodegoat (`research.js`) are reported, both
+true positives; nothing else in corpus-typescript, the three Django
+applications, corpus-clean or the gold TypeScript and Python repositories
+(0 gold findings from the new rules). Matrix: TypeScript 352, 434, 77 and
+918 and Python 434 and 77 to N; native cells TypeScript 8 to 12, Python 9
+to 11; neither language has a gap cell left. `docs/probes.md` not-assessed
+rows updated.
 ### 2026-10-22 (round 1 decisions)
 - ARB-065 | Gold budgets gain `accepted_breaches`: a rule over budget by a recorded decision stays in the report and in `rules_over_budget`, and the run fails again only if its rate passes a ceiling set about 10% above the rate at the decision (`failing_breaches`, tested). Recorded on 2026-10-22 by the user: `java.test-without-assertion` is a known breach (0.066/KLOC; its remaining findings are tests that only call the code), and `assurance.permanently-skipped-test` (0.0315) and `typescript.test-without-assertion` (0.034) are accepted overages. The run on the 1047341 report has 9 over budget, 3 of them accepted, and 6 failing.
 - ARB-065 | Decisions recorded by the user on 2026-10-22: the test-file exclusions in 1047341 and c4d8bfe stand (TLS off for a test's own local server, `override_settings(DEBUG=True)`, empty skipped tests, Java `@Override` tests). The three Django applications stay a separate corpus, not gold, so Python denominators don't move. Checking `assurance.test-asserts-nothing` for the same conditional-skip blind spot is round 2 work.

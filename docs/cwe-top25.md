@@ -43,22 +43,22 @@ per CWE. Cells marked † are measured on pairs that were already in the corpus.
 | 1 | 79 XSS | S | N+S † | S | **gap** | S |
 | 2 | 787 OOB write | n/a | n/a | n/a | n/a | n/a |
 | 3 | 89 SQL injection | N+S+B † | N+S † | N+S † | N+S † | N+S † |
-| 4 | 352 CSRF | N+S | **gap** | OOR | N+S | N |
+| 4 | 352 CSRF | N+S | N | OOR | N+S | N |
 | 5 | 22 Path traversal | S | S | **gap** | S | **gap** |
 | 6 | 125 OOB read | n/a | n/a | n/a | n/a | n/a |
 | 7 | 78 OS command injection | N+S+B † | N+S † | N+S † | N+S † | N+S † |
 | 8 | 416 Use after free | n/a | n/a | n/a | n/a | n/a |
 | 9 | 862 Missing authorization | OOR | OOR | OOR | OOR | OOR |
-| 10 | 434 Dangerous upload | **gap** | **gap** | **gap** | S | **gap** |
+| 10 | 434 Dangerous upload | N | N | **gap** | S | **gap** |
 | 11 | 94 Code injection | N+S+B † | N+S † | n/a | S | N+S † |
 | 12 | 20 Input validation | OOR | OOR | OOR | OOR | OOR |
-| 13 | 77 Command injection (argument) | **gap** | **gap** | **gap** | **gap** | **gap** |
+| 13 | 77 Command injection (argument) | N | N | **gap** | **gap** | **gap** |
 | 14 | 287 Improper authentication | N+S | N | N | N+S | N+S |
 | 15 | 269 Privilege management | OOR | OOR | OOR | OOR | OOR |
 | 16 | 502 Deserialization | N+S+B † | S | n/a | N+S † | N † |
 | 17 | 200 Information exposure | N+S+B | N | N | N | N |
 | 18 | 863 Incorrect authorization | OOR | OOR | OOR | OOR | OOR |
-| 19 | 918 SSRF | S | **gap** | **gap** | **gap** | **gap** |
+| 19 | 918 SSRF | S | N | **gap** | **gap** | **gap** |
 | 20 | 119 Buffer bounds | n/a | n/a | n/a | n/a | n/a |
 | 21 | 476 NULL dereference | n/a | n/a | OOR | OOR | n/a |
 | 22 | 798 Hard-coded credentials | N+S+B | N+S | N | N | N+S |
@@ -74,8 +74,8 @@ the total. "Native only" means no external analyzer is needed.
 
 | Language | Applicable cells | Native | Semgrep | Bandit | Caught by anything | Gaps |
 |---|---|---|---|---|---|---|
-| Python | 14 | 9 | 12 | 7 | 12 | 2 (434, 77) |
-| TypeScript | 14 | 8 | 7 | n/a | 10 | 4 (352, 434, 77, 918) |
+| Python | 14 | 11 | 12 | 7 | 14 | 0 |
+| TypeScript | 14 | 12 | 7 | n/a | 14 | 0 |
 | Go | 12 | 6 | 3 | n/a | 7 | 5 (22, 434, 77, 918, 190) |
 | Java | 15 | 8 | 8 | n/a | 11 | 4 (79, 77, 918, 190) |
 | Ruby | 14 | 9 | 6 | n/a | 10 | 4 (22, 434, 77, 918) |
@@ -88,6 +88,7 @@ semgrep's bundled `generic.secrets.gitleaks.*` rules did report two of them.
 
 - **Python 77**: bandit's B603/B607 fire on the bad *and* the good twin
   (`subprocess` with a list), so they do not separate the defect from the fix.
+  Native since round 2: `python.argument-injection` (below).
 - **Python 200**: `app.run(debug=True)` is caught (semgrep `debug-enabled`,
   bandit B201). Returning `traceback.format_exc()` to the client is caught by
   `python.error-traceback-to-client`, and `str(e)` from a catch-all handler by
@@ -152,8 +153,46 @@ semgrep's bundled `generic.secrets.gitleaks.*` rules did report two of them.
   only a broad or library exception (`Exception`, `SQLException`, ...): the
   message of a validation or domain exception is usually meant for the caller.
 - **TypeScript 352**: Express has no CSRF protection to switch off, so the
-  defect is an *absent* middleware. semgrep's `express-check-csurf-middleware-usage`
-  did not fire on the planted app.
+  usual defect is an *absent* middleware. semgrep's `express-check-csurf-middleware-usage`
+  did not fire on the planted app, and no native rule sees it: whether some
+  file mounts a CSRF check is a whole-application question. That planted
+  line (`cwe352-csrf.ts`) keeps its `gap: CWE-352` marker. The cell is N
+  since round 2 for the two explicit weakenings that are in reach:
+  `typescript.csrf-unsafe-methods-ignored` (csurf's `ignoreMethods` listing
+  POST, PUT, PATCH or DELETE; high confidence) and
+  `typescript.session-cookie-cross-site` (an express-session, cookie-session,
+  koa-session or @fastify/session cookie with `sameSite: "none"` in a file
+  that mentions no CSRF token; medium).
+- **TypeScript 918, 434, 77 and Python 434, 77, 200 (round 2)**:
+  `typescript.ssrf-request-url` reports `fetch`/axios/got/ky/needle/
+  superagent/`http(s).get|request`/undici called with a request value
+  (`req`/`request`/`ctx` `.query`, `.body`, `.params`) as the URL or its
+  start, directly or through one local in the same function (`const url =
+  req.query.url`, `const { url } = req.body`). A value after a fixed origin
+  (`` `https://api/u/${id}` ``) is not reported, nor is a function with an
+  allowlist or a `.hostname` check. `typescript.argument-injection` and
+  `python.argument-injection` (CWE-77/88) report `execFile`/`spawn`/`execa`
+  and `subprocess` argv lists (and `asyncio.create_subprocess_exec`) for
+  git, curl, ssh, rsync, tar and similar tools with a request value as an
+  element and no `"--"`; a value bound to its option (`--depth=${n}`) or a
+  `startsWith("-")` check is not reported. `typescript.upload-client-filename`
+  reports multer's `diskStorage({ filename })` returning `originalname`,
+  formidable's `originalFilename` or multer's `originalname` in a write,
+  rename or copy path, and express-fileupload's `mv(... .name ...)`;
+  `python.upload-client-filename` reports Flask `save(f.filename)`,
+  `open(<... .filename/.name ...>, "wb")` and Django `storage.save(f.name, f)`
+  in a function that handles an upload (`request.files`, `request.FILES`,
+  `UploadFile`). Both are silent with a sanitiser, basename, allowlist,
+  `fileFilter` or MIME check in scope. All of these are medium confidence:
+  only the same function is read. Python 918 stays semgrep-only.
+  `python.debug-mode-enabled` (CWE-200/489) reports a literal `debug=True`
+  in `app.run`, `FastAPI(...)`/`Starlette(...)`, `app.debug = True` or
+  `app.config["DEBUG"] = True`, so Python's debug-mode part of 200 no
+  longer needs semgrep or bandit.
+  Real code, 2026-10-22: the two SSRF lessons in the vulnerable apps
+  (juice-shop `profileImageUrlUpload`, nodegoat `research.js`) are reported;
+  nothing else in corpus-typescript, the three Django applications,
+  corpus-clean or the gold TypeScript and Python repositories.
 - **TypeScript 287, 200 and Go 287, 200, 798** (native rules, ARB-062 round
   1): `typescript.jwt-decode-unverified` and `go.jwt-parse-unverified` are
   medium confidence, because reading `kid` or `iss` before verifying is
@@ -199,15 +238,15 @@ not part of this change.
 |---|---|---|---|
 | 1 | CWE-287 JWT decoded without verification (`jwt.decode`, `ParseUnverified`) | native in all five languages since round 1 | Assistants reach for `decode` to "read the user id". The call names are unambiguous, so a rule would be near-zero noise. |
 | 2 | CWE-798 literal signing key or DB password passed to a known API (`Algorithm.HMAC256("…")`, `[]byte("…")` signing key, `DriverManager.getConnection(…, "pw")`) | native in Java and Go, and the Python and Ruby JWT-key form, since round 1 | Placeholder secrets are the classic AI output. The secrets probe misses them because the literal sits in an argument, not a credential-named assignment. |
-| 3 | CWE-352 CSRF switched off (`csrf.disable()`, `csrf(c -> c.disable())`, `skip_before_action :verify_authenticity_token`) | native in Java, Python and Ruby since round 1; TypeScript still a gap | The standard AI "fix" for a 403 on POST. It is an exact call pattern, and semgrep's Ruby rule cannot tell it from a correct controller. |
+| 3 | CWE-352 CSRF switched off (`csrf.disable()`, `csrf(c -> c.disable())`, `skip_before_action :verify_authenticity_token`) | native in Java, Python and Ruby since round 1; TypeScript's explicit weakenings since round 2 (a missing middleware stays out of reach) | The standard AI "fix" for a 403 on POST. It is an exact call pattern, and semgrep's Ruby rule cannot tell it from a correct controller. |
 | 4 | CWE-200 error detail returned to the client (`err.stack`, `traceback.format_exc()`, `e.backtrace`, `printStackTrace` into the body, `http.Error(w, err.Error(), 500)`) | native in all five languages since round 1 | Very common in generated handlers. A response sink containing the error in the same statement is practical. The Go `err.Error()` form needs a medium-confidence level. |
-| 5 | CWE-434 upload stored under the client's filename (`f.filename`, `file.originalname`, `header.Filename`, `getOriginalFilename()`, `original_filename` in a save or write path) | all five (Java via path rule only) | The names are framework-specific and stable. A same-function absence of an extension or MIME allowlist could raise the confidence. |
-| 6 | CWE-918 request value passed straight to an HTTP client (`fetch(req.query…)`, `client.Get(r.URL.Query()…)`, `URI.create(param)`, `Faraday#get(params…)`) | TS, Go, Java, Ruby | Link previews, webhooks and image proxies are common asks. The same-statement or same-function source-to-sink form is the existing `sql-injection` rules' shape. |
+| 5 | CWE-434 upload stored under the client's filename (`f.filename`, `file.originalname`, `header.Filename`, `getOriginalFilename()`, `original_filename` in a save or write path) | native in TypeScript and Python since round 2; Go, Ruby (Java via path rule only) | The names are framework-specific and stable. A same-function absence of an extension or MIME allowlist could raise the confidence. |
+| 6 | CWE-918 request value passed straight to an HTTP client (`fetch(req.query…)`, `client.Get(r.URL.Query()…)`, `URI.create(param)`, `Faraday#get(params…)`) | native in TypeScript since round 2; Go, Java, Ruby | Link previews, webhooks and image proxies are common asks. The same-statement or same-function source-to-sink form is the existing `sql-injection` rules' shape. |
 | 7 | CWE-22 request value joined into a path (`filepath.Join(dir, r.URL.Query()…)`, `File.join(…, params[…])`) with no `IsLocal`/`basename`/prefix check in scope | Go, Ruby | Common. The "unless_in_scope" guard condition fits the pack schema. |
-| 8 | CWE-77 argument injection: `git`/`curl`/`ssh` invoked with a non-literal argument and no `--` | all five | Less common, but none of the analyzers sees it. The tool names and the missing `--` are easy to check, though the defect is narrower. |
+| 8 | CWE-77 argument injection: `git`/`curl`/`ssh` invoked with a non-literal argument and no `--` | native in TypeScript and Python since round 2 (request value, same function); Go, Java, Ruby | Less common, but none of the analyzers sees it. The tool names and the missing `--` are easy to check, though the defect is narrower. |
 | 9 | CWE-79 HTML string built from a `@RequestParam` in a `produces = TEXT_HTML` handler | Java | Less common, since Java assistants usually use templates. Practical, using the TS `html-from-request` shape. |
 | 10 | CWE-190 narrowing conversion of a parsed integer (`int32(n)` after `strconv.Atoi`) | Go | A gosec-style rule (G109/G115) is practical. The Java `int * int` overflow is not: every multiplication would be a candidate. |
 
-Not ranked: TypeScript 352 (absent middleware, low practicality per file),
-Java 190 and Python 77 (noise). The out-of-reach rows above are not ranked
+Not ranked: TypeScript 352 in its absent-middleware form (low practicality
+per file) and Java 190 (noise). The out-of-reach rows above are not ranked
 either: no single-file rule can assess them.
