@@ -571,7 +571,7 @@ names). These are files we wrote: they measure the labellers on clear-cut
 cases and cannot back a claim on real code. `label_models.py fact-check`
 compares existing model labels with facts a script can check (a full-SHA
 action pin, a lockfile beside the manifest, a secret under a test or example
-path, every linked path existing). Results:
+path, every linked path existing, a suppression directive that names no rule). Results:
 `tools/gold/results/2026-10-23-calibration.md`.
 
 **Held-out split** (`tools/gold/heldout.json`, frozen by

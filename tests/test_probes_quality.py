@@ -90,6 +90,24 @@ def test_unpinned_action_keeps_its_severity(tmp_path):
     assert hits and hits[0].severity == "low"
 
 
+def test_unpinned_action_reports_the_uses_line_not_a_blank_line_above(tmp_path):
+    """`^\\s*` under re.M matched from the blank line before a step and
+    swallowed its newline, so the finding pointed at the blank line (round 4:
+    all three `v3` FP labels of the rule, py-celery, ruby-rack, java-netty)."""
+    wf = ("jobs:\n  b:\n    steps:\n      - uses: actions/checkout@v4\n"
+          "\n"
+          "      - uses: actions/setup-python@v5\n"
+          "\n\n"
+          "      -\n        uses: actions/cache@v4\n"
+          "      - name: x\n\n        uses: codecov/codecov-action@v4\n")
+    found = _scan_text(tmp_path, ".github/workflows/ci.yml", wf, ["supply_chain"])
+    hits = sorted((f.location.start_line, f.evidence) for f in found
+                  if f.rule_id == "arbiter/supply.unpinned-action")
+    lines = wf.splitlines()
+    assert [h[0] for h in hits] == [4, 6, 10, 13]
+    assert all("uses:" in lines[ln - 1] for ln, _ in hits)
+
+
 def test_informational_findings_do_not_move_the_grade(tmp_path):
     """The point of the downgrade: a project full of caret ranges and nothing
     else must not be scored as if it had real problems."""

@@ -336,6 +336,26 @@ def test_fact_truth_sha_pin_lockfile_and_test_path(tmp_path):
     assert lm.fact_truth({**sec, "path": "app/conf.py"}, tmp_path) is None
 
 
+def test_fact_truth_blanket_suppression_names_no_rule(tmp_path):
+    """Round 4: the claim of assurance.blanket-suppression is a regex fact,
+    like the SHA pin: does the directive on the line name a rule."""
+    (tmp_path / "a.py").write_text("import x  # noqa\nimport y  # noqa: F401\n"
+                                   "z = 1  # type: ignore[attr-defined]\ns = '# noqa'\n", encoding="utf-8")
+    (tmp_path / "a.ts").write_text("// @ts-ignore\nf() // eslint-disable-line no-console\n"
+                                   "g() // eslint-disable-line\n", encoding="utf-8")
+    sup = {"rule_id": "arbiter/assurance.blanket-suppression"}
+    got = [lm.fact_truth({**sup, "path": p, "line": n}, tmp_path)
+           for p, n in (("a.py", 1), ("a.py", 2), ("a.py", 3), ("a.py", 4),
+                        ("a.ts", 1), ("a.ts", 2), ("a.ts", 3))]
+    assert [g[0] if g else None for g in got] == ["tp", "fp", "fp", None, "tp", "fp", "tp"]
+    for line, want in (("x := f() //nolint", "tp"), ("x := f() //nolint:errcheck", "fp"),
+                       ('@SuppressWarnings("all")', "tp"), ('@SuppressWarnings("unchecked")', "fp"),
+                       ("# nosec", "tp"), ("# nosec B101", "fp"), ("/* eslint-disable */", "tp"),
+                       ("# rubocop:disable Style/Foo", "fp"), ("# pylint: disable=all", "tp")):
+        assert lm.suppression_fact(line)[0] == want, line
+    assert lm.suppression_fact("x = 1") is None
+
+
 def test_server_throttle_is_retried_not_taken_for_a_usage_limit(tmp_path):
     calls = []
 

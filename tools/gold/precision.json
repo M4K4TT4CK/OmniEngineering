@@ -99,17 +99,17 @@
    }
   },
   "arbiter/assurance.blanket-suppression": {
-   "tp": 125,
+   "tp": 150,
    "fp": 0,
    "unsure": 0,
-   "n": 125,
+   "n": 150,
    "held_out": {
-    "tp": 18,
+    "tp": 20,
     "fp": 0,
     "unsure": 0
    },
    "precision": 1.0,
-   "wilson_lower": 0.9702,
+   "wilson_lower": 0.975,
    "wilson_upper": 1.0,
    "kappa": null,
    "kappa_pairs": 0,
@@ -130,7 +130,7 @@
      "language": "python",
      "population": 62,
      "held_out_population": 1,
-     "tp": 56,
+     "tp": 62,
      "fp": 0,
      "unsure": 0,
      "held_out": {
@@ -144,11 +144,11 @@
      "language": "typescript",
      "population": 88,
      "held_out_population": 19,
-     "tp": 69,
+     "tp": 88,
      "fp": 0,
      "unsure": 0,
      "held_out": {
-      "tp": 17,
+      "tp": 19,
       "fp": 0,
       "unsure": 0
      }
@@ -162,24 +162,24 @@
    },
    "weighted": {
     "precision": 1.0,
-    "wilson_lower": 0.97,
+    "wilson_lower": 0.975,
     "wilson_upper": 1.0,
-    "n_eff": 124.4,
-    "n_eff_kish": 124.4,
-    "tp": 125,
+    "n_eff": 150.0,
+    "n_eff_kish": 150.0,
+    "tp": 150,
     "fp": 0,
     "population": 150,
     "strata": 2,
     "pooled": {
      "precision": 1.0,
-     "wilson_lower": 0.9702
+     "wilson_lower": 0.975
     }
    },
    "dimension": "",
    "cwe": [],
    "fp_notes": [],
    "admitted": true,
-   "admitted_reason": "lower bound 0.970 on 125 labels",
+   "admitted_reason": "lower bound 0.975 on 150 labels",
    "updated": "2026-10-23",
    "snapshot_counts": {
     "planted": 0,
@@ -6981,9 +6981,9 @@
   },
   "arbiter/ruby.sql-injection": {
    "tp": 0,
-   "fp": 19,
+   "fp": 10,
    "unsure": 0,
-   "n": 19,
+   "n": 10,
    "held_out": {
     "tp": 0,
     "fp": 0,
@@ -6991,7 +6991,7 @@
    },
    "precision": 0.0,
    "wilson_lower": 0.0,
-   "wilson_upper": 0.1682,
+   "wilson_upper": 0.2775,
    "kappa": null,
    "kappa_pairs": 0,
    "observed_agreement": null,
@@ -6999,35 +6999,20 @@
     "claude-opus-5-5:prosecutor+defender/v3"
    ],
    "sources": [
-    "ai-corpus-model",
     "gold-model"
    ],
    "dates": {},
-   "population": 21,
+   "population": 20,
    "held_out_population": 0,
    "population_unknown": 0,
    "strata": [
-    {
-     "source": "ai-corpus-model",
-     "language": "ruby",
-     "population": 1,
-     "held_out_population": 0,
-     "tp": 0,
-     "fp": 1,
-     "unsure": 0,
-     "held_out": {
-      "tp": 0,
-      "fp": 0,
-      "unsure": 0
-     }
-    },
     {
      "source": "gold-model",
      "language": "ruby",
      "population": 20,
      "held_out_population": 0,
      "tp": 0,
-     "fp": 18,
+     "fp": 10,
      "unsure": 0,
      "held_out": {
       "tp": 0,
@@ -7037,10 +7022,6 @@
     }
    ],
    "source_population": {
-    "ai-corpus-model": {
-     "population": 1,
-     "held_out_population": 0
-    },
     "gold-model": {
      "population": 20,
      "held_out_population": 0
@@ -7049,13 +7030,13 @@
    "weighted": {
     "precision": 0.0,
     "wilson_lower": 0.0,
-    "wilson_upper": 0.1682,
-    "n_eff": 19.0,
-    "n_eff_kish": 19.0,
+    "wilson_upper": 0.2775,
+    "n_eff": 10.0,
+    "n_eff_kish": 10.0,
     "tp": 0,
-    "fp": 19,
-    "population": 21,
-    "strata": 2,
+    "fp": 10,
+    "population": 20,
+    "strata": 1,
     "pooled": {
      "precision": 0.0,
      "wilson_lower": 0.0
@@ -7067,11 +7048,11 @@
    ],
    "fp_notes": [],
    "admitted": false,
-   "admitted_reason": "19 label(s), 30 needed",
+   "admitted_reason": "10 label(s), 30 needed",
    "updated": "2026-10-23",
    "snapshot_counts": {
     "planted": 5,
-    "ai-corpus": 1
+    "ai-corpus": 0
    }
   },
   "arbiter/ruby.ssrf-stored-callback": {
@@ -8190,23 +8171,22 @@
    }
   },
   "arbiter/supply.unpinned-action": {
-   "tp": 113,
-   "fp": 3,
+   "tp": 196,
+   "fp": 0,
    "unsure": 0,
-   "n": 116,
+   "n": 196,
    "held_out": {
-    "tp": 17,
-    "fp": 1,
+    "tp": 30,
+    "fp": 0,
     "unsure": 0
    },
-   "precision": 0.9741,
-   "wilson_lower": 0.9267,
-   "wilson_upper": 0.9912,
+   "precision": 1.0,
+   "wilson_lower": 0.9808,
+   "wilson_upper": 1.0,
    "kappa": null,
    "kappa_pairs": 0,
    "observed_agreement": null,
    "labellers": [
-    "claude-opus-5-5:prosecutor+defender+adjudicator/v3",
     "claude-opus-5-5:prosecutor+defender/v3"
    ],
    "sources": [
@@ -8222,12 +8202,12 @@
      "language": "yaml",
      "population": 273,
      "held_out_population": 41,
-     "tp": 113,
-     "fp": 3,
+     "tp": 196,
+     "fp": 0,
      "unsure": 0,
      "held_out": {
-      "tp": 17,
-      "fp": 1,
+      "tp": 30,
+      "fp": 0,
       "unsure": 0
      }
     }
@@ -8239,18 +8219,18 @@
     }
    },
    "weighted": {
-    "precision": 0.9741,
-    "wilson_lower": 0.9267,
-    "wilson_upper": 0.9912,
-    "n_eff": 116.0,
-    "n_eff_kish": 116.0,
-    "tp": 113,
-    "fp": 3,
+    "precision": 1.0,
+    "wilson_lower": 0.9808,
+    "wilson_upper": 1.0,
+    "n_eff": 196.0,
+    "n_eff_kish": 196.0,
+    "tp": 196,
+    "fp": 0,
     "population": 273,
     "strata": 1,
     "pooled": {
-     "precision": 0.9741,
-     "wilson_lower": 0.9267
+     "precision": 1.0,
+     "wilson_lower": 0.9808
     }
    },
    "dimension": "",
@@ -8259,8 +8239,8 @@
     "CWE-494"
    ],
    "fp_notes": [],
-   "admitted": false,
-   "admitted_reason": "lower bound 0.927 on 116 labels, below 0.97",
+   "admitted": true,
+   "admitted_reason": "lower bound 0.981 on 196 labels",
    "updated": "2026-10-23",
    "snapshot_counts": {
     "planted": 0,

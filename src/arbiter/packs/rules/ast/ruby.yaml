@@ -469,6 +469,16 @@ rules:
          (#match? @m "^(order|reorder|group|select|pluck|joins|having|where|execute|query)$")
          arguments: (argument_list . (element_reference object: (identifier) @p)))
         @hit (#eq? @p "params"))
+    # Round 4: a call is also skipped when every interpolation is safe by
+    # structure (lang_rules._rb_splices_safe): a literal chosen by a
+    # condition (`#{enforced ? 'ENFORCED' : 'NOT ENFORCED'}`, `#{' IF
+    # EXISTS' if if_exists}`), a `quote_*` / `sanitize_*` / `escape_*` call,
+    # or a local assigned only such values or a PRAGMA setting read back
+    # from the database (`old = query_value("PRAGMA foreign_keys")`). All
+    # 19 `v3` gold labels were FPs of this kind or of internal identifiers.
+    safe_splice_text: "^#\\{[A-Z]|table_name|primary_key|quote|sanitize|escape|connection\\.|_column|arel|\\.to_i\\s*\\}$|\\.to_f\\s*\\}$|^#\\{\\s*(Integer|Float)\\("
+    safe_splice_calls: "quote\\w*|sanitize_sql\\w*|escape_\\w+|to_i|to_f|Integer|Float"
+    safe_splice_values: "(?:\\w+\\.)*(?:query_value|select_value)\\(?\\s*([\"'])PRAGMA \\w+\\1(?:\\s*,\\s*(?:nil|[\"'][\\w ]*[\"']))?\\s*\\)?"
     description: >-
       The SQL text is assembled from a runtime value. Whoever controls that
       value controls the query: a quote in a name reads or deletes other
@@ -495,7 +505,7 @@ rules:
          (#not-match? @hit "^(::)?(Kernel|Process|IO|Open3)\\."))
       sanitizers: |
         ((call method: (identifier) @m) @sanitizer
-         (#match? @m "^(to_i|to_f|quote|quote_table_name|quote_column_name|sanitize_sql\\w*|escape_string|escape_literal)$"))
+         (#match? @m "^(to_i|to_f|quote\\w*|sanitize_sql\\w*|escape_string|escape_literal)$"))
 
   - id: command-injection
     requirements: [ARB-061]
