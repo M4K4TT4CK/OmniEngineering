@@ -28,7 +28,7 @@ module Jobs
 
     post "/jobs" do
       id = generate_token
-      settings.queue.enqueue(id, request.body.read)
+      settings.queue.enqueue(id, request.body.read) # expect: arbiter/ruby.request-body-read-unbounded
       json id: id
     end
 
@@ -55,7 +55,7 @@ module Jobs
     end
 
     post "/calc" do
-      expr = JSON.parse(request.body.read)["expr"]
+      expr = JSON.parse(request.body.read)["expr"] # expect: arbiter/ruby.request-body-read-unbounded
       json result: eval(expr) # expect: arbiter/ruby.dynamic-eval
     end
 

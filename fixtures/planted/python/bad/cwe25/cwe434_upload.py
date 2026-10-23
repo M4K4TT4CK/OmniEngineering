@@ -7,7 +7,7 @@ from fastapi import FastAPI, UploadFile
 
 from flask import Flask, request
 
-app = Flask(__name__)
+app = Flask(__name__)  # expect: arbiter/python.request-body-unbounded
 UPLOAD_DIR = "static/avatars"
 
 

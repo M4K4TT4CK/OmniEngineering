@@ -34,7 +34,9 @@
   ],
   "retry-no-backoff": [
    "arbiter/*.retry*backoff",
-   "arbiter/ruby.retry-unbounded"
+   "arbiter/ruby.retry-unbounded",
+   "arbiter/*.retry-constant-delay",
+   "arbiter/ruby.requeue-without-delay"
   ],
   "missing-timeout": [
    "arbiter/*no-timeout",

@@ -1350,3 +1350,179 @@ rules:
       Generate the stored name (`UUID.randomUUID()`), choose the extension
       from an allowlist of content types you checked, store outside the web
       root, and keep the client's name only as data.
+
+  # ---------------------------------------------------------------------
+  # Defect classes found in AI-written code (ARB-083)
+  # ---------------------------------------------------------------------
+  # Each shape below is one a reviewer labelled in model-written services
+  # (fixtures/ai-corpus) that no earlier rule covered. All start advisory.
+  - id: mail-starttls-not-required
+    requirements: [ARB-083]
+    title: "`{text}` lets Jakarta Mail fall back to plaintext"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-319]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-8]
+    tags: [tls, smtp, ai-code]
+    # `starttls.enable` alone is opportunistic: STARTTLS is used only when
+    # the server advertises it, so a MITM that strips the capability gets
+    # the AUTH exchange in clear. `starttls.required` (anywhere in the
+    # file) or implicit TLS (`mail.smtp.ssl.enable`) makes it mandatory.
+    query: |
+      (method_invocation
+        name: (identifier) @m (#match? @m "^(put|setProperty)$")
+        arguments: (argument_list . (string_literal) @k (#match? @k "^\"mail\\.smtps?\\.starttls\\.enable\"$"))) @hit
+    unless_in_file: |
+      ((string_literal) @k (#match? @k "^\"mail\\.smtps?\\.(starttls\\.required|ssl\\.enable)\"$"))
+    description: >-
+      With only `mail.smtp.starttls.enable`, Jakarta Mail upgrades to TLS
+      when the server offers it and carries on in plaintext when it does
+      not. An attacker on the path removes STARTTLS from the server's
+      greeting and reads SMTP_USER and SMTP_PASSWORD from the AUTH command.
+    remediation: "Also set `mail.smtp.starttls.required=true` (or use implicit TLS with `mail.smtp.ssl.enable=true` on port 465)."
+
+  - id: mail-ssl-trust-all
+    requirements: [ARB-083]
+    title: "`{text}` trusts every mail server certificate"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-295]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-8]
+    tags: [tls, smtp, ai-code]
+    query: |
+      (method_invocation
+        name: (identifier) @m (#match? @m "^(put|setProperty)$")
+        arguments: (argument_list . (string_literal) @k (#match? @k "^\"mail\\.(smtps?|imaps?|pop3s?)\\.ssl\\.trust\"$")
+                   . (string_literal) @v (#eq? @v "\"*\""))) @hit
+      (method_invocation
+        name: (identifier) @m (#match? @m "^(put|setProperty)$")
+        arguments: (argument_list . (string_literal) @k (#match? @k "^\"mail\\.(smtps?|imaps?|pop3s?)\\.ssl\\.checkserveridentity\"$")
+                   . (string_literal) @v (#eq? @v "\"false\""))) @hit
+    # JavaMail reads `ssl.trust` only when no socket factory is given: with
+    # `ssl.socketFactory` set in the same method (Keycloak's truststore
+    # configurator) the factory's own trust store decides.
+    unless_in_scope: |
+      ((string_literal) @k (#match? @k "^\"mail\\.(smtps?|imaps?|pop3s?)\\.ssl\\.socketFactory\"$"))
+    description: >-
+      `mail.smtp.ssl.trust=*` accepts any certificate from any host, and
+      `ssl.checkserveridentity=false` accepts a valid certificate issued
+      for some other host. Either way the connection is encrypted to
+      whoever answers, and the SMTP credentials go to them.
+    remediation: "Remove the property; for a private CA, add it to the trust store or name the exact host in `mail.smtp.ssl.trust`."
+
+  - id: retry-constant-delay
+    requirements: [ARB-083]
+    title: "`{text}` retries after the same fixed delay every time"
+    severity: low
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [retry, backoff, reliability, ai-code]
+    # Retry scheduling with a constant: the wait is a value named as the
+    # retry delay (`retryDelayMs`) used as is, in a file that caps attempts,
+    # with no growth or jitter on it. retry-without-backoff is the no-delay case.
+    query: |
+      ((method_invocation object: (_) @o name: (identifier) @m
+         arguments: (argument_list . [(identifier) (field_access)] @d .))
+        (#match? @o "^(Thread|TimeUnit\\.\\w+)$") (#eq? @m "sleep")
+        (#match? @d "(?i)(^|\\.)retry_?(delay|interval|wait|pause|sleep|backoff)(_?(ms|millis|seconds|secs))?$")) @hit
+      ((method_invocation name: (identifier) @m
+         arguments: (argument_list . (_) . [(identifier) (field_access)] @d . (_) .))
+        (#match? @m "^(schedule|delayedExecutor)$")
+        (#match? @d "(?i)(^|\\.)retry_?(delay|interval|wait|pause|backoff)(_?(ms|millis|seconds|secs))?$")) @hit
+    requires_file: |
+      ((identifier) @r (#match? @r "(?i)^_?max_?(retries|retry|attempts?|tries)$|^_?retry_?(count|limit)$|^MAX_(RETRIES|ATTEMPTS|TRIES)$"))
+    unless_in_file: |
+      ((identifier) @b (#match? @b "(?i)backoff|jitter"))
+      ((binary_expression operator: ["*" "<<"]) @b (#match? @b "(?i)retry_?(delay|interval)"))
+      ((assignment_expression left: (_) @l operator: ["*=" "<<="]) (#match? @l "(?i)retry_?(delay|interval)"))
+    description: >-
+      Every retry waits the same interval. When a dependency fails, every
+      caller retries in lock-step on that interval, so the recovering
+      service is hit by the whole backlog at once and each retry is as
+      likely to fail as the last.
+    remediation: "Grow the delay with the attempt (`base << attempt`, capped) and add jitter, or use a retry library (resilience4j, Failsafe) with exponential backoff."
+
+  - id: ssrf-stored-callback
+    requirements: [ARB-083]
+    title: "`{text}` delivers to a stored callback URL with no internal-address block"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-918]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-7]
+    tags: [ssrf, webhook, ai-code]
+    query: |
+      ((method_invocation object: (_) @c name: (identifier) @m
+         arguments: (argument_list . (identifier) . (_)))
+        (#match? @m "^(send|sendAsync)$") (#match? @c "(?i)client$")) @hit
+      ((method_invocation object: (_) @c name: (identifier) @m
+         arguments: (argument_list . (_) . (_) .))
+        (#match? @m "^(postForEntity|postForObject|exchange)$") (#match? @c "(?i)(rest)?template$")) @hit
+    requires_file: |
+      ((string_literal) @s (#match? @s "(?i)callback_?url|webhook_?url|notify_?url|hook_?url|callback_?uri|redirect_?hook"))
+    unless_in_file: |
+      ((identifier) @m (#match? @m "^(isSiteLocalAddress|isLoopbackAddress|isLinkLocalAddress|isAnyLocalAddress|isMulticastAddress)$"))
+      ((identifier) @m (#match? @m "(?i)ssrf|private_?(ip|addr|net|range)|is_?internal|is_?public_?(host|addr|ip)|blocked_?(ip|addr|host)|allowed_?(host|ip)"))
+    description: >-
+      The URL was stored by a client (a merchant, a subscriber) and the server
+      later sends a request to it. Nothing in the file refuses loopback,
+      private, link-local or cloud-metadata addresses, so whoever can set
+      the URL can make the server reach internal services
+      (169.254.169.254, localhost admin ports) and learn from the delivery
+      status whether they answered.
+    remediation: "Resolve the host, refuse loopback, site-local, link-local and any-local addresses, and connect to the address you checked; or keep an allowlist of callback hosts."
+
+  - id: image-decode-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` decodes an image without checking its dimensions first"
+    severity: high
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-409, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, decompression-bomb, ai-code]
+    # ImageIO.read allocates the full raster from the header. Reading the
+    # size through an ImageReader (getWidth(0)/getHeight(0) before read)
+    # anywhere in the file is taken as the check.
+    query: |
+      ((method_invocation object: (identifier) @o name: (identifier) @m)
+        (#eq? @o "ImageIO") (#eq? @m "read")) @hit
+    unless_in_file: |
+      ((identifier) @i (#match? @i "^(ImageReader|getImageReaders|getImageReadersByFormatName|getImageReadersBySuffix)$"))
+    description: >-
+      A small PNG can declare 50000 x 50000 pixels; `ImageIO.read` then
+      allocates a raster of gigabytes before anything checks the size, and
+      one upload throws OutOfMemoryError for the whole JVM. An upload size
+      limit does not help: the file is small, the image it declares is not.
+    remediation: "Open an `ImageReader` on an `ImageInputStream`, check `getWidth(0)` and `getHeight(0)` against a limit, then `reader.read(0)`."
+
+  - id: decompress-read-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` reads a decompressed stream with no size limit"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-409, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, decompression-bomb, ai-code]
+    query: |
+      ((method_invocation name: (identifier) @m arguments: (argument_list))
+        (#match? @m "^(readAllBytes)$")) @hit
+      ((method_invocation object: (identifier) @o name: (identifier) @m)
+        (#match? @o "^(IOUtils|ByteStreams)$") (#match? @m "^(toByteArray|toString)$")) @hit
+    requires_in_scope: |
+      ((object_creation_expression type: (type_identifier) @t)
+        (#match? @t "^(GZIPInputStream|InflaterInputStream|ZipInputStream|GzipCompressorInputStream|BZip2CompressorInputStream|XZCompressorInputStream|ZstdInputStream|BrotliInputStream|DeflateCompressorInputStream)$"))
+    unless_in_scope: |
+      ((identifier) @i (#match? @i "^(readNBytes|BoundedInputStream|LimitedInputStream|getSize|getCompressedSize)$"))
+      ((identifier) @i (#match? @i "(?i)^max_?(size|bytes|len|length|uncompressed)|_?limit$"))
+    description: >-
+      Compressed input expands by up to ~1000x (deflate) or far more
+      (nested archives). Reading the decompressing stream to the end keeps
+      going until the output ends, so a 1 MB upload can become gigabytes of
+      heap.
+    remediation: "Read at most `max + 1` bytes (`in.readNBytes(max + 1)`) and refuse output longer than `max`; for zip entries check the running total, not the declared size."

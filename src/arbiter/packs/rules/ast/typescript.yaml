@@ -1158,3 +1158,197 @@ rules:
       (`it.skip`, `describe.skip`, `xit` and `xdescribe` are reported by
       `assurance.permanently-skipped-test`.)
     remediation: "Fix it, delete it, or skip with a condition and a reason."
+
+  # ------------------------------------- defect classes in AI-written code (ARB-083)
+  # Each shape below is one a reviewer labelled in model-written services
+  # (fixtures/ai-corpus) that no earlier rule covered. All start advisory.
+  - id: mail-starttls-not-required
+    requirements: [ARB-083]
+    title: "nodemailer transport sends credentials without requiring TLS"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-319]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-8]
+    tags: [tls, smtp, ai-code]
+    # An SMTP transport that logs in (`auth:`) but is neither implicit TLS
+    # (`secure: true`) nor `requireTLS: true` upgrades only when the server
+    # advertises STARTTLS. `ignoreTLS: true` turns even that off.
+    query: |
+      ((call_expression
+        function: [(identifier) (member_expression)] @fn
+        arguments: (arguments . (object) @o)) @hit
+        (#match? @fn "(^|\\.)createTransport$")
+        (#match? @o "\\bauth\\s*:")
+        (#not-match? @o "\\brequireTLS\\s*:\\s*true|\\bsecure\\s*:\\s*true\\b|\\bservice\\s*:|\\b(sendmail|streamTransport|jsonTransport|SES)\\s*:"))
+      ((call_expression
+        function: [(identifier) (member_expression)] @fn
+        arguments: (arguments . (object) @o)) @hit
+        (#match? @fn "(^|\\.)createTransport$")
+        (#match? @o "\\bignoreTLS\\s*:\\s*true"))
+    description: >-
+      Without `secure: true` or `requireTLS: true`, nodemailer uses STARTTLS
+      only if the server's greeting offers it. An attacker on the path
+      strips the offer and receives the AUTH exchange, user name and
+      password, in plaintext.
+    remediation: "Set `requireTLS: true` for port 587 (or `secure: true` on 465) and keep `tls.rejectUnauthorized` at its default."
+
+  - id: retry-constant-delay
+    requirements: [ARB-083]
+    title: "`{text}` retries after the same fixed delay every time"
+    severity: low
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [retry, backoff, reliability, ai-code]
+    # Retry scheduling with a constant: the wait is a value named as the
+    # retry delay (`this.retryDelayMs`) used as is, in a file that caps
+    # attempts, with no growth or jitter on it. retry-no-backoff is the
+    # no-delay case.
+    query: |
+      ((call_expression function: (identifier) @fn
+         arguments: (arguments . (_) . [(identifier) (member_expression)] @d .))
+        (#eq? @fn "setTimeout")
+        (#match? @d "(?i)(^|\\.)retry_?(delay|interval|wait|pause|backoff)(_?(ms|millis|seconds|secs))?$")) @hit
+      ((call_expression function: [(identifier) (member_expression)] @fn
+         arguments: (arguments . [(identifier) (member_expression)] @d .))
+        (#match? @fn "(?i)(^|\\.)(sleep|delay|wait|setTimeout)$")
+        (#match? @d "(?i)(^|\\.)retry_?(delay|interval|wait|pause|backoff)(_?(ms|millis|seconds|secs))?$")) @hit
+    requires_file: |
+      ([(identifier) (property_identifier)] @r (#match? @r "(?i)^_?max_?(retries|retry|attempts?|tries)$|^_?retry_?(count|limit)$"))
+    unless_in_file: |
+      ([(identifier) (property_identifier)] @b (#match? @b "(?i)backoff|jitter"))
+      ((binary_expression operator: ["*" "**" "<<"]) @b (#match? @b "(?i)retry_?(delay|interval)"))
+      ((augmented_assignment_expression left: (_) @l) (#match? @l "(?i)retry_?(delay|interval)"))
+    description: >-
+      Every retry waits the same interval. When a dependency fails, every
+      caller retries in lock-step on that interval, so the recovering
+      service is hit by the whole backlog at once and each retry is as
+      likely to fail as the last.
+    remediation: "Grow the delay with the attempt (`base * 2 ** attempt`, capped) and add jitter."
+
+  - id: ssrf-stored-callback
+    requirements: [ARB-083]
+    title: "`{text}` delivers to a stored callback URL with no internal-address block"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-918]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-7]
+    tags: [ssrf, webhook, ai-code]
+    # File level: the file stores or accepts a callback URL (a key or SQL
+    # column named callback_url), POSTs to a non-literal URL, and never
+    # checks an address. ssrf-request-url is the same-function case.
+    query: |
+      ((call_expression function: (identifier) @f
+         arguments: (arguments . [(identifier) (member_expression)] . (object) @o))
+        (#match? @f "(?i)fetch") (#match? @o "(?i)method\\s*:\\s*['\"]post['\"]")) @hit
+      ((call_expression function: (member_expression) @f
+         arguments: (arguments . [(identifier) (member_expression)]))
+        (#match? @f "^(axios|got|ky|superagent|needle)\\.post$")) @hit
+    requires_file: |
+      ([(string_fragment) (template_string)] @s (#match? @s "(?i)callback_?url|webhook_?url|notify_?url|hook_?url|callback_?uri|redirect_?hook"))
+      ([(property_identifier) (identifier)] @s (#match? @s "(?i)callback_?url|webhook_?url|notify_?url|hook_?url|callback_?uri|redirect_?hook"))
+    unless_in_file: |
+      ([(identifier) (property_identifier)] @m (#match? @m "(?i)private|loopback|link_?local|ssrf|is_?internal|blocked_?(ip|addr|host)|allowed_?(host|ip)|ipaddr"))
+      ((string_fragment) @m (#match? @m "^(169\\.254|127\\.|10\\.|::1|fc00|fe80|localhost)"))
+    # A URL read from this request in the same function is
+    # ssrf-request-url's finding; this rule is the stored case.
+    unless_in_scope: |
+      ((member_expression) @x (#match? @x "^(req|request|ctx\\.request)\\.(body|query|params)"))
+    description: >-
+      The URL was stored by a client (a merchant, a subscriber) and the server
+      later sends a request to it. Nothing in the file refuses loopback,
+      private, link-local or cloud-metadata addresses, so whoever can set
+      the URL can make the server reach internal services
+      (169.254.169.254, localhost admin ports) and learn from the delivery
+      status whether they answered.
+    remediation: "Resolve the host, refuse non-public addresses (and pin the connection to the checked address, e.g. an undici Agent with a lookup that rejects them), or keep an allowlist of callback hosts."
+
+  - id: image-pixel-limit-disabled
+    requirements: [ARB-083]
+    title: "`{text}` switches off sharp's pixel limit"
+    severity: high
+    confidence: high
+    dimension: quality
+    cwe: [CWE-409, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, decompression-bomb, ai-code]
+    query: |
+      ((pair key: (property_identifier) @k value: [(false) (number)] @v) @hit
+        (#eq? @k "limitInputPixels") (#match? @v "^(false|0)$"))
+    description: >-
+      sharp refuses images above ~268 million pixels because a small file
+      can declare a huge canvas. `limitInputPixels: false` (or 0) removes
+      that, so a few-kilobyte upload makes libvips allocate gigabytes.
+    remediation: "Keep the default, or set `limitInputPixels` to the largest image the service accepts."
+
+  - id: decompress-sync-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` decompresses with no limit on the output"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-409, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, decompression-bomb, ai-code]
+    query: |
+      ((call_expression function: [(identifier) (member_expression)] @fn
+         arguments: (arguments . [(identifier) (member_expression) (call_expression)] .))
+        (#match? @fn "(^|\\.)(gunzipSync|inflateSync|inflateRawSync|unzipSync|brotliDecompressSync)$")) @hit
+    requires_in_scope: |
+      ((identifier) @i (#match? @i "^(req|request|ctx|body|upload|file|files|payload)$"))
+    unless_in_scope: |
+      ((property_identifier) @p (#eq? @p "maxOutputLength"))
+    description: >-
+      Compressed data expands by ~1000x or more. zlib's sync calls build
+      the whole output in memory, so a 1 MB request body can become
+      gigabytes, blocking the event loop until the process dies.
+    remediation: "Pass `{ maxOutputLength: limit }` (Node >= 14.5) and answer 413 on the RangeError, or stream through a counting Transform."
+
+  - id: upload-memory-storage-unbounded
+    requirements: [ARB-083]
+    title: "multer buffers whole uploads in memory with no file-size limit"
+    severity: medium
+    confidence: high
+    dimension: quality
+    cwe: [CWE-770, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, upload, ai-code]
+    query: |
+      ((call_expression function: (identifier) @fn arguments: (arguments . (object) @o)) @hit
+        (#eq? @fn "multer")
+        (#match? @o "memoryStorage")
+        (#not-match? @o "fileSize"))
+    description: >-
+      memoryStorage keeps each uploaded file as a Buffer, and multer sets no
+      size limit by default. One client streaming a multi-gigabyte upload,
+      or a handful in parallel, exhausts the process.
+    remediation: "Set `limits: { fileSize, files }`, or use disk storage (or a streaming upload to object storage) for anything large."
+
+  - id: request-body-accumulated-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` accumulates the request body with no size limit"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-770, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, unbounded-input, ai-code]
+    # A raw `req.on("data", ...)` handler that appends chunks and never
+    # compares a running length with a limit or destroys the stream.
+    query: |
+      ((call_expression
+         function: (member_expression object: (identifier) @o property: (property_identifier) @m)
+         arguments: (arguments . (string (string_fragment) @ev) . [(arrow_function) (function_expression)] @h))
+        (#match? @o "^(req|request|incoming)$") (#eq? @m "on") (#eq? @ev "data")
+        (#match? @h "(push|concat|\\+=)")
+        (#not-match? @h "(length|size|byteLength|limit|destroy|LIMIT|MAX)")) @hit
+    unless_in_scope: |
+      ((member_expression property: (property_identifier) @p) (#match? @p "^(length|byteLength)$"))
+    description: >-
+      Node's http server has no body limit. Collecting every `data` chunk
+      until `end` holds the whole body in memory, however large the client
+      makes it.
+    remediation: "Count bytes in the handler and `req.destroy()` with 413 past a limit, or use a body parser with `limit` (express.json, raw-body)."

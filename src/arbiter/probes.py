@@ -2557,3 +2557,13 @@ try:
     _register_contract()
 except Exception:  # noqa: BLE001 - an optional probe module must not break the registry import
     pass
+
+
+# App-level defects found in AI-written services (ARB-083): destructive or
+# mail-sending routes in an app that authenticates nobody, and per-request
+# stores that are never evicted.
+try:
+    from .aiapp import register_aiapp as _register_aiapp
+    _register_aiapp()
+except Exception:  # noqa: BLE001 - an optional probe module must not break the registry import
+    pass

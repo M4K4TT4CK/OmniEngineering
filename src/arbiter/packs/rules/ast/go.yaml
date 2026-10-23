@@ -1142,3 +1142,210 @@ rules:
       a skip behind `testing.Short()` or a platform check is a different
       thing and is not reported.
     remediation: "Fix the test or delete it; if it must be skipped somewhere, put the skip behind a condition."
+
+  # ---------------------------------------------------------------------
+  # Defect classes found in AI-written code (ARB-083)
+  # ---------------------------------------------------------------------
+  # Each shape below is one a reviewer labelled in model-written services
+  # (fixtures/ai-corpus) that no earlier rule covered. All start advisory.
+  - id: ignored-encode-error
+    requirements: [ARB-083]
+    title: "`{text}` discards the encode error"
+    severity: low
+    confidence: high
+    dimension: quality
+    cwe: [CWE-252]
+    controls: [NIST-800-218:PW.5]
+    tags: [error-handling, ai-code]
+    # A bare expression statement: the error result is not assigned, not
+    # even to `_`. `_ = enc.Encode(v)` is a decision and is not reported.
+    query: |
+      (expression_statement (call_expression
+        function: (selector_expression
+          operand: (call_expression function: (selector_expression) @mk
+            (#match? @mk "^(json|xml|gob)\\.NewEncoder$"))
+          field: (field_identifier) @f (#eq? @f "Encode"))) @hit)
+    description: >-
+      `json.NewEncoder(w).Encode(v)` returns an error when the value cannot
+      be encoded or the client has gone away mid-write. As a bare statement
+      that error is dropped: a handler that sent half a body, or none, logs
+      nothing and the failure is invisible in production.
+    remediation: "Check it: `if err := json.NewEncoder(w).Encode(v); err != nil { log... }`, or write `_ =` where ignoring it is deliberate."
+
+  - id: ignored-exec-error
+    requirements: [ARB-083]
+    title: "`{text}` runs SQL and drops the error"
+    severity: low
+    confidence: high
+    dimension: quality
+    cwe: [CWE-252]
+    controls: [NIST-800-218:PW.5]
+    tags: [error-handling, database, ai-code]
+    # database/sql's Exec returns (Result, error); called as a statement
+    # both are thrown away. The receiver must read as a database handle
+    # and the first argument be SQL text (a string literal), so an Exec on
+    # some other type (a template, a command runner) is not matched.
+    query: |
+      (expression_statement (call_expression
+        function: (selector_expression operand: (_) @recv field: (field_identifier) @f)
+        arguments: (argument_list . [(raw_string_literal) (interpreted_string_literal)] @sql))
+        (#match? @f "^(Exec|ExecContext)$")
+        (#match? @recv "(?i)(^|\\.)(db|tx|conn|pool|sqldb|database)$")
+        (#match? @sql "(?i)^.\\s*(insert|update|delete|create|drop|alter|replace|pragma|begin|commit|vacuum)\\b")) @hit
+      (expression_statement (call_expression
+        function: (selector_expression operand: (_) @recv field: (field_identifier) @f)
+        arguments: (argument_list . (_) . [(raw_string_literal) (interpreted_string_literal)] @sql))
+        (#eq? @f "ExecContext")
+        (#match? @recv "(?i)(^|\\.)(db|tx|conn|pool|sqldb|database)$")
+        (#match? @sql "(?i)^.\\s*(insert|update|delete|create|drop|alter|replace|pragma|begin|commit|vacuum)\\b")) @hit
+    description: >-
+      The statement is executed and its error discarded. A failed delete,
+      insert or migration leaves the data in a state the code believes it
+      changed, and nothing records why: an expired-token purge that keeps
+      failing lets the table grow with no sign anywhere.
+    remediation: "Handle the error (`if _, err := db.Exec(...); err != nil { ... }`) or log it; write `_, _ =` only where ignoring it is a documented decision."
+
+  - id: retry-constant-delay
+    requirements: [ARB-083]
+    title: "`{text}` retries after the same fixed delay every time"
+    severity: low
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [retry, backoff, reliability, ai-code]
+    # Retry scheduling with a constant: the wait is a value named as the
+    # retry delay (`q.retryDelay`, `retryInterval`) used as is, in a file
+    # that caps attempts (`MaxRetries`), with no growth or jitter on it.
+    # A bare `time.Sleep(100 * time.Millisecond)` is not reported: on gold
+    # code those are local polls (a busy device, a socket coming up), where
+    # a fixed short wait is the idiom. retry-no-backoff is the no-delay case.
+    query: |
+      ((call_expression function: (selector_expression) @fn
+         arguments: (argument_list . [(identifier) (selector_expression)] @d .))
+        (#match? @fn "^time\\.(Sleep|After|NewTimer|AfterFunc)$")
+        (#match? @d "(?i)(^|\\.)retry_?(delay|interval|wait|pause|sleep)(_?(ms|millis|seconds|secs))?$")) @hit
+    requires_file: |
+      ([(identifier) (field_identifier)] @r (#match? @r "(?i)^_?max_?(retries|retry|attempts?|tries)$|^_?retry_?(count|limit)$"))
+    unless_in_file: |
+      ([(identifier) (field_identifier)] @b (#match? @b "(?i)backoff|jitter"))
+      ((binary_expression operator: ["*" "<<"]) @b (#match? @b "(?i)retry_?(delay|interval)"))
+      ((assignment_statement left: (_) @l operator: ["*=" "<<="]) (#match? @l "(?i)retry_?(delay|interval)"))
+    description: >-
+      Every retry waits the same interval. When a dependency fails, every
+      caller retries in lock-step on that interval, so the recovering
+      service is hit by the whole backlog at once and each retry is as
+      likely to fail as the last.
+    remediation: "Grow the delay with the attempt (`base << attempt`, capped) and add jitter, or use a backoff package (cenkalti/backoff, k8s wait.Backoff)."
+
+  - id: ssrf-stored-callback
+    requirements: [ARB-083]
+    title: "`{text}` delivers to a stored callback URL with no internal-address block"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-918]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-7]
+    tags: [ssrf, webhook, ai-code]
+    # File level: the file stores or accepts a callback URL (a string such
+    # as `json:"callback_url"` or the SQL column), sends HTTP requests,
+    # and never checks an address (IsPrivate, IsLoopback, a dialer Control
+    # hook). ssrf-request-url is the same-function request-value case.
+    query: |
+      ((call_expression function: (selector_expression operand: (_) @c field: (field_identifier) @f)
+         arguments: (argument_list . (identifier) .))
+        (#eq? @f "Do") (#match? @c "(?i)client$")) @hit
+      ((call_expression function: (selector_expression) @f
+         arguments: (argument_list . (_) @u))
+        (#match? @f "^http\\.(Post|PostForm)$") (#not-match? @u "^\"")) @hit
+    requires_file: |
+      ([(raw_string_literal) (interpreted_string_literal)] @s (#match? @s "(?i)callback_?url|webhook_?url|notify_?url|hook_?url|callback_?uri|redirect_?hook"))
+    unless_in_file: |
+      ((field_identifier) @m (#match? @m "^(IsPrivate|IsLoopback|IsLinkLocalUnicast|IsLinkLocalMulticast|IsUnspecified|IsGlobalUnicast|Control|ControlContext)$"))
+      ([(identifier) (field_identifier)] @m (#match? @m "(?i)ssrf|private_?(ip|addr|net|range)|is_?internal|blocked_?(ip|addr|net)|allowed_?(host|ip|addr)"))
+    description: >-
+      The URL was stored by a client (a merchant, a subscriber) and the server
+      later sends a request to it. Nothing in the file refuses loopback,
+      private, link-local or cloud-metadata addresses, so whoever can set
+      the URL can make the server reach internal services
+      (169.254.169.254, localhost admin ports) and learn from the delivery
+      status whether they answered.
+    remediation: "Resolve the host and refuse non-public addresses at connect time (a net.Dialer Control hook checking ip.IsPrivate/IsLoopback/IsLinkLocalUnicast), or keep an allowlist of callback hosts."
+
+  - id: image-decode-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` decodes an image without checking its dimensions first"
+    severity: high
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-409, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, decompression-bomb, ai-code]
+    # image.Decode allocates width x height x 4 bytes from the header before
+    # reading a pixel. image.DecodeConfig anywhere in the file is taken as
+    # the dimension check.
+    query: |
+      ((call_expression function: (selector_expression) @fn)
+        (#match? @fn "^(image|png|jpeg|gif|bmp|tiff|webp)\\.Decode$")) @hit
+    unless_in_file: |
+      ((call_expression function: (selector_expression field: (field_identifier) @f))
+        (#eq? @f "DecodeConfig"))
+    description: >-
+      A PNG of a few kilobytes can declare 50000 x 50000 pixels. Decoding
+      it allocates the full canvas, about 10 GB, before anything checks the
+      size, so one upload takes the process down. Bounding the file size
+      does not help: the bomb is small; the image it declares is not.
+    remediation: "Call `image.DecodeConfig` first (rewind the reader) and refuse widths, heights or width*height above a limit before `image.Decode`."
+
+  - id: decompress-read-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` reads a decompressed stream with no size limit"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-409, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, decompression-bomb, ai-code]
+    query: |
+      ((call_expression function: (selector_expression) @fn
+         arguments: (argument_list . (identifier) @src .))
+        (#match? @fn "^(io|ioutil)\\.ReadAll$")) @hit
+    requires_in_scope: |
+      ((call_expression function: (selector_expression) @fn)
+        (#match? @fn "^(gzip|zlib|flate|bzip2|lzw|zstd|snappy|lz4|brotli)\\.(NewReader|NewReaderDict)$"))
+    unless_in_scope: |
+      ((call_expression function: (selector_expression field: (field_identifier) @f))
+        (#match? @f "^(LimitReader|MaxBytesReader|CopyN|NewLimitedReader)$"))
+      ((field_identifier) @f (#eq? @f "LimitedReader"))
+    description: >-
+      Compressed input expands by up to ~1000x (gzip) or far more (nested
+      archives). `io.ReadAll` on the decompressing reader keeps going until
+      the output ends, so a 1 MB request can become gigabytes in memory.
+    remediation: "Wrap the reader: `io.ReadAll(io.LimitReader(zr, max+1))` and refuse output longer than `max`."
+
+  - id: request-body-read-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` reads the whole request body with no size limit"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-770, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, unbounded-input, ai-code]
+    query: |
+      ((call_expression function: (selector_expression) @fn
+         arguments: (argument_list . (selector_expression) @b .))
+        (#match? @fn "^(io|ioutil)\\.ReadAll$")
+        (#match? @b "^(r|req|request)\\.Body$")) @hit
+    unless_in_scope: |
+      ((call_expression function: (selector_expression field: (field_identifier) @f))
+        (#match? @f "^(LimitReader|MaxBytesReader)$"))
+      ((selector_expression field: (field_identifier) @f) (#eq? @f "ContentLength"))
+      ([(identifier) (field_identifier)] @m (#match? @m "(?i)max_?(body|request|payload)_?(size|bytes|len)|body_?(size_?)?limit"))
+    # The last line: traefik reads the whole body only on the branch its
+    # configuration chose (`maxBodySize < 0`), a decision not a gap.
+    description: >-
+      net/http puts no limit on a request body. `io.ReadAll(r.Body)` reads
+      whatever the client sends into memory, so a few concurrent requests
+      with multi-gigabyte bodies exhaust the server.
+    remediation: "Wrap it first: `r.Body = http.MaxBytesReader(w, r.Body, max)`, and return 413 on the resulting error."

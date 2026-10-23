@@ -22,6 +22,9 @@ RULES = {
     "weak-password-hash", "jwt-unverified-decode", "jwt-literal-signing-key",
     "error-traceback-to-client", "error-message-to-client", "csrf-protection-disabled",
     "argument-injection", "upload-client-filename", "debug-mode-enabled",
+    # AI-written-code defect classes (ARB-083)
+    "mail-tls-unverified", "retry-constant-delay", "ssrf-stored-callback",
+    "image-bomb-check-disabled", "decompress-unbounded", "request-body-unbounded",
 }
 
 pytestmark = pytest.mark.skipif(not ts.available(), reason="tree-sitter not installed")

@@ -1287,3 +1287,173 @@ rules:
       ssh and tar have options that read or write any file.
     remediation: "Put \"--\" before the first value argument (`system(\"git\", \"clone\", \"--\", url, dir)`), and validate the value (`URI.parse(url).is_a?(URI::HTTPS)`, a ref-name pattern) first."
 
+
+  # --- Defect classes found in AI-written code (ARB-083) ----------------------
+  # Each shape below is one a reviewer labelled in model-written services
+  # (fixtures/ai-corpus) that no earlier rule covered. All start advisory.
+  - id: mail-tls-verify-none
+    requirements: [ARB-083]
+    title: "SMTP certificate verification off: `{text}`"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-295]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-8]
+    tags: [tls, smtp, ai-code]
+    # The constant form (`OpenSSL::SSL::VERIFY_NONE`) is tls-verify-off;
+    # this is the string or symbol ActionMailer and the mail gem also take.
+    query: |
+      (pair key: (hash_key_symbol) @k value: [(string) (simple_symbol)] @v
+        (#eq? @k "openssl_verify_mode") (#match? @v "^(:none|['\"]none['\"])$")) @hit
+      (pair key: (simple_symbol) @k value: [(string) (simple_symbol)] @v
+        (#eq? @k ":openssl_verify_mode") (#match? @v "^(:none|['\"]none['\"])$")) @hit
+      (pair key: (string) @k value: [(string) (simple_symbol)] @v
+        (#match? @k "^['\"]openssl_verify_mode['\"]$") (#match? @v "^(:none|['\"]none['\"])$")) @hit
+    description: >-
+      `openssl_verify_mode: "none"` makes ActionMailer (and the mail gem's
+      SMTP delivery) accept any certificate. The session is encrypted to
+      whoever answers, and the SMTP user name and password go to them.
+    remediation: "Remove it (the default verifies the peer); for a private CA, set `ca_file` or `ca_path` instead."
+
+  - id: retry-constant-delay
+    requirements: [ARB-083]
+    title: "`{text}` retries after the same fixed delay every time"
+    severity: low
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [retry, backoff, reliability, ai-code]
+    # Retry scheduling with a constant: the wait is a value named as the
+    # retry delay (`@retry_delay`, RETRY_DELAY) used as is, in a file that
+    # caps attempts, with no growth or jitter on it.
+    query: |
+      ((call method: (identifier) @m
+         arguments: (argument_list . [(identifier) (instance_variable) (constant) (call)] @d .))
+        (#eq? @m "sleep")
+        (#match? @d "(?i)(^|[.@:])retry_?(delay|interval|wait|pause|backoff)(_?(ms|millis|seconds|secs))?$")) @hit
+    requires_file: |
+      ([(identifier) (instance_variable) (constant)] @r (#match? @r "(?i)^@?_?max_?(retries|retry|attempts?|tries)$|^@?_?retry_?(count|limit)$"))
+    unless_in_file: |
+      ([(identifier) (instance_variable) (constant)] @b (#match? @b "(?i)backoff|jitter"))
+      ((binary operator: ["*" "**" "<<"]) @b (#match? @b "(?i)retry_?(delay|interval)"))
+    description: >-
+      Every retry waits the same interval. When a dependency fails, every
+      caller retries in lock-step on that interval, so the recovering
+      service is hit by the whole backlog at once and each retry is as
+      likely to fail as the last.
+    remediation: "Grow the delay with the attempt (`base * 2**attempt`, capped) and add jitter (`rand`)."
+
+  - id: requeue-without-delay
+    requirements: [ARB-083]
+    title: "`{text}` puts the failed job straight back on the queue"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [retry, backoff, reliability, ai-code]
+    # In a rescue: a branch guarded by an attempt count pushes the job back
+    # onto a queue (`@pending << job.id`, `queue.push(job)`) with nothing
+    # that waits. The worker pops it again at once, so every retry of a
+    # failing dependency happens within milliseconds.
+    query: |
+      (rescue body: (then (if condition: (_) @c consequence: (then
+        (binary left: [(instance_variable) (identifier) (call)] @q operator: "<<") @hit))
+        (#match? @c "(?i)attempt|retr|tries")
+        (#match? @q "(?i)(queue|pending|jobs|work|inbox|backlog)$")))
+      (rescue body: (then (if condition: (_) @c consequence: (then
+        (call receiver: [(instance_variable) (identifier) (call)] @q method: (identifier) @m) @hit))
+        (#match? @c "(?i)attempt|retr|tries")
+        (#match? @q "(?i)(queue|pending|jobs|work|inbox|backlog)$")
+        (#match? @m "^(push|enq|enqueue|unshift)$")))
+    unless_in_scope: |
+      (call method: (identifier) @m (#match? @m "(?i)^(sleep|wait|backoff|perform_in|perform_at|set|schedule|in|at)$|delay|backoff|jitter")) @x
+    description: >-
+      The job is retried by enqueueing it again with no delay. The next
+      free worker takes it immediately, so a transient outage in the
+      dependency is retried at full speed, all attempts are used up in
+      milliseconds, and the job fails anyway.
+    remediation: "Schedule the retry after a growing delay (a timer, `perform_in`, or a delayed queue keyed by next-attempt time) with jitter."
+
+  - id: ssrf-stored-callback
+    requirements: [ARB-083]
+    title: "`{text}` delivers to a stored callback URL with no internal-address block"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-918]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-7]
+    tags: [ssrf, webhook, ai-code]
+    query: |
+      ((call receiver: [(identifier) (instance_variable)] @r method: (identifier) @m)
+        (#match? @r "(?i)^@?(http|conn|connection|client)$") (#match? @m "^(post|request)$")) @hit
+      ((call receiver: (scope_resolution) @r method: (identifier) @m)
+        (#match? @r "^(Net::HTTP|HTTParty|Faraday|RestClient)$") (#match? @m "^(post|post_form)$")) @hit
+    requires_file: |
+      ((string_content) @s (#match? @s "(?i)callback_?url|webhook_?url|notify_?url|hook_?url|callback_?uri|redirect_?hook"))
+    unless_in_file: |
+      ((identifier) @m (#match? @m "^(private\\?|loopback\\?|link_local\\?|ipv4_private\\?)$"))
+      ([(identifier) (constant)] @m (#match? @m "(?i)ssrf|private_?(ip|addr|net|range)|is_?internal|blocked_?(ip|addr|host)|allowed_?(host|ip)"))
+    description: >-
+      The URL was stored by a client (a merchant, a subscriber) and the server
+      later sends a request to it. Nothing in the file refuses loopback,
+      private, link-local or cloud-metadata addresses, so whoever can set
+      the URL can make the server reach internal services
+      (169.254.169.254, localhost admin ports) and learn from the delivery
+      status whether they answered.
+    remediation: "Resolve the host, refuse addresses where `IPAddr#private?`, `#loopback?` or `#link_local?` holds, and connect to the checked address (or use ssrf_filter); or keep an allowlist of callback hosts."
+
+  - id: decompress-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` decompresses with no limit on the output"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-409, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, decompression-bomb, ai-code]
+    # Only data from the request in the same method: a library inflating
+    # its own files is not an attacker-shaped input.
+    query: |
+      ((call receiver: (scope_resolution) @r method: (identifier) @m)
+        (#match? @r "^Zlib::(Inflate|GzipReader)$") (#match? @m "^(inflate|zcat)$")) @hit
+      ((call receiver: (constant) @r method: (identifier) @m)
+        (#eq? @r "Zlib") (#match? @m "^(gunzip|inflate)$")) @hit
+      ((call receiver: (call receiver: (scope_resolution) @r method: (identifier) @n) method: (identifier) @m arguments: (argument_list) ?) @hit
+        (#eq? @r "Zlib::GzipReader") (#eq? @n "new") (#eq? @m "read"))
+    requires_in_scope: |
+      ((identifier) @i (#match? @i "^(request|params|upload|uploaded_file|tempfile)$"))
+    unless_in_scope: |
+      ((identifier) @i (#match? @i "(?i)^max_|_max$|limit|bytesize"))
+      ((constant) @i (#match? @i "^MAX_|LIMIT"))
+    description: >-
+      Compressed data expands by ~1000x or more. Inflating a client's
+      payload in one call builds the whole output in memory, so a 1 MB
+      request can become gigabytes.
+    remediation: "Inflate in chunks (`Zlib::Inflate#inflate` with a block, or `GzipReader#readpartial`) counting bytes, and stop past a limit."
+
+  - id: request-body-read-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` reads the whole request body with no size limit"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-770, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, unbounded-input, ai-code]
+    # `request.body.read` with no length. Puma and WEBrick put no limit on
+    # a body; `read(MAX + 1)` or a Content-Length check is the fix.
+    query: |
+      ((call receiver: (call receiver: (identifier) @r method: (identifier) @b) method: (identifier) @m !arguments) @hit
+        (#eq? @r "request") (#eq? @b "body") (#eq? @m "read"))
+    unless_in_scope: |
+      ((identifier) @i (#match? @i "^(content_length|bytesize)$"))
+      ((string_content) @s (#match? @s "^(CONTENT_LENGTH|HTTP_CONTENT_LENGTH)$"))
+    unless_in_file: |
+      ((constant) @c (#match? @c "^(MAX_BODY|MAX_BODY_BYTES|MAX_REQUEST_BYTES|MAX_PAYLOAD_BYTES|BODY_LIMIT)$"))
+    description: >-
+      Rack servers (Puma, WEBrick) do not limit a request body. Reading it
+      whole puts whatever the client sends into one string, so a few
+      concurrent multi-gigabyte requests exhaust the process.
+    remediation: "Refuse on `request.content_length` above a limit and read at most `request.body.read(MAX + 1)`, or cap the body at the proxy."

@@ -1912,6 +1912,48 @@
         "which gets this behaviour only once it is updated",
         "verified 2026-10-21 on branch m1-base: full pytest, planted_score for five languages, gold benchmark (24 repositories) and ./omni gate --no-memo with this checkout on PYTHONPATH"
       ]
+    },
+    {
+      "id": "ARB-083",
+      "category": "feature",
+      "title": "Rules for defect classes found in AI-written code",
+      "description": "On the 25-app AI-written development corpus (fixtures/ai-corpus) Arbiter caught 2 of 117 labelled code defects and none of the 11 high-severity ones; the misses cluster in classes no rule covered. Add advisory rules, in each of Python, TypeScript/JavaScript, Go, Java and Ruby where the class applies: unbounded memory (decompression bombs, image decode without a pixel bound, request bodies read whole with no limit, in-memory job/result maps that only grow), unauthenticated destructive or mail-sending endpoints (app-level probe), SMTP/TLS without certificate verification or with opportunistic STARTTLS, Go errors discarded by an expression statement (Encode, Exec), retries scheduled with a constant delay, and server-side fetches of stored callback URLs with no internal-address block. Each rule ships with planted bad/good twins, is triaged on the gold set and real corpora, stays within its gold budget, or is dropped.",
+      "priority": "high",
+      "status": "pending",
+      "minimum_access_scope": [
+        "src/arbiter/packs/rules/ast/python.yaml",
+        "src/arbiter/packs/rules/ast/typescript.yaml",
+        "src/arbiter/packs/rules/ast/go.yaml",
+        "src/arbiter/packs/rules/ast/java.yaml",
+        "src/arbiter/packs/rules/ast/ruby.yaml",
+        "src/arbiter/aiapp.py",
+        "src/arbiter/packs/rules/native.yaml",
+        "fixtures/planted",
+        "docs/probes.md",
+        "tests"
+      ],
+      "acceptance_criteria": [
+        "every new rule carries CWE ids severity confidence description remediation and requirements ARB-083 and starts advisory",
+        "planted score stays fully caught with 0 on good twins and 0 unmarked",
+        "each new rule is within its gold budget (tools/gold/budgets.json) with every gold and real-corpus finding triaged",
+        "AI development corpus recall and precision per language and category are reported before and after",
+        "full pytest passes"
+      ],
+      "validation_required": [
+        "pytest",
+        "planted_score",
+        "gold_benchmark",
+        "ai_corpus_score",
+        "regression_guard"
+      ],
+      "documentation_required": [
+        "changelog",
+        "docs/probes.md"
+      ],
+      "risk_notes": [
+        "rules tuned on 25 development apps can overfit: the held-out corpus is the honest measure and was not read",
+        "app-level auth detection is name-based and can be fooled by auth done outside the repository (a gateway)"
+      ]
     }
   ]
 }
