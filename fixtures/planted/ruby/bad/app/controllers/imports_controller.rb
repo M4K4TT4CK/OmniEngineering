@@ -4,7 +4,7 @@
 class ImportsController < ApplicationController
   def create
     dir = Dir.mktmpdir("import-")
-    ok = system("git", "clone", params.require(:repo_url), dir) # gap: CWE-77 - nothing in this build reports it (docs/cwe-top25.md)
+    ok = system("git", "clone", params.require(:repo_url), dir) # expect: arbiter/ruby.argument-injection
     render json: { dir: dir }, status: ok ? :created : :unprocessable_entity
   end
 end

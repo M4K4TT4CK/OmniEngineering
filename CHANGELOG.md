@@ -24,6 +24,39 @@ under `[Unreleased]` (there are no release tags yet) and reference the
 - ARB-065 | `tools/regression_guard.py`: finding snapshots and scan-time budgets for `fixtures/planted`, `fixtures/ai-corpus` and four small pinned gold repositories (`tools/gold/guards.json`, `tools/gold/snapshots/`). The budget is scaled by a pure-Python calibration workload, because a reference that ran Arbiter slowed down with a seeded `sleep` and hid it. In-tree snapshots run in the fast tier; the pinned repositories are fetched at their pins and checked in the slow-tier job. Tests prove each guard fails on a deleted rule and on a seeded sleep.
 - ARB-065 | `tools/variants.py`: semantics-preserving rewrites of the planted bad fixtures (rename, hoist, helper, move, string style) in all five languages, with each marker tracked to its new line, giving robustness per rule. First sweep: 404/486 kept (83%). Hoisting the sink argument into a temporary (57/83) or passing it through a helper (60/83) loses the most; `typescript.html-from-request`, the Ruby and Go command-injection rules, and the TypeScript and Ruby sql rules are the least robust.
 - ARB-065 | `arbiter.yaml` suppresses `ruff/*` under `fixtures/**`, as it already did for every other analyzer, so the corpus never reaches the self-gate. `docs/testing-harness.md` documents all four instruments and their numbers.
+### 2026-10-22 (CWE Top 25 round 2: Go and Ruby)
+- ARB-062 | Native rules for ranked gaps 5-8 and 10 in Go and Ruby, each a
+same-function source-to-sink rule: a request value (Go `r.URL.Query().Get`,
+`r.FormValue`, `r.PathValue`, `mux.Vars`, `chi.URLParam`, gin/echo/fiber
+`c.Query`/`c.Param`; Ruby `params[...]`, `params.require/fetch`,
+`request.params`) written in the sink call, or assigned to a local that a later
+statement of the same block passes to it (tied with `#eq?` up to six levels
+below the assignment's sibling; no schema change). `path-traversal-request`
+(CWE-22; `filepath.Join`/`os.Open`/`http.ServeFile`/`c.File`, `File.join`/
+`Rails.root.join`/`File.read`/`send_file`/`render file:`; silent with
+`filepath.IsLocal`/`Base`/`Rel`, `strings.HasPrefix`, `os.OpenRoot`,
+`File.basename`, `start_with?`, `include?`, `=~`), `upload-client-filename`
+(CWE-434; `header.Filename`/`part.FileName()` in a multipart handler,
+`original_filename` or Rack's `params[:f][:filename]`, in a path that is
+written; silent with an extension/MIME allowlist or a basename),
+`ssrf-request-url` (CWE-918; `http.Get`, `*Client.Get`, `http.NewRequest*`;
+Net::HTTP, Faraday, HTTParty, RestClient, http.rb, `URI.open`, a `conn`/`client`
+local; silent with a literal scheme and host or a host check) and
+`argument-injection` (CWE-77/88; `exec.Command`/`system`/`Open3`/`IO.popen` with
+a literal git/curl/ssh/rsync/tar/... and a request value, no `"--"`), all high
+severity, medium confidence; Go also gains `parsed-int-narrowed` (CWE-190/681,
+medium: `strconv.Atoi` or a 64-bit `ParseInt`/`ParseUint` narrowed to
+`int32`/`int16`/`int8`/`uint*` with no comparison in between). The nine `gap:`
+markers became `expect:`; the Go argument-injection pair is now an HTTP handler,
+and Go SSRF/path and Ruby SSRF gained a variable-form pair. Planted Go 60/60,
+Ruby 64/64. Real code: the gold Go and Ruby repositories (1687 KLOC) give none
+of the nine rules a finding; corpus-go, corpus-clean, rack and sinatra none;
+railsgoat two, both true. Matrix: Go 22, 434, 77, 918, 190 and Ruby 22, 434,
+77, 918 are N; Go native 6 to 11 and Ruby 9 to 13, no gaps left in either.
+Decisions recorded 2026-10-22: the variable tie stays within one block (no
+cross-branch or closure flow); Ruby's broad `include?`/`=~` guards on
+path-traversal stay (precision first); an untrusted function parameter is not an
+argument-injection source (it needs interprocedural taint or a name heuristic).
 ### 2026-10-22 (round 1 decisions)
 - ARB-065 | Gold budgets gain `accepted_breaches`: a rule over budget by a recorded decision stays in the report and in `rules_over_budget`, and the run fails again only if its rate passes a ceiling set about 10% above the rate at the decision (`failing_breaches`, tested). Recorded on 2026-10-22 by the user: `java.test-without-assertion` is a known breach (0.066/KLOC; its remaining findings are tests that only call the code), and `assurance.permanently-skipped-test` (0.0315) and `typescript.test-without-assertion` (0.034) are accepted overages. The run on the 1047341 report has 9 over budget, 3 of them accepted, and 6 failing.
 - ARB-065 | Decisions recorded by the user on 2026-10-22: the test-file exclusions in 1047341 and c4d8bfe stand (TLS off for a test's own local server, `override_settings(DEBUG=True)`, empty skipped tests, Java `@Override` tests). The three Django applications stay a separate corpus, not gold, so Python denominators don't move. Checking `assurance.test-asserts-nothing` for the same conditional-skip blind spot is round 2 work.
