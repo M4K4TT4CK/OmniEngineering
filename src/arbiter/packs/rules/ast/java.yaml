@@ -405,6 +405,34 @@ rules:
     remediation: >
       Use a `PreparedStatement` (or JPA `setParameter`) with `?`/`:name`
       placeholders, and keep identifiers (table, column) to an allow-list.
+    # One-hop data flow (Milestone 3). The built SQL (same test as the first
+    # pattern above) reaches the call through a local or a same-file helper;
+    # a hit whose spliced values are provably constant, or derived only from
+    # constants in a method that reads request input (OWASP Benchmark's
+    # tricks), is dropped.
+    taint:
+      sources: |
+        ((binary_expression) @val
+        (#match? @val "^String\\.format\\s*\\(|\\+\\s*[a-z_][\\w.]*\\s*(\\(|\\[|\\+|$)|^\\s*[a-z_][\\w.]*\\s*\\+") (#match? @val "(?i)\\b(select|insert|update|delete|from|where|into|values|call|drop|create|alter|truncate|merge|join|order\\s+by|set|grant|revoke|schema|table)\\b") (#not-match? @val "^(?:\\s|\\+|\"(?:[^\"\\\\]|\\\\.)*\"|\\b(?:[A-Z]\\w*\\.)*[A-Z][A-Z0-9_]*\\b|(?:this\\.)?(?:[\\w.]*?[a-z0-9](?:Table|Column|Col|Schema|Catalog|Index|Identifier|Sequence)s?(?:Name|Names)?|(?:table|column|schema|catalog|sequence)(?:Name|Names))\\b|(?:[\\w.]*\\.)?(?:get|quote|escape)\\w*?(?:Table|Column|Schema|Identifier|Index)\\w*\\x28[^\\x28\\x29]*\\x29)+$")) @source
+        ((method_invocation object: (identifier) @so name: (identifier) @sf arguments: (argument_list) @fa)
+         (#eq? @so "String") (#eq? @sf "format")
+        (#match? @fa "(?i)\\b(select|insert|update|delete|from|where|into|values|call|drop|create|alter|truncate|merge|join|order\\s+by|set|grant|revoke|schema|table)\\b") (#not-match? @fa "^\\x28(?:\\s|,|\\+|\"(?:[^\"\\\\]|\\\\.)*\"|\\b(?:[A-Z]\\w*\\.)*[A-Z][A-Z0-9_]*\\b|(?:this\\.)?(?:[\\w.]*?[a-z0-9](?:Table|Column|Col|Schema|Catalog|Index|Identifier|Sequence)s?(?:Name|Names)?|(?:table|column|schema|catalog|sequence)(?:Name|Names))\\b|(?:[\\w.]*\\.)?(?:get|quote|escape)\\w*?(?:Table|Column|Schema|Identifier|Index)\\w*\\x28[^\\x28\\x29]*\\x29)+\\x29$")) @source
+      # the identifier helpers the query above already trusts
+      sanitizers: |
+        ((method_invocation name: (identifier) @n) @sanitizer
+         (#match? @n "^(get|quote|escape)\\w*?(Table|Column|Schema|Identifier|Index)\\w*$"))
+      inputs: &java_request_inputs |
+        ((method_invocation object: (identifier) @rq name: (identifier) @m) @input
+         (#match? @m "^(getParameter|getParameterValues|getParameterMap|getParameterNames|getHeader|getHeaders|getHeaderNames|getQueryString|getCookies|getPathInfo|getRequestURI|getRequestURL|getInputStream|getReader|getPart|getParts)$"))
+        ((formal_parameter (modifiers [(annotation name: (identifier) @a) (marker_annotation name: (identifier) @a)]) name: (identifier) @input)
+         (#match? @a "^(RequestParam|PathVariable|RequestHeader|CookieValue|RequestBody|RequestPart|MatrixVariable|QueryParam|PathParam|FormParam|HeaderParam|CookieParam)$"))
+      sinks: |
+        ((method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (_) @sink)) @hit
+         (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|query|queryForObject|queryForList|queryForMap|queryForRowSet|queryForLong|queryForInt|queryForStream|batchUpdate|update|nativeQuery)$"))
+      types: &java_request_types
+        rq: "^(javax\\.servlet\\.http\\.|jakarta\\.servlet\\.http\\.)?(Http)?Servlet(Request|RequestWrapper)$|^(HttpServletRequest|ServletRequest|ServerHttpRequest|WebRequest|NativeWebRequest|Request)$"
+      value: [val, fa]
+      kill: derived
 
   - id: command-injection
     title: "Shell command built from a run-time value: `{text}`"
@@ -454,8 +482,18 @@ rules:
       Pass the program and each argument as separate array elements with no
       shell, validate against an allow-list, and prefer a library call over
       a child process.
+    # One-hop data flow (Milestone 3): a command whose every part is
+    # provably constant, or derived only from constants (a helper given a
+    # literal) in a method that reads request input, is dropped: OWASP
+    # Benchmark's constant tricks.
+    taint:
+      inputs: *java_request_inputs
+      types: *java_request_types
+      value: [a]
+      kill: derived
 
   # ------------------------------------------------------ deserialization --
+
   - id: object-input-stream
     title: "`ObjectInputStream.readObject` deserializes untrusted bytes"
     severity: high
@@ -1081,6 +1119,27 @@ rules:
     remediation: >
       Log the exception with an incident id and return a fixed message. Put
       caller-facing text in your own exception types and return only those.
+    # One-hop data flow (Milestone 3): a broad exception's message reaches
+    # the response through a local or a helper.
+    taint:
+      inputs: |
+        ((method_invocation object: (identifier) @e name: (identifier) @m arguments: (argument_list) @none) @input
+         (#match? @m "^(getMessage|getLocalizedMessage|toString)$") (#eq? @none "()"))
+      sinks: |
+        ((method_invocation name: (identifier) @n arguments: (argument_list . (_) @sink .)) @hit
+         (#match? @n "^(body|bodyValue|ok|setDetail)$"))
+        ((method_invocation name: (identifier) @n arguments: (argument_list . (_) . (_) @sink)) @hit
+         (#match? @n "^(sendError|forStatusAndDetail)$"))
+        ((method_invocation object: (method_invocation name: (identifier) @w)
+            name: (identifier) @n arguments: (argument_list (_) @sink)) @hit
+         (#match? @w "^(getWriter|getOutputStream)$") (#match? @n "^(print|println|write|append|printf|format)$"))
+        ((object_creation_expression type: (_) @t arguments: (argument_list . (_) @sink)) @hit
+         (#match? @t "^ResponseEntity\\b"))
+      sanitizers: |
+        ((method_invocation name: (identifier) @n) @sanitizer
+         (#match? @n "^(encodeForHTML|htmlEscape|escapeHtml\\w*|getString)$"))
+      types:
+        e: "(^|\\|)\\s*(java\\.lang\\.)?(Exception|RuntimeException|Throwable|Error|IOException|SQLException|\\w*SQL\\w*Exception|\\w*DataAccessException|NullPointerException|PersistenceException|HibernateException|NamingException|ReflectiveOperationException)\\s*($|\\|)"
 
   # ------------------------------------------------- CWE Top 25, round 2 --
   # ARB-062: the Java gaps left after round 1 (docs/cwe-top25.md): 79, 918,
@@ -1139,6 +1198,24 @@ rules:
       `th:text`, JSP `<c:out>`), or encode every value with
       `HtmlUtils.htmlEscape` / OWASP `Encode.forHtml` before writing it.
       Return JSON from APIs instead of hand-built HTML.
+    # One-hop data flow (Milestone 3): request input reaches the response
+    # through a local or a same-file helper as a built string; a hit whose
+    # values are provably constant (or derived only from constants in a
+    # method that reads request input) is dropped.
+    taint:
+      inputs: *java_request_inputs
+      sinks: |
+        ((method_invocation name: (identifier) @n arguments: (argument_list . (_) @sink .)) @hit
+         (#match? @n "^(ok|body|bodyValue|send)$"))
+        ((method_invocation object: (method_invocation name: (identifier) @w)
+            name: (identifier) @n arguments: (argument_list (_) @sink)) @hit
+         (#eq? @w "getWriter") (#match? @n "^(print|println|write|append|printf|format)$"))
+        ((return_statement (_) @sink) @hit)
+      types: *java_request_types
+      value: [v, args]
+      kill: derived
+      built: true
+      requires: true
 
   - id: ssrf-request-url
     title: "Server-side request to a URL taken from the request: `{text}`"
@@ -1178,6 +1255,27 @@ rules:
       Do not take a URL from the caller. Take an id and look the URL up, or
       parse it, require https and check the host against an allowlist
       (resolve it and refuse private ranges), and turn redirects off.
+    # One-hop data flow (Milestone 3): request input reaches the URL through
+    # a local or a helper. A URL with a fixed scheme and host is the
+    # sanitizer.
+    taint:
+      inputs: *java_request_inputs
+      sinks: |
+        ((object_creation_expression type: (_) @t arguments: (argument_list . (_) @sink)) @hit
+         (#match? @t "^((java\\.net\\.)?URL|Http(Get|Post|Put|Delete|Head|Patch|Options))$"))
+        ((method_invocation object: (identifier) @o name: (identifier) @n arguments: (argument_list . (_) @sink)) @hit
+         (#match? @o "^(Jsoup|HttpRequest)$") (#match? @n "^(connect|newBuilder)$"))
+        ((method_invocation name: (identifier) @n arguments: (argument_list . (_) @sink)) @hit
+         (#match? @n "^(getForObject|getForEntity|postForObject|postForEntity|postForLocation|patchForObject|headForHeaders|exchange|uri|url)$"))
+      # A bare `URI.create(u)` / `new URI(u)` only parses; the request is the
+      # sink it reaches. A fixed origin (a literal "https://host/" or an
+      # ALL_CAPS constant first) is the sanitizer.
+      sanitizers: |
+        ((binary_expression) @sanitizer (#match? @sanitizer "^(\"https?://[^/\"%]+/|(\\w+\\.)?[A-Z][A-Z0-9_]*\\s*\\+)"))
+        ((method_invocation object: (identifier) @so name: (identifier) @sf arguments: (argument_list . (string_literal) @fm)) @sanitizer
+         (#eq? @so "String") (#eq? @sf "format") (#match? @fm "^\"https?://[^/\"%]+/"))
+        ((method_invocation name: (identifier) @n) @sanitizer (#match? @n "^(encode|parseInt|parseLong|valueOf)$"))
+      types: *java_request_types
 
   - id: argument-injection
     title: "Request value passed to a program before `--` ends its options: `{text}`"
@@ -1207,6 +1305,19 @@ rules:
       Put `"--"` before the first value the caller controls, and reject
       values that start with `-` (validate a URL's scheme, a name against an
       allowlist).
+    # One-hop data flow (Milestone 3): request input reaches a ProcessBuilder
+    # argument through a local or a helper; the tool name may be hoisted.
+    taint:
+      inputs: *java_request_inputs
+      sinks: |
+        ((object_creation_expression type: (_) @t arguments: (argument_list . (_) @tool) @sink) @hit
+         (#match? @t "(^|\\.)ProcessBuilder$"))
+        ((method_invocation name: (identifier) @n arguments: (argument_list . (_) @tool) @sink) @hit
+         (#eq? @n "command"))
+      where:
+        tool: "^\"(/usr/bin/|/bin/)?(git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|find|xargs|grep|sed|docker|kubectl|helm|ffmpeg|convert|magick|gs|psql|mysql|mysqldump|pg_dump|openssl|gpg|sendmail|mail|tcpdump|nmap|ping|wkhtmltopdf)\"$"
+      types: *java_request_types
+      unless_element: "^--$"
 
   - id: parsed-number-narrowed
     title: "Parsed number cast to a narrower type keeps only its low bits: `{text}`"
@@ -1317,3 +1428,17 @@ rules:
       Generate the stored name (`UUID.randomUUID()`), choose the extension
       from an allowlist of content types you checked, store outside the web
       root, and keep the client's name only as data.
+    # One-hop data flow (Milestone 3): the client's file name reaches the
+    # write through a local or a same-file helper.
+    taint:
+      inputs: |
+        ((method_invocation name: (identifier) @m arguments: (argument_list) @none) @input
+         (#match? @m "^(getOriginalFilename|getSubmittedFileName)$") (#eq? @none "()"))
+      sinks: |
+        ((method_invocation name: (identifier) @n arguments: (argument_list (_) @sink)) @hit
+         (#match? @n "^(transferTo|resolve)$"))
+        ((method_invocation object: (_) @o name: (identifier) @n arguments: (argument_list (_) @sink)) @hit
+         (#match? @o "^((java\\.nio\\.file\\.)?(Files|Paths|Path)|(org\\.apache\\.commons\\.io\\.)?FileUtils|FileCopyUtils)$")
+         (#match? @n "^(copy|write|move|newOutputStream|createFile|get|of|copyInputStreamToFile|writeByteArrayToFile|copyToFile)$"))
+        ((object_creation_expression type: (_) @t arguments: (argument_list (_) @sink)) @hit
+         (#match? @t "^((java\\.io\\.)?(File|FileOutputStream|FileWriter))$"))

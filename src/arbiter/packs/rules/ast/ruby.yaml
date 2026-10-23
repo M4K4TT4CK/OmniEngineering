@@ -469,6 +469,23 @@ rules:
       Bind values: `where("name = ?", name)` or `where(name: name)`; whitelist
       column names for `order`; use prepared statements (`db.execute(sql,
       [id])`, `conn.exec_params`) for raw drivers.
+    # One-hop data flow (Milestone 3): the interpolated SQL (same exclusions
+    # as above) reaches the call through a local or a same-file helper, or
+    # is concatenated with `+`.
+    taint:
+      sources: |
+        ((string (interpolation) @i) @source
+         (#not-match? @i "^#\\{[A-Z]|table_name|primary_key|quote|sanitize|escape|connection\\.|_column|arel|\\.to_i\\s*\\}$|\\.to_f\\s*\\}$|^#\\{\\s*(Integer|Float)\\("))
+        ((heredoc_body (interpolation) @i) @source
+         (#not-match? @i "^#\\{[A-Z]|table_name|primary_key|quote|sanitize|escape|connection\\.|_column|arel|\\.to_i\\s*\\}$|\\.to_f\\s*\\}$|^#\\{\\s*(Integer|Float)\\("))
+        ((binary operator: "+") @source
+         (#match? @source "^\\(*[\"'](?i:\\s*(select|insert|update|delete|notify|with|where|order|create|drop|alter)\\b)"))
+      sinks: |
+        ((call method: (identifier) @m arguments: (argument_list . (_) @sink)) @hit
+         (#match? @m "^(where|rewhere|not|find_by_sql|count_by_sql|execute|exec_query|exec_update|exec_delete|exec_insert|select_all|select_one|select_value|select_values|select_rows|query|exec|exec_params|prepare|order|reorder|group|having|joins|update_all|delete_all)$"))
+      sanitizers: |
+        ((call method: (identifier) @m) @sanitizer
+         (#match? @m "^(to_i|to_f|quote|quote_table_name|quote_column_name|sanitize_sql\\w*|escape_string|escape_literal)$"))
 
   - id: command-injection
     title: "Shell command built by string interpolation: `{text}`"
@@ -487,14 +504,14 @@ rules:
         (#match? @hit "#\\{(?![^}]*(\\.to_i|\\bpid)\\s*\\})"))
       ; system("ls #{dir}") / exec / spawn: one string goes through /bin/sh
       ((call !receiver method: (identifier) @m (#match? @m "^(system|exec|spawn)$")
-         arguments: (argument_list . (string (interpolation)) (pair)* .))
+         arguments: (argument_list . (string (interpolation)) @cmd (pair)* .))
         @hit (#not-match? @hit "Shellwords|shellescape|shelljoin|\\.escape\\(")
         (#match? @hit "#\\{(?![^}]*(\\.to_i|\\bpid)\\s*\\})"))
       ; Open3.capture2("ls #{dir}"), IO.popen("..."), Kernel.system, Process.spawn
       ((call receiver: (constant) @r method: (identifier) @m
          (#match? @r "^(Open3|IO|Kernel|Process)$")
          (#match? @m "^(capture2|capture2e|capture3|popen|popen2|popen2e|popen3|pipeline|pipeline_r|pipeline_w|system|spawn|exec)$")
-         arguments: (argument_list . (string (interpolation)) (pair)* .))
+         arguments: (argument_list . (string (interpolation)) @cmd (pair)* .))
         @hit (#not-match? @hit "Shellwords|shellescape|shelljoin|\\.escape\\(")
         (#match? @hit "#\\{(?![^}]*(\\.to_i|\\bpid)\\s*\\})"))
     description: >-
@@ -505,6 +522,21 @@ rules:
       Use the multi-argument form, which bypasses the shell:
       `system("ls", dir)`, `Open3.capture2("git", "log", path)`; or escape
       with `Shellwords.escape` if a single string is unavoidable.
+    # One-hop data flow (Milestone 3): the interpolated command reaches the
+    # shell call through a local or a helper, or is concatenated with `+`.
+    taint:
+      mode: nonconst
+      sinks: |
+        ((call !receiver method: (identifier) @m arguments: (argument_list . (_) @sink (pair)* .)) @hit
+         (#match? @m "^(system|exec|spawn)$"))
+        ((call receiver: (constant) @r method: (identifier) @m arguments: (argument_list . (_) @sink (pair)* .)) @hit
+         (#match? @r "^(Open3|IO|Kernel|Process)$")
+         (#match? @m "^(capture2|capture2e|capture3|popen|popen2|popen2e|popen3|pipeline|pipeline_r|pipeline_w|system|spawn|exec)$"))
+      sanitizers: |
+        ((call method: (identifier) @m) @sanitizer (#match? @m "^(shellescape|shelljoin|escape|to_i|to_f|pid)$"))
+        ((call receiver: (constant) @c method: (identifier) @m) @sanitizer (#eq? @c "Shellwords"))
+      value: [cmd]
+      built: true
 
   - id: code-injection
     title: "Runtime value reaches `{text}`"
@@ -1115,6 +1147,29 @@ rules:
       sends the Rails master key. `send_file` has no traversal check of
       its own.
     remediation: "Keep `File.basename(name)` and check the result is in an allowlist or exists, or expand the joined path and require it to `start_with?` the base directory plus a separator."
+    # One-hop data flow (Milestone 3): the request value reaches the path
+    # call through locals or a same-file helper.
+    taint:
+      sources: &rb_request_sources |
+        ((identifier) @source (#match? @source "^(params|cookies)$"))
+        ((call receiver: (identifier) @r method: (identifier) @m) @source
+         (#eq? @r "request")
+         (#match? @m "^(params|query_parameters|request_parameters|GET|POST|query_string|body|raw_post|headers|cookies|path_parameters|url|fullpath|referer)$"))
+      sinks: |
+        ((call receiver: (_) @r method: (identifier) @m arguments: (argument_list (_) @sink)) @hit
+         (#eq? @m "join")
+         (#match? @r "^(::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(DIR|ROOT|PATH|PATHS|FOLDER)$|(_dir|_root|_path|_folder|^dir|^root|^base|^folder)$"))
+        ((call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (_) @sink)) @hit
+         (#match? @r "^(::)?(File|IO)$")
+         (#match? @m "^(read|binread|readlines|foreach|open|new|delete|unlink|write|binwrite)$"))
+        ((call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (_) @sink)) @hit
+         (#match? @r "^(::)?FileUtils$") (#match? @m "^(rm|rm_f|rm_r|rm_rf|remove|remove_file|cp|mv|copy|move)$"))
+        ((call !receiver method: (identifier) @m arguments: (argument_list . (_) @sink)) @hit
+         (#eq? @m "send_file"))
+      sanitizers: &rb_path_sanitizers |
+        ((call method: (identifier) @m) @sanitizer
+         (#match? @m "^(basename|to_i|to_f|sanitize_filename|sanitize|parameterize|original_filename)$"))
+        ((element_reference (simple_symbol) @k) @sanitizer (#eq? @k ":filename"))
 
   - id: upload-client-filename
     title: "Upload stored under the client's file name: `{text}`"
@@ -1168,6 +1223,20 @@ rules:
       public/ is stored cross-site scripting, and two users' uploads with
       the same name overwrite each other.
     remediation: "Store through ActiveStorage, or name the file yourself (`SecureRandom.uuid` plus an extension from an allowlist of `Marcel::MimeType.for` types), cap the size, and keep it outside public/."
+    # One-hop data flow (Milestone 3): the client's file name reaches the
+    # write through a local or a same-file helper.
+    taint:
+      sources: |
+        ((call method: (identifier) @m) @source (#eq? @m "original_filename"))
+        ((element_reference (simple_symbol) @k) @source (#eq? @k ":filename"))
+      sinks: |
+        ((call receiver: (_) @r method: (identifier) @m arguments: (argument_list (_) @sink)) @hit
+         (#eq? @m "join")
+         (#match? @r "^(::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(DIR|ROOT|PATH|PATHS|FOLDER)$|(_dir|_root|_path|_folder|^dir|^root|^base|^folder)$"))
+        ((call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (_) @sink)) @hit
+         (#match? @r "^(::)?File$") (#match? @m "^(write|binwrite|open|new)$"))
+        ((call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (_) . (_) @sink)) @hit
+         (#match? @r "^(::)?(FileUtils|IO)$") (#match? @m "^(cp|mv|copy|move|install|copy_file|copy_stream)$"))
 
   - id: ssrf-request-url
     title: "HTTP request to a URL taken from the request: `{text}`"
@@ -1217,6 +1286,23 @@ rules:
       Faraday also lets an absolute URL override the connection's base
       URL, so a base URL alone does not pin the host.
     remediation: "Parse with URI, require https and a host from an allowlist, refuse private and loopback addresses after resolving (the ssrf_filter gem does this), and don't follow redirects blindly."
+    # One-hop data flow (Milestone 3): the request value reaches the client
+    # call through locals (`URI(...)`, `URI.parse`) or a same-file helper. A
+    # URL with a fixed scheme and host is the sanitizer.
+    taint:
+      sources: *rb_request_sources
+      sinks: |
+        ((call receiver: [(constant) (scope_resolution)] @r method: (identifier) @m arguments: (argument_list . (_) @sink)) @hit
+         (#match? @r "^(::)?(Net::HTTP|HTTParty|Faraday|RestClient|HTTP|HTTPX|Excon|Typhoeus)$")
+         (#match? @m "^(get|post|put|patch|delete|head|get_response|start|new|request|options)$"))
+        ((call receiver: (constant) @r method: (identifier) @m arguments: (argument_list . (_) @sink)) @hit
+         (#eq? @r "URI") (#eq? @m "open"))
+        ((call receiver: (identifier) @r method: (identifier) @m arguments: (argument_list . (_) @sink)) @hit
+         (#match? @r "^(conn|connection|client|http|faraday|agent|\\w+_(conn|connection|client|http))$")
+         (#match? @m "^(get|post|put|patch|delete|head|request)$"))
+      sanitizers: |
+        ((string) @sanitizer (#match? @sanitizer "^\"https?://[^/\"#]+/"))
+        ((call method: (identifier) @m) @sanitizer (#match? @m "^(to_i|escape|encode_www_form_component|encode_uri_component)$"))
 
   - id: argument-injection
     title: "Request value passed to a command with no `--` before it: `{text}`"
@@ -1257,4 +1343,19 @@ rules:
       `git clone --upload-pack='touch /tmp/x'` runs a command, and curl,
       ssh and tar have options that read or write any file.
     remediation: "Put \"--\" before the first value argument (`system(\"git\", \"clone\", \"--\", url, dir)`), and validate the value (`URI.parse(url).is_a?(URI::HTTPS)`, a ref-name pattern) first."
-
+    # One-hop data flow (Milestone 3): the request value reaches the argv
+    # through a local or a helper; the tool name may be hoisted.
+    taint:
+      sources: *rb_request_sources
+      sinks: |
+        ((call !receiver method: (identifier) @m arguments: (argument_list . (_) . (_)) @sink) @hit
+         (#match? @m "^(system|spawn|exec)$"))
+        ((call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (_) . (_)) @sink) @hit
+         (#match? @r "^(::)?(Open3|Kernel|Process)$")
+         (#match? @m "^(capture2|capture2e|capture3|popen2|popen2e|popen3|system|spawn)$"))
+      # a number, or an element whose literal start is not an option
+      sanitizers: |
+        ((call method: (identifier) @m) @sanitizer (#match? @m "^(to_i|to_f)$"))
+        ((string . (string_content) @c) @sanitizer (#not-match? @c "^-"))
+      element0: "(^|/)(git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|find|sendmail|ffmpeg|ffprobe|convert|magick|docker|kubectl|npm|npx|yarn|pip|openssl|gpg|gem|bundle)$"
+      unless_element: "^--$"

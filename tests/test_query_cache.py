@@ -65,8 +65,10 @@ def test_a_pack_query_is_compiled_once_per_process_for_n_files(tmp_path, monkeyp
 
     assert compiled, "the scan compiled its queries"
     assert max(compiled.values()) == 1, {q[:60]: c for q, c in compiled.items() if c > 1}
-    pack_queries = {r[k] for r in lang_rules.load_packs()["ruby"]["rules"]
-                    for k in lang_rules.QUERY_KEYS if r.get(k)}
+    rules_ = lang_rules.load_packs()["ruby"]["rules"]
+    pack_queries = {r[k] for r in rules_ for k in lang_rules.QUERY_KEYS if r.get(k)}
+    pack_queries |= {r["taint"][k] for r in rules_ if r.get("taint")
+                     for k in lang_rules.TAINT_QUERY_KEYS if r["taint"].get(k)}
     assert set(compiled) <= pack_queries, "only pack queries were compiled"
 
 

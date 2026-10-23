@@ -19,13 +19,15 @@ function that holds a sink (and each function that calls one that does, for
 the one hop) statement by statement. Every local carries an abstract value:
 
     CLEAN    built only from literals (and its constant value when known)
+    DERIVED  returned by a call the engine cannot see into whose inputs are
+             all CLEAN (`System.getProperty("os.name")`)
     UNKNOWN  a parameter, a field, a call the engine cannot see into
     TAINT    reached from a rule source (a request accessor, a built SQL
              string), through assignments, destructuring, `+=`, string
              concatenation / format / template / f-string / interpolation,
              containers, and calls
 
-Branches join (CLEAN < UNKNOWN < TAINT); a condition that folds to a
+Branches join (CLEAN < DERIVED < UNKNOWN < TAINT); a condition that folds to a
 constant takes only its live branch, a constant `switch` only its case, a
 ternary with a constant condition only its arm. A value reassigned to a
 literal is CLEAN from there on. A call to a function defined in the same
@@ -52,7 +54,7 @@ import os
 import re
 from dataclasses import dataclass, field
 
-CLEAN, UNKNOWN, TAINT = 0, 1, 2
+CLEAN, DERIVED, UNKNOWN, TAINT = 0, 1, 2, 3
 
 
 class _NoConst:
@@ -117,6 +119,9 @@ def join(a: AV | None, b: AV | None) -> AV | None:
                         and type(a.const) is type(b.const) and a.const == b.const) else NOCONST
     lit = a.lit if a.lit == b.lit else None
     items = a.items if a.items == b.items else None
+    if items is None and a.items is not None and b.items is not None and a.items[0] == b.items[0] == "list" \
+            and len(a.items[1]) == len(b.items[1]):
+        items = ("list", tuple(join(x, y) for x, y in zip(a.items[1], b.items[1])))
     return AV(max(a.kind, b.kind), const, lit, _via(a.via, b.via), items, a.built or b.built)
 
 
@@ -229,6 +234,7 @@ class Spec:
     sources: set = field(default_factory=set)        # node keys
     source_params: set = field(default_factory=set)  # parameter spans whose value is a source
     sanitizers: set = field(default_factory=set)
+    inputs: set = field(default_factory=set)         # always TAINT (request accessors)
     hops: int = 1
 
 
@@ -250,6 +256,7 @@ class Interp:
         self.consts: dict[str, AV] = {}
         self._memo: dict = {}
         self._stack: list = []
+        self._fn_nodes: list = []
         self.depth = 0
         self.ever: dict[str, AV] = {}
         self._index()
@@ -430,6 +437,7 @@ class Interp:
         """Interpret `fn`; returns the join of what it returns."""
         env = self.enter_env(fn, args, kwargs)
         self._stack.append(fn.id)
+        self._fn_nodes.append(fn)
         try:
             body = self.body(fn)
             returns: list = []
@@ -448,6 +456,7 @@ class Interp:
             return res if res is not None else clean(None)
         finally:
             self._stack.pop()
+            self._fn_nodes.pop()
 
     def call_same_file(self, call, name, args, kwargs, receiver_ok: bool) -> AV | None:
         if self.depth >= self.spec.hops or not receiver_ok:
@@ -515,9 +524,21 @@ class Interp:
             return env, None
         if t in ("return_statement", "return", "yield_statement"):
             vals = [c for c in named(node)]
+            if len(vals) == 1 and vals[0].type in ("expression_list", "argument_list") \
+                    and len(named(vals[0])) > 1:
+                vals = named(vals[0])
             av = None
-            for v in vals:
-                av = join(av, self.eval(v, env))
+            if not vals and self.lang == "go" and self._fn_nodes:
+                res = self._fn_nodes[-1].child_by_field_name("result")
+                names = [text(n) for p in (named(res) if res is not None and res.type == "parameter_list" else [])
+                         for n in p.children_by_field_name("name")]
+                if names:
+                    av = self.mk_list([env.get(n, clean(None)) for n in names]) if len(names) > 1 \
+                        else env.get(names[0], clean(None))
+            if len(vals) > 1:
+                av = self.mk_list([self.eval(v, env) for v in vals])
+            for v in vals[:1]:
+                av = av if av is not None else self.eval(v, env)
             returns.append(av if av is not None else clean(None))
             return None, None
         if t in ("throw_statement", "raise_statement", "raise"):
@@ -945,6 +966,9 @@ class Interp:
         lefts = named(left) if left is not None and left.type == "expression_list" else [left]
         rights = named(right) if right is not None and right.type == "expression_list" else [right]
         avs = [self.eval(r, env) if r is not None else UNK for r in rights]
+        if len(lefts) > 1 and len(avs) == 1 and avs[0].items is not None and avs[0].items[0] == "list" \
+                and len(avs[0].items[1]) == len(lefts):
+            avs, rights = list(avs[0].items[1]), [rights[0]] * len(lefts)
         for i, lt in enumerate(lefts):
             if lt is None:
                 continue
@@ -1027,9 +1051,12 @@ class Interp:
             for c in named(node):
                 self.eval(c, env)
             return self.note(node, clean())
+        if k in self.spec.inputs:
+            inner = self._eval(node, env)
+            return self.note(node, AV(TAINT, NOCONST, None, _via(inner.via, frozenset([span(node)]))))
         if k in self.spec.sources:
             inner = self._eval(node, env)
-            if inner.kind == CLEAN:
+            if inner.kind == CLEAN or (inner.built and inner.kind <= DERIVED):
                 return self.note(node, inner)
             return self.note(node, AV(TAINT, NOCONST, None, _via(inner.via, frozenset([span(node)]))))
         return self.note(node, self._eval(node, env))
@@ -1104,8 +1131,8 @@ class Interp:
             return self.eval_member(node, env)
         if t in _SUBSCRIPTS:
             return self.eval_subscript(node, env)
-        if t in _LISTS:
-            vals = [self.eval(c, env) for c in named(node)]
+        if t in _LISTS or t == "argument_list":
+            vals = [self.eval(c, env) for c in named(node) if c.type != "block_argument"]
             return self.mk_list(vals)
         if t in ("array_creation_expression",):
             v = node.child_by_field_name("value")
@@ -1209,7 +1236,7 @@ class Interp:
         t = node.type
         if t == "heredoc_beginning":
             body = self.heredoc_body(node)
-            return self.eval_string(body, env) if body is not None else clean()
+            return self.eval(body, env) if body is not None else clean()
         parts = []
         lits = []
         for c in node.named_children:
@@ -1553,7 +1580,22 @@ class Interp:
             r = self.call_same_file(node, name, args, kwargs, receiver_ok)
             if r is not None:
                 return AV(r.kind, r.const, r.lit, _via(r.via, frozenset([span(node)])), r.items, r.built)
-        inputs = ([rv] if rv is not None else []) + args + list(kwargs.values())
+        # a static call on a class (`Utils.get("x")`, `System.getProperty`):
+        # the receiver names code, not data
+        static = recv is not None and rv is not None and rv.kind == UNKNOWN and recv.type in (
+            "identifier", "field_access", "scoped_identifier", "selector_expression", "attribute",
+            "member_expression", "scope_resolution", "constant") and \
+            re.fullmatch(r"([a-z_][\w]*\.)*[A-Z]\w*", text(recv)) is not None and \
+            text(recv) not in self.ever
+        inputs = ([rv] if rv is not None and not static else []) + args + list(kwargs.values())
+        # Go out-parameters: `dec.Decode(&req)`, `c.ShouldBindJSON(&req)`
+        if self.lang == "go" and (nkey(node) in self.spec.sources or any(a.kind == TAINT for a in inputs)):
+            src = AV(TAINT, NOCONST, None, _via(*[a.via for a in inputs], frozenset([span(node)])))
+            for a in arg_nodes:
+                if a.type == "unary_expression" and text(a).startswith("&"):
+                    target = a.child_by_field_name("operand")
+                    if target is not None and target.type in _IDENTS | _MEMBERS:
+                        self.bind(target, src, env)
         # containers held in a local
         if recv is not None and rv is not None and (recv.type in _IDENTS or recv.type in _MEMBERS):
             rname = text(recv)
@@ -1615,6 +1657,8 @@ class Interp:
             return mix(inputs)
         if _PURE.match(name) and inputs and all(a.kind == CLEAN for a in inputs):
             return clean()
+        if inputs and all(a.kind <= DERIVED for a in inputs):
+            return AV(DERIVED, NOCONST, None, _via(*[a.via for a in inputs]))
         return AV(UNKNOWN, NOCONST, None, _via(*[a.via for a in inputs]))
 
 
@@ -1649,6 +1693,7 @@ def analyse(lang: str, root, spec: Spec, watch_nodes: list, budget: int = 400_00
     watch = {nkey(n) for n in watch_nodes}
     it = Interp(lang, root, spec, watch, budget)
     groups: dict = {}
+    callers: set = set()
     for n in watch_nodes:
         g = _encl_func(n, funcs)
         groups[g.id if g is not None else None] = g if g is not None else root
@@ -1669,6 +1714,8 @@ def analyse(lang: str, root, spec: Spec, watch_nodes: list, budget: int = 400_00
                     if nm in names:
                         g = _encl_func(x, funcs)
                         if g is not None:
+                            if g.id not in groups:
+                                callers.add(g.id)
                             groups.setdefault(g.id, g)
                         else:
                             groups[None] = root
@@ -1677,8 +1724,12 @@ def analyse(lang: str, root, spec: Spec, watch_nodes: list, budget: int = 400_00
         if None in groups:
             it.exec_body(root, {}, [])
         else:
-            for g in groups.values():
+            for gid, g in groups.items():
+                # a caller is run one hop further out, so the function it
+                # calls keeps its own hop
+                it.depth = -1 if gid in callers else 0
                 it.run_function(g)
+            it.depth = 0
         # anything the walk did not reach: flow-insensitive, every value
         # each local was ever given
         for n in watch_nodes:
@@ -1692,6 +1743,19 @@ def analyse(lang: str, root, spec: Spec, watch_nodes: list, budget: int = 400_00
             raise
         return None
     return it.seen
+
+
+def source_nodes(root, spec: Spec, via) -> list:
+    """The source nodes among the spans a value flowed through."""
+    keys = spec.sources | spec.inputs
+    want = {(k[0], k[1]) for k in keys} & set(via)
+    out, stack = [], [root]
+    while stack and want:
+        n = stack.pop()
+        if (n.start_byte, n.end_byte) in want and nkey(n) in keys:
+            out.append(n)
+        stack.extend(c for c in n.children if c.start_byte <= max(e for _s, e in want))
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -1838,6 +1902,25 @@ def declared_type(lang: str, node, funcs=None) -> str | None:
     name = text(node)
     cur = node.parent
     while cur is not None:
+        if cur.type == "catch_clause":
+            for p in named(cur):
+                if p.type == "catch_formal_parameter":
+                    nm = p.child_by_field_name("name")
+                    ty = next((c for c in named(p) if c.type == "catch_type"), None)
+                    if nm is not None and text(nm) == name and ty is not None:
+                        return text(ty)
+        if cur.type in ("block", "statement_block", "statement_list"):
+            for st in named(cur):
+                if st.start_byte >= node.start_byte:
+                    break
+                if st.type in ("local_variable_declaration", "var_declaration"):
+                    ty = st.child_by_field_name("type")
+                    decls = [d for d in named(st) if d.type in ("variable_declarator", "var_spec")]
+                    for d in decls:
+                        nm = d.child_by_field_name("name")
+                        dty = d.child_by_field_name("type") or ty
+                        if nm is not None and text(nm) == name and dty is not None:
+                            return text(dty)
         if cur.type in funcs:
             ps = cur.child_by_field_name("parameters")
             for p in (named(ps) if ps is not None else []):

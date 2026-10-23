@@ -455,6 +455,25 @@ rules:
       placeholders exist precisely so that the driver, not string handling,
       keeps data and query apart.
     remediation: "Use placeholders ($1 / ?) and pass the values as arguments; build identifier lists from an allowlist."
+    # One-hop data flow (Milestone 3): the built SQL (a format string may be
+    # hoisted too) reaches the call through a local or a same-file helper.
+    taint:
+      sources: |
+        ((call_expression function: (selector_expression) @sp arguments: (argument_list . (_) @fmt)) @source
+         (#eq? @sp "fmt.Sprintf")
+         (#not-match? @source "strings\\.(Join|Repeat)\\("))
+        ((binary_expression operator: "+") @source
+         (#match? @source "(?is)^[\"`]\\s*(select|insert|update|delete|create|drop|alter|truncate|merge|with|where|and|or|order|group|having|from|set|values|join)\\b")
+         (#not-match? @source "strings\\.(Join|Repeat)\\("))
+      sinks: |
+        ((call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (_) @sink)) @hit
+         (#match? @m "^(Query|QueryRow|Exec|Prepare|Queryx|QueryRowx|MustExec|NamedQuery|NamedExec|Raw|Where|Having|Order|Group|Joins)$"))
+        ((call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (_) . (_) @sink)) @hit
+         (#match? @m "^(QueryContext|QueryRowContext|ExecContext|PrepareContext|QueryxContext|QueryRowxContext|Select|Get)$"))
+        ((call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (_) . (_) . (_) @sink)) @hit
+         (#match? @m "^(SelectContext|GetContext)$"))
+      at: source
+      where: {fmt: "(?is)^[\"`]\\s*(select|insert|update|delete|create|drop|alter|truncate|merge|with|where|and|or|order|group|having|from|set|values|join)\\b"}
 
   - id: command-injection
     title: "`{text}` runs a shell with a command string that is not a literal"
@@ -490,6 +509,22 @@ rules:
       a file name, a tenant id -- can end the intended command and start
       another.
     remediation: "Call the program directly with exec.Command(name, args...) so each argument is passed as-is; never route values through a shell string."
+    # One-hop data flow (Milestone 3): the shell and its flag may be hoisted
+    # into locals or passed through a helper; the command is anything not
+    # provably constant.
+    taint:
+      mode: nonconst
+      sinks: |
+        ((call_expression function: (selector_expression) @f
+          arguments: (argument_list . (_) @sh . (_) @c . (_) @sink)) @hit
+         (#eq? @f "exec.Command"))
+        ((call_expression function: (selector_expression) @f
+          arguments: (argument_list . (_) . (_) @sh . (_) @c . (_) @sink)) @hit
+         (#eq? @f "exec.CommandContext"))
+      where:
+        sh: "^\"(/bin/|/usr/bin/|/usr/local/bin/)?(sh|bash|zsh|dash|ash|ksh|fish)\"$|^\"(cmd|cmd\\.exe|powershell|pwsh)\"$"
+        c: "^\"(-c|-lc|/[Cc]|-Command)\"$"
+      value: [cmd]
 
   # ---------------------------------------------------------------------
   # Authentication (CWE-287)
@@ -501,6 +536,7 @@ rules:
   # "none" without UnsafeAllowNoneSignatureType and rejects a key of the
   # wrong type for the algorithm, so the classic algorithm confusion does not
   # reproduce and the rule would be noise.
+
   - id: jwt-parse-unverified
     title: "`{text}` reads a JWT without verifying its signature"
     severity: high
@@ -698,6 +734,36 @@ rules:
       failed. Returned to the caller they map the internals for an attacker
       and can expose other users' data.
     remediation: "Log err server-side (with a request id) and return a fixed message: http.Error(w, \"internal error\", http.StatusInternalServerError)."
+    # One-hop data flow (Milestone 3): the error text reaches the response
+    # through a local or a helper, the 5xx status may be hoisted, and the
+    # writer is found by its declared type rather than its name.
+    taint:
+      sources: |
+        ((call_expression function: (selector_expression operand: (identifier) @ev field: (field_identifier) @m) arguments: (argument_list) @none) @source
+         (#match? @ev "^(err|e|[a-z]\\w*Err|[a-z]+err)$") (#eq? @m "Error") (#eq? @none "()"))
+        ((identifier) @source (#match? @source "^(err|[a-z]\\w*Err|[a-z]+err)$"))
+      sinks: |
+        ((call_expression function: (selector_expression) @f
+          arguments: (argument_list . (_) . (_) @sink . (_) @code .)) @hit
+         (#eq? @f "http.Error"))
+        ((call_expression function: (selector_expression) @f
+          arguments: (argument_list . (identifier) @w (_) @sink)) @hit
+         (#match? @f "^fmt\\.Fprint(f|ln)?$"))
+        ((call_expression function: (selector_expression operand: (identifier) @w field: (field_identifier) @m)
+          arguments: (argument_list . (_) @sink .)) @hit
+         (#eq? @m "Write"))
+        ((call_expression function: (selector_expression) @f
+          arguments: (argument_list . (identifier) @w . (_) @sink .)) @hit
+         (#eq? @f "io.WriteString"))
+        ((call_expression function: (selector_expression operand: (identifier) @gc field: (field_identifier) @m)
+          arguments: (argument_list . (_) @code (_) @sink)) @hit
+         (#match? @m "^(JSON|String|IndentedJSON|PureJSON|AbortWithStatusJSON|XML)$"))
+      where:
+        code: "^(http\\.)?Status(InternalServerError|BadGateway|ServiceUnavailable|GatewayTimeout|NotImplemented|InsufficientStorage)$|^5[0-9][0-9]$"
+      types:
+        w: "^http\\.ResponseWriter$"
+        gc: "^\\*?(gin\\.Context|echo\\.Context|fiber\\.Ctx)$"
+      requires: true
 
   - id: pprof-on-default-mux
     title: "`{text}` publishes /debug/pprof on the default mux"
@@ -797,6 +863,35 @@ rules:
       absolute path, for os.Open) walk out of that directory: `?file=../../etc/passwd`
       reads any file the process can.
     remediation: "Reject names that are not filepath.IsLocal (Go 1.20+), or keep filepath.Base(name), or open through os.OpenRoot/os.OpenInRoot (Go 1.24+); check the joined path still has the base as its prefix."
+    # One-hop data flow (Milestone 3): the request value reaches the path
+    # call through locals, a decoded body or a same-file helper. The request
+    # is found by its declared type as well as by name.
+    taint:
+      sources: &go_request_sources |
+        ((call_expression function: (selector_expression operand: (identifier) @r field: (field_identifier) @m)) @source
+         (#match? @m "^(FormValue|PostFormValue|PathValue|Query|DefaultQuery|Param|Params|PostForm|DefaultPostForm|QueryParam|QueryParams|ShouldBind\\w*|Bind\\w*|BodyParser)$"))
+        ((call_expression function: (selector_expression
+            operand: (selector_expression operand: (identifier) @r field: (field_identifier) @u)
+            field: (field_identifier) @m)) @source
+         (#eq? @u "URL") (#eq? @m "Query"))
+        ((selector_expression operand: (identifier) @r field: (field_identifier) @m) @source
+         (#match? @m "^(Form|PostForm|Body)$"))
+        ((call_expression function: (selector_expression) @f) @source
+         (#match? @f "^(mux\\.Vars|chi\\.URLParam)$"))
+      sinks: |
+        ((call_expression function: (selector_expression) @f arguments: (argument_list (_) @sink)) @hit
+         (#match? @f "^(filepath|path)\\.Join$"))
+        ((call_expression function: (selector_expression) @f arguments: (argument_list . (_) @sink)) @hit
+         (#match? @f "^(os\\.(Open|OpenFile|ReadFile|Create|WriteFile|Remove|RemoveAll|ReadDir|Stat|Lstat|Mkdir|MkdirAll|Truncate|Chmod|Chown)|ioutil\\.(ReadFile|WriteFile|ReadDir))$"))
+        ((call_expression function: (selector_expression operand: (identifier) @r field: (field_identifier) @m) arguments: (argument_list . (_) @sink)) @hit
+         (#match? @m "^(File|FileAttachment|Attachment|SendFile|Download)$"))
+        ((call_expression function: (selector_expression) @f arguments: (argument_list . (_) . (_) . (_) @sink)) @hit
+         (#eq? @f "http.ServeFile"))
+      sanitizers: &go_path_sanitizers |
+        ((call_expression function: (selector_expression) @g) @sanitizer
+         (#match? @g "^(filepath\\.Base|path\\.Base|strconv\\.\\w+|uuid\\.\\w+)$"))
+      types: &go_request_types
+        r: "^\\*?(http\\.Request|gin\\.Context|echo\\.Context|fiber\\.Ctx)$"
 
   - id: upload-client-filename
     title: "`{text}` stores an upload under the client's file name"
@@ -856,6 +951,21 @@ rules:
       stored cross-site scripting, a `.php` or `.jsp` may run, and one
       user's upload overwrites another's file of the same name.
     remediation: "Name the file yourself (a random id), pick the extension from an allowlist of types sniffed with http.DetectContentType, cap the size with http.MaxBytesReader, and store outside the served tree."
+    # One-hop data flow (Milestone 3): the client's file name reaches the
+    # write through a local or a same-file helper.
+    taint:
+      sources: |
+        ((selector_expression field: (field_identifier) @m) @source (#eq? @m "Filename"))
+        ((call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list) @none) @source
+         (#eq? @m "FileName") (#eq? @none "()"))
+      sinks: |
+        ((call_expression function: (selector_expression) @f arguments: (argument_list (_) @sink)) @hit
+         (#match? @f "^(filepath|path)\\.Join$"))
+        ((call_expression function: (selector_expression) @f arguments: (argument_list . (_) @sink)) @hit
+         (#match? @f "^(os\\.(Create|OpenFile|WriteFile)|ioutil\\.WriteFile)$"))
+        ((call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (_) . (_) @sink)) @hit
+         (#eq? @m "SaveUploadedFile"))
+      requires: true
 
   - id: ssrf-request-url
     title: "`{text}` fetches a URL taken from the request"
@@ -903,6 +1013,25 @@ rules:
       internal services behind the firewall. Link previews, webhooks and
       image proxies written this way are the usual source.
     remediation: "Parse the URL, require https and a host from an allowlist, resolve and refuse private, loopback and link-local addresses (in a custom Dialer.Control so redirects and DNS rebinding are covered), and don't follow redirects blindly."
+    # One-hop data flow (Milestone 3). A URL whose scheme and host are fixed
+    # (a "https://host/" prefix, or a Sprintf format starting with one) is
+    # the sanitizer.
+    taint:
+      sources: *go_request_sources
+      sinks: |
+        ((call_expression function: (_) @f arguments: (argument_list . (_) @sink)) @hit
+         (#match? @f "^http\\.(Get|Head|Post|PostForm)$|(^|\\.)\\w*([Cc]lient|HTTP)\\.(Get|Head|Post|PostForm)$"))
+        ((call_expression function: (selector_expression) @f arguments: (argument_list . (_) . (_) @sink)) @hit
+         (#eq? @f "http.NewRequest"))
+        ((call_expression function: (selector_expression) @f arguments: (argument_list . (_) . (_) . (_) @sink)) @hit
+         (#eq? @f "http.NewRequestWithContext"))
+      sanitizers: |
+        ((binary_expression) @sanitizer (#match? @sanitizer "^\"https?://[^/\"%]+/"))
+        ((call_expression function: (selector_expression) @sp arguments: (argument_list . (interpreted_string_literal) @fm)) @sanitizer
+         (#eq? @sp "fmt.Sprintf") (#match? @fm "^\"https?://[^/\"%]+/"))
+        ((call_expression function: (selector_expression) @g) @sanitizer
+         (#match? @g "^(url\\.(PathEscape|QueryEscape)|strconv\\.\\w+)$"))
+      types: *go_request_types
 
   - id: argument-injection
     title: "`{text}` passes a request value to a command with no `--` before it"
@@ -942,6 +1071,23 @@ rules:
       command; curl, ssh, rsync and tar have options that read or write
       arbitrary files.
     remediation: "Put \"--\" before the first value argument (exec.Command(\"git\", \"clone\", \"--\", url, dir)), and validate the value (url.Parse with an https scheme, a ref name pattern) before it reaches the command."
+    # One-hop data flow (Milestone 3): the request value reaches the argv
+    # through a local or a helper; the tool name may be hoisted. A "--"
+    # anywhere in the argument list is taken as the fix.
+    taint:
+      sources: *go_request_sources
+      sinks: |
+        ((call_expression function: (selector_expression) @f arguments: (argument_list . (_) @tool) @sink) @hit
+         (#eq? @f "exec.Command"))
+        ((call_expression function: (selector_expression) @f arguments: (argument_list . (_) . (_) @tool) @sink) @hit
+         (#eq? @f "exec.CommandContext"))
+      sanitizers: |
+        ((call_expression function: (selector_expression) @g) @sanitizer (#match? @g "^strconv\\.\\w+$"))
+        ((binary_expression) @sanitizer (#match? @sanitizer "^\"-"))
+      where:
+        tool: "^\"(/usr/local/bin/|/usr/bin/|/bin/)?(git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|ffmpeg|ffprobe|convert|magick|gs|pandoc|wkhtmltopdf|psql|mysql|mysqldump|pg_dump|docker|kubectl|helm|openssl|find|grep|sed|awk)\"$"
+      types: *go_request_types
+      unless_element: "^--$"
 
   - id: parsed-int-narrowed
     title: "`{text}` narrows a 64-bit parsed integer without a bounds check"
