@@ -152,7 +152,11 @@ def run(plan: dict[str, str], labels_dir: Path, check: bool) -> tuple[int, list[
         unchanged_labels(before, after)
         data = encode(path, after)
         unk = sum(1 for r in after if r.get("stratum_size") is None)
-        changed = data != path.read_bytes()
+        # Compare what the file holds, not its bytes: gzip output differs across Python/zlib versions
+        # (3.11 and 3.12+ write different headers for the same text), which made --check fail on 3.11.
+        current = path.read_bytes()
+        changed = (data != current if not path.name.endswith(".gz")
+                   else gzip.decompress(data) != gzip.decompress(current))
         lines.append(f"{name}: {len(after)} records, {unk} with unknown population ({method})"
                      + (" -- out of date" if changed and check else " -- written" if changed else ""))
         if changed:
