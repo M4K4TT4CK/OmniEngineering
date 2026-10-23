@@ -53,7 +53,8 @@ ABOUT = ("Per-rule precision ledger (docs/precision.md). Built by tools/precisio
          "from label files; do not edit by hand. A rule is admitted when its Wilson 95% lower "
          "bound reaches bar.rule_lower on at least bar.rule_min_n TP+FP labels, with labeller "
          "kappa at least bar.kappa_min where two labellers looked. `tier` is the claim: verified-"
-         "tier precision on held-out labels only, overall and per category.")
+         "tier precision on held-out labels only, stratified by (rule, source, language) and "
+         "weighted by each stratum's population, overall and per category.")
 
 
 # ---------------------------------------------------------------------------
@@ -154,13 +155,40 @@ def read_sheet(path: Path, batch: str, source: str, held_out: bool) -> list[dict
                     "labeller": (r.get("labeller") or "").strip() or path.stem, "source": source,
                     "held_out": held_out, "role": "labeller", "note": r.get("notes") or "",
                     "language": r.get("language") or "",
-                    "stratum_size": int(r.get("stratum_size") or 0)})
+                    # A sheet is one split, so its stratum's held-out size is
+                    # all of it or none of it. A blank size stays unknown.
+                    **({"stratum_size": int(r["stratum_size"]),
+                        "stratum_held_out_size": int(r["stratum_size"]) if held_out else 0}
+                       if str(r.get("stratum_size") or "").strip() else {})})
     return out
 
 
 # ---------------------------------------------------------------------------
 # Arithmetic -- pure
 # ---------------------------------------------------------------------------
+
+_ROLE_ORDER = {"ground_truth": 0, "adjudicator": 1, "labeller": 2}
+
+
+def _size(v) -> int | None:
+    return None if v is None or v == "" else int(v)
+
+
+def finding_stratum(recs: list[dict]) -> dict:
+    """The sampling stratum one finding was drawn from: its source and
+    language (the rule is the finding's own), and the population sizes its
+    label record carries (docs/precision.md, "Population weights"). Taken
+    from the first record, ground truth first, that carries a size; when
+    none does, the sizes are None: unknown, never the label count."""
+    ordered = sorted(recs, key=lambda r: _ROLE_ORDER.get(r.get("role", "labeller"), 3))
+    r = next((x for x in ordered if _size(x.get("stratum_size")) is not None), ordered[0])
+    size = _size(r.get("stratum_size"))
+    held = _size(r.get("stratum_held_out_size"))
+    return {"source": r["source"], "language": r.get("language") or "", "size": size,
+            "held_out_size": held if size is not None else None,
+            "rule_size": _size(r.get("rule_population")) if size is not None else None,
+            "rule_held_out_size": _size(r.get("rule_held_out_population")) if size is not None else None}
+
 
 def final_verdicts(records: list[dict]) -> dict[str, dict]:
     """finding_id -> {rule_id, label, held_out, source, labellers, pair}.
@@ -201,7 +229,7 @@ def final_verdicts(records: list[dict]) -> dict[str, dict]:
                     "sources": sorted({r["source"] for r in recs}),
                     "dates": sorted(r["date"] for r in recs if r.get("date")),
                     "notes": [r["note"] for r in recs if r.get("note") and r["label"] == "fp"],
-                    "strata": {(r.get("language") or ""): int(r.get("stratum_size") or 0) for r in recs},
+                    "stratum": finding_stratum(recs),
                     "dimension": next((r["dimension"] for r in recs if r.get("dimension")), ""),
                     "cwe": sorted({c for r in recs for c in (r.get("cwe") or [])}),
                     "pair": pair}
@@ -212,6 +240,59 @@ def _round(x):
     return None if x is None else round(x, 4)
 
 
+def _new_stratum(source: str, language: str) -> dict:
+    return {"source": source, "language": language, "population": None, "held_out_population": None,
+            "unknown": 0, "tp": 0, "fp": 0, "unsure": 0, "held_out": {"tp": 0, "fp": 0, "unsure": 0}}
+
+
+def _agree_size(rule: str, where: str, old, new):
+    if old is not None and new is not None and old != new:
+        raise SystemExit(f"{rule} {where}: label records give two population sizes ({old} and {new}); "
+                         "labels drawn from different runs need different `source` names")
+    return new if old is None else old
+
+
+def rule_strata(rule: str, verdicts: list[dict]) -> tuple[list[dict], dict]:
+    """A rule's strata (source, language) with their populations and label
+    counts, and the rule's population per source. A stratum any of whose
+    labels lacks a recorded size is unknown as a whole (population None)."""
+    strata: dict[tuple, dict] = {}
+    sources: dict[str, dict] = {}
+    for v in verdicts:
+        st = v["stratum"]
+        key = (st["source"], st["language"])
+        e = strata.setdefault(key, _new_stratum(*key))
+        e[v["label"]] += 1
+        if v["held_out"]:
+            e["held_out"][v["label"]] += 1
+        if st["size"] is None:
+            e["unknown"] += 1
+            continue
+        where = f"stratum {key[0]}/{key[1] or '-'}"
+        e["population"] = _agree_size(rule, where, e["population"], st["size"])
+        e["held_out_population"] = _agree_size(rule, where + " (held out)", e["held_out_population"],
+                                               st["held_out_size"])
+        src = sources.setdefault(st["source"], {"population": None, "held_out_population": None})
+        src["population"] = _agree_size(rule, f"source {st['source']}", src["population"], st["rule_size"])
+        src["held_out_population"] = _agree_size(rule, f"source {st['source']} (held out)",
+                                                 src["held_out_population"], st["rule_held_out_size"])
+    out = []
+    for key in sorted(strata):
+        e = strata[key]
+        if e.pop("unknown"):
+            e["population"] = e["held_out_population"] = None
+        out.append(e)
+    return out, sources
+
+
+def _weighted(strata: list[dict], held_out: bool) -> dict | None:
+    rows = [{"key": f"{s['source']}/{s['language'] or '-'}",
+             "tp": s["held_out"]["tp"] if held_out else s["tp"],
+             "fp": s["held_out"]["fp"] if held_out else s["fp"],
+             "population": s["held_out_population"] if held_out else s["population"]} for s in strata]
+    return P.weighted_precision(rows)
+
+
 def rule_entries(verdicts: dict[str, dict], bar: dict) -> dict[str, dict]:
     from arbiter.rule_meta import meta
     per: dict[str, dict] = {}
@@ -219,7 +300,7 @@ def rule_entries(verdicts: dict[str, dict], bar: dict) -> dict[str, dict]:
         e = per.setdefault(v["rule_id"], {
             "tp": 0, "fp": 0, "unsure": 0, "held_out": {"tp": 0, "fp": 0, "unsure": 0},
             "labellers": set(), "sources": set(), "dates": [], "pairs": [], "notes": [],
-            "strata": defaultdict(int), "dimension": v["dimension"], "cwe": set(v["cwe"])})
+            "verdicts": [], "dimension": v["dimension"], "cwe": set(v["cwe"])})
         e[v["label"]] += 1
         if v["held_out"]:
             e["held_out"][v["label"]] += 1
@@ -228,8 +309,7 @@ def rule_entries(verdicts: dict[str, dict], bar: dict) -> dict[str, dict]:
         e["dates"] += v["dates"]
         e["notes"] += v["notes"]
         e["cwe"].update(v["cwe"])
-        for lang, size in v["strata"].items():
-            e["strata"][lang] = max(e["strata"][lang], size)
+        e["verdicts"].append(v)
         if v["pair"]:
             e["pairs"].append(v["pair"])
     out = {}
@@ -238,6 +318,8 @@ def rule_entries(verdicts: dict[str, dict], bar: dict) -> dict[str, dict]:
         ci = P.wilson(e["tp"], n)
         kappa = P.cohens_kappa([a for a, _ in e["pairs"]], [b for _, b in e["pairs"]])
         agree = (sum(a == b for a, b in e["pairs"]) / len(e["pairs"])) if e["pairs"] else None
+        strata, sources = rule_strata(rule, e["verdicts"])
+        unknown = sum(s["tp"] + s["fp"] + s["unsure"] for s in strata if s["population"] is None)
         m = meta(rule) or {}
         entry = {
             "tp": e["tp"], "fp": e["fp"], "unsure": e["unsure"], "n": n,
@@ -250,7 +332,15 @@ def rule_entries(verdicts: dict[str, dict], bar: dict) -> dict[str, dict]:
             "labellers": sorted(e["labellers"]), "sources": sorted(e["sources"]),
             "dates": {"first": e["dates"][0] if e["dates"] else "",
                       "last": e["dates"][-1] if e["dates"] else ""} if e["dates"] else {},
-            "population": sum(e["strata"].values()) or n,
+            # Findings of the rule in the runs its labels were drawn from; None
+            # when any label's population is unknown (`population_unknown`).
+            "population": None if unknown else sum(s["population"] for s in strata),
+            "held_out_population": None if unknown or any(s["held_out_population"] is None for s in strata)
+            else sum(s["held_out_population"] for s in strata),
+            "population_unknown": unknown,
+            "strata": strata,
+            "source_population": dict(sorted(sources.items())),
+            "weighted": None if unknown else _weighted(strata, held_out=False),
             "dimension": e["dimension"] or m.get("dimension", ""),
             "cwe": sorted(e["cwe"] | set(m.get("cwe") or [])),
             "fp_notes": list(dict.fromkeys(e["notes"])),
@@ -260,15 +350,43 @@ def rule_entries(verdicts: dict[str, dict], bar: dict) -> dict[str, dict]:
     return out
 
 
+def stratified_claim(rules: dict[str, dict], names: list[str], bar: dict) -> dict:
+    """The held-out, population-weighted precision over the strata of
+    `names` (docs/precision.md, "Tier claim"). Unknown populations make it
+    None and say which rules; held-out findings in strata with no decided
+    held-out label count against the bound, as if every one were an FP."""
+    unknown = sorted(r for r in names if rules[r].get("population_unknown")
+                     or rules[r].get("held_out_population") is None)
+    if unknown:
+        return {"estimate": None, "claim": False, "population_unknown": unknown}
+    rows, total = [], 0
+    for r in names:
+        strata = rules[r].get("strata") or []
+        sources = rules[r].get("source_population") or {}
+        for s in strata:
+            if s["held_out"]["tp"] + s["held_out"]["fp"]:
+                rows.append({"key": f"{r}|{s['source']}/{s['language'] or '-'}", "tp": s["held_out"]["tp"],
+                             "fp": s["held_out"]["fp"], "population": s["held_out_population"]})
+        for src in {s["source"] for s in strata}:
+            listed = sum(s["held_out_population"] for s in strata if s["source"] == src)
+            total += max(listed, (sources.get(src) or {}).get("held_out_population") or 0)
+    w = P.weighted_precision(rows)
+    if w is None:
+        return {"estimate": None, "claim": False, "population_unknown": []}
+    labelled = w["population"]
+    coverage = labelled / total if total else 1.0
+    lower = round(w["wilson_lower"] * coverage, 4)
+    est = {**w, "held_out_population": total, "unlabelled_population": total - labelled,
+           "coverage": round(coverage, 4), "claim_lower": lower}
+    return {"estimate": est, "claim": lower >= bar["tier_lower"], "population_unknown": []}
+
+
 def tier_claim(rules: dict[str, dict], bar: dict, verified: set[str]) -> dict:
     """The held-out claim, over the rules that are verified (declared and
     admitted), overall and per category (dimension and each CWE). A
     category's 99% claim is made only where its own lower bound reaches it."""
-    def strata(names):
-        return [{"tp": rules[r]["held_out"]["tp"], "fp": rules[r]["held_out"]["fp"],
-                 "population": rules[r]["population"]} for r in names]
     names = sorted(r for r in verified if r in rules and rules[r]["admitted"])
-    overall = P.weighted_precision(strata(names))
+    whole = stratified_claim(rules, names, bar)
     cats: dict[str, list[str]] = defaultdict(list)
     for r in names:
         if rules[r]["dimension"]:
@@ -277,13 +395,13 @@ def tier_claim(rules: dict[str, dict], bar: dict, verified: set[str]) -> dict:
             cats[c].append(r)
     categories = {}
     for c, members in sorted(cats.items()):
-        w = P.weighted_precision(strata(members))
-        categories[c] = {**(w or {"precision": None, "wilson_lower": None}),
-                         "rule_ids": members,
-                         "claim": bool(w and w["wilson_lower"] >= bar["tier_lower"])}
-    return {"held_out_only": True, "rules": names,
-            "overall": overall,
-            "claim": bool(overall and overall["wilson_lower"] >= bar["tier_lower"]),
+        sc = stratified_claim(rules, members, bar)
+        categories[c] = {**(sc["estimate"] or {"precision": None, "wilson_lower": None, "claim_lower": None}),
+                         "rule_ids": members, "claim": sc["claim"],
+                         "population_unknown": sc["population_unknown"]}
+    return {"held_out_only": True, "method": "stratified", "rules": names,
+            "overall": whole["estimate"], "claim": whole["claim"],
+            "population_unknown": whole["population_unknown"],
             "categories": categories}
 
 
@@ -344,18 +462,29 @@ def write(ledger: dict, paths=(LEDGER, PACKAGED)) -> None:
 
 
 def render(ledger: dict) -> str:
-    lines = [f"{'rule':<56} {'TP':>4} {'FP':>4} {'?':>3} {'lower':>6} {'kappa':>6}  admitted"]
+    lines = [f"{'rule':<56} {'TP':>4} {'FP':>4} {'?':>3} {'lower':>6} {'kappa':>6} {'pop':>5} "
+             f"{'wtd':>6}  admitted"]
     for rule, e in ledger["rules"].items():
         lo = f"{e['wilson_lower']:.3f}" if e.get("wilson_lower") is not None else "-"
         k = f"{e['kappa']:.2f}" if e.get("kappa") is not None else "-"
-        lines.append(f"{rule:<56} {e['tp']:>4} {e['fp']:>4} {e['unsure']:>3} {lo:>6} {k:>6}  "
-                     f"{'yes' if e['admitted'] else 'no'}: {e.get('admitted_reason', '')}")
+        pop = "?" if e.get("population_unknown") else str(e.get("population") or "-")
+        w = (e.get("weighted") or {}).get("precision")
+        wtd = f"{w:.3f}" if w is not None else "-"
+        lines.append(f"{rule:<56} {e['tp']:>4} {e['fp']:>4} {e['unsure']:>3} {lo:>6} {k:>6} {pop:>5} "
+                     f"{wtd:>6}  {'yes' if e['admitted'] else 'no'}: {e.get('admitted_reason', '')}")
+    unknown = sorted(r for r, e in ledger["rules"].items() if e.get("population_unknown"))
+    if unknown:
+        lines.append(f"population unknown for {len(unknown)} rule(s) (labels with no stratum_size; "
+                     f"tools/label_populations.py): {', '.join(unknown)}")
     t = ledger.get("tier") or {}
     o = t.get("overall")
     if o:
-        lines.append(f"verified tier, held-out: precision {o['precision']} "
-                     f"(95% lower {o['wilson_lower']}, n_eff {o['n_eff']}) over {len(t['rules'])} rule(s)"
+        lines.append(f"verified tier, held-out, population-weighted: precision {o['precision']} "
+                     f"(95% lower {o['wilson_lower']}, n_eff {o['n_eff']}; coverage {o['coverage']}, "
+                     f"claim lower {o['claim_lower']}) over {len(t['rules'])} rule(s)"
                      f"; 99% claim: {'yes' if t.get('claim') else 'no'}")
+    elif t.get("population_unknown"):
+        lines.append(f"verified tier: population unknown for {', '.join(t['population_unknown'])}; no claim")
     else:
         lines.append("verified tier: no held-out labels on any verified rule; no claim")
     return "\n".join(lines)
