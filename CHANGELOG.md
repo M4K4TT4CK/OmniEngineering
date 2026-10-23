@@ -1,6 +1,12 @@
 # Changelog
 ## 2026-10-22
 ### Completed
+- `REQ-023` | Code understanding | The 3D graph view pans on Ctrl+drag (Cmd+drag
+on macOS) as well as right-drag: for that one drag the trackball's left button
+takes the pan action, set in a capture-phase listener before the trackball reads
+it. The 2D view already pans on any drag, Ctrl included; Ctrl+click no longer
+opens the macOS context menu on either view. The 2D and 3D tooltips say so.
+`tests/test_viewer.py` checks the handler is in the page.
 - `REQ-054` | Code understanding | Arbiter findings in the graph say what was
 found and how to fix it, and trace to the ARB requirement behind their rule.
 Finding nodes keep the rule's `description` and `remediation` (600 characters

@@ -152,8 +152,8 @@
     <span class="dim" id="meta"></span>
     <div class="hright">
       <div class="seg" role="group" aria-label="Display mode">
-        <button id="m2d" type="button" class="on" data-tip="Flat 2D view: drag to pan, scroll to zoom, never tilts. Drawn with Canvas 2D, so it needs no GPU memory. Best on low-power machines.">2D<small>flat &middot; pan &amp; zoom &middot; no GPU</small></button>
-        <button id="m3d" type="button" data-tip="3D view: orbit, pan and zoom in space. Needs WebGL and some video memory.">3D<small>orbit &middot; needs WebGL</small></button>
+        <button id="m2d" type="button" class="on" data-tip="Flat 2D view: drag (or Ctrl+drag) to pan, scroll to zoom, never tilts. Drawn with Canvas 2D, so it needs no GPU memory. Best on low-power machines.">2D<small>flat &middot; pan &amp; zoom &middot; no GPU</small></button>
+        <button id="m3d" type="button" data-tip="3D view: drag to orbit, Ctrl+drag (or right-drag) to pan, scroll to zoom. Needs WebGL and some video memory.">3D<small>orbit &middot; needs WebGL</small></button>
       </div>
       <button class="tbtn" id="themebtn" type="button" data-tip="Switch between the dark theme and a soft grey light theme (not pure white).">Light theme</button>
       <button class="tbtn" id="helpbtn" type="button" data-tip="A 30-second guide to using the viewer.">? Help</button>
@@ -798,6 +798,7 @@
     }
     cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
     cv.addEventListener('pointerleave', function () { if (api.onHover) api.onHover(null); });
+    cv.addEventListener('contextmenu', function (ev) { if (ev.ctrlKey) ev.preventDefault(); });  // macOS Ctrl+click: keep Ctrl+drag a pan
     cv.addEventListener('dblclick', function (ev) { var p = pos(ev), n = nodeAt(p.x, p.y); if (n && api.onNodeDblClick) api.onNodeDblClick(n); });
     cv.addEventListener('wheel', function (ev) { ev.preventDefault(); var p = pos(ev); zoomAt(Math.exp(-ev.deltaY * (ev.ctrlKey ? 0.01 : 0.0016)), p.x, p.y); }, { passive: false });
     if (window.ResizeObserver) new ResizeObserver(resize).observe(cv.parentNode);
@@ -856,8 +857,27 @@
         .warmupTicks(30).cooldownTicks(220).onEngineTick(schedule)
         .onEngineStop(function () { computeStats(); schedule(); if (pendingFit) { var f = pendingFit; pendingFit = null; api.fit(f.ids); } });
       try { Graph.controls().addEventListener('change', schedule); } catch (e) { /* controls unavailable */ }
+      ctrlPan(host);
       if (stackOn) Graph.d3Force('layerz', stackForce);
       resize(); return true;
+    }
+    // Ctrl (or Cmd) + left-drag pans instead of rotating. The trackball reads
+    // mouseButtons when the drag starts, so a capture-phase listener on the
+    // host swaps LEFT to the pan action (RIGHT's) for that one drag.
+    function ctrlPan(el) {
+      if (el.dataset.ctrlPan) return; el.dataset.ctrlPan = '1';
+      var saved = null;
+      el.addEventListener('pointerdown', function (ev) {
+        var c = Graph && Graph.controls && Graph.controls();
+        if (!c || !c.mouseButtons || ev.button !== 0 || !(ev.ctrlKey || ev.metaKey)) return;
+        saved = c.mouseButtons.LEFT; c.mouseButtons.LEFT = c.mouseButtons.RIGHT;
+      }, true);
+      function restore() {
+        var c = Graph && Graph.controls && Graph.controls();
+        if (saved !== null && c && c.mouseButtons) c.mouseButtons.LEFT = saved; saved = null;
+      }
+      window.addEventListener('pointerup', restore, true); window.addEventListener('pointercancel', restore, true);
+      el.addEventListener('contextmenu', function (ev) { if (ev.ctrlKey) ev.preventDefault(); });
     }
     function destroy() {
       if (!Graph) return;
