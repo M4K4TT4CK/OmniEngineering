@@ -1,0 +1,49 @@
+{
+ "schema_version": 1,
+ "frozen": "2026-10-22",
+ "seed": 20261022,
+ "fraction": 0.3,
+ "method": "tools/ground_truth/heldout_split.py: per-language floor(30%), remainder by largest share, seeded tie-break and draw",
+ "held_out": {
+  "gold_repos": [
+   "go-containerd",
+   "go-grpc",
+   "java-httpclient",
+   "java-keycloak",
+   "py-urllib3",
+   "ruby-rack",
+   "ts-axios"
+  ],
+  "per_language": {
+   "go": [
+    "go-containerd",
+    "go-grpc"
+   ],
+   "java": [
+    "java-httpclient",
+    "java-keycloak"
+   ],
+   "python": [
+    "py-urllib3"
+   ],
+   "ruby": [
+    "ruby-rack"
+   ],
+   "typescript": [
+    "ts-axios"
+   ]
+  },
+  "gold_repos_total": 24,
+  "ground_truth_sources": [
+   "owasp-java",
+   "owasp-python",
+   "cve-fix",
+   "juliet-java"
+  ]
+ },
+ "development": {
+  "ai_corpus": "fixtures/ai-corpus is development data: rules were tuned on it. A second corpus from a different generator model, held out, is future work.",
+  "planted": "fixtures/planted is a regression check, never part of a precision claim."
+ },
+ "policy": "Rule authors must not open findings, labels or excerpts from held-out repositories or ground-truth sources while changing a rule. The precision claim is reported on the held-out split only; a rule tuned on what it is measured on overstates itself."
+}

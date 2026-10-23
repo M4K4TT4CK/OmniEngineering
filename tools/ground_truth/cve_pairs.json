@@ -1,0 +1,1461 @@
+{
+ "schema_version": 1,
+ "source": "GitHub Security Advisories (reviewed), fix commit from references",
+ "criteria": {
+  "cwes": [
+   "CWE-89",
+   "CWE-78",
+   "CWE-77",
+   "CWE-22",
+   "CWE-79",
+   "CWE-918",
+   "CWE-434",
+   "CWE-502",
+   "CWE-352",
+   "CWE-287",
+   "CWE-798",
+   "CWE-200"
+  ],
+  "max_files": 8,
+  "max_changed_lines": 400,
+  "one_parent": true,
+  "non_test_source_only": true
+ },
+ "pairs": [
+  {
+   "ghsa": "GHSA-p6gw-4frg-j7jw",
+   "cve": "CVE-2026-55509",
+   "language": "python",
+   "ecosystem": "pip",
+   "package": "WsgiDAV",
+   "cwes": [
+    "CWE-89"
+   ],
+   "summary": "WsgiDAV MySQL provider has a blind SQL injection",
+   "published": "2026-08-28T18:12:17Z",
+   "repo": "mar10/wsgidav",
+   "fix_sha": "6f35776c9188f130ab044ce557015d51aaa83500",
+   "vuln_sha": "67abdbd7d622fcf29aefdfbd0c9910de9e0c8b3d",
+   "files": [
+    "wsgidav/samples/mysql_dav_provider.py"
+   ],
+   "selected_for": "CWE-89"
+  },
+  {
+   "ghsa": "GHSA-c978-59m8-c77v",
+   "cve": "CVE-2026-113722",
+   "language": "python",
+   "ecosystem": "pip",
+   "package": "virtualenv",
+   "cwes": [
+    "CWE-78"
+   ],
+   "summary": "virtualenv: Generated POSIX console launchers interpret destination paths as shell syntax",
+   "published": "2026-10-21T21:30:12Z",
+   "repo": "pypa/virtualenv",
+   "fix_sha": "2519941bed33ee0d3ac99277f67913e439e476a9",
+   "vuln_sha": "70a010204e1adff2536222a00b19a529291b3256",
+   "files": [
+    "src/virtualenv/seed/embed/pip_invoke.py",
+    "src/virtualenv/seed/embed/via_app_data/pip_install/base.py"
+   ],
+   "selected_for": "CWE-78"
+  },
+  {
+   "ghsa": "GHSA-956x-8gvw-wg5v",
+   "cve": "CVE-2026-67323",
+   "language": "python",
+   "ecosystem": "pip",
+   "package": "GitPython",
+   "cwes": [
+    "CWE-77",
+    "CWE-88"
+   ],
+   "summary": "GitPython: command injection via unguarded Git options in `Repo.archive()`, `git.ls_remote()`, and arbitrary file overwrite via `Repo.iter_commits()` / `Repo.bl",
+   "published": "2026-07-21T20:10:06Z",
+   "repo": "gitpython-developers/GitPython",
+   "fix_sha": "701ce32fe5ba8cb622c0e0342a376a6beb47d738",
+   "vuln_sha": "65a72839c92768754bd51a37381235842a5ae0d8",
+   "files": [
+    "git/cmd.py",
+    "git/objects/commit.py",
+    "git/remote.py",
+    "git/repo/base.py"
+   ],
+   "selected_for": "CWE-77"
+  },
+  {
+   "ghsa": "GHSA-pjvx-prjx-h659",
+   "cve": "CVE-2026-114140",
+   "language": "python",
+   "ecosystem": "pip",
+   "package": "nbconvert",
+   "cwes": [
+    "CWE-22"
+   ],
+   "summary": "nbconvert: Arbitrary file write through path traversal in cell output filenames when exporting to md, latex, rst and asciidoc",
+   "published": "2026-10-22T16:23:28Z",
+   "repo": "jupyter/nbconvert",
+   "fix_sha": "ce4bd99aec31d81d759fa8eeb8643179392ec66f",
+   "vuln_sha": "1ff189e1b30f0820238e95427c035a9150a5e43f",
+   "files": [
+    "nbconvert/preprocessors/extractoutput.py"
+   ],
+   "selected_for": "CWE-22"
+  },
+  {
+   "ghsa": "GHSA-2658-85cv-9wwq",
+   "cve": "CVE-2026-111059",
+   "language": "python",
+   "ecosystem": "pip",
+   "package": "mercury",
+   "cwes": [
+    "CWE-116",
+    "CWE-79"
+   ],
+   "summary": "Mercury: Stored / DOM Cross-Site Scripting (XSS): mr.Markdown renders untrusted content as raw, unsanitized HTML",
+   "published": "2026-10-19T17:01:20Z",
+   "repo": "mljar/mercury",
+   "fix_sha": "c798a85924e6614c6fea7afe5a560e4554a1d09b",
+   "vuln_sha": "ed44e655ab672633dfa3b10799c1beb5dcdea7d8",
+   "files": [
+    "mercury/chat/message.py",
+    "mercury/md.py"
+   ],
+   "selected_for": "CWE-79"
+  },
+  {
+   "ghsa": "GHSA-2v95-h47v-g4x9",
+   "cve": "CVE-2026-107394",
+   "language": "python",
+   "ecosystem": "pip",
+   "package": "indico",
+   "cwes": [
+    "CWE-918"
+   ],
+   "summary": "Indico: Incomplete Server-Side Request Forgery (SSRF) check",
+   "published": "2026-10-08T22:09:55Z",
+   "repo": "indico/indico",
+   "fix_sha": "44540e70ab4e20a12f14ddba5218a33749a86736",
+   "vuln_sha": "d7a07ccc7001915f049479f8ab51fd86baae8f82",
+   "files": [
+    "indico/util/network.py",
+    "indico/util/network_test.py"
+   ],
+   "selected_for": "CWE-918"
+  },
+  {
+   "ghsa": "GHSA-m2pc-3q4q-w6jr",
+   "cve": "CVE-2026-55419",
+   "language": "python",
+   "ecosystem": "pip",
+   "package": "reachy-mini",
+   "cwes": [
+    "CWE-434"
+   ],
+   "summary": "reachy_mini Allows Unrestricted Upload of File with Dangerous Type",
+   "published": "2026-08-25T17:38:43Z",
+   "repo": "pollen-robotics/reachy_mini",
+   "fix_sha": "984c7723b3ec5da63f4e0a2bcf9f120ceb563e04",
+   "vuln_sha": "376024b886566a8c997228fe94af82481cd70a9f",
+   "files": [
+    "src/reachy_mini/daemon/app/main.py",
+    "src/reachy_mini/daemon/app/routers/media.py",
+    "src/reachy_mini/media/gstreamer_utils.py"
+   ],
+   "selected_for": "CWE-434"
+  },
+  {
+   "ghsa": "GHSA-2vh9-42vm-xmv2",
+   "cve": "CVE-2025-66455",
+   "language": "python",
+   "ecosystem": "pip",
+   "package": "lmdeploy",
+   "cwes": [
+    "CWE-502"
+   ],
+   "summary": "LMDeploy has Remote Code Execution\u00a0by Pickle Deserialization via handle_zmq_recv in lmdeploy/lmdeploy/pytorch/disagg/conn/engine_conn.py",
+   "published": "2026-09-18T17:03:56Z",
+   "repo": "InternLM/lmdeploy",
+   "fix_sha": "f05b4ad8bf2e2d84101a1d63b3c44fadd99223b2",
+   "vuln_sha": "eb94bd8cb4155eb055e2404d8304a7af089a6099",
+   "files": [
+    "lmdeploy/pytorch/disagg/conn/engine_conn.py"
+   ],
+   "selected_for": "CWE-502"
+  },
+  {
+   "ghsa": "GHSA-526j-582w-7fm9",
+   "cve": "CVE-2026-62322",
+   "language": "python",
+   "ecosystem": "pip",
+   "package": "social-auth-core",
+   "cwes": [
+    "CWE-352"
+   ],
+   "summary": "Python Social Auth: Login CSRF in LINE backend (LineOAuth2) \u2014 missing OAuth state validation (incomplete fix of 5.0.0 campaign)",
+   "published": "2026-10-15T20:09:11Z",
+   "repo": "python-social-auth/social-core",
+   "fix_sha": "5b3b90d07ebccc1f5b076445b27ea35ec059764b",
+   "vuln_sha": "841e936479c1178435be0e140166e497efaeb7bd",
+   "files": [
+    "social_core/backends/line.py"
+   ],
+   "selected_for": "CWE-352"
+  },
+  {
+   "ghsa": "GHSA-68w4-83fh-f2w8",
+   "cve": null,
+   "language": "python",
+   "ecosystem": "pip",
+   "package": "pyload-ng",
+   "cwes": [
+    "CWE-287"
+   ],
+   "summary": "pyload-ng: getUserData/get_userdata exposed at Perms.ANY allow any authenticated account to brute-force the administrator password",
+   "published": "2026-10-09T17:09:15Z",
+   "repo": "pyload/pyload",
+   "fix_sha": "b99d2a2f06135363ceb0aab16aac5025f138e658",
+   "vuln_sha": "5dc6b628e2d8b9f42dde82f396e5b7a2b513f6d1",
+   "files": [
+    "src/pyload/core/api/__init__.py",
+    "src/pyload/core/database/user_database.py"
+   ],
+   "selected_for": "CWE-287"
+  },
+  {
+   "ghsa": "GHSA-f4vv-55c2-5789",
+   "cve": "CVE-2026-61740",
+   "language": "python",
+   "ecosystem": "pip",
+   "package": "lightrag-hku",
+   "cwes": [
+    "CWE-287",
+    "CWE-798"
+   ],
+   "summary": "LightRAG is Vulnerable to Authentication Bypass: hardcoded DEFAULT_TOKEN_SECRET and public /auth-status defeat LIGHTRAG_API_KEY protection",
+   "published": "2026-07-20T21:46:37Z",
+   "repo": "HKUDS/LightRAG",
+   "fix_sha": "f7819aa3a49a9d8d92eed8251d82d6ebcafa8cba",
+   "vuln_sha": "4e1f95269b32cd803cb96e0acc24d922aa6b6932",
+   "files": [
+    "lightrag/api/utils_api.py"
+   ],
+   "selected_for": "CWE-798"
+  },
+  {
+   "ghsa": "GHSA-p944-4xh2-x776",
+   "cve": "CVE-2026-105748",
+   "language": "python",
+   "ecosystem": "pip",
+   "package": "docling",
+   "cwes": [
+    "CWE-200",
+    "CWE-73"
+   ],
+   "summary": "Docling: Crafted DoclingDocument JSON embeds local image files into converted output",
+   "published": "2026-10-07T20:41:08Z",
+   "repo": "docling-project/docling",
+   "fix_sha": "d4bb776884aba9aa3132f54773f420853cf7afe4",
+   "vuln_sha": "e4780063bb4c33b2b48222d2106ce9ba45eaf453",
+   "files": [
+    "docling/backend/json/docling_json_backend.py",
+    "docling/document_converter.py"
+   ],
+   "selected_for": "CWE-200"
+  },
+  {
+   "ghsa": "GHSA-pmch-g965-grmr",
+   "cve": "CVE-2026-50180",
+   "language": "python",
+   "ecosystem": "pip",
+   "package": "langroid",
+   "cwes": [
+    "CWE-22",
+    "CWE-89"
+   ],
+   "summary": "Langroid: SQLChatAgent _validate_query blocklist misses pg_read_file family enabling arbitrary file read",
+   "published": "2026-07-02T17:42:09Z",
+   "repo": "langroid/langroid",
+   "fix_sha": "00b7dd7b79c5d03c94be284cf3459d98195ebfba",
+   "vuln_sha": "56e2756ecab70a70a7e6edbee2f2187b8484683e",
+   "files": [
+    "langroid/agent/special/sql/sql_chat_agent.py"
+   ],
+   "selected_for": "CWE-89"
+  },
+  {
+   "ghsa": "GHSA-w889-685w-c8fh",
+   "cve": "CVE-2026-112900",
+   "language": "python",
+   "ecosystem": "pip",
+   "package": "Pillow",
+   "cwes": [
+    "CWE-78",
+    "CWE-88"
+   ],
+   "summary": "Pillow: Argument Injection in Ghostscript call, potentially leading into RCE",
+   "published": "2026-10-21T19:58:44Z",
+   "repo": "python-pillow/Pillow",
+   "fix_sha": "a2c363141da31a265dd536c945677db4b64f3ec9",
+   "vuln_sha": "9d30729003b5dae074c60fa73d7cc135cccae734",
+   "files": [
+    "src/PIL/EpsImagePlugin.py"
+   ],
+   "selected_for": "CWE-78"
+  },
+  {
+   "ghsa": "GHSA-r3rv-jm3r-62q2",
+   "cve": "CVE-2026-107385",
+   "language": "typescript",
+   "ecosystem": "npm",
+   "package": "mariadb",
+   "cwes": [
+    "CWE-89"
+   ],
+   "summary": "MariaDB Connector/Node.js: SQL injection in the text protocol when the session uses NO_BACKSLASH_ESCAPES",
+   "published": "2026-10-08T19:42:28Z",
+   "repo": "mariadb-corporation/mariadb-connector-nodejs",
+   "fix_sha": "6995c8cf8e51b2ad055de63dcaa4094eebbef5ce",
+   "vuln_sha": "a4aa048b57dc47309b80e5cc25a4a8eedb32fd9f",
+   "files": [
+    "lib/io/packet-output-stream.js",
+    "lib/misc/utils.js"
+   ],
+   "selected_for": "CWE-89"
+  },
+  {
+   "ghsa": "GHSA-698v-4r3x-3vcv",
+   "cve": "CVE-2026-112943",
+   "language": "typescript",
+   "ecosystem": "npm",
+   "package": "launch-editor",
+   "cwes": [
+    "CWE-78"
+   ],
+   "summary": "launch-editor: escapeCmdArgs() omits % escaping on Windows",
+   "published": "2026-10-20T18:30:24Z",
+   "repo": "vitejs/launch-editor",
+   "fix_sha": "3c2f9bf2ff8fe63d056a8f9cc52d825b66ca79fc",
+   "vuln_sha": "ecdfce1f9ec56a9c08f225f27d8047f3cf9690b1",
+   "files": [
+    "packages/launch-editor/construct-windows-launch-command.js",
+    "packages/launch-editor/index.js"
+   ],
+   "selected_for": "CWE-78"
+  },
+  {
+   "ghsa": "GHSA-3x93-p86w-5jvh",
+   "cve": "CVE-2026-16629",
+   "language": "typescript",
+   "ecosystem": "npm",
+   "package": "danger",
+   "cwes": [
+    "CWE-77"
+   ],
+   "summary": "danger allows local OS command injection through crafted file paths",
+   "published": "2026-07-23T00:31:28Z",
+   "repo": "danger/danger-js",
+   "fix_sha": "087a7290264cc6fb7154ea8c2552a7b2cb8b33a3",
+   "vuln_sha": "a9f198a96ac593c4b6968b91e4591d8931dc9861",
+   "files": [
+    "source/platforms/git/localGetFileAtSHA.ts"
+   ],
+   "selected_for": "CWE-77"
+  },
+  {
+   "ghsa": "GHSA-px85-f4q5-jh77",
+   "cve": "CVE-2026-114126",
+   "language": "typescript",
+   "ecosystem": "npm",
+   "package": "storybook",
+   "cwes": [
+    "CWE-1188",
+    "CWE-22",
+    "CWE-306",
+    "CWE-94"
+   ],
+   "summary": "Storybook dev server vulnerable to code injection from the local network",
+   "published": "2026-10-22T16:31:40Z",
+   "repo": "storybookjs/storybook",
+   "fix_sha": "5540f03b209cc56c66f56a9c7cb4b2ee5b883ce5",
+   "vuln_sha": "97513d999910d071c2b36830495dab63e17d9fe0",
+   "files": [
+    "code/addons/vitest/src/vitest-plugin/index.ts",
+    "code/core/src/core-server/utils/server-address.ts"
+   ],
+   "selected_for": "CWE-22"
+  },
+  {
+   "ghsa": "GHSA-xfq5-w38q-pc2x",
+   "cve": "CVE-2026-114133",
+   "language": "typescript",
+   "ecosystem": "npm",
+   "package": "nuxt",
+   "cwes": [
+    "CWE-79"
+   ],
+   "summary": "Nuxt server islands render `useHeadSafe` input without sanitisation",
+   "published": "2026-10-22T16:58:00Z",
+   "repo": "nuxt/nuxt",
+   "fix_sha": "493565e99451a0f52330b1f6b979254a4a39e5d0",
+   "vuln_sha": "c65cef3a855dd1a61b010fa8d525cbe1ed776724",
+   "files": [
+    "packages/nitro-server/src/runtime/handlers/island.ts"
+   ],
+   "selected_for": "CWE-79"
+  },
+  {
+   "ghsa": "GHSA-322m-ff4g-9vx9",
+   "cve": "CVE-2026-105647",
+   "language": "typescript",
+   "ecosystem": "npm",
+   "package": "ghost",
+   "cwes": [
+    "CWE-367",
+    "CWE-918"
+   ],
+   "summary": "Ghost: Server-Side Request Forgery in Bookmark Fetching",
+   "published": "2026-10-07T20:35:32Z",
+   "repo": "TryGhost/Ghost",
+   "fix_sha": "3f8594eb53de883ac017545c358f59039cb152de",
+   "vuln_sha": "20d3f792bf4a7c349ee56b746a067550d8684ff5",
+   "files": [
+    "ghost/core/core/server/services/oembed/oembed-service.js"
+   ],
+   "selected_for": "CWE-918"
+  },
+  {
+   "ghsa": "GHSA-ghvf-qf6h-g8x5",
+   "cve": null,
+   "language": "typescript",
+   "ecosystem": "npm",
+   "package": "@nocobase/server",
+   "cwes": [
+    "CWE-209",
+    "CWE-434",
+    "CWE-73",
+    "CWE-829"
+   ],
+   "summary": "NocoBase: Arbitrary File Write chained with Local file Inclusion leads to Remote code execution",
+   "published": "2026-08-20T18:42:21Z",
+   "repo": "nocobase/nocobase",
+   "fix_sha": "7c9ffe1427a529d62576b83c35222ba7ef9b8d11",
+   "vuln_sha": "64c4dda03cd3347e01b7ac4c285bab5f5e8f8891",
+   "files": [
+    "packages/core/server/src/plugin-manager/options/resource.ts",
+    "packages/core/server/src/plugin-manager/plugin-manager.ts"
+   ],
+   "selected_for": "CWE-434"
+  },
+  {
+   "ghsa": "GHSA-qmw3-745m-w99g",
+   "cve": "CVE-2026-106558",
+   "language": "typescript",
+   "ecosystem": "npm",
+   "package": "@backstage/plugin-techdocs-node",
+   "cwes": [
+    "CWE-502"
+   ],
+   "summary": "Backstage: Improper validation of TechDocs MkDocs configuration",
+   "published": "2026-10-07T18:03:12Z",
+   "repo": "backstage/backstage",
+   "fix_sha": "32723a0fe4e12ed80535fc65d5331765c55aa91b",
+   "vuln_sha": "0f1b86f07004a0afc1958281253d5d13bb1e1cc8",
+   "files": [
+    "plugins/techdocs-node/src/stages/generate/mkdocsPatchers.ts"
+   ],
+   "selected_for": "CWE-502"
+  },
+  {
+   "ghsa": "GHSA-2p8c-gr87-2676",
+   "cve": "CVE-2026-113796",
+   "language": "typescript",
+   "ecosystem": "npm",
+   "package": "electron",
+   "cwes": [
+    "CWE-352"
+   ],
+   "summary": "Electron: SameSite cookie restrictions are not applied to windows opened from links",
+   "published": "2026-10-22T16:47:54Z",
+   "repo": "electron/electron",
+   "fix_sha": "079b9b1594ee62c336adc3aa430d4c1cf62bd51e",
+   "vuln_sha": "b6a4d492fa1f7b75f4d8dce18ebdfdb902da135d",
+   "files": [
+    "lib/browser/api/web-contents.ts",
+    "lib/browser/guest-window-manager.ts",
+    "typings/internal-electron.d.ts"
+   ],
+   "selected_for": "CWE-352"
+  },
+  {
+   "ghsa": "GHSA-x5c9-v98j-722r",
+   "cve": "CVE-2026-56675",
+   "language": "typescript",
+   "ecosystem": "npm",
+   "package": "9router",
+   "cwes": [
+    "CWE-287",
+    "CWE-290",
+    "CWE-306",
+    "CWE-441"
+   ],
+   "summary": "9router /v1 APIs has unauthenticated access via reverse proxy locality collapse",
+   "published": "2026-09-23T18:12:26Z",
+   "repo": "decolua/9router",
+   "fix_sha": "da667836cc7584bea0edd893de1d590c9ea279dc",
+   "vuln_sha": "2a619655b8a7e3d9676afb5a2993b04a8a484368",
+   "files": [
+    "custom-server.js",
+    "src/dashboardGuard.js"
+   ],
+   "selected_for": "CWE-287"
+  },
+  {
+   "ghsa": "GHSA-wjjv-3mj2-39hf",
+   "cve": "CVE-2026-47255",
+   "language": "typescript",
+   "ecosystem": "npm",
+   "package": "@agenticmail/api",
+   "cwes": [
+    "CWE-20",
+    "CWE-284",
+    "CWE-319",
+    "CWE-798",
+    "CWE-89"
+   ],
+   "summary": "AgenticMail API/storage and outbound relay hardening fixes",
+   "published": "2026-05-29T19:23:29Z",
+   "repo": "agenticmail/agenticmail",
+   "fix_sha": "1408de543fa3577d8c2d4fdb289c75fe6faafac7",
+   "vuln_sha": "41dd8153809cabbc9b79aba1b726266af923a1b7",
+   "files": [
+    "packages/api/src/routes/storage.ts"
+   ],
+   "selected_for": "CWE-798"
+  },
+  {
+   "ghsa": "GHSA-p458-7748-mcp3",
+   "cve": "CVE-2026-112948",
+   "language": "typescript",
+   "ecosystem": "npm",
+   "package": "@vitest/ui",
+   "cwes": [
+    "CWE-200",
+    "CWE-552"
+   ],
+   "summary": "Vitest: Servers misapply `server.fs.deny`, serving `.env`, private keys, `.git`, and the API token file",
+   "published": "2026-10-21T19:57:00Z",
+   "repo": "vitest-dev/vitest",
+   "fix_sha": "28dc1edfb6ba5a181fe208576989063795aeadb3",
+   "vuln_sha": "2899eb3e97931aaaba561013f483cb671506eea4",
+   "files": [
+    "packages/vitest/src/node/config/resolveConfig.ts",
+    "packages/vitest/src/node/plugins/index.ts",
+    "packages/vitest/src/node/plugins/utils.ts",
+    "packages/vitest/src/node/plugins/workspace.ts"
+   ],
+   "selected_for": "CWE-200"
+  },
+  {
+   "ghsa": "GHSA-pj7x-6wpf-pgvp",
+   "cve": "CVE-2026-105856",
+   "language": "typescript",
+   "ecosystem": "npm",
+   "package": "@payloadcms/db-sqlite",
+   "cwes": [
+    "CWE-89"
+   ],
+   "summary": "Payload: SQL injection in SQLite/Postgres",
+   "published": "2026-10-07T20:30:04Z",
+   "repo": "payloadcms/payload",
+   "fix_sha": "03b78c7e0901d19c67f07bdf6396a276010adbcc",
+   "vuln_sha": "d9283dcd12e6ad3f4d870e5f2361dc0d8c022716",
+   "files": [
+    "packages/drizzle/src/postgres/createJSONQuery/index.ts",
+    "packages/drizzle/src/sqlite/createJSONQuery/convertPathToJSONTraversal.ts"
+   ],
+   "selected_for": "CWE-89"
+  },
+  {
+   "ghsa": "GHSA-pqg4-j6r4-53mv",
+   "cve": "CVE-2026-102422",
+   "language": "typescript",
+   "ecosystem": "npm",
+   "package": "shell-quote",
+   "cwes": [
+    "CWE-78"
+   ],
+   "summary": "shell-quote: `quote()` command injection via a line terminator in a token after a `{ comment }` token",
+   "published": "2026-10-06T13:40:36Z",
+   "repo": "ljharb/shell-quote",
+   "fix_sha": "6002b2ed90c6b83095eb272b6b0adaf3a172b0bc",
+   "vuln_sha": "36f23944db50dd3f0df4da9c7cba0bb63df05f64",
+   "files": [
+    "quote.d.ts",
+    "quote.js"
+   ],
+   "selected_for": "CWE-78"
+  },
+  {
+   "ghsa": "GHSA-x67c-8pwr-m8g3",
+   "cve": "CVE-2026-72807",
+   "language": "go",
+   "ecosystem": "go",
+   "package": "github.com/siyuan-note/siyuan/kernel",
+   "cwes": [
+    "CWE-1336",
+    "CWE-89"
+   ],
+   "summary": "SiYuan: Second-order SSTI to arbitrary SQL via attribute-view template column (queryBlocks): malicious imported package executes SQL on victim kernel",
+   "published": "2026-09-03T22:49:30Z",
+   "repo": "siyuan-note/siyuan",
+   "fix_sha": "0a176345e02a0d19bdc7762e50e0b92002087d20",
+   "vuln_sha": "0e54db67fb95ad2ce4d7b1f0f6238173a9395be1",
+   "files": [
+    "kernel/model/template.go",
+    "kernel/sql/database.go"
+   ],
+   "selected_for": "CWE-89"
+  },
+  {
+   "ghsa": "GHSA-j6cw-g6p4-7hch",
+   "cve": "CVE-2026-55797",
+   "language": "go",
+   "ecosystem": "go",
+   "package": "github.com/argoproj/argo-cd/v2",
+   "cwes": [
+    "CWE-78"
+   ],
+   "summary": "Argo CD repo-server command injection via crafted SSH repository SOCKS5 proxy URL",
+   "published": "2026-10-09T16:37:24Z",
+   "repo": "argoproj/argo-cd",
+   "fix_sha": "1e3ddd0b7250aa23f489956b5fab8c13d0493a9f",
+   "vuln_sha": "ba80c9664880306b5c17404ea71af877e9190f94",
+   "files": [
+    "util/git/creds.go"
+   ],
+   "selected_for": "CWE-78"
+  },
+  {
+   "ghsa": "GHSA-mjqf-28ph-426h",
+   "cve": "CVE-2026-54680",
+   "language": "go",
+   "ecosystem": "go",
+   "package": "github.com/kube-logging/logging-operator",
+   "cwes": [
+    "CWE-74",
+    "CWE-77"
+   ],
+   "summary": "Logging operator has Fluentd configuration injection that allows remote code execution",
+   "published": "2026-07-29T17:01:29Z",
+   "repo": "kube-logging/logging-operator",
+   "fix_sha": "cf437d7f1e056c78740bf5716ac8bdebcf002425",
+   "vuln_sha": "8c34e9a61e6587f15acbf147fc1be895898c6b67",
+   "files": [
+    "pkg/sdk/logging/model/render/fluent.go"
+   ],
+   "selected_for": "CWE-77"
+  },
+  {
+   "ghsa": "GHSA-jrq7-xrjx-pcfw",
+   "cve": "CVE-2026-84320",
+   "language": "go",
+   "ecosystem": "go",
+   "package": "github.com/0xJacky/Nginx-UI",
+   "cwes": [
+    "CWE-22"
+   ],
+   "summary": "Nginx UI: Auto backup name allows path traversal outside validated storage path",
+   "published": "2026-10-15T20:10:56Z",
+   "repo": "0xJacky/nginx-ui",
+   "fix_sha": "f92218e01054491fc1e6684dc6f7facaf8ab41eb",
+   "vuln_sha": "91f7335837ba77e91ca3a3f3accf85ba7af0cc3b",
+   "files": [
+    "internal/backup/auto_backup.go",
+    "model/auto_backup.go"
+   ],
+   "selected_for": "CWE-22"
+  },
+  {
+   "ghsa": "GHSA-v75v-6fpf-gvw8",
+   "cve": "CVE-2026-104252",
+   "language": "go",
+   "ecosystem": "go",
+   "package": "vitess.io/vitess",
+   "cwes": [
+    "CWE-116",
+    "CWE-79",
+    "CWE-80"
+   ],
+   "summary": "Vitess vttablet /twopcz reflected XSS",
+   "published": "2026-10-15T20:16:29Z",
+   "repo": "vitessio/vitess",
+   "fix_sha": "3140c1846cd120db34f33b2083139b4ab638aed2",
+   "vuln_sha": "2b93feb45f35b8612f502cb72169dc3f79d6d4c8",
+   "files": [
+    "go/vt/vttablet/tabletserver/twopcz.go"
+   ],
+   "selected_for": "CWE-79"
+  },
+  {
+   "ghsa": "GHSA-637c-6jxx-4rwm",
+   "cve": "CVE-2026-77524",
+   "language": "go",
+   "ecosystem": "go",
+   "package": "github.com/kedacore/keda",
+   "cwes": [
+    "CWE-269",
+    "CWE-918"
+   ],
+   "summary": "KEDA: Privilege escalation from namespace admin to cluster admin via KEDA TriggerAuthentication",
+   "published": "2026-10-15T20:19:42Z",
+   "repo": "kedacore/keda",
+   "fix_sha": "1e21cc798dedd079e696cdb45388eddc5e18365d",
+   "vuln_sha": "2963aa3d3ba073a01f56865a557563ba40a2174c",
+   "files": [
+    "cmd/operator/main.go",
+    "pkg/scaling/resolver/hashicorpvault_handler.go",
+    "pkg/scaling/resolver/k8s_validator.go",
+    "pkg/scaling/resolver/scale_resolvers.go"
+   ],
+   "selected_for": "CWE-918"
+  },
+  {
+   "ghsa": "GHSA-v553-g2w6-295p",
+   "cve": "CVE-2026-33582",
+   "language": "go",
+   "ecosystem": "go",
+   "package": "github.com/apache/incubator-answer",
+   "cwes": [
+    "CWE-434"
+   ],
+   "summary": "Apache Answer has an Unrestricted Upload of File with Dangerous Type vulnerability",
+   "published": "2026-06-09T09:32:07Z",
+   "repo": "apache/answer",
+   "fix_sha": "cfc3e54f30cc5e01afb7110ecc1da9152d0a3a41",
+   "vuln_sha": "6fc25c69f4efaac0c4f34ce7401ac3b6baab59df",
+   "files": [
+    "pkg/checker/file_type.go"
+   ],
+   "selected_for": "CWE-434"
+  },
+  {
+   "ghsa": "GHSA-33cr-m232-xqch",
+   "cve": null,
+   "language": "go",
+   "ecosystem": "go",
+   "package": "github.com/cheqd/cheqd-node",
+   "cwes": [
+    "CWE-502"
+   ],
+   "summary": "cheqd-node affected by Non-deterministic JSON Unmarshalling of IBC Acknowledgement",
+   "published": "2025-03-11T21:54:29Z",
+   "repo": "cosmos/ibc-go",
+   "fix_sha": "59987d52d959dc5876ffd4f307c9b33a52a43748",
+   "vuln_sha": "91dda01659676dfc15339a196b0750b6c808af93",
+   "files": [
+    "modules/apps/transfer/ibc_module.go"
+   ],
+   "selected_for": "CWE-502"
+  },
+  {
+   "ghsa": "GHSA-phg3-3g28-wq9v",
+   "cve": "CVE-2026-61687",
+   "language": "go",
+   "ecosystem": "go",
+   "package": "hatchet",
+   "cwes": [
+    "CWE-1275",
+    "CWE-287",
+    "CWE-352",
+    "CWE-384"
+   ],
+   "summary": "Hatchet - Unauthenticated OAuth state CSRF / login-CSRF via empty-state collision in ValidateOAuthState",
+   "published": "2026-09-21T15:47:01Z",
+   "repo": "hatchet-dev/hatchet",
+   "fix_sha": "f90464189ad642251e09412d0f99fde353036428",
+   "vuln_sha": "2d211bce16e5022afaf95780de82dc30e0bcba98",
+   "files": [
+    "api/v1/server/authn/session_helpers.go"
+   ],
+   "selected_for": "CWE-352"
+  },
+  {
+   "ghsa": "GHSA-xv7q-fvmc-jx96",
+   "cve": "CVE-2026-62367",
+   "language": "go",
+   "ecosystem": "go",
+   "package": "code.vikunja.io/api",
+   "cwes": [
+    "CWE-287",
+    "CWE-290",
+    "CWE-345"
+   ],
+   "summary": "Vikunja: OIDC email-fallback account linking ignores email_verified, enabling local-account takeover",
+   "published": "2026-10-09T20:49:06Z",
+   "repo": "go-vikunja/vikunja",
+   "fix_sha": "7854f2729ab72000210b61c25929678fd6901630",
+   "vuln_sha": "be36c11e67d6a3a10643b17a0bcbc33d09de836a",
+   "files": [
+    "pkg/modules/auth/openid/openid.go"
+   ],
+   "selected_for": "CWE-287"
+  },
+  {
+   "ghsa": "GHSA-953h-535j-jg2v",
+   "cve": null,
+   "language": "go",
+   "ecosystem": "go",
+   "package": "github.com/envoyproxy/ai-gateway",
+   "cwes": [
+    "CWE-798",
+    "CWE-863"
+   ],
+   "summary": "agent-router: MCP session resume does not verify the embedded anti-hijacking subject; default Helm seed makes session IDs forgeable",
+   "published": "2026-10-19T16:53:26Z",
+   "repo": "theagentrouter/agent-router",
+   "fix_sha": "0d1e73037076d72251342d0ea578a36ffb7002c7",
+   "vuln_sha": "780fcf46b2a39a42b2c4cf67c987b318a86b77b6",
+   "files": [
+    "cmd/extproc/mainlib/main.go",
+    "internal/mcpproxy/legacy.go",
+    "internal/mcpproxy/mcpproxy.go",
+    "internal/mcpproxy/session.go"
+   ],
+   "selected_for": "CWE-798"
+  },
+  {
+   "ghsa": "GHSA-4hq8-gpf5-8p68",
+   "cve": "CVE-2026-57231",
+   "language": "go",
+   "ecosystem": "go",
+   "package": "github.com/containers/podman/v5",
+   "cwes": [
+    "CWE-200"
+   ],
+   "summary": "Podman: Malformed Image can trick podman run into leaking host environment variables into the container",
+   "published": "2026-09-24T19:40:20Z",
+   "repo": "podman-container-tools/podman",
+   "fix_sha": "6c431b73dbf8e4b20b778644d7a80caebdb75050",
+   "vuln_sha": "1fecb62b349e1c531ec2429da9d612ca4492962b",
+   "files": [
+    "pkg/specgen/generate/container.go",
+    "pkg/specgen/generate/kube/kube.go"
+   ],
+   "selected_for": "CWE-200"
+  },
+  {
+   "ghsa": "GHSA-vf2h-7x3w-97fr",
+   "cve": "CVE-2026-53474",
+   "language": "go",
+   "ecosystem": "go",
+   "package": "github.com/kubev2v/migration-planner",
+   "cwes": [
+    "CWE-89"
+   ],
+   "summary": "Openshift Migration Advisor: Improper input sanitization allows specially crafted RVTools .xlsx files to include malicious SQL commands",
+   "published": "2026-06-10T15:31:33Z",
+   "repo": "kubev2v/migration-planner",
+   "fix_sha": "6110711b1b71bb0d15348b934a490a5932b41f83",
+   "vuln_sha": "db4c7857bd8f8e04747a5ea0efca04b0235d6e4a",
+   "files": [
+    "pkg/duckdb_parser/builder.go"
+   ],
+   "selected_for": "CWE-89"
+  },
+  {
+   "ghsa": "GHSA-jpf4-98qj-qr67",
+   "cve": "CVE-2026-76802",
+   "language": "go",
+   "ecosystem": "go",
+   "package": "github.com/projectdiscovery/nuclei/v3",
+   "cwes": [
+    "CWE-78"
+   ],
+   "summary": "Nuclei: Arbitrary Command Execution via DAST Code Signature Bypass",
+   "published": "2026-09-22T20:37:16Z",
+   "repo": "projectdiscovery/nuclei",
+   "fix_sha": "1c440e755a97471c56fb0276ee8a8c4132974645",
+   "vuln_sha": "c041bf292262baa68232351001001ab2bb1d9538",
+   "files": [
+    "pkg/catalog/loader/loader.go"
+   ],
+   "selected_for": "CWE-78"
+  },
+  {
+   "ghsa": "GHSA-mqjf-5f49-2fjh",
+   "cve": "CVE-2026-76904",
+   "language": "java",
+   "ecosystem": "maven",
+   "package": "org.geotools.jdbc:gt-jdbc-postgis",
+   "cwes": [
+    "CWE-89"
+   ],
+   "summary": "GeoTools has unauthenticated SQL injection in the jsonArrayContains filter function against PostGIS layers",
+   "published": "2026-08-21T20:25:41Z",
+   "repo": "geotools/geotools",
+   "fix_sha": "d821c4d321dd91c22e31fcd5b1ce676645da5176",
+   "vuln_sha": "86de3d3dad82db14e523e24e07473c3a2165f1db",
+   "files": [
+    "modules/plugin/jdbc/jdbc-postgis/src/main/java/org/geotools/data/postgis/FilterToSqlHelper.java"
+   ],
+   "selected_for": "CWE-89"
+  },
+  {
+   "ghsa": "GHSA-jqvf-j3ww-r8c7",
+   "cve": "CVE-2026-55673",
+   "language": "java",
+   "ecosystem": "maven",
+   "package": "com.powsybl:powsybl-computation-local",
+   "cwes": [
+    "CWE-78",
+    "CWE-88"
+   ],
+   "summary": "PowSyBl Core has Command Injection in LocalCommandExecutor-s",
+   "published": "2026-08-28T18:37:28Z",
+   "repo": "powsybl/powsybl-core",
+   "fix_sha": "17461264d1d18f9bba43bb7855f251e9fa55a4db",
+   "vuln_sha": "0ae58bdafdcd02d5111f33b6ed6c08f649f5ccf4",
+   "files": [
+    "computation-local/src/main/java/com/powsybl/computation/local/UnixLocalCommandExecutor.java",
+    "computation-local/src/main/java/com/powsybl/computation/local/WindowsLocalCommandExecutor.java"
+   ],
+   "selected_for": "CWE-78"
+  },
+  {
+   "ghsa": "GHSA-29rc-vq7f-x335",
+   "cve": "CVE-2024-27348",
+   "language": "java",
+   "ecosystem": "maven",
+   "package": "org.apache.hugegraph:hugegraph-api",
+   "cwes": [
+    "CWE-284",
+    "CWE-77"
+   ],
+   "summary": "Apache HugeGraph-Server: Command execution in gremlin",
+   "published": "2024-04-22T15:30:41Z",
+   "repo": "apache/incubator-hugegraph",
+   "fix_sha": "713d88d1fd9953c3c3e3f130389501910ba40e1d",
+   "vuln_sha": "ef8f6128a32fd4d80314a6e34ffeac83761fcf38",
+   "files": [
+    "hugegraph-server/hugegraph-api/src/main/java/org/apache/hugegraph/api/auth/LoginAPI.java",
+    "hugegraph-server/hugegraph-api/src/main/java/org/apache/hugegraph/api/filter/AuthenticationFilter.java",
+    "hugegraph-server/hugegraph-api/src/main/java/org/apache/hugegraph/api/gremlin/GremlinQueryAPI.java",
+    "hugegraph-server/hugegraph-api/src/main/java/org/apache/hugegraph/auth/HugeFactoryAuthProxy.java",
+    "hugegraph-server/hugegraph-core/src/main/java/org/apache/hugegraph/security/HugeSecurityManager.java",
+    "hugegraph-server/hugegraph-core/src/main/java/org/apache/hugegraph/util/Reflection.java"
+   ],
+   "selected_for": "CWE-77"
+  },
+  {
+   "ghsa": "GHSA-7952-gx68-cjqr",
+   "cve": "CVE-2026-65829",
+   "language": "java",
+   "ecosystem": "maven",
+   "package": "MPXJ.Net",
+   "cwes": [
+    "CWE-22"
+   ],
+   "summary": "MPXJ: Potential Path Traversal Vulnerability in Primavera P3 PRX and SureTrak STX readers",
+   "published": "2026-09-22T20:34:27Z",
+   "repo": "joniles/mpxj",
+   "fix_sha": "4347315afab1ef5a2907978a754fbc5b0ff58e6f",
+   "vuln_sha": "4785c84553081796e8aaa206ddbdb10885736a59",
+   "files": [
+    "src/main/java/org/mpxj/common/FileHelper.java",
+    "src/main/java/org/mpxj/common/InputStreamHelper.java",
+    "src/main/java/org/mpxj/primavera/p3/P3PRXFileReader.java",
+    "src/main/java/org/mpxj/primavera/suretrak/SureTrakSTXFileReader.java"
+   ],
+   "selected_for": "CWE-22"
+  },
+  {
+   "ghsa": "GHSA-w2x5-gv52-9ccv",
+   "cve": "CVE-2026-54049",
+   "language": "java",
+   "ecosystem": "maven",
+   "package": "org.sakaiproject.conversations:sakai-conversations-impl",
+   "cwes": [
+    "CWE-79"
+   ],
+   "summary": "Sakai Conversations has a Stored XSS Issue",
+   "published": "2026-08-24T19:37:53Z",
+   "repo": "sakaiproject/sakai",
+   "fix_sha": "2696b4b48cbef2e81512f52f84f7477adff78b27",
+   "vuln_sha": "c9459cc0aa9df34185a322a323fea6bd8bcb8cc8",
+   "files": [
+    "conversations/impl/src/main/java/org/sakaiproject/conversations/impl/ConversationsServiceImpl.java",
+    "kernel/kernel-impl/src/main/java/org/sakaiproject/tasks/impl/TaskServiceImpl.java",
+    "rubrics/impl/src/main/java/org/sakaiproject/rubrics/impl/RubricsServiceImpl.java",
+    "webapi/src/main/java/org/sakaiproject/webapi/controllers/DashboardController.java"
+   ],
+   "selected_for": "CWE-79"
+  },
+  {
+   "ghsa": "GHSA-q78c-5jjq-57g8",
+   "cve": "CVE-2026-111761",
+   "language": "java",
+   "ecosystem": "maven",
+   "package": "org.a2aproject.sdk:a2a-java-sdk-server-common",
+   "cwes": [
+    "CWE-918"
+   ],
+   "summary": "A2A Java SDK has Server-Side Request Forgery (SSRF) in push-notification delivery",
+   "published": "2026-10-20T21:06:22Z",
+   "repo": "a2aproject/a2a-java",
+   "fix_sha": "b855b2ae37e4bf23f73e7746ce166fbc5a0b8b5b",
+   "vuln_sha": "efb4e985e99390c4fc1f78c0a187a4254c0a2553",
+   "files": [
+    "extras/http-client-android/src/main/java/org/a2aproject/sdk/client/http/android/AndroidA2AHttpClient.java",
+    "extras/http-client-vertx/src/main/java/org/a2aproject/sdk/client/http/vertx/VertxA2AHttpClient.java",
+    "http-client/src/main/java/org/a2aproject/sdk/client/http/A2AHttpClient.java",
+    "http-client/src/main/java/org/a2aproject/sdk/client/http/JdkA2AHttpClient.java",
+    "server-common/src/main/java/org/a2aproject/sdk/server/requesthandlers/DefaultRequestHandler.java",
+    "server-common/src/main/java/org/a2aproject/sdk/server/tasks/BasePushNotificationSender.java"
+   ],
+   "selected_for": "CWE-918"
+  },
+  {
+   "ghsa": "GHSA-c7v7-rqfm-f44j",
+   "cve": null,
+   "language": "java",
+   "ecosystem": "maven",
+   "package": "com.vaadin:vaadin",
+   "cwes": [
+    "CWE-20",
+    "CWE-434"
+   ],
+   "summary": "Vaadin Platform possible file bypass via upload validation on the server-side",
+   "published": "2025-09-04T15:55:09Z",
+   "repo": "vaadin/flow-components",
+   "fix_sha": "bfe9e507cdcc5d90a2312c8f0162f798a29ba635",
+   "vuln_sha": "c6aa2b2360480091eabbc688be4713462eacc446",
+   "files": [
+    "vaadin-upload-flow-parent/vaadin-upload-flow/src/main/java/com/vaadin/flow/component/upload/Upload.java"
+   ],
+   "selected_for": "CWE-434"
+  },
+  {
+   "ghsa": "GHSA-gx83-3vf8-gh7j",
+   "cve": "CVE-2026-83557",
+   "language": "java",
+   "ecosystem": "maven",
+   "package": "tools.jackson.core:jackson-databind",
+   "cwes": [
+    "CWE-502",
+    "CWE-915"
+   ],
+   "summary": "jackson-databind: Comparable missing from DefaultBaseTypeLimitingValidator's unsafe base types (incomplete PolymorphicTypeValidator denylist)",
+   "published": "2026-09-28T20:44:25Z",
+   "repo": "FasterXML/jackson-databind",
+   "fix_sha": "eb3b7fc0f9c0d27f471550ac3316b17d1987388f",
+   "vuln_sha": "65947556b62ee935a85aa5edaebf409813fd2456",
+   "files": [
+    "src/main/java/com/fasterxml/jackson/databind/jsontype/DefaultBaseTypeLimitingValidator.java"
+   ],
+   "selected_for": "CWE-502"
+  },
+  {
+   "ghsa": "GHSA-6qc4-57v3-28rr",
+   "cve": "CVE-2026-57298",
+   "language": "java",
+   "ecosystem": "maven",
+   "package": "org.jenkins-ci.plugins:contrast-continuous-application-security",
+   "cwes": [
+    "CWE-352"
+   ],
+   "summary": "Jenkins Contrast Continuous Application Security Plugin has a CSRF vulnerability",
+   "published": "2026-06-24T15:31:48Z",
+   "repo": "jenkinsci/contrast-continuous-application-security-plugin",
+   "fix_sha": "ddea0a815aec52c0695d8c0c7f09f9cfce4989e5",
+   "vuln_sha": "d7776646af26d928cb0d50922d61dadc2c6aa11c",
+   "files": [
+    "src/main/java/com/aspectsecurity/contrast/contrastjenkins/ThresholdCondition.java"
+   ],
+   "selected_for": "CWE-352"
+  },
+  {
+   "ghsa": "GHSA-2jwh-9rmr-j4xf",
+   "cve": "CVE-2026-107228",
+   "language": "java",
+   "ecosystem": "maven",
+   "package": "org.asynchttpclient:async-http-client",
+   "cwes": [
+    "CWE-287"
+   ],
+   "summary": "AsyncHttpClient CookieStore Silently Overrides Caller's Explicit Cookie Header via setHeader (Bypass of CVE-2024-53990 Fix)",
+   "published": "2026-10-08T16:50:03Z",
+   "repo": "AsyncHttpClient/async-http-client",
+   "fix_sha": "fd9763620725126c1c8bb0af1ceb9a7523099a5f",
+   "vuln_sha": "7dc5bbc2d0a48aa2a9caf089a626dcfd333168e9",
+   "files": [
+    "client/src/main/java/org/asynchttpclient/netty/handler/intercept/CallerCookies.java",
+    "client/src/main/java/org/asynchttpclient/netty/handler/intercept/Redirect30xInterceptor.java",
+    "client/src/main/java/org/asynchttpclient/netty/request/NettyRequestFactory.java"
+   ],
+   "selected_for": "CWE-287"
+  },
+  {
+   "ghsa": "GHSA-prv5-c2px-j9q3",
+   "cve": "CVE-2025-54947",
+   "language": "java",
+   "ecosystem": "maven",
+   "package": "org.apache.streampark:streampark",
+   "cwes": [
+    "CWE-321",
+    "CWE-798"
+   ],
+   "summary": "Apache StreamPark has a hard-coded encryption key",
+   "published": "2025-12-12T15:30:41Z",
+   "repo": "apache/streampark",
+   "fix_sha": "39034db0c806168afa82e58e4f376e1e3c3b73e4",
+   "vuln_sha": "81b8161be29dde828febe10ff4b050dde5448c0b",
+   "files": [
+    "streampark-console/streampark-console-service/src/main/java/org/apache/streampark/console/system/authentication/JWTFilter.java",
+    "streampark-console/streampark-console-service/src/main/java/org/apache/streampark/console/system/authentication/JWTUtil.java",
+    "streampark-console/streampark-console-service/src/main/java/org/apache/streampark/console/system/authentication/ShiroRealm.java"
+   ],
+   "selected_for": "CWE-798"
+  },
+  {
+   "ghsa": "GHSA-f4v5-65jj-pcr2",
+   "cve": "CVE-2026-10051",
+   "language": "java",
+   "ecosystem": "maven",
+   "package": "org.eclipse.jetty:jetty-server",
+   "cwes": [
+    "CWE-200"
+   ],
+   "summary": "Eclipse Jetty: Cross-Request Leakage for trailers on HTTP/1.1 keep-alive connections",
+   "published": "2026-07-22T22:56:05Z",
+   "repo": "jetty/jetty.project",
+   "fix_sha": "72206b3ea623cf7ed8729b47a83ee628ff10e8eb",
+   "vuln_sha": "bbf9afb8fa569f825b74b6c6195eea04d78b8d44",
+   "files": [
+    "jetty-core/jetty-server/src/main/java/org/eclipse/jetty/server/internal/HttpConnection.java"
+   ],
+   "selected_for": "CWE-200"
+  },
+  {
+   "ghsa": "GHSA-cgfv-jrfp-2r7v",
+   "cve": null,
+   "language": "java",
+   "ecosystem": "maven",
+   "package": "io.openremote:openremote-manager",
+   "cwes": [
+    "CWE-89"
+   ],
+   "summary": "OpenRemote has Authenticated SQL Injection via Datapoint Crosstab Export",
+   "published": "2026-07-06T21:51:32Z",
+   "repo": "openremote/openremote",
+   "fix_sha": "02ac83074b81617add814b2a72d459abdf374147",
+   "vuln_sha": "a2838215eccd33ef17b0180b5dd3d4253394f490",
+   "files": [
+    "manager/src/main/java/org/openremote/manager/datapoint/AssetDatapointService.java"
+   ],
+   "selected_for": "CWE-89"
+  },
+  {
+   "ghsa": "GHSA-wp5x-hrrw-6r4g",
+   "cve": "CVE-2026-57282",
+   "language": "java",
+   "ecosystem": "maven",
+   "package": "org.jenkins-ci.plugins:git-client",
+   "cwes": [
+    "CWE-78"
+   ],
+   "summary": "Jenkins Git client Plugin has an OS command injection vulnerability on agents",
+   "published": "2026-06-24T15:31:47Z",
+   "repo": "jenkinsci/git-client-plugin",
+   "fix_sha": "a10f61003e39fd9be6fada0560b13ba718b2716f",
+   "vuln_sha": "c32d47f2d0a7b1047c5c6505de1f806c7ff48061",
+   "files": [
+    "src/main/java/org/jenkinsci/plugins/gitclient/CliGitAPIImpl.java",
+    "src/main/java/org/jenkinsci/plugins/gitclient/verifier/ManuallyProvidedKeyVerifier.java"
+   ],
+   "selected_for": "CWE-78"
+  },
+  {
+   "ghsa": "GHSA-v529-vhwc-wfc5",
+   "cve": "CVE-2026-42087",
+   "language": "ruby",
+   "ecosystem": "rubygems",
+   "package": "openc3",
+   "cwes": [
+    "CWE-89"
+   ],
+   "summary": "OpenC3 COSMOS has SQL Injection in QuestDB Time-Series Database",
+   "published": "2026-04-23T14:12:02Z",
+   "repo": "OpenC3/cosmos",
+   "fix_sha": "9ba60c09c8836a37a2e4ea67ab35fe403e041415",
+   "vuln_sha": "0ce3c12bda9662502ccb2ceb0ccddd45d6abba91",
+   "files": [
+    "openc3/lib/openc3/models/cvt_model.rb"
+   ],
+   "selected_for": "CWE-89"
+  },
+  {
+   "ghsa": "GHSA-hfcp-477w-3wjw",
+   "cve": "CVE-2026-0980",
+   "language": "ruby",
+   "ecosystem": "rubygems",
+   "package": "rubyipmi",
+   "cwes": [
+    "CWE-78"
+   ],
+   "summary": "rubyipmi is vulnerable to OS Command Injection through malicious usernames",
+   "published": "2026-02-27T09:30:29Z",
+   "repo": "logicminds/rubyipmi",
+   "fix_sha": "252503a7b4dca68388165883b0322024e344a215",
+   "vuln_sha": "9f73f5adad55ebd1c78fae91fa8d11da75c46e34",
+   "files": [
+    "lib/rubyipmi.rb",
+    "lib/rubyipmi/commands/basecommand.rb",
+    "lib/rubyipmi/freeipmi/commands/basecommand.rb",
+    "lib/rubyipmi/ipmitool/commands/basecommand.rb"
+   ],
+   "selected_for": "CWE-78"
+  },
+  {
+   "ghsa": "GHSA-hm49-wcqc-g2xg",
+   "cve": "CVE-2026-42257",
+   "language": "ruby",
+   "ecosystem": "rubygems",
+   "package": "net-imap",
+   "cwes": [
+    "CWE-77",
+    "CWE-93"
+   ],
+   "summary": "net-imap vulnerable to command Injection via \"raw\" arguments to multiple commands",
+   "published": "2026-05-04T22:04:41Z",
+   "repo": "ruby/net-imap",
+   "fix_sha": "0ec4fd351263e8b9a4f683713427827b7b1ad974",
+   "vuln_sha": "a4f7649c3da77dec7631f03a037a478eb4330048",
+   "files": [
+    "lib/net/imap.rb"
+   ],
+   "selected_for": "CWE-77"
+  },
+  {
+   "ghsa": "GHSA-47m2-wp7j-p9vc",
+   "cve": "CVE-2026-85396",
+   "language": "ruby",
+   "ecosystem": "rubygems",
+   "package": "rubyzip",
+   "cwes": [
+    "CWE-22"
+   ],
+   "summary": "rubyzip path traversal vulnerability",
+   "published": "2026-09-03T21:31:16Z",
+   "repo": "rubyzip/rubyzip",
+   "fix_sha": "17edfbf4423b83211b075acc23a7d8640da63449",
+   "vuln_sha": "c5909168af5f0fe3688f2cec8c2f43d997e5dc63",
+   "files": [
+    "lib/zip/entry.rb"
+   ],
+   "selected_for": "CWE-22"
+  },
+  {
+   "ghsa": "GHSA-cj75-f6xr-r4g7",
+   "cve": "CVE-2026-73648",
+   "language": "ruby",
+   "ecosystem": "rubygems",
+   "package": "rails-html-sanitizer",
+   "cwes": [
+    "CWE-79"
+   ],
+   "summary": "Rails HTML Sanitizers: Possible XSS vulnerability with certain configurations",
+   "published": "2026-07-21T22:05:28Z",
+   "repo": "rails/rails-html-sanitizer",
+   "fix_sha": "74dcb8053e6da9921246ce71b06ad9fd65b19586",
+   "vuln_sha": "11ee44059551bef771503a5afd5914903914dd8a",
+   "files": [
+    "lib/rails/html/scrubbers.rb"
+   ],
+   "selected_for": "CWE-79"
+  },
+  {
+   "ghsa": "GHSA-prq8-7wvh-44qh",
+   "cve": "CVE-2026-54605",
+   "language": "ruby",
+   "ecosystem": "rubygems",
+   "package": "oauth",
+   "cwes": [
+    "CWE-200",
+    "CWE-346",
+    "CWE-918"
+   ],
+   "summary": "OAuth: Cross-origin token-request redirects can expose signed request metadata",
+   "published": "2026-07-28T16:27:11Z",
+   "repo": "ruby-oauth/oauth",
+   "fix_sha": "d069dc8c4c9631947451215f07460d6cdf0caf3f",
+   "vuln_sha": "d898ad3e5ec33f413a2c7b8d1460068585c3476e",
+   "files": [
+    "lib/oauth/consumer.rb"
+   ],
+   "selected_for": "CWE-918"
+  },
+  {
+   "ghsa": "GHSA-3hwx-c6cp-q972",
+   "cve": "CVE-2022-1811",
+   "language": "ruby",
+   "ecosystem": "rubygems",
+   "package": "publify_core",
+   "cwes": [
+    "CWE-434",
+    "CWE-79"
+   ],
+   "summary": "Publify vulnerable to cross site scripting",
+   "published": "2022-05-24T00:01:35Z",
+   "repo": "publify/publify",
+   "fix_sha": "0fb6b027fbaf17f6a6551f2148482a03eac12927",
+   "vuln_sha": "a35489f7360e7a9a4c93a3d20cc65ec52086dcbf",
+   "files": [
+    "publify_core/app/uploaders/resource_uploader.rb"
+   ],
+   "selected_for": "CWE-434"
+  },
+  {
+   "ghsa": "GHSA-592j-995h-p23j",
+   "cve": "CVE-2024-27281",
+   "language": "ruby",
+   "ecosystem": "rubygems",
+   "package": "rdoc",
+   "cwes": [
+    "CWE-502",
+    "CWE-74"
+   ],
+   "summary": "RDoc RCE vulnerability with .rdoc_options",
+   "published": "2024-03-25T19:36:59Z",
+   "repo": "ruby/rdoc",
+   "fix_sha": "1254b0066f312ddbf7fae7a195e66ce5b3bc6656",
+   "vuln_sha": "35b409b55a61af0308fc6937837177af8a070232",
+   "files": [
+    "lib/rdoc/store.rb"
+   ],
+   "selected_for": "CWE-502"
+  },
+  {
+   "ghsa": "GHSA-f3qm-vfc3-jg6v",
+   "cve": "CVE-2023-47635",
+   "language": "ruby",
+   "ecosystem": "rubygems",
+   "package": "decidim-templates",
+   "cwes": [
+    "CWE-352",
+    "CWE-918"
+   ],
+   "summary": "Possible CSRF attack at questionnaire templates preview",
+   "published": "2024-02-20T18:03:12Z",
+   "repo": "decidim/decidim",
+   "fix_sha": "5542227be66e3b6d7530f5b536069bce09376660",
+   "vuln_sha": "99a8ef7af8b0834f3960174c8c3ac8399562d22f",
+   "files": [
+    "decidim-templates/app/controllers/decidim/templates/admin/questionnaire_templates_controller.rb"
+   ],
+   "selected_for": "CWE-352"
+  },
+  {
+   "ghsa": "GHSA-c32j-vqhx-rx3x",
+   "cve": "CVE-2026-45363",
+   "language": "ruby",
+   "ecosystem": "rubygems",
+   "package": "jwt",
+   "cwes": [
+    "CWE-1391",
+    "CWE-287",
+    "CWE-326"
+   ],
+   "summary": "ruby-jwt: Empty-key HMAC bypass; cross-language sibling of CVE-2026-44351",
+   "published": "2026-05-18T17:24:55Z",
+   "repo": "jwt/ruby-jwt",
+   "fix_sha": "db560b769a07bd9724e77ff505011ac01872106f",
+   "vuln_sha": "ffef4f2cc49f4c07447fa67601b396880e519704",
+   "files": [
+    "lib/jwt/jwa/hmac.rb",
+    "lib/jwt/version.rb"
+   ],
+   "selected_for": "CWE-287"
+  },
+  {
+   "ghsa": "GHSA-c6rp-p8xm-4q9f",
+   "cve": "CVE-2026-107399",
+   "language": "ruby",
+   "ecosystem": "rubygems",
+   "package": "mechanize",
+   "cwes": [
+    "CWE-200",
+    "CWE-522"
+   ],
+   "summary": "Mechanize sends credential headers to another origin after a meta refresh",
+   "published": "2026-10-08T22:09:03Z",
+   "repo": "sparklemotion/mechanize",
+   "fix_sha": "02a1235842d6eda8d4a5a3d8f13aba2cecf52e4f",
+   "vuln_sha": "f80a78129634d81aba4bf6513d1d228452e8c022",
+   "files": [
+    "lib/mechanize/http/agent.rb"
+   ],
+   "selected_for": "CWE-200"
+  },
+  {
+   "ghsa": "GHSA-fwj4-6wgp-mpxm",
+   "cve": "CVE-2026-4324",
+   "language": "ruby",
+   "ecosystem": "rubygems",
+   "package": "katello",
+   "cwes": [
+    "CWE-89"
+   ],
+   "summary": "Katello: Denial of Service and potential information disclosure via SQL injection",
+   "published": "2026-03-17T15:36:23Z",
+   "repo": "Katello/katello",
+   "fix_sha": "a0a793b08d4f0a897ee985d79a687ad043f99e57",
+   "vuln_sha": "b8794344d24e28564bdd4a061391205454a7cd8d",
+   "files": [
+    "app/controllers/katello/api/v2/host_bootc_images_controller.rb"
+   ],
+   "selected_for": "CWE-89"
+  },
+  {
+   "ghsa": "GHSA-x485-rhg3-cqr4",
+   "cve": "CVE-2011-10026",
+   "language": "ruby",
+   "ecosystem": "rubygems",
+   "package": "spree",
+   "cwes": [
+    "CWE-78",
+    "CWE-94"
+   ],
+   "summary": "Spree Commerce is vulnerable to RCE through Search API",
+   "published": "2025-08-20T18:30:21Z",
+   "repo": "spree/spree",
+   "fix_sha": "0a9a360c590829d8a377ceae0cf997bbbbcc2df4",
+   "vuln_sha": "3b559e7219f3681184be409ad00cd34a34a37978",
+   "files": [
+    "core/app/controllers/admin/orders_controller.rb",
+    "core/app/controllers/admin/products_controller.rb"
+   ],
+   "selected_for": "CWE-78"
+  },
+  {
+   "ghsa": "GHSA-q66h-m87m-j2q6",
+   "cve": null,
+   "language": "ruby",
+   "ecosystem": "rubygems",
+   "package": "bitcoinrb",
+   "cwes": [
+    "CWE-77"
+   ],
+   "summary": "Bitcoinrb Vulnerable to Command injection via RPC ",
+   "published": "2026-02-10T00:21:56Z",
+   "repo": "chaintope/bitcoinrb",
+   "fix_sha": "070327133a2a3e5a6d265b2d82f06f9414c01e74",
+   "vuln_sha": "7d7d2e75b69a75bdb02e35e9cf19ff491c5ed78e",
+   "files": [
+    "lib/bitcoin/rpc/http_server.rb"
+   ],
+   "selected_for": "CWE-77"
+  }
+ ]
+}

@@ -1581,7 +1581,13 @@
       "description": "`arbiter why <finding>` shows the matched query, the captures and which exclusions (unless_inside / unless_in_scope / unless_in_file) were checked; `arbiter why-not <file:line> <rule>` shows which part failed to match. `arbiter feedback` verdicts adjust per-rule confidence and are reported, never silently applied.",
       "priority": "high",
       "status": "proposed",
-      "minimum_access_scope": [],
+      "minimum_access_scope": [
+        "tools/label_models.py",
+        "tools/ground_truth/",
+        "tools/gold/labels/",
+        "tools/gold/heldout.json",
+        "tests/test_label_models.py"
+      ],
       "acceptance_criteria": [
         "why and why-not work for every native pack rule",
         "a recorded false-positive verdict lowers that rule's reported confidence on the next scan, with the verdict cited",
@@ -1596,7 +1602,9 @@
       "documentation_required": [
         "changelog"
       ],
-      "risk_notes": []
+      "risk_notes": [
+        "2026-10-22 progress (Phase 1 items 4-5): measured per-rule precision with no human labels: ground truth (OWASP Java/Python, Juliet Java, 70 CVE fix pairs; 8,061 labels) and two independent model labellers + adjudicator (692 labels, $34.82), in tools/gold/labels/ and tools/gold/results/2026-10-22-labels.md. Labeller tp-call precision on blind ground truth 0.993 with Wilson lower bound 0.962, so model labels cannot yet support a 0.99 claim; calibration covers injection/crypto only. Held-out split frozen in tools/gold/heldout.json. why/why-not and feedback criteria are untouched."
+      ]
     },
     {
       "id": "ARB-068",
