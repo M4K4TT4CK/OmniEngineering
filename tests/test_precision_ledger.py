@@ -276,3 +276,10 @@ def _plain(tmp_path, rec):
     p = tmp_path / "labels.jsonl"
     p.write_text(json.dumps(rec) + "\n", encoding="utf-8")
     return p
+
+
+def test_labeller_calibration_records_never_reach_the_ledger():
+    recs = [{"finding_id": "a", "source": "owasp-java"}, {"finding_id": "b", "source": "calibration:owasp-java"},
+            {"finding_id": "c", "source": "calibration:planted-tests"}]
+    keep, skipped = PL.drop_calibration(recs)
+    assert [r["finding_id"] for r in keep] == ["a"] and skipped == 2

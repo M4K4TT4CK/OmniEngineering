@@ -1608,7 +1608,8 @@
         "changelog"
       ],
       "risk_notes": [
-        "2026-10-22 progress (Phase 1 items 4-5): measured per-rule precision with no human labels: ground truth (OWASP Java/Python, Juliet Java, 70 CVE fix pairs; 8,061 labels) and two independent model labellers + adjudicator (692 labels, $34.82), in tools/gold/labels/ and tools/gold/results/2026-10-22-labels.md. Labeller tp-call precision on blind ground truth 0.993 with Wilson lower bound 0.962, so model labels cannot yet support a 0.99 claim; calibration covers injection/crypto only. Held-out split frozen in tools/gold/heldout.json. why/why-not and feedback criteria are untouched."
+        "2026-10-22 progress (Phase 1 items 4-5): measured per-rule precision with no human labels: ground truth (OWASP Java/Python, Juliet Java, 70 CVE fix pairs; 8,061 labels) and two independent model labellers + adjudicator (692 labels, $34.82), in tools/gold/labels/ and tools/gold/results/2026-10-22-labels.md. Labeller tp-call precision on blind ground truth 0.993 with Wilson lower bound 0.962, so model labels cannot yet support a 0.99 claim; calibration covers injection/crypto only. Held-out split frozen in tools/gold/heldout.json. why/why-not and feedback criteria are untouched.",
+        "2026-10-23 progress (calibration round 2): 450 more blind ground-truth items; labeller tp-call precision pooled over 700 items 395/401 (Wilson lower 0.968), still below 0.99; all 6 false TPs have the deciding fact outside the excerpt (other-file safe source, Flask route decorator, cross-file Juliet), 389/390 (0.986) without them. Planted-twin calibration for tests/secrets/stubs/resilience/concurrency (lower bounds 0.67-0.86, too few items for 0.99) and fact-checks for supply chain and secrets. BenchmarkTest01096's safe label is right (fixed route). No category's model labels can back a 0.99 claim; tools/gold/results/2026-10-23-calibration.md. $21.27."
       ]
     },
     {

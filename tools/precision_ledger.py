@@ -93,6 +93,15 @@ def read_jsonl(path: Path) -> list[dict]:
     return out
 
 
+def drop_calibration(records: list[dict]) -> tuple[list[dict], int]:
+    """Calibration records (`source` starting `calibration:`) relabel
+    ground-truth items blind, or label planted good-twin lines no rule fired
+    on. Counted in the ledger they would double-count ground truth or invent
+    findings, so `labels/*.jsonl` is safe to pass whole."""
+    keep = [r for r in records if not str(r.get("source", "")).startswith("calibration:")]
+    return keep, len(records) - len(keep)
+
+
 def read_sheet(path: Path, batch: str, source: str, held_out: bool) -> list[dict]:
     """A label_sample.py sheet as label records. The finding is the sheet's
     sample id within `batch` (every copy of one sample shares its ids)."""
@@ -339,6 +348,10 @@ def main(argv: list[str] | None = None) -> int:
     for p in args.labels:
         records += (read_jsonl(p) if p.name.endswith((".jsonl", ".jsonl.gz"))
                     else read_sheet(p, args.sheet_batch, args.sheet_source, args.sheet_held_out))
+    records, skipped = drop_calibration(records)
+    if skipped:
+        print(f"left out {skipped} labeller-calibration records (they measure the labellers, not the rules)",
+              file=sys.stderr)
     previous = P.load_ledger(LEDGER) if LEDGER.is_file() else None
     ledger = build(records, previous, args.date, declared_verified(), snapshot_counts())
     write(ledger, (args.out,) if args.out else (LEDGER, PACKAGED))

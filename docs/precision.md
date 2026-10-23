@@ -209,11 +209,39 @@ labellers' copies of one sheet pair up), `--sheet-source`, and
 
 ## Current numbers
 
-As of 2026-10-22: **no labels; the ledger is empty.** Every rule is on
-probation and every finding is advisory. No rule is declared verified. There
-is no verified-tier precision figure and no category claim, and none should
-be quoted until Phase 1b's first labelled batch is in the ledger and
-`tools/precision_guard.py` is green on it.
+As of 2026-10-23: the ledger holds ground-truth and model labels (98
+rules; 1 admitted, `java.weak-random-for-secret`). No rule is declared
+verified, so every finding is advisory. There is no verified-tier precision
+figure and no category claim.
+
+**Labeller calibration** is how far a model label can be trusted. It is
+measured blind against truth the labellers never saw, and it bounds every
+model-labelled number. The Wilson 95% lower bound applies to the labellers'
+`tp` calls (`tools/gold/results/2026-10-23-calibration.md`;
+`calibration.jsonl` and `calibration-2.jsonl`).
+
+| category | truth source | n | `tp` calls right | lower bound | backs a 0.99 claim |
+|---|---|---:|---:|---:|:-:|
+| injection, weak random/hash, deserialisation | OWASP Java/Python, Juliet Java, CVE fixes | 700 | 395/401 | 0.968 | no |
+| same, taint source visible in the excerpt | | 675 | 389/390 | 0.986 | no |
+| tests | planted twins | 45 | 24/24 | 0.862 | no |
+| secrets | planted twins | 30 | 17/17 | 0.816 | no |
+| stubs | planted twins | 34 | 17/17 | 0.816 | no |
+| resilience | planted twins | 59 | 25/27 | 0.766 | no |
+| concurrency | planted twins | 43 | 16/18 | 0.672 | no |
+| supply chain (`unpinned-action`) | SHA-pin fact | 18 | 18/18 | 0.824 | no |
+| secrets in test/example paths, npm ranges with a lockfile | path / lockfile fact | 108 | `fp` side only (107/107 decided) | - | no |
+| docs drift, info exposure, error handling, suppression, IaC, numeric | none | - | - | - | no (uncalibrated) |
+
+**Trusted at a 0.99 lower bound: no category.** The injection family is
+the closest, at 0.968. Every one of its 6 false `tp` calls is a case where
+the deciding fact sits outside the excerpt: a "safe source" method in
+another file, a Flask route decorator, or a cross-file Juliet case. With
+those cases left out it is 389/390 (0.986). The planted categories are too
+small to reach 0.99 even with no error, and they are fixtures we wrote, so
+they say little about real code. Docs drift and the rest have no model-free
+truth. A model-labelled precision figure must therefore carry the labeller
+error: no model-labelled rule or category can be claimed at 99% yet.
 
 Rule requirements: 157 of the 228 shipped rules trace to at least one
 requirement (all 144 language-pack rules, 13 of the 56 rules coded in
