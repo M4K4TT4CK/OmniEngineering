@@ -1424,6 +1424,34 @@
       "prevention_rules": [],
       "prevention_notes": "a real scan of six repeats must yield six ids, and the gate on a legacy baseline must stay green on unchanged code",
       "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-055",
+      "date": "2026-10-22",
+      "title": "controls._probe_of mapped house/<id> to 'house', so a control backed by a house rule always read not assessed",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "_probe_of('house/x') returned 'house'; no probe has that name (house rules come from house_rules, ast_query ones from house_rules_ast), so a control mapped to a house rule resolved to not_assessed with 'probe did not run' even after both house probes ran clean",
+      "how_detected": "ARB-062 round 2 controls review (2026-10-22), reading _probe_of for every emitted prefix",
+      "root_cause": "The house/ prefix is not arbiter/-prefixed, so it skipped the native-probe table (whose 'house' entry only matched the never-emitted arbiter/house.*) and fell through to the bare head. Two probes emit house/ ids and which one depends on the rule's type in arbiter.yaml, which _probe_of never saw; FAIL-053's test enumerated language packs only, not every emitted prefix",
+      "requirement": "ARB-062",
+      "affected": [
+        "src/arbiter/controls.py",
+        "src/arbiter/engine.py"
+      ],
+      "fix_summary": "house/<id> maps to house_rules_ast for an ast_query rule and house_rules otherwise, using the rule types from the scan configuration (engine passes house_rule_types(config)); a report read without its configuration (arbiter controls on report.json) requires both house probes, so an ast_query rule is never read as assessed when tree-sitter was missing; a house id absent from the configuration reads not assessed. The dead arbiter/house entry is removed",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_controls_probe_mapping.py::test_every_emitted_prefix_maps_to_a_registered_probe",
+        "tests/test_controls_probe_mapping.py::test_a_house_rule_maps_to_the_probe_for_its_type",
+        "tests/test_controls_probe_mapping.py::test_a_clean_house_rule_run_satisfies_its_control",
+        "tests/test_controls_probe_mapping.py::test_a_real_scan_reports_a_house_rule_control_as_assessed",
+        "tests/test_controls_probe_mapping.py::test_a_real_scan_finding_names_the_probe_its_rule_maps_to"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [],
+      "prevention_notes": "Every rule-id prefix the scanner can emit is enumerated from the source (literal arbiter/<head>. ids, house/, each language pack, each adapter manifest) and asserted to map to a registered probe; a real scan over every planted bad tree plus both house rule types asserts each finding's recorded probe equals _probe_of(rule_id)",
+      "recurrence_of": ""
     }
   ]
 }

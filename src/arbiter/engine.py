@@ -635,11 +635,12 @@ def run_scan(
     # Control coverage. Summary only; the per-control detail is one command
     # away. Failing to evaluate frameworks must never fail a scan.
     try:
-        from .controls import evaluate_all
+        from .controls import evaluate_all, house_rule_types
         wanted = (config.get("controls") or {}).get("frameworks") or []
         extra = (config.get("controls") or {}).get("packs") or []
-        for res in evaluate_all(report.findings, outcomes, only=wanted, extra_dirs=extra):
-            report.controls.append({
+        for res in evaluate_all(report.findings, outcomes, only=wanted, extra_dirs=extra,
+                                house=house_rule_types(config)):
+            summary = {
                 "framework": res["framework"]["id"],
                 "title": res["framework"]["title"],
                 "baseline": res["framework"]["baseline"],
@@ -647,7 +648,10 @@ def run_scan(
                 "declared_total": res["declared_total"],
                 "not_enumerated": res["not_enumerated"],
                 "assessed_fraction": res["assessed_fraction"],
-            })
+            }
+            if "languages" in res:
+                summary["languages"] = res["languages"]
+            report.controls.append(summary)
     except Exception:  # noqa: BLE001 - control coverage is a summary; a broken pack must not fail the scan
         pass
 

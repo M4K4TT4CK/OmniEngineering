@@ -66,6 +66,16 @@ per CWE. Cells marked † are measured on pairs that were already in the corpus.
 | 24 | 400 Resource consumption | N+S+B † | N † | N † | N † | N † |
 | 25 | 306 Missing auth for critical function | OOR | OOR | OOR | OOR | OOR |
 
+The matrix is also a control pack,
+`src/arbiter/packs/controls/cwe-top25-2024.yaml`: each cell's mark is its
+`measured` value, n/a and OOR cells carry the reasons in the table further
+down, and an applying cell is assessed by the language pack's rules tagged
+with its CWE (CWE-94 also counts CWE-95; CWE-798 also the `secrets` probe).
+`tests/test_controls_cwe_top25.py` fails if a cell here, its pack cell and
+the rules disagree: an N cell must have a native rule, any other applying
+cell must have none, and the Native column below must match. Edit the three
+together.
+
 ### Measured coverage per language
 
 Over the cells that apply and are planted (OOR and n/a excluded). A cell is

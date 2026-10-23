@@ -232,9 +232,11 @@ named language. A scan that finds none of them says nothing about them.
 Gap cells that semgrep or bandit cover only when installed are listed as
 covered in `docs/cwe-top25.md`. Without the analyzers they fall back to the
 native column there. In a scan, an analyzer that did not run is already
-reported as not assessed (see [Native probes](#native-probes)). The CWE-level
-rows above are not yet in the controls coverage report; see ARB-062 in
-`.ai/requirements/requirements.json`.
+reported as not assessed (see [Native probes](#native-probes)). The same
+cells are the `cwe-top25-2024` control pack, so a scan's controls report says
+per language which weaknesses were assessed, which are gaps, which are out of
+reach and which do not apply (`arbiter controls --framework CWE-Top25-2024`;
+see [compliance.md](compliance.md#cwe-top-25-per-language)).
 
 ## Machine-authored code
 
