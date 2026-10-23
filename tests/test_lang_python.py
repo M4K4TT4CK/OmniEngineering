@@ -21,6 +21,7 @@ RULES = {
     "code-injection", "unsafe-deserialization", "insecure-random-for-secret",
     "weak-password-hash", "jwt-unverified-decode", "jwt-literal-signing-key",
     "error-traceback-to-client", "error-message-to-client", "csrf-protection-disabled",
+    "argument-injection", "upload-client-filename", "debug-mode-enabled",
 }
 
 pytestmark = pytest.mark.skipif(not ts.available(), reason="tree-sitter not installed")
@@ -539,3 +540,65 @@ def test_wtf_csrf_off_in_a_test_config_is_fine(tmp_path):
         "    WTF_CSRF_ENABLED = False\n"
         "app.config['WTF_CSRF_ENABLED'] = False\n")
     assert _lines(tmp_path, code, "csrf-protection-disabled") == [2, 5]
+
+
+# ------------------------------------------- CWE Top 25 round 2 (ARB-062)
+
+def test_argument_injection_needs_a_request_value_and_no_separator(tmp_path):
+    code = (
+        "import subprocess\n"
+        "from flask import request\n"
+        "def a():\n"
+        "    subprocess.run(['git', 'log', '--', request.args['ref']])\n"         # separated
+        "    subprocess.run(['git', 'checkout', f\"--branch={request.args['b']}\"])\n"  # bound to its option
+        "def b(path):\n"
+        "    subprocess.run(['tar', '-czf', 'out.tgz', path])\n"                  # not from the request
+        "def c():\n"
+        "    ref = request.args['ref']\n"
+        "    if ref.startswith('-'):\n"
+        "        return 'bad', 400\n"
+        "    subprocess.run(['git', 'show', ref])\n"                              # dash check
+        "def d():\n"
+        "    host = request.args.get('host')\n"
+        "    return subprocess.check_output(['ssh', host, 'uptime'])\n")          # 15
+    assert _lines(tmp_path, code, "argument-injection") == [15]
+
+
+def test_upload_rule_needs_an_upload_a_write_and_no_guard(tmp_path):
+    code = (
+        "import uuid\n"
+        "from fastapi import UploadFile\n"
+        "from werkzeug.utils import secure_filename\n"
+        "from flask import request\n"
+        "def zip_entries(zf):\n"
+        "    for info in zf.infolist():\n"
+        "        with open(info.filename, 'wb') as out:\n"                         # no upload in scope
+        "            out.write(zf.read(info))\n"
+        "def read_back(file: UploadFile):\n"
+        "    with open(file.filename) as fh:\n"                                    # read mode
+        "        return fh.read()\n"
+        "def flask_ok():\n"
+        "    f = request.files['a']\n"
+        "    f.save('/srv/up/' + secure_filename(f.filename))\n"                   # sanitised
+        "def django_ok(request):\n"
+        "    f = request.FILES['doc']\n"
+        "    with open(f'media/{uuid.uuid4().hex}.pdf', 'wb') as out:\n"           # server name
+        "        out.write(f.read())\n"
+        "async def fastapi_bad(file: UploadFile):\n"
+        "    with open(f'uploads/{file.filename}', mode='wb') as out:\n"           # 20
+        "        out.write(await file.read())\n")
+    assert _lines(tmp_path, code, "upload-client-filename") == [20]
+
+
+def test_debug_mode_only_for_a_literal_true_in_a_web_app(tmp_path):
+    code = (
+        "import os\n"
+        "from flask import Flask\n"
+        "app = Flask(__name__)\n"
+        "app.run(debug=os.environ.get('FLASK_DEBUG') == '1')\n"
+        "app.config['DEBUG'] = True\n")
+    assert _lines(tmp_path, code, "debug-mode-enabled") == [5]
+    # unittest's `suite.run(result, debug=True)` in a module that is not a web app.
+    (tmp_path / "other").mkdir()
+    assert not _lines(tmp_path / "other", "def go(suite, r):\n    suite.run(r, debug=True)\n",
+                      "debug-mode-enabled", name="runner.py")

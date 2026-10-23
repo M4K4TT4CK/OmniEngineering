@@ -489,6 +489,236 @@ rules:
       upstream URL and response, or the document that failed validation.
     remediation: "Log the error and send a fixed shape: `res.status(500).json({ error: \"internal error\", id })`."
 
+  # ------------------------------------------------ CWE Top 25 round 2
+  # Request values are `req`/`request`/`ctx` (Koa: also `ctx.request`)
+  # `.query`, `.body` or `.params`. A value that reaches the sink through a
+  # local is tied to it by a backreference in `requires_in_scope`, which
+  # reads the enclosing function: `const v = <request value>` (or
+  # `const { v } = <request value>`) and then the sink called with `v`. Only
+  # the same function is assessed; a value passed through a helper is out of
+  # reach (docs/cwe-top25.md).
+
+  # SSRF (CWE-918): the request value is the whole URL, or its start. A
+  # value spliced in after a fixed origin (`${API}/users/${id}`) picks a
+  # path on a host the code chose, which is not this rule.
+  - id: ssrf-request-url
+    title: "Outbound request to a URL taken from the request: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-918]
+    controls: [NIST-800-218:PW.5]
+    tags: [injection, ssrf]
+    requires_file: |
+      ((member_expression) @m (#match? @m "^(req|request|ctx)(\\.request)?\\.(query|body|params)$"))
+    query: |
+      ((call_expression
+        function: (identifier) @fn
+        arguments: (arguments . (_) @a)) @hit
+       (#match? @fn "^(fetch|axios|got|ky|needle|superagent)$")
+       (#match? @a "^(\\(\\s*)?(String\\(|new URL\\(|`\\$\\{\\s*)?(req|request|ctx)(\\.request)?\\.(query|body|params)\\b|^[A-Za-z_$][\\w$]*$"))
+      ((call_expression
+        function: (member_expression
+          object: (identifier) @o
+          property: (property_identifier) @fn)
+        arguments: (arguments . (_) @a)) @hit
+       (#match? @o "^(axios|got|ky|needle|superagent|https?|undici)$")
+       (#match? @fn "^(get|post|put|patch|delete|head|options|request|stream|fetch)$")
+       (#match? @a "^(\\(\\s*)?(String\\(|new URL\\(|`\\$\\{\\s*)?(req|request|ctx)(\\.request)?\\.(query|body|params)\\b|^[A-Za-z_$][\\w$]*$"))
+    requires_in_scope: |
+      ((arrow_function) @f
+       (#match? @f "(?s)((const|let|var)\\s+(?P<v>[A-Za-z_$][\\w$]*)\\s*(:[^=;]+)?=|(const|let|var)\\s*\\{[^}]*?(?<![\\w$.])(?P<w>[A-Za-z_$][\\w$]*)\\s*\\}\\s*(:[^=;]+)?=)\\s*(await\\s+)?(\\(\\s*)?(String\\(|new URL\\(|decodeURIComponent\\()?\\s*(req|request|ctx)(\\.request)?\\.(query|body|params)\\b.*(?<![\\w$.])(fetch|axios|got|ky|needle|superagent|(axios|got|ky|needle|superagent|https?|undici)\\.\\w+)\\(\\s*((?P=v)|(?P=w))\\s*[,)]|(?<![\\w$.])(fetch|axios|got|ky|needle|superagent|(axios|got|ky|needle|superagent|https?|undici)\\.\\w+)\\(\\s*(\\(\\s*)?(String\\(|new URL\\(|`\\$\\{\\s*)?(req|request|ctx)(\\.request)?\\.(query|body|params)\\b"))
+      ((function_declaration) @f
+       (#match? @f "(?s)((const|let|var)\\s+(?P<v>[A-Za-z_$][\\w$]*)\\s*(:[^=;]+)?=|(const|let|var)\\s*\\{[^}]*?(?<![\\w$.])(?P<w>[A-Za-z_$][\\w$]*)\\s*\\}\\s*(:[^=;]+)?=)\\s*(await\\s+)?(\\(\\s*)?(String\\(|new URL\\(|decodeURIComponent\\()?\\s*(req|request|ctx)(\\.request)?\\.(query|body|params)\\b.*(?<![\\w$.])(fetch|axios|got|ky|needle|superagent|(axios|got|ky|needle|superagent|https?|undici)\\.\\w+)\\(\\s*((?P=v)|(?P=w))\\s*[,)]|(?<![\\w$.])(fetch|axios|got|ky|needle|superagent|(axios|got|ky|needle|superagent|https?|undici)\\.\\w+)\\(\\s*(\\(\\s*)?(String\\(|new URL\\(|`\\$\\{\\s*)?(req|request|ctx)(\\.request)?\\.(query|body|params)\\b"))
+      ((function_expression) @f
+       (#match? @f "(?s)((const|let|var)\\s+(?P<v>[A-Za-z_$][\\w$]*)\\s*(:[^=;]+)?=|(const|let|var)\\s*\\{[^}]*?(?<![\\w$.])(?P<w>[A-Za-z_$][\\w$]*)\\s*\\}\\s*(:[^=;]+)?=)\\s*(await\\s+)?(\\(\\s*)?(String\\(|new URL\\(|decodeURIComponent\\()?\\s*(req|request|ctx)(\\.request)?\\.(query|body|params)\\b.*(?<![\\w$.])(fetch|axios|got|ky|needle|superagent|(axios|got|ky|needle|superagent|https?|undici)\\.\\w+)\\(\\s*((?P=v)|(?P=w))\\s*[,)]|(?<![\\w$.])(fetch|axios|got|ky|needle|superagent|(axios|got|ky|needle|superagent|https?|undici)\\.\\w+)\\(\\s*(\\(\\s*)?(String\\(|new URL\\(|`\\$\\{\\s*)?(req|request|ctx)(\\.request)?\\.(query|body|params)\\b"))
+      ((method_definition) @f
+       (#match? @f "(?s)((const|let|var)\\s+(?P<v>[A-Za-z_$][\\w$]*)\\s*(:[^=;]+)?=|(const|let|var)\\s*\\{[^}]*?(?<![\\w$.])(?P<w>[A-Za-z_$][\\w$]*)\\s*\\}\\s*(:[^=;]+)?=)\\s*(await\\s+)?(\\(\\s*)?(String\\(|new URL\\(|decodeURIComponent\\()?\\s*(req|request|ctx)(\\.request)?\\.(query|body|params)\\b.*(?<![\\w$.])(fetch|axios|got|ky|needle|superagent|(axios|got|ky|needle|superagent|https?|undici)\\.\\w+)\\(\\s*((?P=v)|(?P=w))\\s*[,)]|(?<![\\w$.])(fetch|axios|got|ky|needle|superagent|(axios|got|ky|needle|superagent|https?|undici)\\.\\w+)\\(\\s*(\\(\\s*)?(String\\(|new URL\\(|`\\$\\{\\s*)?(req|request|ctx)(\\.request)?\\.(query|body|params)\\b"))
+    # A host allowlist or a hostname check anywhere in the function is taken
+    # as the guard; the rule does not judge whether the check is right.
+    unless_in_scope: |
+      ((identifier) @i
+       (#match? @i "(?i)^(\\w*allow(ed)?_?(list|hosts?|domains?|origins?|urls?)\\w*|\\w*whitelist\\w*|is(Allowed|Safe|Valid|Trusted|Public)\\w*|\\w*validate\\w*url\\w*|assert\\w*url\\w*|\\w*ssrf\\w*)$"))
+      ((property_identifier) @p
+       (#match? @p "^(hostname|host)$"))
+    description: >
+      The server makes a request to whatever URL the client sent. The
+      client can point it at the cloud metadata endpoint
+      (`169.254.169.254`), `localhost` admin ports or other internal
+      services the server can reach and the client cannot, and read the
+      answer back. Only the same-function form is checked: the request
+      value is the URL or its start, directly or through one local.
+    remediation: "Parse the URL with `new URL()`, allow only `https:` and an allowlist of hosts, refuse redirects (`redirect: \"error\"`), and resolve and reject private addresses if the host list is open."
+
+  # Argument injection (CWE-88, ranked under CWE-77): `execFile`/`spawn`
+  # with an argv array does not go through a shell, but the program still
+  # parses its own options. `git clone --upload-pack=...`, `curl -o` or
+  # `tar --checkpoint-action=exec=...` from the request runs or writes what
+  # the caller chose. A `"--"` element ends option parsing and is the fix.
+  - id: argument-injection
+    title: "Request value passed as an argument with no `--`: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-77, CWE-88]
+    controls: [NIST-800-218:PW.5]
+    tags: [injection, shell, argument-injection]
+    requires_file: |
+      ((member_expression) @m (#match? @m "^(req|request|ctx)(\\.request)?\\.(query|body|params)$"))
+    query: |
+      ((call_expression
+        function: (identifier) @fn
+        arguments: (arguments . (string (string_fragment) @tool) . (array) @arr)) @hit
+       (#match? @fn "^(execFile|execFileSync|spawn|spawnSync|execa|execaSync)$")
+       (#match? @tool "(^|/)(git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|find|sendmail|ffmpeg|ffprobe|convert|magick|docker|kubectl|npm|npx|yarn|pip|openssl|gpg)$")
+       (#not-match? @arr "[\"'`]--[\"'`]")
+       (#match? @arr "[\\[,]\\s*(String\\(|`\\$\\{\\s*)?[A-Za-z_$][\\w$.]*\\b"))
+      ((call_expression
+        function: (member_expression
+          object: (identifier) @o
+          property: (property_identifier) @fn)
+        arguments: (arguments . (string (string_fragment) @tool) . (array) @arr)) @hit
+       (#match? @o "^(child_process|childProcess|cp)$")
+       (#match? @fn "^(execFile|execFileSync|spawn|spawnSync)$")
+       (#match? @tool "(^|/)(git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|find|sendmail|ffmpeg|ffprobe|convert|magick|docker|kubectl|npm|npx|yarn|pip|openssl|gpg)$")
+       (#not-match? @arr "[\"'`]--[\"'`]")
+       (#match? @arr "[\\[,]\\s*(String\\(|`\\$\\{\\s*)?[A-Za-z_$][\\w$.]*\\b"))
+    requires_in_scope: |
+      ((arrow_function) @f
+       (#match? @f "(?s)((const|let|var)\\s+(?P<v>[A-Za-z_$][\\w$]*)\\s*(:[^=;]+)?=|(const|let|var)\\s*\\{[^}]*?(?<![\\w$.])(?P<w>[A-Za-z_$][\\w$]*)\\s*\\}\\s*(:[^=;]+)?=)\\s*(await\\s+)?(String\\(|decodeURIComponent\\()?\\s*(req|request|ctx)(\\.request)?\\.(query|body|params)\\b.*\\b(execFile|execFileSync|spawn|spawnSync|execa|execaSync)\\(\\s*[\"'`][^\"'`]*[\"'`]\\s*,\\s*\\[(?:[^\\]]*?,)?\\s*(String\\(|`\\$\\{\\s*)?((?P=v)|(?P=w))\\b|\\b(execFile|execFileSync|spawn|spawnSync|execa|execaSync)\\(\\s*[\"'`][^\"'`]*[\"'`]\\s*,\\s*\\[(?:[^\\]]*?,)?\\s*(String\\(|`\\$\\{\\s*)?(req|request|ctx)(\\.request)?\\.(query|body|params)\\b"))
+      ((function_declaration) @f
+       (#match? @f "(?s)((const|let|var)\\s+(?P<v>[A-Za-z_$][\\w$]*)\\s*(:[^=;]+)?=|(const|let|var)\\s*\\{[^}]*?(?<![\\w$.])(?P<w>[A-Za-z_$][\\w$]*)\\s*\\}\\s*(:[^=;]+)?=)\\s*(await\\s+)?(String\\(|decodeURIComponent\\()?\\s*(req|request|ctx)(\\.request)?\\.(query|body|params)\\b.*\\b(execFile|execFileSync|spawn|spawnSync|execa|execaSync)\\(\\s*[\"'`][^\"'`]*[\"'`]\\s*,\\s*\\[(?:[^\\]]*?,)?\\s*(String\\(|`\\$\\{\\s*)?((?P=v)|(?P=w))\\b|\\b(execFile|execFileSync|spawn|spawnSync|execa|execaSync)\\(\\s*[\"'`][^\"'`]*[\"'`]\\s*,\\s*\\[(?:[^\\]]*?,)?\\s*(String\\(|`\\$\\{\\s*)?(req|request|ctx)(\\.request)?\\.(query|body|params)\\b"))
+      ((function_expression) @f
+       (#match? @f "(?s)((const|let|var)\\s+(?P<v>[A-Za-z_$][\\w$]*)\\s*(:[^=;]+)?=|(const|let|var)\\s*\\{[^}]*?(?<![\\w$.])(?P<w>[A-Za-z_$][\\w$]*)\\s*\\}\\s*(:[^=;]+)?=)\\s*(await\\s+)?(String\\(|decodeURIComponent\\()?\\s*(req|request|ctx)(\\.request)?\\.(query|body|params)\\b.*\\b(execFile|execFileSync|spawn|spawnSync|execa|execaSync)\\(\\s*[\"'`][^\"'`]*[\"'`]\\s*,\\s*\\[(?:[^\\]]*?,)?\\s*(String\\(|`\\$\\{\\s*)?((?P=v)|(?P=w))\\b|\\b(execFile|execFileSync|spawn|spawnSync|execa|execaSync)\\(\\s*[\"'`][^\"'`]*[\"'`]\\s*,\\s*\\[(?:[^\\]]*?,)?\\s*(String\\(|`\\$\\{\\s*)?(req|request|ctx)(\\.request)?\\.(query|body|params)\\b"))
+      ((method_definition) @f
+       (#match? @f "(?s)((const|let|var)\\s+(?P<v>[A-Za-z_$][\\w$]*)\\s*(:[^=;]+)?=|(const|let|var)\\s*\\{[^}]*?(?<![\\w$.])(?P<w>[A-Za-z_$][\\w$]*)\\s*\\}\\s*(:[^=;]+)?=)\\s*(await\\s+)?(String\\(|decodeURIComponent\\()?\\s*(req|request|ctx)(\\.request)?\\.(query|body|params)\\b.*\\b(execFile|execFileSync|spawn|spawnSync|execa|execaSync)\\(\\s*[\"'`][^\"'`]*[\"'`]\\s*,\\s*\\[(?:[^\\]]*?,)?\\s*(String\\(|`\\$\\{\\s*)?((?P=v)|(?P=w))\\b|\\b(execFile|execFileSync|spawn|spawnSync|execa|execaSync)\\(\\s*[\"'`][^\"'`]*[\"'`]\\s*,\\s*\\[(?:[^\\]]*?,)?\\s*(String\\(|`\\$\\{\\s*)?(req|request|ctx)(\\.request)?\\.(query|body|params)\\b"))
+    # A check that the value cannot start with `-` is the other fix.
+    unless_in_scope: |
+      ((call_expression
+        function: (member_expression property: (property_identifier) @m)
+        arguments: (arguments . (string (string_fragment) @s)))
+       (#eq? @m "startsWith")
+       (#eq? @s "-"))
+      ((regex (regex_pattern) @r) (#match? @r "^\\^(\\[\\^?-|-|\\(\\?!-)"))
+    description: >
+      The program is run without a shell, so `;` and `$(...)` are inert,
+      but the program reads its own options. A request value such as
+      `--upload-pack=touch /tmp/x` (git), `-o /etc/cron.d/x` (curl) or
+      `-oProxyCommand=...` (ssh) in the argument list is taken as an
+      option, which can run a command or overwrite a file. Only a request
+      value in the same function, directly or through one local, is
+      checked.
+    remediation: "Put `\"--\"` before the first value argument (`[\"clone\", \"--\", url, dir]`), and validate the value (`new URL(v)` with an `https:` check, or reject a leading `-`)."
+
+  # Dangerous upload (CWE-434): the stored file is named by the client.
+  # multer's `diskStorage({ filename })` returning `file.originalname`,
+  # formidable's `originalFilename` or multer's `originalname` in a write
+  # path, and express-fileupload's `file.mv(... file.name ...)`. The client
+  # picks the extension, so an `.html`, `.svg` or `.js` served back from
+  # the upload directory runs in the site's origin, and a duplicate name
+  # overwrites another user's file.
+  - id: upload-client-filename
+    title: "Upload stored under the client's filename: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-434]
+    controls: [NIST-800-218:PW.5]
+    tags: [upload, file]
+    query: |
+      ((call_expression
+        function: (member_expression property: (property_identifier) @m)
+        arguments: (arguments (object (pair
+          key: (property_identifier) @k
+          value: (_) @v) @hit)))
+       (#eq? @m "diskStorage")
+       (#eq? @k "filename")
+       (#match? @v "\\.originalname\\b"))
+      ((call_expression
+        function: (member_expression property: (property_identifier) @m)
+        arguments: (arguments (_) @a)) @hit
+       (#match? @m "^(writeFile|writeFileSync|createWriteStream|rename|renameSync|copyFile|copyFileSync|move|moveSync|outputFile|outputFileSync)$")
+       (#match? @a "\\.(originalname|originalFilename)\\b"))
+      ((call_expression
+        function: (identifier) @m
+        arguments: (arguments (_) @a)) @hit
+       (#match? @m "^(writeFile|writeFileSync|createWriteStream|rename|renameSync|copyFile|copyFileSync|move|moveSync|outputFile|outputFileSync)$")
+       (#match? @a "\\.(originalname|originalFilename)\\b"))
+      ((call_expression
+        function: (member_expression property: (property_identifier) @m)
+        arguments: (arguments . (_) @a)) @hit
+       (#eq? @m "mv")
+       (#match? @a "\\.(name|originalname)\\b"))
+    # A sanitiser, a basename, or a type check anywhere in the scope (for
+    # `diskStorage` that is usually the whole file, where multer's
+    # `fileFilter` sits) is taken as the guard.
+    unless_in_scope: |
+      ((identifier) @i
+       (#match? @i "(?i)^(basename|sanitize\\w*|filenamify|slugify|\\w*allow(ed)?_?(list|types?|ext\\w*|mime\\w*|files?)\\w*|\\w*whitelist\\w*|fileType\\w*|\\w*validate\\w*file\\w*)$"))
+      ((property_identifier) @p
+       (#match? @p "^(fileFilter|mimetype|basename|sanitize\\w*)$"))
+    description: >
+      The file is written under the name the client sent. The client picks
+      the extension, so a file meant to be an image can be stored as
+      `.html`, `.svg` or `.js` and run in the site's origin when it is
+      served back, and the same name overwrites another user's upload.
+      Nothing in scope checks the type or the name.
+    remediation: "Name the stored file yourself (`randomUUID()` plus an extension from an allowlist keyed on the checked MIME type), reject other types in multer's `fileFilter`, and serve uploads from a separate origin or with `Content-Disposition: attachment`."
+
+  # CSRF (CWE-352). Express has no CSRF check to switch off, so a missing
+  # middleware is out of reach per file. Two explicit weakenings are not:
+  # csurf (and its successors) told to skip POST/PUT/PATCH/DELETE, and a
+  # session cookie set to `SameSite=None`, which browsers send on
+  # cross-site requests, in a file that mentions no CSRF token at all.
+  - id: csrf-unsafe-methods-ignored
+    title: "CSRF check skipped for a state-changing method: `{text}`"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-352]
+    controls: [NIST-800-218:PW.5]
+    tags: [csrf, security-check-disabled]
+    requires_file: |
+      ((string (string_fragment) @s) (#match? @s "(?i)csrf|csurf|lusca"))
+    query: |
+      ((pair
+        key: [(property_identifier) (string)] @k
+        value: (array) @v) @hit
+       (#match? @k "^[\"']?ignored?Methods[\"']?$")
+       (#match? @v "(?i)[\"'`](POST|PUT|PATCH|DELETE)[\"'`]"))
+    description: >
+      The CSRF middleware checks the token only on the methods it is not
+      told to ignore. Listing POST, PUT, PATCH or DELETE switches it off for
+      exactly the requests that change state; a form on any site can submit
+      them as the logged-in user.
+    remediation: "Leave `ignoreMethods` at its default (`GET`, `HEAD`, `OPTIONS`) and send the token from the client (a hidden field, or a header for fetch)."
+
+  - id: session-cookie-cross-site
+    title: "Session cookie sent cross-site with no CSRF token in the file: `{text}`"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-352, CWE-1275]
+    controls: [NIST-800-218:PW.5]
+    tags: [csrf, session, cookie]
+    requires_file: |
+      ((string (string_fragment) @s) (#match? @s "^(express-session|cookie-session|koa-session|@fastify/session|@fastify/secure-session)$"))
+    unless_in_file: |
+      ((string (string_fragment) @s) (#match? @s "(?i)csrf|csurf|lusca|xsrf"))
+      ((identifier) @i (#match? @i "(?i)csrf|xsrf"))
+    query: |
+      ((pair
+        key: (property_identifier) @k
+        value: (string (string_fragment) @v)) @hit
+       (#eq? @k "sameSite")
+       (#match? @v "(?i)^none$"))
+    description: >
+      `SameSite=None` tells the browser to attach the session cookie to
+      requests from other sites, which is the default protection against
+      CSRF on modern browsers. With no CSRF token anywhere in the file, a
+      page on any site can post to this application as the logged-in user.
+    remediation: "Use `sameSite: \"lax\"` (or `\"strict\"`); if the cookie must be cross-site, add a CSRF token check (`csrf-csrf`, `csrf-sync`) to every state-changing route."
+
   # ----------------------------------------------------------- availability
   - id: fetch-no-timeout
     title: "`fetch` with no timeout: `{text}`"

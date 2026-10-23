@@ -90,7 +90,7 @@ controls:
     satisfied_by: []
     languages:
       python: {status: applies, measured: "N+S"}
-      typescript: {status: applies, measured: "gap"}
+      typescript: {status: applies, measured: "N"}
       go: {status: out_of_reach, measured: "OOR", reason: "net/http has no CSRF protection to switch off. Protection is middleware (gorilla/csrf, http.CrossOriginProtection) and its absence only shows in the whole router set-up."}
       java: {status: applies, measured: "N+S"}
       ruby: {status: applies, measured: "N"}
@@ -179,8 +179,8 @@ controls:
     cwe: [CWE-434]
     satisfied_by: []
     languages:
-      python: {status: applies, measured: "gap"}
-      typescript: {status: applies, measured: "gap"}
+      python: {status: applies, measured: "N"}
+      typescript: {status: applies, measured: "N"}
       go: {status: applies, measured: "N"}
       java: {status: applies, measured: "S"}
       ruby: {status: applies, measured: "N"}
@@ -224,8 +224,8 @@ controls:
     cwe: [CWE-77]
     satisfied_by: []
     languages:
-      python: {status: applies, measured: "gap"}
-      typescript: {status: applies, measured: "gap"}
+      python: {status: applies, measured: "N"}
+      typescript: {status: applies, measured: "N"}
       go: {status: applies, measured: "N"}
       java: {status: applies, measured: "gap"}
       ruby: {status: applies, measured: "N"}
@@ -315,7 +315,7 @@ controls:
     satisfied_by: []
     languages:
       python: {status: applies, measured: "S"}
-      typescript: {status: applies, measured: "gap"}
+      typescript: {status: applies, measured: "N"}
       go: {status: applies, measured: "N"}
       java: {status: applies, measured: "gap"}
       ruby: {status: applies, measured: "N"}

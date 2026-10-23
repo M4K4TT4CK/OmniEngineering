@@ -3,6 +3,7 @@ import logging
 import os
 import uuid
 
+from fastapi import FastAPI
 from flask import Flask
 
 app = Flask(__name__)
@@ -18,3 +19,6 @@ def handle_error(exc: Exception) -> tuple[dict, int]:
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=8080, debug=os.environ.get("FLASK_DEBUG") == "1")
+
+
+api = FastAPI(debug=os.environ.get("API_DEBUG") == "1")
