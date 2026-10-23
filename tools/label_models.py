@@ -449,7 +449,9 @@ class Labeller:
                       excerpt_sha256=it["excerpt_sha256"], category=it["category"],
                       votes={r: {"label": v["label"], "reason": v["reason"]}
                              for r, v in [("prosecutor", p), ("defender", d), ("adjudicator", adj)] if v},
-                      cost_usd=round(cost, 6))
+                      cost_usd=round(cost, 6),
+                      # The population the item was drawn from, for the ledger's weights.
+                      **{k: it[k] for k in ls.POPULATION_KEYS if k in it})
         if "truth" in it:
             rec["truth"] = it["truth"]
         return rec
@@ -651,14 +653,26 @@ def items_from_report(report: Path, corpus: Path, n: int, seed: int,
     else:
         rows = ls.stratified_sample(findings, n, seed,
                                     key=lambda f: (f["rule"], f["language"], category(f["rule"])))
+    pops = ls.stratum_populations(findings, lambda f: f["repo"] in held)
     items = []
     for f in rows:
         it = make_item(f, corpus / f["repo"], "gold-model", f["repo"] in held)
         if it:
-            it["stratum_size"] = f["stratum_size"]
+            it.update(pops[(f["rule"], f["language"])])
+            assert it["stratum_size"] == f["stratum_size"]
             items.append(it)
-    pop = Counter((f["rule"], f["language"]) for f in findings)
-    return items, {"population": len(findings), "strata": len(pop)}
+    return items, {"population": len(findings), "strata": len(pops)}
+
+
+def census(items: list[dict]) -> list[dict]:
+    """Every finding was labelled (no sampling): each stratum's population
+    is the items in it."""
+    rows = [{"rule": it["rule"], "language": it["finding"].get("language") or "", "held_out": it["held_out"]}
+            for it in items]
+    pops = ls.stratum_populations(rows, lambda r: r["held_out"], "census")
+    for it, r in zip(items, rows):
+        it.update(pops[(r["rule"], r["language"])])
+    return items
 
 
 def items_from_ai_corpus() -> list[dict]:
@@ -671,7 +685,7 @@ def items_from_ai_corpus() -> list[dict]:
             it = make_item({**f, "repo": name}, app, "ai-corpus-model", False)
             if it:
                 items.append(it)
-    return items
+    return census(items)
 
 
 def items_from_ground_truth(paths: list[Path], n: int, seed: int,
@@ -904,7 +918,7 @@ def items_from_suspects(path: Path) -> list[dict]:
         it = make_item(s, Path(s["root"]).expanduser(), s["suspect"], True)
         if it:
             out.append(it)
-    return out
+    return census(out)
 
 
 # ---------------------------------------------------------------------------

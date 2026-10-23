@@ -156,7 +156,7 @@ def main(argv: list[str] | None = None) -> int:
             # scan_tree paths are relative to the scanned directory
             findings = [{**f, "path": f"{c['test_dir']}/{f['path']}"} for f in findings]
             labels = owasp_labels(findings, expected, c.get("cwe_aliases", {}), c["test_dir"], bench)
-            g.write_jsonl(args.out / f"{short}.jsonl", labels)
+            g.write_jsonl(args.out / f"{short}.jsonl", g.census_population(labels))
             n = Counter(r["label"] for r in labels)
             print(f"{bench}: {len(findings)} findings, {len(labels)} labelled {dict(n)}")
         return 0
@@ -172,7 +172,7 @@ def main(argv: list[str] | None = None) -> int:
         by_dir[d] = [{**f, "path": f"Java/src/testcases/{d}/{f['path']}"} for f in fs]
         print(f"  {d}: {len(fs)} findings", file=sys.stderr, flush=True)
     labels, skipped = juliet_labels(root, by_dir)
-    g.write_jsonl(args.out / "juliet-java.jsonl.gz", labels)
+    g.write_jsonl(args.out / "juliet-java.jsonl.gz", g.census_population(labels))
     print(f"juliet: {len(labels)} labelled {dict(Counter(r['label'] for r in labels))}; "
           f"skipped {dict(skipped)}")
     return 0
