@@ -1547,7 +1547,8 @@
         "gold repositories are untrusted: scanned only never built or run",
         "OWASP Benchmark is GPL: fetched never redistributed",
         "first measurement 2026-10-21: 16 rules over budget; rule fixes are follow-up work, listed in tools/gold/results/2026-10-21-triage.md",
-        "round 2 testing harness 2026-10-22: AI-written corpus (fixtures/ai-corpus, 25 generated apps, 172 hand labels) scored by tools/ai_corpus_score.py: native recall 2/117 code defects, code-finding precision 2/31; human-label sampling with Wilson CIs and Cohen's kappa (tools/label_sample.py), labelling itself not yet done; regression guards (tools/regression_guard.py) on in-tree corpora and 4 small pinned repos; mutation variants (tools/variants.py) 83% robustness. Corpus labels are model-written and unaudited by people; see docs/testing-harness.md"
+        "round 2 testing harness 2026-10-22: AI-written corpus (fixtures/ai-corpus, 25 generated apps, 172 hand labels) scored by tools/ai_corpus_score.py: native recall 2/117 code defects, code-finding precision 2/31; human-label sampling with Wilson CIs and Cohen's kappa (tools/label_sample.py), labelling itself not yet done; regression guards (tools/regression_guard.py) on in-tree corpora and 4 small pinned repos; mutation variants (tools/variants.py) 83% robustness. Corpus labels are model-written and unaudited by people; see docs/testing-harness.md",
+        "held-out AI corpus 2026-10-22 (plan Phase 1 item 5): fixtures/ai-corpus-heldout, 40 apps from claude-opus-5-5 and claude-haiku-5-5, 236 blind labels committed before the scan (88bcb10), sealed in tools/gold/heldout.json; aggregate-only score: code recall 6/142, code-finding precision 7/40 (lower bound, unreviewed counted as FP), high-severity findings 0/11; regression guard keeps counts and a digest only. Held-out gold-repo split (30% of gold repos) not done here"
       ]
     },
     {
