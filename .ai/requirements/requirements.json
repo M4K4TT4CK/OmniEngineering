@@ -1885,6 +1885,32 @@
         "changelog"
       ],
       "risk_notes": []
+    },
+    {
+      "id": "REQ-056",
+      "category": "feature",
+      "title": "Requirements-gathering skill for plan mode, shipped by omni adopt",
+      "description": "A Claude Code skill (.claude/skills/clarify) turns a request into testable REQ entries: frame the problem, read the code before asking, ask at most 4 ranked AskUserQuestion questions per round (2 rounds), state assumptions with consequences, draft requirements with measurable acceptance criteria checked against the requirements quality checklist, order them into slices, write it all into the plan, and register with ./omni requirement add only after approval. A time-boxed form covers interviews. omni adopt --tools claude copies it beside CLAUDE.md.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        ".claude/skills/clarify/SKILL.md",
+        "make_ai.py",
+        "tests/test_adopt_loop.py",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "omni adopt --tools claude copies .claude/skills/clarify/SKILL.md",
+        "the skill names plan mode as its default form and writes nothing before approval",
+        "the skill registers requirements only through ./omni requirement"
+      ],
+      "validation_required": [
+        "python3 -m unittest tests.test_adopt_loop"
+      ],
+      "documentation_required": [
+        "CHANGELOG"
+      ],
+      "risk_notes": []
     }
   ]
 }
