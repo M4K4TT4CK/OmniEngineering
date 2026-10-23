@@ -769,9 +769,11 @@ rules:
     unless_in_file: |
       ((member_expression object: (identifier) @o) (#match? @o "^(document|window)$"))
     description: >
-      `fetch` has no default timeout. A peer that accepts the connection and
-      never answers holds this request, and the caller waiting on it, forever;
-      under load that is every worker. Only a literal options object without
+      This `fetch` sets no timeout of its own. Node's built-in fetch (undici)
+      gives up only after its 300-second header and body defaults, and other
+      runtimes may never give up; until then a peer that accepts the
+      connection and stalls holds this request and the caller waiting on it,
+      and under load that is every worker. Only a literal options object without
       `signal` is reported; one passed by name is left alone, and so is a
       file that touches `document` or `window`, which runs in a browser.
     remediation: "Pass `signal: AbortSignal.timeout(ms)` (Node 17.3+), or an AbortController you abort from a timer."

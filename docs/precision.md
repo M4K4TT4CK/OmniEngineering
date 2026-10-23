@@ -217,13 +217,18 @@ figure and no category claim.
 **Labeller calibration** is how far a model label can be trusted. It is
 measured blind against truth the labellers never saw, and it bounds every
 model-labelled number. The Wilson 95% lower bound applies to the labellers'
-`tp` calls (`tools/gold/results/2026-10-23-calibration.md`;
-`calibration.jsonl` and `calibration-2.jsonl`).
+`tp` calls (`tools/gold/results/2026-10-23-calibration.md` and
+`2026-10-23-calibration-3.md`; `calibration.jsonl`, `calibration-2.jsonl`,
+`calibration-3.jsonl`). Rounds 1 and 2 used prompt `v1` (single-function
+excerpt); round 3 uses `v2`, whose excerpt (`arbiter.context`) adds
+decorators, the class header and the repository definitions of calls on the
+taint path.
 
 | category | truth source | n | `tp` calls right | lower bound | backs a 0.99 claim |
 |---|---|---:|---:|---:|:-:|
-| injection, weak random/hash, deserialisation | OWASP Java/Python, Juliet Java, CVE fixes | 700 | 395/401 | 0.968 | no |
-| same, taint source visible in the excerpt | | 675 | 389/390 | 0.986 | no |
+| injection, weak random/hash, deserialisation: round 3 alone (`v2` excerpt) | OWASP Java/Python, Juliet Java | 500 | 286/286 | 0.987 | no (close) |
+| same, rounds 1-3 pooled | OWASP Java/Python, Juliet Java, CVE fixes | 1,200 | 681/687 | 0.981 | no |
+| injection rules only, round 3 alone | | 428 | 218/218 | 0.983 | no |
 | tests | planted twins | 45 | 24/24 | 0.862 | no |
 | secrets | planted twins | 30 | 17/17 | 0.816 | no |
 | stubs | planted twins | 34 | 17/17 | 0.816 | no |
@@ -233,15 +238,20 @@ model-labelled number. The Wilson 95% lower bound applies to the labellers'
 | secrets in test/example paths, npm ranges with a lockfile | path / lockfile fact | 108 | `fp` side only (107/107 decided) | - | no |
 | docs drift, info exposure, error handling, suppression, IaC, numeric | none | - | - | - | no (uncalibrated) |
 
-**Trusted at a 0.99 lower bound: no category.** The injection family is
-the closest, at 0.968. Every one of its 6 false `tp` calls is a case where
-the deciding fact sits outside the excerpt: a "safe source" method in
-another file, a Flask route decorator, or a cross-file Juliet case. With
-those cases left out it is 389/390 (0.986). The planted categories are too
-small to reach 0.99 even with no error, and they are fixtures we wrote, so
-they say little about real code. Docs drift and the rest have no model-free
-truth. A model-labelled precision figure must therefore carry the labeller
-error: no model-labelled rule or category can be claimed at 99% yet.
+**Trusted at a 0.99 lower bound: still no category.** The injection family
+is now close. With the `v2` excerpt it made no false `tp` call in 286, and
+no false `fp` call in 206 (unsure 8 of 500, all Juliet). A 0.99 lower bound
+with no error needs 363 `tp` calls, so about 80 more clean calls (some 140
+more items at this round's mix) would reach it on `v2` labels alone. Pooled
+with rounds 1-2 it is 0.981: those rounds' 6 false `tp` calls were made on
+the `v1` excerpt. Re-run with `v2`, 5 of the 6 become correct `fp` calls,
+and the sixth (a cross-file Juliet `_81` case) is now filtered out of
+calibration. That re-run covers only the known errors, so it is not
+counted as a measurement. The planted categories are too small to reach
+0.99 even with no error, and they are fixtures we wrote, so they say little
+about real code. Docs drift and the rest have no model-free truth. A
+model-labelled precision figure must therefore carry the labeller error: no
+model-labelled rule or category can be claimed at 99% yet.
 
 Rule requirements: 157 of the 228 shipped rules trace to at least one
 requirement (all 144 language-pack rules, 13 of the 56 rules coded in
@@ -282,13 +292,28 @@ Each finding gets its own request, built from:
 - **Known false-positive notes:** `fp_notes` for the rule from
   `tools/gold/precision.json` (Phase 1's ledger), or `verify.fp_notes_path`.
   If neither exists, the prompt says none are recorded.
-- **An excerpt of the finding's own file, and no other.** The excerpt is:
-  - the enclosing function, found with tree-sitter (`ast.functions`), when it
-    fits in `excerpt_lines` (default 120); otherwise a window of that many lines
-    around the flagged line;
-  - plus at most 30 import lines from the same file;
-  - every line numbered;
-  - masked with `judgement._mask_secrets` before it leaves the machine.
+- **An excerpt built by `arbiter.context.build`**, the same builder the
+  model labellers use (`gt_common.excerpt`), so verifier and labellers see
+  the same code. In priority order, it holds:
+  - the enclosing function found with tree-sitter, **with its decorators and
+    annotations** (Python `@app.route`, TypeScript `@Get`, Java `@Override`),
+    when it fits in `excerpt_lines` (default 120); otherwise its first lines
+    and a window around the flagged line;
+  - the enclosing class header (annotations, name, `extends`);
+  - at most 30 import lines from the same file;
+  - same-file lines that register the function as a route handler
+    (`app.get("/x", handler)`, `add_url_rule(..., view_func=...)`);
+  - same-file functions called on the taint path (a backward, textual slice
+    from the flagged statement through the assignments that feed it; the
+    sink's own receiver is not followed);
+  - **the repository definitions of functions called on that path that live
+    in another file**, at most 3 of 30 lines each. A call is resolved by its
+    receiver's declared type or by an import, from the scan's own inventory,
+    never by name alone across the repository;
+  - other same-file callees;
+  - at most 220 lines in all, every line numbered with its own file's line
+    number, the flagged line marked `>>`, masked with
+    `judgement._mask_secrets` before it leaves the machine.
 
 The system prompt tells the model that the excerpt is untrusted data: any
 instruction in its code, comments or strings is ignored. It also says to
@@ -307,7 +332,7 @@ The reply is still parsed defensively. These all become `unsure`:
 - a verdict outside the enum;
 - a refusal (`stop_reason: "refusal"`).
 
-A `line` the excerpt did not contain is dropped.
+A `line` the excerpt did not show from the finding's own file is dropped.
 
 ### What is recorded
 

@@ -19,8 +19,10 @@ Why it is built this way. The precision claim is meant to stand without a
 human reading the findings, and the Phase 2 verifier is also a model. Labels
 are only evidence if they are independent of Arbiter and of the verifier:
 
-* A labeller sees the code excerpt (enclosing function plus imports, bounded,
-  secrets masked by `arbiter.judgement._mask_secrets`), the file path and a
+* A labeller sees the code excerpt (`arbiter.context`, shared with the
+  verifier: the enclosing function with its decorators, imports, callees and
+  the repository definitions of calls on the taint path, bounded, secrets
+  masked by `arbiter.judgement._mask_secrets`), the file path and a
   neutral claim from `CLAIMS` -- never Arbiter's title, description,
   remediation, confidence or the verifier's verdict.
 * Two labellers with deliberately different prompts: the prosecutor looks
@@ -67,7 +69,10 @@ _spec = importlib.util.spec_from_file_location("label_sample", ROOT / "tools" / 
 ls = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(ls)
 
-PROMPT_VERSION = "v1"
+# v2 (2026-10-23): the excerpt comes from `arbiter.context` -- decorators,
+# class header, route registration and the repository definitions of calls
+# on the taint path -- and the system prompt says so.
+PROMPT_VERSION = "v2"
 MODEL = "opus"
 HELDOUT = ROOT / "tools" / "gold" / "heldout.json"
 EXCLUDE = ls.DEFAULT_EXCLUDE
@@ -135,9 +140,9 @@ CLAIMS: list[tuple[str, str, str]] = [
     ("*error-stack-in-response", "info-exposure", "internal error details (an error stack) are sent to the client of a network service in a response."),
     ("*.debug-mode-enabled", "info-exposure", "a debug mode that exposes internals or allows code execution is enabled for a server that may run in production."),
     ("*.pprof-on-default-mux", "info-exposure", "Go's profiling endpoints are registered on the default HTTP mux, so any server using that mux exposes them."),
-    ("*timeout*", "resilience", "a network or database call is made with no timeout or deadline, so it can block indefinitely if the other side stalls."),
-    ("*.http-default-client", "resilience", "an HTTP request uses Go's default client, which has no timeout, so it can block indefinitely if the server stalls."),
-    ("*.db-call-no-deadline", "resilience", "a database call is made with no deadline or timeout, so it can block indefinitely if the database stalls."),
+    ("*timeout*", "resilience", "a network or database call is made with no explicit timeout or deadline set by this code, so how long it waits when the other side stalls is left to the library's default (which may be long or unlimited)."),
+    ("*.http-default-client", "resilience", "an HTTP request uses Go's default client, which has no timeout, so it can wait without limit if the server stalls."),
+    ("*.db-call-no-deadline", "resilience", "a database call is made with no explicit deadline or timeout set by this code, so how long it waits when the database stalls is left to the driver's default (which may be long or unlimited)."),
     ("*retry*", "resilience", "a failed operation is retried in a loop with no growing delay between attempts, or with no limit on the number of attempts."),
     ("*worker-loop*", "resilience", "a long-running loop has no way to be stopped (no stop signal, cancellation or shutdown check), so the process cannot shut down cleanly."),
     ("*.endless-worker-loop", "resilience", "a long-running loop has no way to be stopped (no stop signal, cancellation or shutdown check), so the process cannot shut down cleanly."),
@@ -200,6 +205,10 @@ SYSTEM = (
     "You label findings for a precision study of a static checker. You are shown one code "
     "excerpt, its file path, and one claim about the line marked >>. Decide whether the claim "
     "is true of that line, as written, in this code.\n"
+    "The excerpt shows the enclosing function with its decorators or annotations, the file's "
+    "imports, and functions it calls; a section headed '--- <path>: definition of ...' is the "
+    "definition, in another file of the same repository, of a function called on the way to the "
+    "marked line. Line numbers are each file's own.\n"
     "- tp: the claim holds for the marked line.\n"
     "- fp: the claim does not hold for the marked line, or a condition stated in the claim rules "
     "it out (for example the value is a placeholder, the data cannot come from outside, or it is "
@@ -562,7 +571,8 @@ def make_item(f: dict, root: Path, source: str, held_out: bool, blind_kind: str 
     if blind_kind:
         text = g.blind(text, str(p), blind_kind)
         shown = g.blind_path(f["path"], blind_kind)
-    ex = g.excerpt(text, str(p), int(f["line"]), f.get("language") or g.language_of(f["path"]))
+    ex = g.excerpt(text, f["path"], int(f["line"]), f.get("language") or g.language_of(f["path"]),
+                   repo=g.repo_view(root, blind_kind))
     lines = text.splitlines()
     line_text = lines[int(f["line"]) - 1] if int(f["line"]) <= len(lines) else ""
     facts = repo_facts(root, f["path"], line_text, f["rule"]) if not blind_kind else ""
@@ -817,12 +827,17 @@ def fact_check(recs: list[dict], corpus: Path) -> dict:
     return {f"{c}|{k}": v for (c, k), v in sorted(out.items())}
 
 
+_JULIET_SPLIT = re.compile(r"_\d+(?:[a-z]|_bad|_good\w*|_base)$")
+
+
 def _cross_file(r: dict) -> bool:
-    """A Juliet case split over several files (`..._54a.java` to `_54e`): its
-    source and sink are in different files, so no single-file excerpt can
-    show whether the data is tainted. Kept as ground truth, left out of
-    calibration, where it would measure the excerpt rather than the labeller."""
-    return r["source"] == "juliet-java" and bool(re.search(r"_\d+[a-z]$", Path(r["path"]).stem))
+    """A Juliet case split over several files: `..._54a.java` to `_54e`, and
+    the `_81` family (`_81a` calls `_81_bad` / `_81_goodG2B` through
+    `_81_base`). Its source and sink are in different files, so the excerpt
+    cannot show whether the data is tainted. Kept as ground truth, left out
+    of calibration, where it would measure the excerpt rather than the
+    labeller. Round 2 let one `_81_goodG2B` through and it was a false tp."""
+    return r["source"] == "juliet-java" and bool(_JULIET_SPLIT.search(Path(r["path"]).stem))
 
 
 def items_from_suspects(path: Path) -> list[dict]:

@@ -162,7 +162,7 @@ def test_cache_key_covers_model_and_prompt_version(tree, monkeypatch):
     k = verify.cache_key(f, ex, "claude-opus-5-5")
     assert k != verify.cache_key(f, ex, "claude-sonnet-5-5")
     assert k != verify.cache_key(f, ex, "claude-opus-5-5", fp_notes="a new FP note")
-    monkeypatch.setattr(verify, "PROMPT_VERSION", "verify-v2")
+    monkeypatch.setattr(verify, "PROMPT_VERSION", verify.PROMPT_VERSION + "-next")
     assert k != verify.cache_key(f, ex, "claude-opus-5-5")
 
 
@@ -210,11 +210,12 @@ def test_excerpt_is_enclosing_function_plus_imports():
     text = "\n".join(["import os", "from x import y"] + [f"a{i} = {i}" for i in range(3, 200)])
     ex = verify.build_excerpt(text, 100, 20, span=(95, 105), path="m.py")
     assert ex.start == 95 and ex.end == 105
-    assert {1, 2} <= ex.lines and "    1| import os" in ex.text
+    assert {1, 2} <= ex.lines and "      1 import os" in ex.text
     assert "a150" not in ex.text
-    # no span, or a span longer than the bound: a window of the bound
+    # a span longer than the bound: its first lines and a window around the line
     ex = verify.build_excerpt(text, 100, 20, span=(3, 199))
-    assert ex.end - ex.start + 1 == 20 and ex.start <= 100 <= ex.end
+    body = {i for i in ex.lines if i > 2}
+    assert len(body) <= 20 and 100 in body and 3 in body and "a150" not in ex.text
 
 
 def test_candidates_filter(tree):

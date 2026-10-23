@@ -207,7 +207,7 @@ def test_agreement_skips_adjudicator_and_cache_makes_rerun_free(tmp_path):
     lab = lm.Labeller(cache, lm.Budget(5), caller=fake)
     rec = lab.label(_item(tmp_path))
     assert rec["label"] == "tp" and sorted(fake.calls) == ["defender", "prosecutor"]
-    assert "adjudicator" not in rec["votes"] and rec["labeller"].endswith("prosecutor+defender/v1")
+    assert "adjudicator" not in rec["votes"] and rec["labeller"].endswith(f"prosecutor+defender/{lm.PROMPT_VERSION}")
     fake2 = Fake({})
     lab2 = lm.Labeller(lm.Cache(tmp_path / "c.jsonl"), lm.Budget(5), caller=fake2)
     assert lab2.label(_item(tmp_path))["label"] == "tp" and fake2.calls == []
@@ -339,3 +339,42 @@ def test_server_throttle_is_retried_not_taken_for_a_usage_limit(tmp_path):
     rec = lab.ask(_item(tmp_path, "f:1"), "prosecutor")
     assert rec["label"] == "tp" and len(calls) == 3
     assert not budget.stopped and not budget.limit_hit
+
+
+def test_cross_file_filter_covers_juliet_81_family():
+    def r(stem):
+        return {"source": "juliet-java", "path": f"Java/src/testcases/CWE89/s04/CWE89_x_{stem}.java"}
+    for stem in ("54a", "54e", "81a", "81_bad", "81_goodG2B", "81_goodB2G", "81_base"):
+        assert lm._cross_file(r(stem)), stem
+    for stem in ("01", "17", "81"):
+        assert not lm._cross_file(r(stem)), stem
+    assert not lm._cross_file({"source": "owasp-java", "path": "x/Handler_81_bad.java"})
+
+
+def test_resilience_claim_does_not_assert_indefinite_blocking():
+    for rule in ("arbiter/ruby.http-no-timeout", "arbiter/python.http-no-timeout",
+                 "arbiter/go.db-call-no-deadline"):
+        cat, text = lm.claim_for(rule)
+        assert cat == "resilience" and "indefinitely" not in text and "no explicit" in text
+
+
+def test_blinded_item_shows_cross_file_definition_without_its_comments(tmp_path):
+    main = ("package org.owasp.benchmark.testcode;\n\npublic class BenchmarkTest00001 {\n"
+            "    public void doPost(HttpServletRequest request) {\n"
+            "        org.owasp.benchmark.helpers.SeparateClassRequest scr =\n"
+            "                new org.owasp.benchmark.helpers.SeparateClassRequest(request);\n"
+            "        String param = scr.getTheValue(\"BenchmarkTest00001\");\n"
+            "        statement.execute(\"x\" + param);\n    }\n}\n")
+    helper = ("package org.owasp.benchmark.helpers;\n\npublic class SeparateClassRequest {\n"
+              "    // This method is a 'safe' source.\n"
+              "    public String getTheValue(String p) {\n        return \"bar\";\n    }\n}\n")
+    tc = tmp_path / "src/main/java/org/owasp/benchmark/testcode"
+    hp = tmp_path / "src/main/java/org/owasp/benchmark/helpers"
+    tc.mkdir(parents=True), hp.mkdir(parents=True)
+    (tc / "BenchmarkTest00001.java").write_text(main)
+    (hp / "SeparateClassRequest.java").write_text(helper)
+    f = {"id": "f:1", "rule": "arbiter/java.sql-string-built", "language": "java", "line": 8,
+         "path": "src/main/java/org/owasp/benchmark/testcode/BenchmarkTest00001.java"}
+    it = lm.make_item(f, tmp_path, "calibration:owasp-java", True, "owasp", truth="fp")
+    assert 'return "bar";' in it["excerpt"] and "definition of `getTheValue`" in it["excerpt"]
+    assert "safe" not in it["excerpt"] and "BenchmarkTest" not in it["excerpt"]
