@@ -1033,3 +1033,120 @@ def test_forgery_protection_on_in_production_is_silent(tmp_path):
     code = FORGERY_OFF.replace("= false", "= true")
     assert "csrf-protection-off-in-production" not in _rules(
         tmp_path, code, "config/environments/production.rb")
+
+
+# ------------------------------------------------- CWE Top 25 round 2 (ARB-062)
+
+def test_a_request_value_in_a_path_is_reported_unless_basenamed_or_prefixed(tmp_path):
+    code = '''
+    class ReportsController < ApplicationController
+      def show
+        name = params[:name]
+        send_file File.join(REPORTS_DIR, name)
+      end
+
+      def safe
+        path = File.expand_path(File.join(REPORTS_DIR, params[:name]))
+        raise "no" unless path.start_with?("#{REPORTS_DIR}/")
+        send_file path
+      end
+
+      def labels
+        [params[:a], params[:b]].join(", ")
+      end
+
+      def page
+        File.read(File.join(REPORTS_DIR, params[:page].to_i.to_s)) if false
+        File.read(params[:file])
+      end
+    end
+    '''
+    assert _rules(tmp_path, code, "app/controllers/reports_controller.rb").get(
+        "path-traversal-request") == [5, 20]
+
+
+def test_an_upload_name_is_reported_unless_typed_or_basenamed(tmp_path):
+    code = '''
+    class UploadsController < ApplicationController
+      def create
+        upload = params[:file]
+        name = upload.original_filename
+        File.open(File.join(UPLOAD_DIR, name), "wb") { |f| f.write(upload.read) }
+      end
+
+      def checked
+        upload = params[:file]
+        return head :unsupported_media_type unless %w[.png .jpg].include?(File.extname(upload.original_filename))
+        File.binwrite(File.join(UPLOAD_DIR, upload.original_filename), upload.read)
+      end
+
+      def attached
+        current_user.avatar.attach(io: params[:file], filename: params[:file].original_filename)
+      end
+    end
+    '''
+    assert _rules(tmp_path, code, "app/controllers/uploads_controller.rb").get(
+        "upload-client-filename") == [6]
+
+
+def test_ssrf_needs_an_http_client_and_a_caller_chosen_host(tmp_path):
+    code = '''
+    class PreviewsController < ApplicationController
+      def show
+        HTTParty.get(params[:url])
+        HTTParty.get("https://api.example.com/items/#{params[:id]}")
+        Rails.cache.get(params[:key])
+        redis.get(params[:key])
+      end
+
+      def checked
+        uri = URI.parse(params[:url])
+        return head :forbidden unless ALLOWED_HOSTS.include?(uri.host)
+        Net::HTTP.get(uri)
+      end
+    end
+    '''
+    assert _rules(tmp_path, code, "app/controllers/previews_controller.rb").get(
+        "ssrf-request-url") == [4]
+
+
+def test_argument_injection_needs_a_request_value_and_no_double_dash(tmp_path):
+    code = '''
+    class ImportsController < ApplicationController
+      def create
+        repo = params[:repo]
+        system("git", "clone", "--", repo, "/tmp/x")
+        system("echo", repo)
+        Open3.capture2("curl", "-sS", repo)
+        system("git clone #{repo}")
+      end
+
+      def guarded
+        host = params[:host]
+        return head :bad_request if host.start_with?("-")
+        system("ssh", host, "uptime")
+      end
+    end
+    '''
+    found = _rules(tmp_path, code, "app/controllers/imports_controller.rb")
+    assert found.get("argument-injection") == [7]
+    assert found.get("command-injection") == [8]
+
+
+def test_an_upload_is_reported_once_and_in_sinatra_form(tmp_path):
+    # The path built from the name is the finding; the File.open of that
+    # path is the same defect and is not reported again.
+    code = '''
+    def save(file)
+      path = Rails.root.join("public", "uploads", file.original_filename)
+      File.open(path, "wb") { |f| f.write(file.read) }
+    end
+
+    post "/upload" do
+      filename = params[:file][:filename]
+      File.open("./uploads/#{filename}", "wb") { |f| f.write(params[:file][:tempfile].read) }
+    end
+    '''
+    found = _rules(tmp_path, code)
+    assert found.get("upload-client-filename") == [3, 9]
+    assert "path-traversal-request" not in found

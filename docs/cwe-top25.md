@@ -44,25 +44,25 @@ per CWE. Cells marked † are measured on pairs that were already in the corpus.
 | 2 | 787 OOB write | n/a | n/a | n/a | n/a | n/a |
 | 3 | 89 SQL injection | N+S+B † | N+S † | N+S † | N+S † | N+S † |
 | 4 | 352 CSRF | N+S | **gap** | OOR | N+S | N |
-| 5 | 22 Path traversal | S | S | **gap** | S | **gap** |
+| 5 | 22 Path traversal | S | S | N | S | N |
 | 6 | 125 OOB read | n/a | n/a | n/a | n/a | n/a |
 | 7 | 78 OS command injection | N+S+B † | N+S † | N+S † | N+S † | N+S † |
 | 8 | 416 Use after free | n/a | n/a | n/a | n/a | n/a |
 | 9 | 862 Missing authorization | OOR | OOR | OOR | OOR | OOR |
-| 10 | 434 Dangerous upload | **gap** | **gap** | **gap** | S | **gap** |
+| 10 | 434 Dangerous upload | **gap** | **gap** | N | S | N |
 | 11 | 94 Code injection | N+S+B † | N+S † | n/a | S | N+S † |
 | 12 | 20 Input validation | OOR | OOR | OOR | OOR | OOR |
-| 13 | 77 Command injection (argument) | **gap** | **gap** | **gap** | **gap** | **gap** |
+| 13 | 77 Command injection (argument) | **gap** | **gap** | N | **gap** | N |
 | 14 | 287 Improper authentication | N+S | N | N | N+S | N+S |
 | 15 | 269 Privilege management | OOR | OOR | OOR | OOR | OOR |
 | 16 | 502 Deserialization | N+S+B † | S | n/a | N+S † | N † |
 | 17 | 200 Information exposure | N+S+B | N | N | N | N |
 | 18 | 863 Incorrect authorization | OOR | OOR | OOR | OOR | OOR |
-| 19 | 918 SSRF | S | **gap** | **gap** | **gap** | **gap** |
+| 19 | 918 SSRF | S | **gap** | N | **gap** | N |
 | 20 | 119 Buffer bounds | n/a | n/a | n/a | n/a | n/a |
 | 21 | 476 NULL dereference | n/a | n/a | OOR | OOR | n/a |
 | 22 | 798 Hard-coded credentials | N+S+B | N+S | N | N | N+S |
-| 23 | 190 Integer overflow | n/a | n/a | **gap** | **gap** | n/a |
+| 23 | 190 Integer overflow | n/a | n/a | N | **gap** | n/a |
 | 24 | 400 Resource consumption | N+S+B † | N † | N † | N † | N † |
 | 25 | 306 Missing auth for critical function | OOR | OOR | OOR | OOR | OOR |
 
@@ -76,9 +76,9 @@ the total. "Native only" means no external analyzer is needed.
 |---|---|---|---|---|---|---|
 | Python | 14 | 9 | 12 | 7 | 12 | 2 (434, 77) |
 | TypeScript | 14 | 8 | 7 | n/a | 10 | 4 (352, 434, 77, 918) |
-| Go | 12 | 6 | 3 | n/a | 7 | 5 (22, 434, 77, 918, 190) |
+| Go | 12 | 11 | 3 | n/a | 12 | 0 |
 | Java | 15 | 8 | 8 | n/a | 11 | 4 (79, 77, 918, 190) |
-| Ruby | 14 | 9 | 6 | n/a | 10 | 4 (22, 434, 77, 918) |
+| Ruby | 14 | 13 | 6 | n/a | 14 | 0 |
 
 gitleaks ran on every language and reported none of the planted credentials:
 they are generic passwords and signing keys, not provider-shaped tokens.
@@ -119,7 +119,8 @@ semgrep's bundled `generic.secrets.gitleaks.*` rules did report two of them.
 - **Ruby 77**: semgrep `dangerous-exec` reports the bad `system("git", "clone",
   params…)`, but it also fires on three correct twins already in the corpus.
   Those are array-form `system` calls whose interpolations are validated or
-  `.to_i`. It does not separate defect from fix, so the cell is a gap.
+  `.to_i`. It does not separate defect from fix, so it is not counted; the
+  cell is native since round 2 (`ruby.argument-injection`).
 - **Ruby 352** is native since round 1 (`ruby.csrf-protection-disabled`):
   `skip_before_action :verify_authenticity_token` or `skip_forgery_protection`
   in a controller with a state-changing action, not an `ActionController::API`
@@ -134,8 +135,9 @@ semgrep's bundled `generic.secrets.gitleaks.*` rules did report two of them.
 - **Ruby 352 and Ruby 22**: semgrep fires, but on both twins:
   `missing-csrf-protection` on any `ActionController::Base` subclass without
   `protect_from_forgery` (the default since Rails 5.2), and `check-send-file`
-  on the guarded `send_file` too. They are counted as gaps because they cannot
-  tell the defect from the fix.
+  on the guarded `send_file` too. They are not counted because they cannot
+  tell the defect from the fix; both cells are native (352 since round 1, 22
+  since round 2).
 - **Ruby 287**: semgrep's `ruby-jwt-hardcoded-secret` also reports
   `JWT.decode(token, nil, false)`, where the "secret" is `nil`. Its marker
   lists both rules because both report the line.
@@ -168,6 +170,44 @@ semgrep's bundled `generic.secrets.gitleaks.*` rules did report two of them.
   a native `jwt-hardcoded-secret`. A golang-jwt keyfunc that does not check
   `t.Method` is not a rule: the library already refuses `none` and a key of
   the wrong type, so it would be noise.
+- **Go 22, 434, 77, 918, 190 and Ruby 22, 434, 77, 918** (native rules,
+  ARB-062 round 2). All are same-function source-to-sink rules: the source is
+  a request value (Go `r.URL.Query().Get`, `r.FormValue`, `r.PathValue`,
+  `mux.Vars`, `chi.URLParam`, gin/echo/fiber `c.Query`/`c.Param`; Ruby
+  `params[…]`, `params.require/fetch`, `request.params`), written in the sink
+  call or assigned to a local that a later statement of the same block passes
+  to it. A value that crosses a function or file boundary is not followed, so
+  these CWEs beyond one function stay out of reach, as for 918.
+  `path-traversal-request` (high severity, medium confidence) is
+  `filepath.Join`/`os.Open`/`http.ServeFile`/`c.File` and `File.join`,
+  `Rails.root.join`, `File.read`, `send_file`, `render file:`; silent when the
+  function checks the name (`filepath.IsLocal`/`Base`/`Rel`,
+  `strings.HasPrefix`, `os.OpenRoot`; `File.basename`, `start_with?`,
+  `include?`, `=~`). `upload-client-filename` (CWE-434, high, medium) is
+  `header.Filename`/`part.FileName()` in a multipart handler and Rails
+  `original_filename` or Rack's `params[:f][:filename]` in a path that is
+  written; silent with an extension or MIME check (`filepath.Ext`,
+  `http.DetectContentType`, `File.extname`, `Marcel`, an `ALLOWED_*`
+  constant) or a basename. Go's multipart has applied `filepath.Base` to the
+  name since Go 1.17, so the Go rule is about the type and the overwrite.
+  `ssrf-request-url` (high, medium) needs an HTTP client (`http.Get`, a
+  `*Client` receiver, `http.NewRequest*`; Net::HTTP, Faraday, HTTParty,
+  RestClient, http.rb, `URI.open`, a `conn`/`client` local) and is silent when
+  the scheme and host are literal or the function reads the host
+  (`Hostname()`, `uri.host`, an allowlist name). `argument-injection`
+  (CWE-77/88, high, medium) is `exec.Command`/`system`/`Open3`/`IO.popen`
+  with a literal tool (git, curl, ssh, rsync, tar, ffmpeg, ...) and a request
+  value as an argument, with no `"--"` in the call and no `start_with?("-")`
+  check. `go.parsed-int-narrowed` (CWE-190/681, medium, medium) is
+  `strconv.Atoi` or a 64-bit `ParseInt`/`ParseUint` converted to
+  `int32`/`int16`/`int8`/`uint32`/`uint16`/`uint8` with no comparison of the
+  variable in between. Real-code check, 2026-10-22: the gold Go and Ruby
+  repositories (caddy, containerd, coredns, etcd, grpc-go, puma, rack, rails,
+  rubygems; 1687 KLOC) give none of the five rules a finding; corpus-go,
+  corpus-clean's Go and Ruby repos, rack and sinatra give none either;
+  railsgoat gives two, both true (the `send_file` of a request path in
+  `BenefitFormsController#download` and the upload saved under
+  `original_filename` in `Benefits.save`).
 
 ## Why a cell does not apply, or is out of reach
 
@@ -201,12 +241,12 @@ not part of this change.
 | 2 | CWE-798 literal signing key or DB password passed to a known API (`Algorithm.HMAC256("…")`, `[]byte("…")` signing key, `DriverManager.getConnection(…, "pw")`) | native in Java and Go, and the Python and Ruby JWT-key form, since round 1 | Placeholder secrets are the classic AI output. The secrets probe misses them because the literal sits in an argument, not a credential-named assignment. |
 | 3 | CWE-352 CSRF switched off (`csrf.disable()`, `csrf(c -> c.disable())`, `skip_before_action :verify_authenticity_token`) | native in Java, Python and Ruby since round 1; TypeScript still a gap | The standard AI "fix" for a 403 on POST. It is an exact call pattern, and semgrep's Ruby rule cannot tell it from a correct controller. |
 | 4 | CWE-200 error detail returned to the client (`err.stack`, `traceback.format_exc()`, `e.backtrace`, `printStackTrace` into the body, `http.Error(w, err.Error(), 500)`) | native in all five languages since round 1 | Very common in generated handlers. A response sink containing the error in the same statement is practical. The Go `err.Error()` form needs a medium-confidence level. |
-| 5 | CWE-434 upload stored under the client's filename (`f.filename`, `file.originalname`, `header.Filename`, `getOriginalFilename()`, `original_filename` in a save or write path) | all five (Java via path rule only) | The names are framework-specific and stable. A same-function absence of an extension or MIME allowlist could raise the confidence. |
-| 6 | CWE-918 request value passed straight to an HTTP client (`fetch(req.query…)`, `client.Get(r.URL.Query()…)`, `URI.create(param)`, `Faraday#get(params…)`) | TS, Go, Java, Ruby | Link previews, webhooks and image proxies are common asks. The same-statement or same-function source-to-sink form is the existing `sql-injection` rules' shape. |
-| 7 | CWE-22 request value joined into a path (`filepath.Join(dir, r.URL.Query()…)`, `File.join(…, params[…])`) with no `IsLocal`/`basename`/prefix check in scope | Go, Ruby | Common. The "unless_in_scope" guard condition fits the pack schema. |
-| 8 | CWE-77 argument injection: `git`/`curl`/`ssh` invoked with a non-literal argument and no `--` | all five | Less common, but none of the analyzers sees it. The tool names and the missing `--` are easy to check, though the defect is narrower. |
+| 5 | CWE-434 upload stored under the client's filename (`f.filename`, `file.originalname`, `header.Filename`, `getOriginalFilename()`, `original_filename` in a save or write path) | all five (Java via path rule only); native in Go and Ruby since round 2 | The names are framework-specific and stable. A same-function absence of an extension or MIME allowlist could raise the confidence. |
+| 6 | CWE-918 request value passed straight to an HTTP client (`fetch(req.query…)`, `client.Get(r.URL.Query()…)`, `URI.create(param)`, `Faraday#get(params…)`) | TS, Go, Java, Ruby; native in Go and Ruby since round 2 | Link previews, webhooks and image proxies are common asks. The same-statement or same-function source-to-sink form is the existing `sql-injection` rules' shape. |
+| 7 | CWE-22 request value joined into a path (`filepath.Join(dir, r.URL.Query()…)`, `File.join(…, params[…])`) with no `IsLocal`/`basename`/prefix check in scope | Go, Ruby; native in both since round 2 | Common. The "unless_in_scope" guard condition fits the pack schema. |
+| 8 | CWE-77 argument injection: `git`/`curl`/`ssh` invoked with a non-literal argument and no `--` | all five; native in Go and Ruby since round 2 (a request value as the argument) | Less common, but none of the analyzers sees it. The tool names and the missing `--` are easy to check, though the defect is narrower. |
 | 9 | CWE-79 HTML string built from a `@RequestParam` in a `produces = TEXT_HTML` handler | Java | Less common, since Java assistants usually use templates. Practical, using the TS `html-from-request` shape. |
-| 10 | CWE-190 narrowing conversion of a parsed integer (`int32(n)` after `strconv.Atoi`) | Go | A gosec-style rule (G109/G115) is practical. The Java `int * int` overflow is not: every multiplication would be a candidate. |
+| 10 | CWE-190 narrowing conversion of a parsed integer (`int32(n)` after `strconv.Atoi`) | Go; native since round 2 | A gosec-style rule (G109/G115) is practical. The Java `int * int` overflow is not: every multiplication would be a candidate. |
 
 Not ranked: TypeScript 352 (absent middleware, low practicality per file),
 Java 190 and Python 77 (noise). The out-of-reach rows above are not ranked

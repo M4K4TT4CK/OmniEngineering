@@ -4,7 +4,7 @@
 class AvatarsController < ApplicationController
   def create
     upload = params.require(:avatar)
-    File.binwrite(Rails.root.join("public", "uploads", upload.original_filename), upload.read) # gap: CWE-434 - nothing in this build reports it (docs/cwe-top25.md)
+    File.binwrite(Rails.root.join("public", "uploads", upload.original_filename), upload.read) # expect: arbiter/ruby.upload-client-filename
     head :created
   end
 end

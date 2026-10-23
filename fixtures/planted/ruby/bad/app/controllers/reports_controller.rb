@@ -5,6 +5,6 @@ class ReportsController < ApplicationController
   REPORTS = Rails.root.join("storage", "reports")
 
   def show
-    send_file File.join(REPORTS, params[:name]), type: "application/pdf" # gap: CWE-22 - nothing in this build reports it (docs/cwe-top25.md)
+    send_file File.join(REPORTS, params[:name]), type: "application/pdf" # expect: arbiter/ruby.path-traversal-request
   end
 end

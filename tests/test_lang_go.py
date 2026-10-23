@@ -524,3 +524,206 @@ def test_a_dsn_with_a_trivial_or_formatted_password_is_silent(tmp_path):
     }
     '''
     assert _rules(tmp_path, code).get("hardcoded-dsn-password") == [12]
+
+
+# ------------------------------------------------- CWE Top 25 round 2 (ARB-062)
+
+def test_a_request_value_joined_into_a_path_is_reported_unless_checked(tmp_path):
+    code = '''
+    package main
+
+    import (
+    	"net/http"
+    	"os"
+    	"path/filepath"
+    	"strconv"
+    )
+
+    func show(w http.ResponseWriter, r *http.Request) {
+    	name := r.URL.Query().Get("file")
+    	if name == "" {
+    		http.Error(w, "missing", http.StatusBadRequest)
+    		return
+    	}
+    	http.ServeFile(w, r, filepath.Join("/srv", name))
+    }
+
+    func local(w http.ResponseWriter, r *http.Request) {
+    	name := r.FormValue("file")
+    	if !filepath.IsLocal(name) {
+    		return
+    	}
+    	http.ServeFile(w, r, filepath.Join("/srv", name))
+    }
+
+    func based(w http.ResponseWriter, r *http.Request) {
+    	name := filepath.Base(r.FormValue("file"))
+    	page, _ := strconv.Atoi(r.FormValue("page"))
+    	_, _ = os.ReadFile(filepath.Join("/srv", name, strconv.Itoa(page)))
+    }
+
+    func static(w http.ResponseWriter, r *http.Request) {
+    	http.ServeFile(w, r, filepath.Join("/srv", r.URL.Path))
+    	body := r.FormValue("body")
+    	_ = os.WriteFile("/srv/notes.txt", []byte(body), 0o600)
+    }
+    '''
+    assert _rules(tmp_path, code).get("path-traversal-request") == [16]
+
+
+def test_upload_name_needs_a_multipart_upload_and_no_type_check(tmp_path):
+    code = '''
+    package main
+
+    import (
+    	"net/http"
+    	"os"
+    	"path/filepath"
+
+    	"github.com/gin-gonic/gin"
+    )
+
+    type provider struct{ Filename string }
+
+    func (p *provider) load() { _, _ = os.Open(filepath.Join("/etc", p.Filename)) }
+
+    func save(c *gin.Context) {
+    	file, _ := c.FormFile("file")
+    	dst := "./uploads/" + file.Filename
+    	_ = c.SaveUploadedFile(file, dst)
+    }
+
+    func checked(w http.ResponseWriter, r *http.Request) {
+    	_, header, _ := r.FormFile("file")
+    	if filepath.Ext(header.Filename) != ".png" {
+    		return
+    	}
+    	_, _ = os.Create(filepath.Join("uploads", header.Filename))
+    }
+    '''
+    assert _rules(tmp_path, code).get("upload-client-filename") == [18]
+
+
+def test_ssrf_needs_a_client_and_a_caller_chosen_host(tmp_path):
+    code = '''
+    package main
+
+    import (
+    	"net/http"
+    	"net/url"
+    )
+
+    var cache = map[string]string{}
+
+    func proxy(w http.ResponseWriter, r *http.Request, client *http.Client) {
+    	_, _ = http.Get("https://api.example.com/items/" + r.FormValue("id"))
+    	q := r.URL.Query()
+    	_ = q.Get("x")
+    	target := r.FormValue("url")
+    	_, _ = client.Get(target)
+    }
+
+    func allowed(w http.ResponseWriter, r *http.Request) {
+    	u, _ := url.Parse(r.FormValue("url"))
+    	if u.Hostname() != "example.com" {
+    		return
+    	}
+    	_, _ = http.Get(r.FormValue("url"))
+    }
+    '''
+    assert _rules(tmp_path, code).get("ssrf-request-url") == [15]
+
+
+def test_argument_injection_needs_a_request_value_and_no_double_dash(tmp_path):
+    code = '''
+    package main
+
+    import (
+    	"net/http"
+    	"os/exec"
+    	"strings"
+    )
+
+    func clone(repo string) error { return exec.Command("git", "clone", repo).Run() }
+
+    func h(w http.ResponseWriter, r *http.Request) {
+    	repo := r.FormValue("repo")
+    	_ = exec.Command("git", "clone", "--", repo).Run()
+    	_ = exec.Command("echo", repo).Run()
+    	_ = exec.Command("curl", "-sS", repo).Run()
+    }
+
+    func guarded(w http.ResponseWriter, r *http.Request) {
+    	host := r.FormValue("host")
+    	if strings.HasPrefix(host, "-") {
+    		return
+    	}
+    	_ = exec.Command("ssh", host, "uptime").Run()
+    }
+    '''
+    assert _rules(tmp_path, code).get("argument-injection") == [15]
+
+
+def test_a_narrowed_parse_needs_no_bounds_check_in_between(tmp_path):
+    code = '''
+    package main
+
+    import (
+    	"math"
+    	"strconv"
+    )
+
+    func a(s string) int32 {
+    	n, _ := strconv.Atoi(s)
+    	return int32(n)
+    }
+
+    func b(s string) int32 {
+    	n, _ := strconv.ParseInt(s, 10, 32)
+    	return int32(n)
+    }
+
+    func c(s string) int16 {
+    	n, _ := strconv.Atoi(s)
+    	if n < 0 || n > 100 {
+    		return 0
+    	}
+    	return int16(n)
+    }
+
+    func d(s string) uint8 {
+    	n, _ := strconv.ParseUint(s, 10, 64)
+    	if n > math.MaxUint8 {
+    		return 0
+    	}
+    	return uint8(n)
+    }
+
+    func e(s string, m int) int32 {
+    	n, _ := strconv.Atoi(s)
+    	_ = n
+    	return int32(m)
+    }
+    '''
+    assert _rules(tmp_path, code).get("parsed-int-narrowed") == [10]
+
+
+def test_a_joined_path_is_reported_once_where_it_is_built(tmp_path):
+    code = '''
+    package main
+
+    import (
+    	"net/http"
+    	"os"
+    	"path/filepath"
+    )
+
+    func h(w http.ResponseWriter, r *http.Request) {
+    	p := filepath.Join("/srv", r.FormValue("f"))
+    	_, _ = os.Stat(p)
+    	data, _ := os.ReadFile(p)
+    	_, _ = w.Write(data)
+    	_, _ = os.ReadFile("/srv/" + r.FormValue("g"))
+    }
+    '''
+    assert _rules(tmp_path, code).get("path-traversal-request") == [10, 14]

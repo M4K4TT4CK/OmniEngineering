@@ -12,7 +12,7 @@ func PageSize(r *http.Request) int32 {
 	if err != nil {
 		return 50
 	}
-	size := int32(n) // gap: CWE-190 - nothing in this build reports it (docs/cwe-top25.md)
+	size := int32(n) // expect: arbiter/go.parsed-int-narrowed
 	if size > 500 {
 		return 500
 	}
