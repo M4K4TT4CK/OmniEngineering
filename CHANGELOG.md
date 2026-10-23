@@ -1,6 +1,14 @@
 # Changelog
 ## 2026-10-23
 ### Completed
+- `REQ-056` | Requirements | `clarify` skill for gathering requirements in plan
+mode (`.claude/skills/clarify/SKILL.md`): frame the problem, read the code and
+`omni graph why` before asking, ask at most 4 ranked questions per round,
+state assumptions with their consequences, draft requirements with measurable
+acceptance criteria against the requirements quality checklist, order them
+into slices, and register with `./omni requirement add` only after the plan is
+approved. A time-boxed form covers interviews. `omni adopt --tools claude` now
+copies the skill beside `CLAUDE.md`.
 - `REQ-055` | Code understanding | The code graph stays connected (FAIL-019). On
 the interview workspace's five starters 9 of 14 code files had no resolved
 edge; now 2 (an empty `__init__.py` and a Spring `Application` nothing names).
