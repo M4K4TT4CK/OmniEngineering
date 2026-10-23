@@ -242,6 +242,35 @@ def run_query(language: str, query_src: str, tree_and_src) -> list[dict]:
     return out
 
 
+def run_matches(language: str, query_src: str, tree_and_src) -> list[dict[str, list]]:
+    """Run a tree-sitter query and return one {capture: [nodes]} per match,
+    so captures that belong together (a sink and the literal beside it)
+    stay together. Used by the data-flow engine (`dataflow.py`)."""
+    ts = ts_name(language)
+    if not ts or tree_and_src is None:
+        return []
+    tree, _src = tree_and_src
+    lang = getattr(tree, "language", None) or _language(ts)
+    try:
+        query = _compiled(lang, query_src)
+    except Exception as exc:
+        raise ValueError(f"invalid tree-sitter query for {language}: {exc}") from exc
+    if _new_api(lang):
+        import tree_sitter as _ts
+        runner = _ts.QueryCursor(query)
+    else:
+        runner = query
+    try:
+        found = runner.matches(tree.root_node)
+    except Exception:  # noqa: BLE001 - as run_query: a match-time rejection is no matches
+        return []
+    out: list[dict[str, list]] = []
+    for _pattern, caps in found:
+        if isinstance(caps, dict):
+            out.append({k: (v if isinstance(v, list) else [v]) for k, v in caps.items()})
+    return out
+
+
 def _count_branches(node) -> int:
     total = 0
     stack = [node]

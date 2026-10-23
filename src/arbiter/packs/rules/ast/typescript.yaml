@@ -125,6 +125,22 @@ rules:
       `client.escapeIdentifier(x)`) is not reported: DDL identifiers cannot
       be bound as parameters.
     remediation: "Use placeholders: `query(\"... WHERE id = $1\", [id])`, or the driver's parameter binding."
+    # One-hop data flow (Milestone 3): the built SQL reaches `.query` through
+    # a local or a same-file helper. The source is the built string itself,
+    # with the same exclusions as `query`.
+    taint:
+      sources: |
+        ([(template_string (template_substitution))
+          (binary_expression operator: "+")] @source
+         (#match? @source "(?i)^[`\"']\\s*(select|insert|update|delete|with|merge|create|drop|alter)\\b")
+         (#match? @source "\\$\\{(?!\\s*([A-Z][A-Z0-9_]*|(quoted|escaped)[A-Z_][\\w]*|[\\w]*(Quoted|Escaped|Ident)|[\\w.]*escape(Identifier|Literal)\\([^}]*\\))\\s*\\})|\\+\\s*[A-Za-z_$(]"))
+      sinks: |
+        ((call_expression
+          function: (member_expression
+            property: (property_identifier) @m
+              (#match? @m "^(query|execute|raw|unsafe|\\$queryRawUnsafe|\\$executeRawUnsafe)$"))
+          arguments: (arguments . (_) @sink)) @hit)
+      value: [sql]
 
   - id: shell-command-built
     title: "Shell command built from a value: `{text}`"
@@ -141,7 +157,7 @@ rules:
         function: (identifier) @fn
         arguments: (arguments
           . [(template_string (template_substitution)) (binary_expression) (identifier) @arg
-             (member_expression) (subscript_expression) (call_expression)])) @hit
+             (member_expression) (subscript_expression) (call_expression)] @cmd)) @hit
        (#match? @fn "^(exec|execSync)$")
        (#not-match? @arg "^[A-Z][A-Z0-9_]*$"))
       ((call_expression
@@ -150,7 +166,7 @@ rules:
           property: (property_identifier) @fn)
         arguments: (arguments
           . [(template_string (template_substitution)) (binary_expression) (identifier) @arg
-             (member_expression) (subscript_expression) (call_expression)])) @hit
+             (member_expression) (subscript_expression) (call_expression)] @cmd)) @hit
        (#match? @o "^(child_process|childProcess|cp)$")
        (#match? @fn "^(exec|execSync)$")
        (#not-match? @arg "^[A-Z][A-Z0-9_]*$"))
@@ -159,6 +175,22 @@ rules:
       substitution, a `+`, a variable) that contains `;`, `|` or `$(...)` runs
       as its own command.
     remediation: "Use `execFile(\"prog\", [arg1, arg2])` or `spawn` without `shell: true`; pass arguments as an array."
+    # One-hop data flow (Milestone 3): the command reaches `exec` through a
+    # local or a helper, or is wrapped in parentheses / String(...).
+    taint:
+      mode: nonconst
+      sinks: |
+        ((call_expression
+          function: [(identifier) @fn
+                     (member_expression object: (identifier) @o property: (property_identifier) @fn)]
+          arguments: (arguments . (_) @sink)) @hit
+         (#match? @fn "^(exec|execSync)$"))
+      sanitizers: |
+        ((identifier) @sanitizer (#match? @sanitizer "^[A-Z][A-Z0-9_]*$"))
+      where: {o: "^(child_process|childProcess|cp)$"}
+      value: [cmd]
+      built: true
+      requires: true
 
   - id: shell-spawn-built
     title: "`spawn` with `shell: true` and a built command"
@@ -183,6 +215,18 @@ rules:
       argument array no longer protects it: a value in the command runs as
       shell syntax.
     remediation: "Drop `shell: true` and pass the program and its arguments separately."
+    taint:
+      mode: nonconst
+      sinks: |
+        ((call_expression
+          function: [(identifier) @fn
+                     (member_expression property: (property_identifier) @fn)]
+          arguments: (arguments . (_) @sink (object) @opts)) @hit
+         (#match? @fn "^(spawn|spawnSync)$")
+         (#match? @opts "\\bshell\\s*:\\s*true"))
+      sanitizers: |
+        ((identifier) @sanitizer (#match? @sanitizer "^[A-Z][A-Z0-9_]*$"))
+      built: true
 
   - id: html-from-request
     title: "Response body built from request data: `{text}`"
@@ -206,6 +250,38 @@ rules:
       `<script>` in the query string runs in every visitor's browser who
       follows the link.
     remediation: "Render through a template engine that escapes by default, or escape the value (`escape-html`) before splicing."
+    # One-hop data flow (Milestone 3): the body reaches the response through
+    # a local, a destructured field or a same-file helper. `query` above is
+    # kept as the fallback; this adds what it cannot see.
+    taint:
+      sources: &ts_request_sources |
+        ((member_expression
+          object: [(identifier) (member_expression)] @o
+          property: (property_identifier) @p) @source
+         (#match? @o "^(req|request|ctx)(\\.request)?$")
+         (#match? @p "^(query|params|body|cookies|headers)$"))
+        ((member_expression
+          object: (identifier) @rq
+          property: (property_identifier) @p) @source
+         (#match? @p "^(query|params|body|cookies|headers)$"))
+      sinks: |
+        ((call_expression
+          function: (member_expression
+            object: (identifier) @o (#match? @o "^(res|response|reply)$")
+            property: (property_identifier) @m (#match? @m "^(send|write|end)$"))
+          arguments: (arguments . (_) @sink)) @hit)
+        ((call_expression
+          function: (member_expression
+            object: (identifier) @rs
+            property: (property_identifier) @m (#match? @m "^(send|write|end)$"))
+          arguments: (arguments . (_) @sink)) @hit)
+      # a handler's parameters typed as express's Request / Response
+      types: &ts_request_types {rq: "^(express\\.)?Request\\b", rs: "^(express\\.)?Response\\b"}
+      sanitizers: |
+        ((call_expression function: [(identifier) @f (member_expression property: (property_identifier) @f)]) @sanitizer
+         (#match? @f "(?i)(escape|sanitiz|encode|purify|^parseInt$|^parseFloat$|^Number$)"))
+      value: [body]
+      built: true
 
   - id: inner-html-assigned
     title: "`innerHTML` assigned a non-literal value"
@@ -549,6 +625,29 @@ rules:
       answer back. Only the same-function form is checked: the request
       value is the URL or its start, directly or through one local.
     remediation: "Parse the URL with `new URL()`, allow only `https:` and an allowlist of hosts, refuse redirects (`redirect: \"error\"`), and resolve and reject private addresses if the host list is open."
+    # One-hop data flow (Milestone 3). A URL that starts with a fixed origin
+    # or path (`https://api.example/...`, `/v1/...`, `${BASE}/...`,
+    # `new URL(path, base)`) is the sanitizer: the code chose the host.
+    taint:
+      sources: *ts_request_sources
+      sinks: |
+        ((call_expression
+          function: (identifier) @fn
+          arguments: (arguments . (_) @sink)) @hit
+         (#match? @fn "^(fetch|axios|got|ky|needle|superagent)$"))
+        ((call_expression
+          function: (member_expression
+            object: (identifier) @o
+            property: (property_identifier) @fn)
+          arguments: (arguments . (_) @sink)) @hit
+         (#match? @o "^(axios|got|ky|needle|superagent|https?|undici)$")
+         (#match? @fn "^(get|post|put|patch|delete|head|options|request|stream|fetch)$"))
+      sanitizers: |
+        ((template_string) @sanitizer (#match? @sanitizer "^`(https?://[^/`$]+/|/|\\$\\{\\s*[A-Z][A-Z0-9_]*\\s*\\}|\\$\\{\\s*[\\w.]*(base|Base|BASE|origin|Origin|host|Host)\\w*\\s*\\})"))
+        ((binary_expression) @sanitizer (#match? @sanitizer "^([\"'](https?://[^/\"']+/|/)|[A-Z][A-Z0-9_]*\\s*\\+|[\\w.]*(base|Base|origin|Origin)\\w*\\s*\\+)"))
+        ((new_expression constructor: (identifier) @u arguments: (arguments (_) (_))) @sanitizer (#eq? @u "URL"))
+        ((call_expression function: [(identifier) @f (member_expression property: (property_identifier) @f)]) @sanitizer
+         (#match? @f "^(encodeURIComponent|parseInt|Number)$"))
 
   # Argument injection (CWE-88, ranked under CWE-77): `execFile`/`spawn`
   # with an argv array does not go through a shell, but the program still
@@ -609,6 +708,25 @@ rules:
       value in the same function, directly or through one local, is
       checked.
     remediation: "Put `\"--\"` before the first value argument (`[\"clone\", \"--\", url, dir]`), and validate the value (`new URL(v)` with an `https:` check, or reject a leading `-`)."
+    # One-hop data flow (Milestone 3): the request value reaches the argv
+    # through a local or a helper; the program name may be hoisted too.
+    taint:
+      sources: *ts_request_sources
+      sinks: |
+        ((call_expression
+          function: [(identifier) @fn
+                     (member_expression object: (identifier) @o property: (property_identifier) @fn)]
+          arguments: (arguments . (_) @tool . (_) @sink)) @hit
+         (#match? @fn "^(execFile|execFileSync|spawn|spawnSync|execa|execaSync)$"))
+      where:
+        tool: "^[\"'`](.*/)?(git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|find|sendmail|ffmpeg|ffprobe|convert|magick|docker|kubectl|npm|npx|yarn|pip|openssl|gpg)[\"'`]$"
+        o: "^(child_process|childProcess|cp)$"
+      # an element bound to its option (`--depth=${n}`), or a number
+      sanitizers: |
+        ((template_string) @sanitizer (#match? @sanitizer "^`-"))
+        ((binary_expression) @sanitizer (#match? @sanitizer "^[\"']-"))
+        ((call_expression function: (identifier) @f) @sanitizer (#match? @f "^(Number|parseInt|parseFloat)$"))
+      unless_element: "^--$"
 
   # Dangerous upload (CWE-434): the stored file is named by the client.
   # multer's `diskStorage({ filename })` returning `file.originalname`,
