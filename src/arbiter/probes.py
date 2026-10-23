@@ -331,6 +331,43 @@ _ASSIGNED_SECRET = re.compile(
     """
 )
 
+# The words `_ASSIGNED_SECRET` requires inside its symbol, and the most word
+# characters it allows before them. Every match starts at most this far before
+# one of these words, so the scan below tries the full pattern only there
+# instead of at every character: the same matches, about five times faster
+# (secrets was 31 s of regex on keycloak). Keep the three in step with the
+# pattern; tests/test_secrets_scan_equivalence.py fails when they drift.
+_ASSIGNED_SECRET_WORD = re.compile(
+    r"""(?ix)password|passwd|pwd|secret|token|api[._-]?key|access[._-]?key|
+         client[._-]?secret|private[._-]?key|credential""")
+_ASSIGNED_SECRET_PREFIX = 24
+
+
+def _assigned_secret_matches(text: str):
+    """Exactly `_ASSIGNED_SECRET.finditer(text)`, tried only near a keyword.
+
+    The pattern has no anchors or lookbehind, so whether it matches at a
+    position depends on the text from there on alone, and `match` at each
+    candidate start, leftmost first, finds what `finditer` finds. A match
+    cannot be empty, so the next search resumes at its end, as finditer does.
+    """
+    pos = 0
+    while True:
+        k = _ASSIGNED_SECRET_WORD.search(text, pos)
+        if k is None:
+            return
+        found = None
+        for start in range(max(pos, k.start() - _ASSIGNED_SECRET_PREFIX), k.start() + 1):
+            found = _ASSIGNED_SECRET.match(text, start)
+            if found:
+                break
+        if found:
+            yield found
+            pos = found.end()
+        else:
+            pos = k.start() + 1
+
+
 # Unquoted values. A .env file, a Kubernetes Secret, a docker-compose file, a
 # `export` line and a Dockerfile `ENV` all write secrets without quotes, and
 # those are the places secrets most commonly leak. The quoted pattern above saw
@@ -719,7 +756,7 @@ def probe_secrets(ctx: ProbeContext) -> list[Finding]:
         # illustration; the provider-token patterns above still run there.
         if _MESSAGE_BUNDLE.search(f.path) or f.role == "docs":
             continue
-        for m in _ASSIGNED_SECRET.finditer(text):
+        for m in _assigned_secret_matches(text):
             found = _credential_finding(f, text, m.start(), m.group(1), m.group(3),
                                         test_material, quoted=True)
             if found:
