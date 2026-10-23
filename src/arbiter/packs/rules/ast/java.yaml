@@ -17,6 +17,7 @@ languages: [java]
 rules:
   # ---------------------------------------------------------------- races --
   - id: check-then-act-unsynchronized
+    requirements: [ARB-061]
     title: "Check-then-act on a shared collection with no lock held: `{text}`"
     severity: high
     confidence: medium
@@ -76,6 +77,7 @@ rules:
       `ReentrantLock`) around both the check and the act.
 
   - id: unsynchronized-counter
+    requirements: [ARB-061]
     title: "`{text}` on a shared field from worker code with no lock or atomic"
     severity: medium
     confidence: medium
@@ -130,6 +132,7 @@ rules:
 
   # ------------------------------------------------------------- timeouts --
   - id: http-client-no-timeout
+    requirements: [ARB-061]
     title: "`{text}` builds an HttpClient with no connect timeout"
     severity: medium
     confidence: medium
@@ -155,6 +158,7 @@ rules:
       `.timeout(...)` on each `HttpRequest`.
 
   - id: http-request-no-timeout
+    requirements: [ARB-061]
     title: "`HttpRequest.newBuilder` with no `.timeout(...)`"
     severity: medium
     confidence: medium
@@ -174,6 +178,7 @@ rules:
     remediation: "Add `.timeout(Duration.ofSeconds(n))` to the request builder."
 
   - id: url-connection-no-timeout
+    requirements: [ARB-061]
     title: "`openConnection()` with neither connect nor read timeout set"
     severity: medium
     confidence: medium
@@ -194,6 +199,7 @@ rules:
       before reading from it.
 
   - id: rest-template-no-timeout
+    requirements: [ARB-061]
     title: "`new RestTemplate()` uses a request factory with no timeouts"
     severity: medium
     confidence: medium
@@ -216,6 +222,7 @@ rules:
 
   # ------------------------------------------------------ retries & loops --
   - id: retry-without-backoff
+    requirements: [ARB-061]
     title: "Retry loop with no backoff and no attempt cap"
     severity: medium
     confidence: medium
@@ -246,6 +253,7 @@ rules:
       jitter, then fail with the last error.
 
   - id: worker-loop-no-stop
+    requirements: [ARB-061]
     title: "`while (true)` worker loop with no stop signal"
     severity: medium
     confidence: medium
@@ -288,6 +296,7 @@ rules:
 
   # ----------------------------------------------------------- exceptions --
   - id: swallowed-exception
+    requirements: [ARB-061]
     title: "Empty `catch` swallows the error: `{text}`"
     severity: medium
     confidence: high
@@ -337,6 +346,7 @@ rules:
 
   # ------------------------------------------------------------ injection --
   - id: sql-string-built
+    requirements: [ARB-061]
     title: "SQL built from a string expression reaches `{text}`"
     severity: high
     confidence: medium
@@ -407,6 +417,7 @@ rules:
       placeholders, and keep identifiers (table, column) to an allow-list.
 
   - id: command-injection
+    requirements: [ARB-061]
     title: "Shell command built from a run-time value: `{text}`"
     severity: high
     confidence: medium
@@ -457,6 +468,7 @@ rules:
 
   # ------------------------------------------------------ deserialization --
   - id: object-input-stream
+    requirements: [ARB-060]
     title: "`ObjectInputStream.readObject` deserializes untrusted bytes"
     severity: high
     confidence: medium
@@ -475,6 +487,7 @@ rules:
     remediation: "Use a data format (JSON) with an explicit schema, or an ObjectInputFilter allow-list."
 
   - id: xml-decoder
+    requirements: [ARB-061]
     title: "`XMLDecoder.readObject` instantiates whatever classes the XML names"
     severity: high
     confidence: medium
@@ -494,6 +507,7 @@ rules:
     remediation: "Parse the XML with a schema-bound binder (JAXB, Jackson XML) into known types."
 
   - id: jackson-default-typing
+    requirements: [ARB-061]
     title: "Jackson default typing lets the JSON choose the class to instantiate"
     severity: high
     confidence: high
@@ -516,6 +530,7 @@ rules:
 
   # ---------------------------------------------------------------- stubs --
   - id: stub-method
+    requirements: [ARB-061]
     title: "Method body is a placeholder: `{text}`"
     severity: medium
     confidence: medium
@@ -559,6 +574,7 @@ rules:
 
   # ---------------------------------------------------------------- tests --
   - id: test-without-assertion
+    requirements: [ARB-062, ARB-065]
     title: "`@Test {text}` asserts nothing"
     severity: low
     # low, not medium: on the gold set most hits are deliberate "does not
@@ -641,6 +657,7 @@ rules:
 
   # ------------------------------------------------------------------ TLS --
   - id: trust-all-certificates
+    requirements: [ARB-061]
     title: "`checkServerTrusted` is empty: every certificate is accepted"
     severity: high
     confidence: high
@@ -663,6 +680,7 @@ rules:
       from that.
 
   - id: hostname-verifier-disabled
+    requirements: [ARB-061]
     title: "HostnameVerifier that always returns true"
     severity: high
     confidence: high
@@ -691,6 +709,7 @@ rules:
 
   # ----------------------------------------------------------- randomness --
   - id: weak-random-for-secret
+    requirements: [ARB-061]
     title: "`{text}` is not a cryptographic source, but this value is a secret"
     severity: medium
     confidence: medium
@@ -740,6 +759,7 @@ rules:
   # ARB-062: the Java rows of the ranked gap list in docs/cwe-top25.md.
 
   - id: jwt-unsigned-accepted
+    requirements: [ARB-062]
     title: "`{text}` accepts a JWT that carries no signature"
     severity: high
     confidence: high
@@ -769,6 +789,7 @@ rules:
       `.unsecured()`.
 
   - id: jwt-decode-without-verify
+    requirements: [ARB-062]
     title: "`{text}` reads a JWT and nothing in this file verifies its signature"
     severity: high
     confidence: medium
@@ -811,6 +832,7 @@ rules:
       `DefaultJWTProcessor` / `SignedJWT.verify(JWSVerifier)` (Nimbus).
 
   - id: hardcoded-signing-key
+    requirements: [ARB-062]
     title: "`{text}` is given a key written in the source"
     severity: high
     confidence: high
@@ -868,6 +890,7 @@ rules:
       and rotate the one that was committed.
 
   - id: hardcoded-db-password
+    requirements: [ARB-062]
     title: "`{text}` is given a database password written in the source"
     severity: high
     confidence: high
@@ -913,6 +936,7 @@ rules:
   # the file says the app is stateless, and low/low where the file declares
   # SessionCreationPolicy.STATELESS (the token could still sit in a cookie).
   - id: csrf-disabled
+    requirements: [ARB-062]
     title: "CSRF protection switched off: `{text}`"
     severity: high
     confidence: medium
@@ -957,6 +981,7 @@ rules:
       cookie), declare `SessionCreationPolicy.STATELESS`.
 
   - id: csrf-disabled-stateless
+    requirements: [ARB-062]
     title: "CSRF protection switched off in a stateless config: `{text}`"
     severity: low
     confidence: low
@@ -981,6 +1006,7 @@ rules:
 
   # ------------------------------------------------ error detail (CWE-200) --
   - id: stack-trace-to-client
+    requirements: [ARB-062]
     title: "Stack trace sent to the client: `{text}`"
     severity: medium
     confidence: high
@@ -1023,6 +1049,7 @@ rules:
       returns a `ProblemDetail` without the trace.
 
   - id: exception-message-to-client
+    requirements: [ARB-062]
     title: "Exception text sent to the client: `{text}`"
     severity: medium
     confidence: medium
@@ -1092,6 +1119,7 @@ rules:
   # its use at any nesting depth; a back-reference (\1 / \2) does the tying.
 
   - id: xss-unescaped-html
+    requirements: [ARB-062]
     title: "Request value written into HTML without encoding: `{text}`"
     severity: high
     confidence: medium
@@ -1141,6 +1169,7 @@ rules:
       Return JSON from APIs instead of hand-built HTML.
 
   - id: ssrf-request-url
+    requirements: [ARB-062]
     title: "Server-side request to a URL taken from the request: `{text}`"
     severity: high
     confidence: medium
@@ -1180,6 +1209,7 @@ rules:
       (resolve it and refuse private ranges), and turn redirects off.
 
   - id: argument-injection
+    requirements: [ARB-062]
     title: "Request value passed to a program before `--` ends its options: `{text}`"
     severity: high
     confidence: medium
@@ -1209,6 +1239,7 @@ rules:
       allowlist).
 
   - id: parsed-number-narrowed
+    requirements: [ARB-062]
     title: "Parsed number cast to a narrower type keeps only its low bits: `{text}`"
     severity: medium
     confidence: medium
@@ -1244,6 +1275,7 @@ rules:
       `Math.toIntExact`, so an out-of-range value throws.
 
   - id: parsed-count-overflow
+    requirements: [ARB-062]
     title: "Allocation size multiplies a parsed count with no range check: `{text}`"
     severity: medium
     confidence: medium
@@ -1274,6 +1306,7 @@ rules:
       compute the size with `Math.multiplyExact`.
 
   - id: upload-client-filename
+    requirements: [ARB-062]
     title: "Upload stored under the client's file name: `{text}`"
     severity: high
     confidence: medium

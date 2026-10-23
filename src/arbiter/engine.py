@@ -655,6 +655,15 @@ def run_scan(
     except Exception:  # noqa: BLE001 - control coverage is a summary; a broken pack must not fail the scan
         pass
 
+    # Precision tiers and rule requirements (precision.py). After every pass
+    # that can change a finding -- the model verification pass included --
+    # and before the gate, which in tier_mode: tiered reads only the tiers
+    # it is told to.
+    from .precision import annotate as annotate_tiers
+    from .precision import rules_block
+    report.scan_scope["tiers"] = annotate_tiers(report.findings, config, profile_name)
+    report.rules = rules_block(report.findings)
+
     report.gate = evaluate_gate(report, config)
 
     # Record every assertion this report makes, then check that none of them

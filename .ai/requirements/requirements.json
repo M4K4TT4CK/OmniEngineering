@@ -1508,7 +1508,9 @@
       "documentation_required": [
         "changelog"
       ],
-      "risk_notes": []
+      "risk_notes": [
+        "rule requirements 2026-10-22 (p1a-tiers): 157 of 228 shipped rules carry requirements: metadata (all 144 pack rules, 13 native); 71 predate the registry and are listed with that reason in tests/test_rule_requirements.py; findings carry requirements and reports a top-level rules block. The graph side (reading them as EXTRACTED) is not changed here"
+      ]
     },
     {
       "id": "ARB-065",
@@ -1547,7 +1549,8 @@
         "gold repositories are untrusted: scanned only never built or run",
         "OWASP Benchmark is GPL: fetched never redistributed",
         "first measurement 2026-10-21: 16 rules over budget; rule fixes are follow-up work, listed in tools/gold/results/2026-10-21-triage.md",
-        "round 2 testing harness 2026-10-22: AI-written corpus (fixtures/ai-corpus, 25 generated apps, 172 hand labels) scored by tools/ai_corpus_score.py: native recall 2/117 code defects, code-finding precision 2/31; human-label sampling with Wilson CIs and Cohen's kappa (tools/label_sample.py), labelling itself not yet done; regression guards (tools/regression_guard.py) on in-tree corpora and 4 small pinned repos; mutation variants (tools/variants.py) 83% robustness. Corpus labels are model-written and unaudited by people; see docs/testing-harness.md"
+        "round 2 testing harness 2026-10-22: AI-written corpus (fixtures/ai-corpus, 25 generated apps, 172 hand labels) scored by tools/ai_corpus_score.py: native recall 2/117 code defects, code-finding precision 2/31; human-label sampling with Wilson CIs and Cohen's kappa (tools/label_sample.py), labelling itself not yet done; regression guards (tools/regression_guard.py) on in-tree corpora and 4 small pinned repos; mutation variants (tools/variants.py) 83% robustness. Corpus labels are model-written and unaudited by people; see docs/testing-harness.md",
+        "precision tiers and ledger 2026-10-22 (p1a-tiers): findings carry tier verified|advisory|inferred; gate.tier_mode legacy (default) or tiered; per-rule ledger tools/gold/precision.json (shipped as packs/precision.json) built by tools/precision_ledger.py, admitted at Wilson lower >= 0.97 on >= 30 labels with kappa >= 0.8; CI precision guard tools/precision_guard.py. The ledger is empty (no labels yet): every finding is advisory and no precision claim is made; switching to tiered waits for Phase 1b labels. Labels are model-made plus external ground truth, not human"
       ]
     },
     {

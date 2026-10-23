@@ -49,7 +49,19 @@ DEFAULTS: dict[str, Any] = {
     "gate": {
         "fail_on": {"severity": "critical", "new": None, "coverage_below": None},
         "gate_on_inferred": False,
+        # legacy: fail_on reads every active finding, as it always has.
+        # tiered: fail_on reads only findings whose precision tier is in
+        # `tiers` (precision.py). Switching to tiered is a decision to make
+        # once the ledger admits rules: with an empty ledger every finding is
+        # advisory and a tiered gate blocks nothing.
+        "tier_mode": "legacy",
+        "tiers": ["verified"],
     },
+    # Precision tiers (precision.py, docs/precision.md). `ledger: null` reads
+    # the ledger shipped with Arbiter; `verified_rules` declares more rules
+    # verified (globs), which still need the ledger to admit them.
+    "precision": {"ledger": None, "verified_rules": [],
+                  "deterministic_profiles": ["offline", "ci"]},
     "score": {"weights": DEFAULT_WEIGHTS, "coverage_threshold": 0.6},
     "quality": {"max_file_lines": 800, "max_function_lines": 120, "max_complexity": 20},
     "suppress": [],
@@ -91,7 +103,24 @@ def load_config(path: str | None, repo_root: str | None = None) -> dict:
         raise RuntimeError(f"could not read config {candidate}: {exc}") from exc
     if not isinstance(data, dict):
         raise RuntimeError(f"config {candidate} must be a mapping")
-    return _merge(DEFAULTS, data)
+    merged = _merge(DEFAULTS, data)
+    check_gate_config(merged, str(candidate))
+    return merged
+
+
+TIER_MODES = ("legacy", "tiered")
+GATE_TIERS = ("verified", "advisory", "inferred")
+
+
+def check_gate_config(config: dict, where: str = "config") -> None:
+    """A misspelt tier mode must not fall back to some other gate quietly."""
+    gate = config.get("gate") or {}
+    mode = gate.get("tier_mode", "legacy")
+    if mode not in TIER_MODES:
+        raise RuntimeError(f"{where}: gate.tier_mode is one of {TIER_MODES}, got {mode!r}")
+    tiers = gate.get("tiers", ["verified"])
+    if not isinstance(tiers, list) or any(t not in GATE_TIERS for t in tiers):
+        raise RuntimeError(f"{where}: gate.tiers is a list drawn from {GATE_TIERS}, got {tiers!r}")
 
 
 def load_system(path: str) -> dict:
@@ -233,11 +262,19 @@ def evaluate_gate(report: Report, config: dict) -> dict:
     gate_cfg = (config.get("gate") or {})
     fail_on = gate_cfg.get("fail_on") or {}
     gate_inferred = bool(gate_cfg.get("gate_on_inferred", False))
+    check_gate_config(config)
+    tier_mode = gate_cfg.get("tier_mode", "legacy")
+    gate_tiers = list(gate_cfg.get("tiers") or ["verified"])
 
     considered = [
         f for f in report.findings
         if not f.suppressed and (gate_inferred or f.provenance != "inferred")
     ]
+    if tier_mode == "tiered":
+        # Only the tiers the configuration names can block. An inferred
+        # finding is in the inferred tier, so `gate_on_inferred` and
+        # `tiers: [..., inferred]` both have to ask for it.
+        considered = [f for f in considered if (f.tier or "advisory") in gate_tiers]
 
     reasons: list[str] = []
     # The findings behind the severity and new-finding reasons, by id, so a
@@ -275,5 +312,7 @@ def evaluate_gate(report: Report, config: dict) -> dict:
         "reasons": reasons,
         "considered": len(considered),
         "gate_on_inferred": gate_inferred,
+        "tier_mode": tier_mode,
+        **({"tiers": gate_tiers} if tier_mode == "tiered" else {}),
         "failing_ids": sorted(failing),
     }

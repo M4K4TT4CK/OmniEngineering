@@ -16,6 +16,7 @@ rules:
   # Outbound HTTP
   # --------------------------------------------------------------------------
   - id: http-no-timeout
+    requirements: [ARB-060]
     title: "`{text}` has no timeout: a stalled upstream stalls this call forever"
     severity: medium
     confidence: high
@@ -38,6 +39,7 @@ rules:
     remediation: "Pass `timeout=(connect, read)` on every call, or wrap the client so the default is set once."
 
   - id: http-timeout-disabled
+    requirements: [ARB-061]
     title: "`{text}` switches the client's timeout off"
     severity: medium
     confidence: high
@@ -63,6 +65,7 @@ rules:
   # Retry and worker loops
   # --------------------------------------------------------------------------
   - id: retry-loop-no-backoff
+    requirements: [ARB-060]
     title: "Unbounded retry loop with no sleep or backoff"
     severity: medium
     confidence: medium
@@ -110,6 +113,7 @@ rules:
     remediation: "Cap the attempts and sleep with exponential backoff and jitter (or use tenacity/backoff)."
 
   - id: swallowed-error-in-worker-loop
+    requirements: [ARB-061]
     title: "`{text}` drops every error inside a worker loop"
     severity: medium
     confidence: medium
@@ -157,6 +161,7 @@ rules:
     remediation: "Log the exception (`logger.exception`) and count it; re-raise or dead-letter what cannot be retried."
 
   - id: worker-loop-no-stop-signal
+    requirements: [ARB-061]
     title: "Worker loop `while True` has no way to stop"
     severity: medium
     confidence: medium
@@ -189,6 +194,7 @@ rules:
     remediation: "Loop on `while not self._stop.is_set()` (threading.Event) or a sentinel item on the queue; join the thread on shutdown."
 
   - id: thread-not-daemon-never-joined
+    requirements: [ARB-061]
     title: "`{text}` is neither a daemon nor ever joined"
     severity: low
     confidence: low
@@ -217,6 +223,7 @@ rules:
   # Injection
   # --------------------------------------------------------------------------
   - id: sql-injection
+    requirements: [ARB-065]
     title: "SQL built by string formatting: `{text}`"
     severity: high
     confidence: high
@@ -312,6 +319,7 @@ rules:
     remediation: "Send parameters separately: `cursor.execute(\"... WHERE id = %s\", (user_id,))`, `text(\"... :id\").bindparams(id=...)`, or the ORM."
 
   - id: command-injection
+    requirements: [ARB-061]
     title: "Shell command built from a variable: `{text}`"
     severity: high
     confidence: high
@@ -346,6 +354,7 @@ rules:
     remediation: "Pass an argv list with `shell=False` (`subprocess.run([\"ls\", \"-l\", path])`); if a shell is unavoidable, quote every piece with `shlex.quote`."
 
   - id: code-injection
+    requirements: [ARB-065]
     title: "`{text}` evaluates code from a variable"
     severity: high
     confidence: medium
@@ -383,6 +392,7 @@ rules:
     remediation: "Parse instead of evaluate: `ast.literal_eval` for data, `json.loads`, an operator table for expressions, importlib for a plugin name."
 
   - id: unsafe-deserialization
+    requirements: [ARB-061]
     title: "`{text}` deserialises with a format that can execute code"
     severity: high
     confidence: medium
@@ -408,6 +418,7 @@ rules:
   # Cryptography
   # --------------------------------------------------------------------------
   - id: insecure-random-for-secret
+    requirements: [ARB-065]
     title: "`random` used for a secret: `{text}`"
     severity: high
     confidence: medium
@@ -447,6 +458,7 @@ rules:
     remediation: "Use `secrets.token_hex()`, `secrets.token_urlsafe()`, `secrets.choice()` or `random.SystemRandom()`."
 
   - id: weak-password-hash
+    requirements: [ARB-065]
     title: "Password hashed with a fast digest: `{text}`"
     severity: high
     confidence: medium
@@ -481,6 +493,7 @@ rules:
   # Authentication, CSRF and error disclosure (CWE Top 25, ARB-062)
   # --------------------------------------------------------------------------
   - id: jwt-unverified-decode
+    requirements: [ARB-062]
     title: "JWT decoded without checking its signature: `{text}`"
     severity: high
     confidence: high
@@ -523,6 +536,7 @@ rules:
     remediation: "Decode with the key and a fixed algorithm list: `jwt.decode(token, key, algorithms=[\"HS256\"], audience=...)`."
 
   - id: jwt-literal-signing-key
+    requirements: [ARB-062]
     title: "JWT key is a string literal in the source: `{text}`"
     severity: high
     confidence: high
@@ -558,6 +572,7 @@ rules:
     remediation: "Read the key from the environment or a secret store (`os.environ[\"JWT_SECRET\"]`) and fail at start-up if it is missing."
 
   - id: error-traceback-to-client
+    requirements: [ARB-062]
     title: "Traceback returned to the client: `{text}`"
     severity: medium
     confidence: high
@@ -585,6 +600,7 @@ rules:
     remediation: "Log it (`log.exception(...)`) with an incident id and return a generic message carrying only that id."
 
   - id: error-message-to-client
+    requirements: [ARB-062]
     title: "Exception message returned to the client: `{text}`"
     severity: low
     confidence: medium
@@ -625,6 +641,7 @@ rules:
       those by their own class.
 
   - id: csrf-protection-disabled
+    requirements: [ARB-062]
     title: "CSRF protection switched off: `{text}`"
     severity: high
     confidence: medium
@@ -673,6 +690,7 @@ rules:
   # passed through a helper is out of reach.
   # --------------------------------------------------------------------------
   - id: argument-injection
+    requirements: [ARB-062]
     title: "Request value passed as an argument with no `--`: `{text}`"
     severity: high
     confidence: medium
@@ -719,6 +737,7 @@ rules:
     remediation: "Put `\"--\"` before the first value argument (`[\"git\", \"clone\", \"--\", url, dest]`) and validate the value (scheme check with `urlparse`, or reject a leading `-`)."
 
   - id: upload-client-filename
+    requirements: [ARB-062]
     title: "Upload stored under the client's filename: `{text}`"
     severity: high
     confidence: medium
@@ -771,6 +790,7 @@ rules:
     remediation: "Name the stored file yourself (`uuid4().hex` plus an extension from an allowlist checked against the content type), or at least `werkzeug.utils.secure_filename`, and cap the size (`MAX_CONTENT_LENGTH`)."
 
   - id: debug-mode-enabled
+    requirements: [ARB-062]
     title: "Debug mode switched on in code: `{text}`"
     severity: medium
     confidence: high
