@@ -6575,7 +6575,7 @@ def build_parser() -> argparse.ArgumentParser:
     graph_build.add_argument(
         "--if-stale",
         action="store_true",
-        help="Only rebuild when an input moved since the graph was written: the Arbiter report(s), the requirement registries, the failure ledger, HEAD. A no-op otherwise (ARB-064; what `make scan` and `omni gate` call).",
+        help="Only rebuild when an input moved since the graph was written: the Arbiter report(s), the requirement registries, the failure ledger, HEAD. A no-op otherwise; `omni gate` runs the same check after every gate.",
     )
 
     graph_trace = graph_subparsers.add_parser(
@@ -6676,7 +6676,7 @@ def build_parser() -> argparse.ArgumentParser:
         "impact",
         help="What the pending change set (or the given paths, CWE ids or Arbiter rule ids) reaches across the layers: requirements, failures, findings, suites, tests, rules, commits.",
     )
-    graph_impact.add_argument("paths", nargs="*", help="Paths, symbols' files, CWE ids (CWE-89), Arbiter rule ids or finding ids to start from instead of the pending change set (ARB-064).")
+    graph_impact.add_argument("paths", nargs="*", help="Paths, symbols' files, CWE ids (CWE-89), Arbiter rule ids or finding ids to start from instead of the pending change set.")
     graph_impact.add_argument("--changed", metavar="BASE", help="Base commit for the change set (default: the merge-base `omni gate` uses).")
     graph_impact.add_argument("--graph", default=GRAPH_DEFAULT_OUTPUT, help=f"Graph file to read. Defaults to {GRAPH_DEFAULT_OUTPUT}.")
     graph_impact.add_argument("--depth", type=int, default=2, help="Cross-layer hops to follow from each changed path (default 2).")
@@ -6759,8 +6759,8 @@ def build_parser() -> argparse.ArgumentParser:
     graph_findings.add_argument("--under", help="Only findings in this directory (or file).")
     graph_findings.add_argument("--dimension", help="Only this Arbiter dimension (security, quality, drift, supply_chain, ...).")
     graph_findings.add_argument("--severity", help="Only this severity (critical, high, medium, low, info).")
-    graph_findings.add_argument("--cwe", help="Only findings classified as this CWE, e.g. CWE-362 (ARB-064).")
-    graph_findings.add_argument("--rule", help="Only findings whose Arbiter rule id matches this glob or substring, e.g. 'arbiter/concurrency.*' (ARB-064).")
+    graph_findings.add_argument("--cwe", help="Only findings classified as this CWE, e.g. CWE-362.")
+    graph_findings.add_argument("--rule", help="Only findings whose Arbiter rule id matches this glob or substring, e.g. 'arbiter/concurrency.*'.")
     graph_findings.add_argument("--depth", type=int, default=2, help="Hops over non-code links to collect requirements, failures and suites (default 2).")
     graph_findings.add_argument("--tree", action="store_true", help="Print the text tree (the default).")
     graph_findings.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
@@ -6805,7 +6805,7 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Comma-separated shims to copy. Available: "
             f"{', '.join(sorted(ADOPTION_TOOL_FILES))}, all, none. "
-            "Defaults to codex,cursor,universal."
+            "Defaults to codex,cursor,universal. claude also copies .claude/skills/clarify."
         ),
     )
     adopt_parser.add_argument(
@@ -6828,7 +6828,7 @@ def build_parser() -> argparse.ArgumentParser:
     adopt_parser.add_argument(
         "--include-cli",
         action="store_true",
-        help="Copy ./omni and make_ai.py.",
+        help="Copy the CLI (./omni, make_ai.py, omni_graph.py, omni_mcp.py) and the graph viewer assets.",
     )
     adopt_parser.add_argument(
         "--include-legal",
@@ -6983,14 +6983,14 @@ def build_parser() -> argparse.ArgumentParser:
     test_add.add_argument("--name", required=True, help="Human name, e.g. 'Backend JUnit'.")
     test_add.add_argument("--id", help="Suite id; defaults to a slug of the name.")
     test_add.add_argument("--paths", required=True, help="Comma-separated files, directories or globs that hold the tests.")
-    test_add.add_argument("--kind", choices=["unit", "integration", "e2e", "validation", "smoke", "other"], default="unit")
+    test_add.add_argument("--kind", choices=["unit", "integration", "e2e", "validation", "smoke", "other"], default="unit", help="Suite kind (default unit).")
     test_add.add_argument("--framework", default="", help="junit, vitest, jest, pytest, playwright, script, ...")
     test_add.add_argument("--command", dest="run_command", default="", help="How to run it, e.g. 'cd backend && mvn test'.")
     test_add.add_argument("--covers", default="", help="Comma-separated code paths this suite is meant to cover.")
-    test_add.add_argument("--notes", default="")
+    test_add.add_argument("--notes", default="", help="Free-text notes stored with the suite.")
     test_add.add_argument("--allow-missing", action="store_true", help="Register even if a path matches no file yet.")
     test_remove = test_subparsers.add_parser("remove", help="Remove a registered suite.")
-    test_remove.add_argument("id")
+    test_remove.add_argument("id", help="Suite id, as `omni test list` prints it.")
     test_subparsers.add_parser("list", help="Registered suites plus any detected but unregistered.")
     test_subparsers.add_parser("check", help="Verify every registered path matches files, and report unregistered tests.")
     test_run = test_subparsers.add_parser("run", help="Run registered suites: all of them, the named ones, or only those the pending change set impacts.")
@@ -7034,11 +7034,11 @@ def build_parser() -> argparse.ArgumentParser:
     add_failure_fields(failure_update, creating=False)
 
     failure_show = failure_subparsers.add_parser("show", help="Print one failure.")
-    failure_show.add_argument("id")
+    failure_show.add_argument("id", help="Failure ID, e.g. FAIL-003.")
     failure_list = failure_subparsers.add_parser("list", help="One line per failure.")
-    failure_list.add_argument("--status", choices=FAILURE_STATUSES)
+    failure_list.add_argument("--status", choices=FAILURE_STATUSES, help="Only failures with this status.")
     failure_search = failure_subparsers.add_parser("search", help="Case-insensitive text search across failures.")
-    failure_search.add_argument("text")
+    failure_search.add_argument("text", help="Text to look for (case-insensitive).")
     failure_subparsers.add_parser("check", help="Verify the ledger is complete and every reference resolves.")
 
     requirement_archive = requirement_subparsers.add_parser(
@@ -7074,7 +7074,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     gate_parser.add_argument("--hook", action="store_true", help="Claude Code Stop-hook mode: read hook JSON on stdin, exit 2 to block.")
     gate_parser.add_argument("--no-memo", action="store_true",
-                             help="Run every command rule, ignoring the per-rule pass memo in the gate state file (REQ-047).")
+                             help="Run every command rule, ignoring the per-rule pass memo in the gate state file (.git/omni-gate-last.json).")
 
     waive_parser = subparsers.add_parser("waive", help="Record an explicit, auditable waiver for a gate rule.")
     waive_parser.add_argument("rule", help="Gate rule ID, e.g. completion.changelog_gate.")

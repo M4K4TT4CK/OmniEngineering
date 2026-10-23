@@ -8,6 +8,11 @@ task; the content lives in `docs/arbiter-integration.md`), the context brief
 links the public repository and indexes the remaining playbooks, two adapters
 point at `.ai/entrypoints/fallback-contract.md` instead of the `LLM_CONTEXT.md`
 shim, and `.ai/project-map.md` is regenerated.
+CLI help: `adopt --include-cli` names all four CLI files and the viewer assets
+it copies, `--tools` says `claude` also copies the clarify skill, `graph build
+--if-stale` no longer cites a `make scan` target this repository does not have,
+requirement ids are dropped from flag help, and `failure show|list|search`,
+`test remove` and `test add --kind|--notes` get help text.
 - `REQ-056` | Requirements | `clarify` skill for gathering requirements in plan
 mode (`.claude/skills/clarify/SKILL.md`): frame the problem, read the code and
 `omni graph why` before asking, ask at most 4 ranked questions per round,
