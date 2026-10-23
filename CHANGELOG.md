@@ -31,6 +31,9 @@ symlink alternative is removed (doctor reports symlinked shims as drift); the
 Pattern tree is a compact, current listing. `docs/arbiter-integration.md`
 adds the `violates` and `classified_as` edges, the two-report findings source,
 the gate's graph rebuild and `graph_cwe`.
+`tests/test_docs.py` fails when a subcommand, MCP tool or graph-config key is
+missing from the README, or when an internal Markdown link or anchor (outside
+`arbiter/`) does not resolve.
 - `REQ-056` | Requirements | `clarify` skill for gathering requirements in plan
 mode (`.claude/skills/clarify/SKILL.md`): frame the problem, read the code and
 `omni graph why` before asking, ask at most 4 ranked questions per round,
