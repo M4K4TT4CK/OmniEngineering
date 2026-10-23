@@ -1,6 +1,24 @@
 #!/usr/bin/env python3
 import sys
 
+# make_ai.py uses modern syntax (e.g. `list[str] | None`) at module level, so
+# importing it under an interpreter older than 3.10 fails with a raw
+# SyntaxError from deep inside the module instead of a message that explains
+# what's actually wrong. pyproject.toml already declares
+# `requires-python = ">=3.10"`, but nothing enforced it at the actual entry
+# point — and `env python3` picks up whatever `python3` resolves to first on
+# PATH, which on macOS is commonly the system install (3.9). Check before the
+# import, with syntax old enough to run on any Python 3.x so the message
+# itself doesn't fail the same way.
+if sys.version_info < (3, 10):
+    sys.exit(
+        "OmniEngineering requires Python 3.10 or newer (found {}.{}).\n"
+        "Install a newer Python (e.g. via pyenv, uv, or your system package "
+        "manager) and re-run `omni` with that interpreter.".format(
+            sys.version_info.major, sys.version_info.minor
+        )
+    )
+
 sys.dont_write_bytecode = True
 
 from make_ai import main
