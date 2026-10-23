@@ -1,5 +1,5 @@
 {
- "_about": "Per-rule precision ledger (docs/precision.md). Built by tools/precision_ledger.py from label files; do not edit by hand. A rule is admitted when its Wilson 95% lower bound reaches bar.rule_lower on at least bar.rule_min_n TP+FP labels, with labeller kappa at least bar.kappa_min where two labellers looked. `tier` is the claim: verified-tier precision on held-out labels only, overall and per category.",
+ "_about": "Per-rule precision ledger (docs/precision.md). Built by tools/precision_ledger.py from label files; do not edit by hand. A rule is admitted when its Wilson 95% lower bound reaches bar.rule_lower on at least bar.rule_min_n TP+FP labels, with labeller kappa at least bar.kappa_min where two labellers looked. `tier` is the claim: verified-tier precision on held-out labels only, stratified by (rule, source, language) and weighted by each stratum's population, overall and per category.",
  "version": 1,
  "bar": {
   "rule_lower": 0.97,
@@ -33,7 +33,60 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 2,
+   "population": 7,
+   "held_out_population": 1,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "toml",
+     "population": 3,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "yaml",
+     "population": 4,
+     "held_out_population": 1,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 11,
+     "held_out_population": 2
+    }
+   },
+   "weighted": {
+    "precision": 0.4286,
+    "wilson_lower": 0.0704,
+    "wilson_upper": 0.8813,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 1,
+    "fp": 1,
+    "population": 7,
+    "strata": 2,
+    "pooled": {
+     "precision": 0.5,
+     "wilson_lower": 0.0945
+    }
+   },
    "dimension": "",
    "cwe": [],
    "fp_notes": [],
@@ -68,7 +121,60 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 125,
+   "population": 150,
+   "held_out_population": 20,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 62,
+     "held_out_population": 1,
+     "tp": 56,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 88,
+     "held_out_population": 19,
+     "tp": 69,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 17,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 150,
+     "held_out_population": 20
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.97,
+    "wilson_upper": 1.0,
+    "n_eff": 124.4,
+    "n_eff_kish": 124.4,
+    "tp": 125,
+    "fp": 0,
+    "population": 150,
+    "strata": 2,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.9702
+    }
+   },
    "dimension": "",
    "cwe": [],
    "fp_notes": [],
@@ -103,7 +209,74 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 5,
+   "population": 191,
+   "held_out_population": 69,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 112,
+     "held_out_population": 49,
+     "tp": 3,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 41,
+     "held_out_population": 1,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 38,
+     "held_out_population": 19,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 192,
+     "held_out_population": 69
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.5652,
+    "wilson_upper": 1.0,
+    "n_eff": 5.0,
+    "n_eff_kish": 5.0,
+    "tp": 5,
+    "fp": 0,
+    "population": 191,
+    "strata": 3,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.5655
+    }
+   },
    "dimension": "",
    "cwe": [],
    "fp_notes": [],
@@ -140,7 +313,92 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 8,
+   "population": 75,
+   "held_out_population": 26,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "python",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 14,
+     "held_out_population": 3,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 13,
+     "held_out_population": 0,
+     "tp": 2,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 47,
+     "held_out_population": 23,
+     "tp": 1,
+     "fp": 3,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    },
+    "gold-model": {
+     "population": 74,
+     "held_out_population": 26
+    }
+   },
+   "weighted": {
+    "precision": 0.5167,
+    "wilson_lower": 0.2096,
+    "wilson_upper": 0.8117,
+    "n_eff": 6.7,
+    "n_eff_kish": 6.7,
+    "tp": 4,
+    "fp": 4,
+    "population": 75,
+    "strata": 4,
+    "pooled": {
+     "precision": 0.5,
+     "wilson_lower": 0.2152
+    }
+   },
    "dimension": "",
    "cwe": [
     "CWE-1164"
@@ -177,7 +435,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 4,
+   "population": 5,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 5,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 4,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 5,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.4899,
+    "n_eff": 4.0,
+    "n_eff_kish": 4.0,
+    "tp": 0,
+    "fp": 4,
+    "population": 5,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "",
    "cwe": [],
    "fp_notes": [],
@@ -212,7 +509,102 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 6,
+   "population": 82,
+   "held_out_population": 28,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 33,
+     "held_out_population": 11,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 1,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "html",
+     "population": 4,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 11,
+     "held_out_population": 3,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 30,
+     "held_out_population": 11,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 1,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "yaml",
+     "population": 4,
+     "held_out_population": 3,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 86,
+     "held_out_population": 29
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.4772,
+    "n_eff": 4.2,
+    "n_eff_kish": 4.2,
+    "tp": 0,
+    "fp": 6,
+    "population": 82,
+    "strata": 5,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "",
    "cwe": [
     "CWE-295"
@@ -249,7 +641,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 5,
+   "population": 52,
+   "held_out_population": 3,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 52,
+     "held_out_population": 3,
+     "tp": 0,
+     "fp": 5,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 52,
+     "held_out_population": 3
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.4345,
+    "n_eff": 5.0,
+    "n_eff_kish": 5.0,
+    "tp": 0,
+    "fp": 5,
+    "population": 52,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "",
    "cwe": [
     "CWE-1164"
@@ -286,7 +717,60 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 2,
+   "population": 3,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 2,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 3,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.6809,
+    "n_eff": 1.8,
+    "n_eff_kish": 1.8,
+    "tp": 0,
+    "fp": 2,
+    "population": 3,
+    "strata": 2,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "",
    "cwe": [
     "CWE-1357"
@@ -323,7 +807,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 2,
+   "population": 12,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 12,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 12,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.6576,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 0,
+    "fp": 2,
+    "population": 12,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "",
    "cwe": [
     "CWE-362"
@@ -360,7 +883,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 1,
+   "population": 2,
+   "held_out_population": 2,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "json",
+     "population": 2,
+     "held_out_population": 2,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 1,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 2,
+     "held_out_population": 2
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.7935,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 0,
+    "fp": 1,
+    "population": 2,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "",
    "cwe": [],
    "fp_notes": [],
@@ -396,6 +958,45 @@
    ],
    "dates": {},
    "population": 1,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "json",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.7935,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 0,
+    "fp": 1,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "",
    "cwe": [],
    "fp_notes": [],
@@ -431,7 +1032,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 6,
+   "population": 582,
+   "held_out_population": 94,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "markdown",
+     "population": 582,
+     "held_out_population": 94,
+     "tp": 3,
+     "fp": 3,
+     "unsure": 0,
+     "held_out": {
+      "tp": 2,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 582,
+     "held_out_population": 94
+    }
+   },
+   "weighted": {
+    "precision": 0.5,
+    "wilson_lower": 0.1876,
+    "wilson_upper": 0.8124,
+    "n_eff": 6.0,
+    "n_eff_kish": 6.0,
+    "tp": 3,
+    "fp": 3,
+    "population": 582,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.5,
+     "wilson_lower": 0.1876
+    }
+   },
    "dimension": "",
    "cwe": [],
    "fp_notes": [],
@@ -466,7 +1106,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 6,
+   "population": 105,
+   "held_out_population": 12,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "markdown",
+     "population": 105,
+     "held_out_population": 12,
+     "tp": 0,
+     "fp": 6,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 1,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 105,
+     "held_out_population": 12
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.3903,
+    "n_eff": 6.0,
+    "n_eff_kish": 6.0,
+    "tp": 0,
+    "fp": 6,
+    "population": 105,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "",
    "cwe": [],
    "fp_notes": [],
@@ -502,7 +1181,64 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 4,
+   "population": 8,
+   "held_out_population": 5,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "markdown",
+     "population": 7,
+     "held_out_population": 5,
+     "tp": 0,
+     "fp": 3,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 2,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    },
+    "gold-model": {
+     "population": 7,
+     "held_out_population": 5
+    }
+   },
+   "weighted": {
+    "precision": 0.125,
+    "wilson_lower": 0.0123,
+    "wilson_upper": 0.6201,
+    "n_eff": 3.7,
+    "n_eff_kish": 3.7,
+    "tp": 1,
+    "fp": 3,
+    "population": 8,
+    "strata": 2,
+    "pooled": {
+     "precision": 0.25,
+     "wilson_lower": 0.0456
+    }
+   },
    "dimension": "",
    "cwe": [],
    "fp_notes": [],
@@ -537,7 +1273,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 2,
+   "population": 3,
+   "held_out_population": 3,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 3,
+     "held_out_population": 3,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 2,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 3,
+     "held_out_population": 3
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.6576,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 0,
+    "fp": 2,
+    "population": 3,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-362",
@@ -575,7 +1350,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 2,
+   "population": 3,
+   "held_out_population": 2,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 3,
+     "held_out_population": 2,
+     "tp": 1,
+     "fp": 1,
+     "unsure": 1,
+     "held_out": {
+      "tp": 1,
+      "fp": 1,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 3,
+     "held_out_population": 2
+    }
+   },
+   "weighted": {
+    "precision": 0.5,
+    "wilson_lower": 0.0945,
+    "wilson_upper": 0.9055,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 1,
+    "fp": 1,
+    "population": 3,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.5,
+     "wilson_lower": 0.0945
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-78"
@@ -613,6 +1427,45 @@
    ],
    "dates": {},
    "population": 12,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "go",
+     "population": 12,
+     "held_out_population": 0,
+     "tp": 12,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 12,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.7575,
+    "wilson_upper": 1.0,
+    "n_eff": 12.0,
+    "n_eff_kish": 12.0,
+    "tp": 12,
+    "fp": 0,
+    "population": 12,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.7575
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-400"
@@ -650,6 +1503,45 @@
    ],
    "dates": {},
    "population": 6,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 6,
+     "held_out_population": 0,
+     "tp": 5,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 6,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.8333,
+    "wilson_lower": 0.4365,
+    "wilson_upper": 0.9699,
+    "n_eff": 6.0,
+    "n_eff_kish": 6.0,
+    "tp": 5,
+    "fp": 1,
+    "population": 6,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.8333,
+     "wilson_lower": 0.4365
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-200",
@@ -687,7 +1579,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 3,
+   "population": 8,
+   "held_out_population": 5,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 8,
+     "held_out_population": 5,
+     "tp": 2,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 1,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 8,
+     "held_out_population": 5
+    }
+   },
+   "weighted": {
+    "precision": 0.6667,
+    "wilson_lower": 0.2077,
+    "wilson_upper": 0.9385,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 2,
+    "fp": 1,
+    "population": 8,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.6667,
+     "wilson_lower": 0.2077
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-400"
@@ -725,6 +1656,45 @@
    ],
    "dates": {},
    "population": 7,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 7,
+     "held_out_population": 0,
+     "tp": 7,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 7,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.6457,
+    "wilson_upper": 1.0,
+    "n_eff": 7.0,
+    "n_eff_kish": 7.0,
+    "tp": 7,
+    "fp": 0,
+    "population": 7,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.6457
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-400"
@@ -761,7 +1731,46 @@
     "ai-corpus-model"
    ],
    "dates": {},
-   "population": 2,
+   "population": 5,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "go",
+     "population": 5,
+     "held_out_population": 0,
+     "tp": 2,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 5,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.3424,
+    "wilson_upper": 1.0,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 2,
+    "fp": 0,
+    "population": 5,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.3424
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-252"
@@ -799,6 +1808,45 @@
    ],
    "dates": {},
    "population": 2,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "go",
+     "population": 2,
+     "held_out_population": 0,
+     "tp": 2,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 2,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.3424,
+    "wilson_upper": 1.0,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 2,
+    "fp": 0,
+    "population": 2,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.3424
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-252"
@@ -836,6 +1884,45 @@
    ],
    "dates": {},
    "population": 2,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "go",
+     "population": 2,
+     "held_out_population": 0,
+     "tp": 2,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 2,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.3424,
+    "wilson_upper": 1.0,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 2,
+    "fp": 0,
+    "population": 2,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.3424
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-400",
@@ -874,6 +1961,45 @@
    ],
    "dates": {},
    "population": 1,
+   "held_out_population": 1,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 1,
+     "held_out_population": 1,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 1,
+     "held_out_population": 1
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.2065,
+    "wilson_upper": 1.0,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 1,
+    "fp": 0,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.2065
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-200",
@@ -912,6 +2038,45 @@
    ],
    "dates": {},
    "population": 2,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 2,
+     "held_out_population": 0,
+     "tp": 2,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 2,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.3424,
+    "wilson_upper": 1.0,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 2,
+    "fp": 0,
+    "population": 2,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.3424
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-400",
@@ -951,6 +2116,63 @@
    ],
    "dates": {},
    "population": 2,
+   "held_out_population": 1,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "go",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 1,
+     "held_out_population": 1,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    },
+    "gold-model": {
+     "population": 1,
+     "held_out_population": 1
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.3424,
+    "wilson_upper": 1.0,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 2,
+    "fp": 0,
+    "population": 2,
+    "strata": 2,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.3424
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-400"
@@ -987,7 +2209,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 2,
+   "population": 5,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 5,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 5,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.5,
+    "wilson_lower": 0.0945,
+    "wilson_upper": 0.9055,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 1,
+    "fp": 1,
+    "population": 5,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.5,
+     "wilson_lower": 0.0945
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-400",
@@ -1026,6 +2287,45 @@
    ],
    "dates": {},
    "population": 3,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "go",
+     "population": 3,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 3,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 3,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.5615,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 0,
+    "fp": 3,
+    "population": 3,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-89"
@@ -1062,7 +2362,32 @@
     "ai-corpus-model"
    ],
    "dates": {},
-   "population": 0,
+   "population": 1,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "go",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 0,
+     "unsure": 1,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": null,
    "dimension": "security",
    "cwe": [
     "CWE-918"
@@ -1099,7 +2424,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 2,
+   "population": 4,
+   "held_out_population": 3,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 4,
+     "held_out_population": 3,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 2,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 4,
+     "held_out_population": 3
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.6576,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 0,
+    "fp": 2,
+    "population": 4,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-1164"
@@ -1137,6 +2501,45 @@
    ],
    "dates": {},
    "population": 3,
+   "held_out_population": 3,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 3,
+     "held_out_population": 3,
+     "tp": 0,
+     "fp": 3,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 3,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 3,
+     "held_out_population": 3
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.5615,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 0,
+    "fp": 3,
+    "population": 3,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-1164"
@@ -1173,7 +2576,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 2,
+   "population": 3,
+   "held_out_population": 1,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 3,
+     "held_out_population": 1,
+     "tp": 2,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 3,
+     "held_out_population": 1
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.3424,
+    "wilson_upper": 1.0,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 2,
+    "fp": 0,
+    "population": 3,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.3424
+    }
+   },
    "dimension": "assurance",
    "cwe": [
     "CWE-1164"
@@ -1210,7 +2652,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 3,
+   "population": 9,
+   "held_out_population": 4,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 9,
+     "held_out_population": 4,
+     "tp": 2,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 9,
+     "held_out_population": 4
+    }
+   },
+   "weighted": {
+    "precision": 0.6667,
+    "wilson_lower": 0.2077,
+    "wilson_upper": 0.9385,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 2,
+    "fp": 1,
+    "population": 9,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.6667,
+     "wilson_lower": 0.2077
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-835"
@@ -1248,6 +2729,45 @@
    ],
    "dates": {},
    "population": 2,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 2,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 2,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.6576,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 0,
+    "fp": 2,
+    "population": 2,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-362",
@@ -1289,7 +2809,82 @@
     "owasp-java"
    ],
    "dates": {},
-   "population": 874,
+   "population": 877,
+   "held_out_population": 875,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 5,
+     "held_out_population": 3,
+     "tp": 1,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "juliet-java",
+     "language": "java",
+     "population": 660,
+     "held_out_population": 660,
+     "tp": 444,
+     "fp": 216,
+     "unsure": 0,
+     "held_out": {
+      "tp": 444,
+      "fp": 216,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "owasp-java",
+     "language": "java",
+     "population": 212,
+     "held_out_population": 212,
+     "tp": 126,
+     "fp": 86,
+     "unsure": 0,
+     "held_out": {
+      "tp": 126,
+      "fp": 86,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 5,
+     "held_out_population": 3
+    },
+    "juliet-java": {
+     "population": 660,
+     "held_out_population": 660
+    },
+    "owasp-java": {
+     "population": 212,
+     "held_out_population": 212
+    }
+   },
+   "weighted": {
+    "precision": 0.6528,
+    "wilson_lower": 0.6205,
+    "wilson_upper": 0.6837,
+    "n_eff": 869.6,
+    "n_eff_kish": 869.6,
+    "tp": 571,
+    "fp": 303,
+    "population": 877,
+    "strata": 3,
+    "pooled": {
+     "precision": 0.6533,
+     "wilson_lower": 0.6212
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-78"
@@ -1327,6 +2922,45 @@
    ],
    "dates": {},
    "population": 1,
+   "held_out_population": 1,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 1,
+     "held_out_population": 1,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 1,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 1,
+     "held_out_population": 1
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.7935,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 0,
+    "fp": 1,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-400",
@@ -1365,6 +2999,45 @@
    ],
    "dates": {},
    "population": 1,
+   "held_out_population": 1,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 1,
+     "held_out_population": 1,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 1,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 1,
+     "held_out_population": 1
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.7935,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 0,
+    "fp": 1,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-295"
@@ -1402,6 +3075,45 @@
    ],
    "dates": {},
    "population": 2,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "java",
+     "population": 2,
+     "held_out_population": 0,
+     "tp": 2,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 2,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.3424,
+    "wilson_upper": 1.0,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 2,
+    "fp": 0,
+    "population": 2,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.3424
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-400",
@@ -1439,7 +3151,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 3,
+   "population": 8,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 8,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 3,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 8,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.5615,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 0,
+    "fp": 3,
+    "population": 8,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-502"
@@ -1477,6 +3228,45 @@
    ],
    "dates": {},
    "population": 1,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "java",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.2065,
+    "wilson_upper": 1.0,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 1,
+    "fp": 0,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.2065
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-319"
@@ -1514,7 +3304,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 4,
+   "population": 8,
+   "held_out_population": 4,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 8,
+     "held_out_population": 4,
+     "tp": 2,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 1,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 8,
+     "held_out_population": 4
+    }
+   },
+   "weighted": {
+    "precision": 0.5,
+    "wilson_lower": 0.15,
+    "wilson_upper": 0.85,
+    "n_eff": 4.0,
+    "n_eff_kish": 4.0,
+    "tp": 2,
+    "fp": 2,
+    "population": 8,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.5,
+     "wilson_lower": 0.15
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-502"
@@ -1552,6 +3381,45 @@
    ],
    "dates": {},
    "population": 4,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 4,
+     "held_out_population": 0,
+     "tp": 4,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 4,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.5101,
+    "wilson_upper": 1.0,
+    "n_eff": 4.0,
+    "n_eff_kish": 4.0,
+    "tp": 4,
+    "fp": 0,
+    "population": 4,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.5101
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-400"
@@ -1589,6 +3457,45 @@
    ],
    "dates": {},
    "population": 1,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "java",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.2065,
+    "wilson_upper": 1.0,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 1,
+    "fp": 0,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.2065
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-400"
@@ -1625,7 +3532,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 1,
+   "population": 2,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 2,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 2,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.7935,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 0,
+    "fp": 1,
+    "population": 2,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-400",
@@ -1666,7 +3612,82 @@
     "owasp-java"
    ],
    "dates": {},
-   "population": 3632,
+   "population": 3633,
+   "held_out_population": 3633,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 2,
+     "held_out_population": 2,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 1,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "juliet-java",
+     "language": "java",
+     "population": 3300,
+     "held_out_population": 3300,
+     "tp": 2220,
+     "fp": 1080,
+     "unsure": 0,
+     "held_out": {
+      "tp": 2220,
+      "fp": 1080,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "owasp-java",
+     "language": "java",
+     "population": 331,
+     "held_out_population": 331,
+     "tp": 272,
+     "fp": 59,
+     "unsure": 0,
+     "held_out": {
+      "tp": 272,
+      "fp": 59,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 2,
+     "held_out_population": 2
+    },
+    "juliet-java": {
+     "population": 3300,
+     "held_out_population": 3300
+    },
+    "owasp-java": {
+     "population": 331,
+     "held_out_population": 331
+    }
+   },
+   "weighted": {
+    "precision": 0.6859,
+    "wilson_lower": 0.6706,
+    "wilson_upper": 0.7008,
+    "n_eff": 3631.0,
+    "n_eff_kish": 3631.0,
+    "tp": 2492,
+    "fp": 1140,
+    "population": 3633,
+    "strata": 3,
+    "pooled": {
+     "precision": 0.6861,
+     "wilson_lower": 0.6708
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-89"
@@ -1703,7 +3724,32 @@
     "ai-corpus-model"
    ],
    "dates": {},
-   "population": 0,
+   "population": 1,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "java",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 0,
+     "unsure": 1,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": null,
    "dimension": "security",
    "cwe": [
     "CWE-918"
@@ -1740,7 +3786,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 7,
+   "population": 56,
+   "held_out_population": 27,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 56,
+     "held_out_population": 27,
+     "tp": 0,
+     "fp": 7,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 56,
+     "held_out_population": 27
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.3543,
+    "n_eff": 7.0,
+    "n_eff_kish": 7.0,
+    "tp": 0,
+    "fp": 7,
+    "population": 56,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-1164"
@@ -1777,7 +3862,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 4,
+   "population": 26,
+   "held_out_population": 19,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 26,
+     "held_out_population": 19,
+     "tp": 3,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 1,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 26,
+     "held_out_population": 19
+    }
+   },
+   "weighted": {
+    "precision": 0.75,
+    "wilson_lower": 0.3006,
+    "wilson_upper": 0.9544,
+    "n_eff": 4.0,
+    "n_eff_kish": 4.0,
+    "tp": 3,
+    "fp": 1,
+    "population": 26,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.75,
+     "wilson_lower": 0.3006
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-391",
@@ -1816,7 +3940,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 6,
+   "population": 199,
+   "held_out_population": 45,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 199,
+     "held_out_population": 45,
+     "tp": 2,
+     "fp": 4,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 199,
+     "held_out_population": 45
+    }
+   },
+   "weighted": {
+    "precision": 0.3333,
+    "wilson_lower": 0.0968,
+    "wilson_upper": 0.7,
+    "n_eff": 6.0,
+    "n_eff_kish": 6.0,
+    "tp": 2,
+    "fp": 4,
+    "population": 199,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.3333,
+     "wilson_lower": 0.0968
+    }
+   },
    "dimension": "assurance",
    "cwe": [
     "CWE-1164"
@@ -1853,7 +4016,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 2,
+   "population": 6,
+   "held_out_population": 5,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 6,
+     "held_out_population": 5,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 2,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 6,
+     "held_out_population": 5
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.6576,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 0,
+    "fp": 2,
+    "population": 6,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-295"
@@ -1890,7 +4092,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 2,
+   "population": 8,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 8,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 8,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.6576,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 0,
+    "fp": 2,
+    "population": 8,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-362",
@@ -1929,6 +4170,45 @@
    ],
    "dates": {},
    "population": 1,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "java",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.2065,
+    "wilson_upper": 1.0,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 1,
+    "fp": 0,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.2065
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-434"
@@ -1965,7 +4245,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 3,
+   "population": 4,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 4,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 3,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 4,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.5615,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 0,
+    "fp": 3,
+    "population": 4,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-400"
@@ -2003,6 +4322,45 @@
    ],
    "dates": {},
    "population": 218,
+   "held_out_population": 218,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "owasp-java",
+     "language": "java",
+     "population": 218,
+     "held_out_population": 218,
+     "tp": 218,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 218,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "owasp-java": {
+     "population": 218,
+     "held_out_population": 218
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.9827,
+    "wilson_upper": 1.0,
+    "n_eff": 218.0,
+    "n_eff_kish": 218.0,
+    "tp": 218,
+    "fp": 0,
+    "population": 218,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.9827
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-330",
@@ -2042,6 +4400,63 @@
    ],
    "dates": {},
    "population": 435,
+   "held_out_population": 435,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "juliet-java",
+     "language": "java",
+     "population": 162,
+     "held_out_population": 162,
+     "tp": 162,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 162,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "owasp-java",
+     "language": "java",
+     "population": 273,
+     "held_out_population": 273,
+     "tp": 220,
+     "fp": 53,
+     "unsure": 0,
+     "held_out": {
+      "tp": 220,
+      "fp": 53,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "juliet-java": {
+     "population": 162,
+     "held_out_population": 162
+    },
+    "owasp-java": {
+     "population": 273,
+     "held_out_population": 273
+    }
+   },
+   "weighted": {
+    "precision": 0.8782,
+    "wilson_lower": 0.8441,
+    "wilson_upper": 0.9056,
+    "n_eff": 435.0,
+    "n_eff_kish": 435.0,
+    "tp": 382,
+    "fp": 53,
+    "population": 435,
+    "strata": 2,
+    "pooled": {
+     "precision": 0.8782,
+     "wilson_lower": 0.8441
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-79"
@@ -2080,7 +4495,64 @@
     "owasp-python"
    ],
    "dates": {},
-   "population": 34,
+   "population": 38,
+   "held_out_population": 31,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 7,
+     "held_out_population": 0,
+     "tp": 2,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "owasp-python",
+     "language": "python",
+     "population": 31,
+     "held_out_population": 31,
+     "tp": 20,
+     "fp": 11,
+     "unsure": 0,
+     "held_out": {
+      "tp": 20,
+      "fp": 11,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 7,
+     "held_out_population": 0
+    },
+    "owasp-python": {
+     "population": 31,
+     "held_out_population": 31
+    }
+   },
+   "weighted": {
+    "precision": 0.6491,
+    "wilson_lower": 0.472,
+    "wilson_upper": 0.7929,
+    "n_eff": 30.5,
+    "n_eff_kish": 30.5,
+    "tp": 22,
+    "fp": 12,
+    "population": 38,
+    "strata": 2,
+    "pooled": {
+     "precision": 0.6471,
+     "wilson_lower": 0.4791
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-95"
@@ -2118,6 +4590,45 @@
    ],
    "dates": {},
    "population": 13,
+   "held_out_population": 13,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "owasp-python",
+     "language": "python",
+     "population": 13,
+     "held_out_population": 13,
+     "tp": 7,
+     "fp": 6,
+     "unsure": 0,
+     "held_out": {
+      "tp": 7,
+      "fp": 6,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "owasp-python": {
+     "population": 13,
+     "held_out_population": 13
+    }
+   },
+   "weighted": {
+    "precision": 0.5385,
+    "wilson_lower": 0.2914,
+    "wilson_upper": 0.7679,
+    "n_eff": 13.0,
+    "n_eff_kish": 13.0,
+    "tp": 7,
+    "fp": 6,
+    "population": 13,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.5385,
+     "wilson_lower": 0.2914
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-78"
@@ -2155,6 +4666,45 @@
    ],
    "dates": {},
    "population": 3,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 3,
+     "held_out_population": 0,
+     "tp": 2,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 3,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.6667,
+    "wilson_lower": 0.2077,
+    "wilson_upper": 0.9385,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 2,
+    "fp": 1,
+    "population": 3,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.6667,
+     "wilson_lower": 0.2077
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-400"
@@ -2192,6 +4742,45 @@
    ],
    "dates": {},
    "population": 99,
+   "held_out_population": 99,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "owasp-python",
+     "language": "python",
+     "population": 99,
+     "held_out_population": 99,
+     "tp": 99,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 99,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "owasp-python": {
+     "population": 99,
+     "held_out_population": 99
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.9626,
+    "wilson_upper": 1.0,
+    "n_eff": 99.0,
+    "n_eff_kish": 99.0,
+    "tp": 99,
+    "fp": 0,
+    "population": 99,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.9626
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-338"
@@ -2229,6 +4818,45 @@
    ],
    "dates": {},
    "population": 2,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "python",
+     "population": 2,
+     "held_out_population": 0,
+     "tp": 2,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 2,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.3424,
+    "wilson_upper": 1.0,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 2,
+    "fp": 0,
+    "population": 2,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.3424
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-295"
@@ -2266,6 +4894,45 @@
    ],
    "dates": {},
    "population": 2,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "python",
+     "population": 2,
+     "held_out_population": 0,
+     "tp": 2,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 2,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.3424,
+    "wilson_upper": 1.0,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 2,
+    "fp": 0,
+    "population": 2,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.3424
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-400",
@@ -2304,6 +4971,45 @@
    ],
    "dates": {},
    "population": 1,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "python",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.2065,
+    "wilson_upper": 1.0,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 1,
+    "fp": 0,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.2065
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-400"
@@ -2344,7 +5050,100 @@
     "owasp-python"
    ],
    "dates": {},
-   "population": 22,
+   "population": 39,
+   "held_out_population": 18,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "cve-fix",
+     "language": "python",
+     "population": 8,
+     "held_out_population": 8,
+     "tp": 8,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 8,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "cve-fix-persists",
+     "language": "python",
+     "population": 5,
+     "held_out_population": 5,
+     "tp": 4,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 4,
+      "fp": 1,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 21,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 4,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "owasp-python",
+     "language": "python",
+     "population": 5,
+     "held_out_population": 5,
+     "tp": 5,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 5,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "cve-fix": {
+     "population": 8,
+     "held_out_population": 8
+    },
+    "cve-fix-persists": {
+     "population": 5,
+     "held_out_population": 5
+    },
+    "gold-model": {
+     "population": 21,
+     "held_out_population": 0
+    },
+    "owasp-python": {
+     "population": 5,
+     "held_out_population": 5
+    }
+   },
+   "weighted": {
+    "precision": 0.4359,
+    "wilson_lower": 0.2058,
+    "wilson_upper": 0.6974,
+    "n_eff": 11.9,
+    "n_eff_kish": 11.9,
+    "tp": 17,
+    "fp": 5,
+    "population": 39,
+    "strata": 4,
+    "pooled": {
+     "precision": 0.7727,
+     "wilson_lower": 0.5656
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-89"
@@ -2382,6 +5181,45 @@
    ],
    "dates": {},
    "population": 2,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 2,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 2,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.6576,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 0,
+    "fp": 2,
+    "population": 2,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-391",
@@ -2420,6 +5258,45 @@
    ],
    "dates": {},
    "population": 1,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.7935,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 0,
+    "fp": 1,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-835"
@@ -2458,7 +5335,64 @@
     "owasp-python"
    ],
    "dates": {},
-   "population": 33,
+   "population": 41,
+   "held_out_population": 30,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 11,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 3,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "owasp-python",
+     "language": "python",
+     "population": 30,
+     "held_out_population": 30,
+     "tp": 18,
+     "fp": 12,
+     "unsure": 0,
+     "held_out": {
+      "tp": 18,
+      "fp": 12,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 11,
+     "held_out_population": 0
+    },
+    "owasp-python": {
+     "population": 30,
+     "held_out_population": 30
+    }
+   },
+   "weighted": {
+    "precision": 0.439,
+    "wilson_lower": 0.2626,
+    "wilson_upper": 0.6323,
+    "n_eff": 23.9,
+    "n_eff_kish": 23.9,
+    "tp": 18,
+    "fp": 15,
+    "population": 41,
+    "strata": 2,
+    "pooled": {
+     "precision": 0.5455,
+     "wilson_lower": 0.3799
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-502"
@@ -2498,6 +5432,63 @@
    ],
    "dates": {},
    "population": 72,
+   "held_out_population": 71,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "owasp-python",
+     "language": "python",
+     "population": 71,
+     "held_out_population": 71,
+     "tp": 71,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 71,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 1,
+     "held_out_population": 0
+    },
+    "owasp-python": {
+     "population": 71,
+     "held_out_population": 71
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.9493,
+    "wilson_upper": 1.0,
+    "n_eff": 72.0,
+    "n_eff_kish": 72.0,
+    "tp": 72,
+    "fp": 0,
+    "population": 72,
+    "strata": 2,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.9493
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-327",
@@ -2536,6 +5527,45 @@
    ],
    "dates": {},
    "population": 8,
+   "held_out_population": 2,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "yaml",
+     "population": 8,
+     "held_out_population": 2,
+     "tp": 8,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 2,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 8,
+     "held_out_population": 2
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.6756,
+    "wilson_upper": 1.0,
+    "n_eff": 8.0,
+    "n_eff_kish": 8.0,
+    "tp": 8,
+    "fp": 0,
+    "population": 8,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.6756
+    }
+   },
    "dimension": "security",
    "cwe": [],
    "fp_notes": [],
@@ -2571,6 +5601,45 @@
    ],
    "dates": {},
    "population": 6,
+   "held_out_population": 2,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "yaml",
+     "population": 6,
+     "held_out_population": 2,
+     "tp": 6,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 2,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 6,
+     "held_out_population": 2
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.6097,
+    "wilson_upper": 1.0,
+    "n_eff": 6.0,
+    "n_eff_kish": 6.0,
+    "tp": 6,
+    "fp": 0,
+    "population": 6,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.6097
+    }
+   },
    "dimension": "supply_chain",
    "cwe": [],
    "fp_notes": [],
@@ -2606,7 +5675,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 7,
+   "population": 8,
+   "held_out_population": 2,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "yaml",
+     "population": 8,
+     "held_out_population": 2,
+     "tp": 7,
+     "fp": 0,
+     "unsure": 1,
+     "held_out": {
+      "tp": 2,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 8,
+     "held_out_population": 2
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.6457,
+    "wilson_upper": 1.0,
+    "n_eff": 7.0,
+    "n_eff_kish": 7.0,
+    "tp": 7,
+    "fp": 0,
+    "population": 8,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.6457
+    }
+   },
    "dimension": "quality",
    "cwe": [],
    "fp_notes": [],
@@ -2642,6 +5750,45 @@
    ],
    "dates": {},
    "population": 8,
+   "held_out_population": 2,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "yaml",
+     "population": 8,
+     "held_out_population": 2,
+     "tp": 8,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 2,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 8,
+     "held_out_population": 2
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.6756,
+    "wilson_upper": 1.0,
+    "n_eff": 8.0,
+    "n_eff_kish": 8.0,
+    "tp": 8,
+    "fp": 0,
+    "population": 8,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.6756
+    }
+   },
    "dimension": "security",
    "cwe": [],
    "fp_notes": [],
@@ -2676,7 +5823,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 7,
+   "population": 8,
+   "held_out_population": 2,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "yaml",
+     "population": 8,
+     "held_out_population": 2,
+     "tp": 7,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 2,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 8,
+     "held_out_population": 2
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.6457,
+    "wilson_upper": 1.0,
+    "n_eff": 7.0,
+    "n_eff_kish": 7.0,
+    "tp": 7,
+    "fp": 0,
+    "population": 8,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.6457
+    }
+   },
    "dimension": "security",
    "cwe": [],
    "fp_notes": [],
@@ -2712,6 +5898,45 @@
    ],
    "dates": {},
    "population": 8,
+   "held_out_population": 2,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "yaml",
+     "population": 8,
+     "held_out_population": 2,
+     "tp": 8,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 2,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 8,
+     "held_out_population": 2
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.6756,
+    "wilson_upper": 1.0,
+    "n_eff": 8.0,
+    "n_eff_kish": 8.0,
+    "tp": 8,
+    "fp": 0,
+    "population": 8,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.6756
+    }
+   },
    "dimension": "security",
    "cwe": [],
    "fp_notes": [],
@@ -2747,6 +5972,45 @@
    ],
    "dates": {},
    "population": 8,
+   "held_out_population": 2,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "yaml",
+     "population": 8,
+     "held_out_population": 2,
+     "tp": 8,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 2,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 8,
+     "held_out_population": 2
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.6756,
+    "wilson_upper": 1.0,
+    "n_eff": 8.0,
+    "n_eff_kish": 8.0,
+    "tp": 8,
+    "fp": 0,
+    "population": 8,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.6756
+    }
+   },
    "dimension": "security",
    "cwe": [],
    "fp_notes": [],
@@ -2782,7 +6046,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 3,
+   "population": 4,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 4,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 3,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 4,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.5615,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 0,
+    "fp": 3,
+    "population": 4,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-362",
@@ -2820,7 +6123,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 2,
+   "population": 3,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 3,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 3,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.6576,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 0,
+    "fp": 2,
+    "population": 3,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-470",
@@ -2858,7 +6200,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 3,
+   "population": 17,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 17,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 17,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.3333,
+    "wilson_lower": 0.0615,
+    "wilson_upper": 0.7923,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 1,
+    "fp": 2,
+    "population": 17,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.3333,
+     "wilson_lower": 0.0615
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-78"
@@ -2895,7 +6276,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 3,
+   "population": 13,
+   "held_out_population": 1,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 13,
+     "held_out_population": 1,
+     "tp": 1,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 13,
+     "held_out_population": 1
+    }
+   },
+   "weighted": {
+    "precision": 0.3333,
+    "wilson_lower": 0.0615,
+    "wilson_upper": 0.7923,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 1,
+    "fp": 2,
+    "population": 13,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.3333,
+     "wilson_lower": 0.0615
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-95"
@@ -2932,7 +6352,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 2,
+   "population": 4,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 4,
+     "held_out_population": 0,
+     "tp": 2,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 4,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.3424,
+    "wilson_upper": 1.0,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 2,
+    "fp": 0,
+    "population": 4,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.3424
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-400"
@@ -2971,7 +6430,64 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 6,
+   "population": 18,
+   "held_out_population": 4,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "cve-fix",
+     "language": "ruby",
+     "population": 4,
+     "held_out_population": 4,
+     "tp": 4,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 4,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 14,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "cve-fix": {
+     "population": 4,
+     "held_out_population": 4
+    },
+    "gold-model": {
+     "population": 14,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.6111,
+    "wilson_lower": 0.1833,
+    "wilson_upper": 0.9167,
+    "n_eff": 3.1,
+    "n_eff_kish": 3.2,
+    "tp": 5,
+    "fp": 1,
+    "population": 18,
+    "strata": 2,
+    "pooled": {
+     "precision": 0.8333,
+     "wilson_lower": 0.4365
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-502"
@@ -3009,7 +6525,64 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 2,
+   "population": 3,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "ruby",
+     "population": 2,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 2,
+     "held_out_population": 0
+    },
+    "gold-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.3191,
+    "wilson_upper": 1.0,
+    "n_eff": 1.8,
+    "n_eff_kish": 1.8,
+    "tp": 2,
+    "fp": 0,
+    "population": 3,
+    "strata": 2,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.3424
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-400",
@@ -3048,6 +6621,45 @@
    ],
    "dates": {},
    "population": 1,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "ruby",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.7935,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 0,
+    "fp": 1,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-400"
@@ -3084,7 +6696,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 9,
+   "population": 17,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 17,
+     "held_out_population": 0,
+     "tp": 9,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 17,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.7009,
+    "wilson_upper": 1.0,
+    "n_eff": 9.0,
+    "n_eff_kish": 9.0,
+    "tp": 9,
+    "fp": 0,
+    "population": 17,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.7009
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-396"
@@ -3122,7 +6773,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 4,
+   "population": 15,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 15,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 3,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 15,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.25,
+    "wilson_lower": 0.0456,
+    "wilson_upper": 0.6994,
+    "n_eff": 4.0,
+    "n_eff_kish": 4.0,
+    "tp": 1,
+    "fp": 3,
+    "population": 15,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.25,
+     "wilson_lower": 0.0456
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-400",
@@ -3160,7 +6850,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 1,
+   "population": 16,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 16,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 1,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 16,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.7935,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 0,
+    "fp": 1,
+    "population": 16,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-400"
@@ -3197,7 +6926,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 7,
+   "population": 11,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 11,
+     "held_out_population": 0,
+     "tp": 6,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 11,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.8571,
+    "wilson_lower": 0.4869,
+    "wilson_upper": 0.9743,
+    "n_eff": 7.0,
+    "n_eff_kish": 7.0,
+    "tp": 6,
+    "fp": 1,
+    "population": 11,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.8571,
+     "wilson_lower": 0.4869
+    }
+   },
    "dimension": "assurance",
    "cwe": [
     "CWE-1164"
@@ -3235,7 +7003,64 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 19,
+   "population": 21,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "ruby",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 20,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 18,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    },
+    "gold-model": {
+     "population": 20,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.1682,
+    "n_eff": 19.0,
+    "n_eff_kish": 19.0,
+    "tp": 0,
+    "fp": 19,
+    "population": 21,
+    "strata": 2,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-89"
@@ -3273,6 +7098,45 @@
    ],
    "dates": {},
    "population": 1,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "ruby",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.2065,
+    "wilson_upper": 1.0,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 1,
+    "fp": 0,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.2065
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-918"
@@ -3309,7 +7173,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 3,
+   "population": 10,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 10,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 3,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 10,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.5615,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 0,
+    "fp": 3,
+    "population": 10,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-1164"
@@ -3347,7 +7250,64 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 4,
+   "population": 16,
+   "held_out_population": 1,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "ruby",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 15,
+     "held_out_population": 1,
+     "tp": 3,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    },
+    "gold-model": {
+     "population": 15,
+     "held_out_population": 1
+    }
+   },
+   "weighted": {
+    "precision": 0.9375,
+    "wilson_lower": 0.4119,
+    "wilson_upper": 0.9969,
+    "n_eff": 3.4,
+    "n_eff_kish": 3.4,
+    "tp": 3,
+    "fp": 1,
+    "population": 16,
+    "strata": 2,
+    "pooled": {
+     "precision": 0.75,
+     "wilson_lower": 0.3006
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-391",
@@ -3386,6 +7346,45 @@
    ],
    "dates": {},
    "population": 2,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 2,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 2,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.6576,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 0,
+    "fp": 2,
+    "population": 2,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-295"
@@ -3422,7 +7421,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 2,
+   "population": 8,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 8,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 8,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.5,
+    "wilson_lower": 0.0945,
+    "wilson_upper": 0.9055,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 1,
+    "fp": 1,
+    "population": 8,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.5,
+     "wilson_lower": 0.0945
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-362",
@@ -3460,7 +7498,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 2,
+   "population": 3,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 3,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 3,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.6576,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 0,
+    "fp": 2,
+    "population": 3,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "assurance",
    "cwe": [
     "CWE-1164"
@@ -3497,7 +7574,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 2,
+   "population": 11,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 11,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 11,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.6576,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 0,
+    "fp": 2,
+    "population": 11,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-502"
@@ -3534,7 +7650,116 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 6,
+   "population": 140,
+   "held_out_population": 49,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 23,
+     "held_out_population": 7,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 59,
+     "held_out_population": 31,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 1,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 10,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 35,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 8,
+     "held_out_population": 7,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 1,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "yaml",
+     "population": 5,
+     "held_out_population": 4,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 1,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 142,
+     "held_out_population": 51
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.5153,
+    "n_eff": 3.6,
+    "n_eff_kish": 3.6,
+    "tp": 0,
+    "fp": 6,
+    "population": 140,
+    "strata": 6,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "",
    "cwe": [
     "CWE-798"
@@ -3571,7 +7796,74 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 5,
+   "population": 115,
+   "held_out_population": 46,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 88,
+     "held_out_population": 46,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "kotlin",
+     "population": 3,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 24,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 115,
+     "held_out_population": 46
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.5477,
+    "n_eff": 3.2,
+    "n_eff_kish": 3.2,
+    "tp": 0,
+    "fp": 5,
+    "population": 115,
+    "strata": 3,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "",
    "cwe": [
     "CWE-798"
@@ -3608,7 +7900,60 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 2,
+   "population": 19,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 7,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 12,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 21,
+     "held_out_population": 1
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.6725,
+    "n_eff": 1.9,
+    "n_eff_kish": 1.9,
+    "tp": 0,
+    "fp": 2,
+    "population": 19,
+    "strata": 2,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "",
    "cwe": [
     "CWE-798"
@@ -3645,7 +7990,116 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 6,
+   "population": 114,
+   "held_out_population": 26,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 13,
+     "held_out_population": 8,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 46,
+     "held_out_population": 14,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 13,
+     "held_out_population": 2,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 26,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 15,
+     "held_out_population": 1,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "yaml",
+     "population": 1,
+     "held_out_population": 1,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 1,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 114,
+     "held_out_population": 26
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.498,
+    "n_eff": 3.9,
+    "n_eff_kish": 3.9,
+    "tp": 0,
+    "fp": 6,
+    "population": 114,
+    "strata": 6,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "",
    "cwe": [
     "CWE-798"
@@ -3682,7 +8136,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 3,
+   "population": 18,
+   "held_out_population": 2,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "yaml",
+     "population": 18,
+     "held_out_population": 2,
+     "tp": 0,
+     "fp": 3,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 18,
+     "held_out_population": 2
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.5615,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 0,
+    "fp": 3,
+    "population": 18,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "",
    "cwe": [
     "CWE-829"
@@ -3720,7 +8213,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 116,
+   "population": 273,
+   "held_out_population": 41,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "yaml",
+     "population": 273,
+     "held_out_population": 41,
+     "tp": 113,
+     "fp": 3,
+     "unsure": 0,
+     "held_out": {
+      "tp": 17,
+      "fp": 1,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 273,
+     "held_out_population": 41
+    }
+   },
+   "weighted": {
+    "precision": 0.9741,
+    "wilson_lower": 0.9267,
+    "wilson_upper": 0.9912,
+    "n_eff": 116.0,
+    "n_eff_kish": 116.0,
+    "tp": 113,
+    "fp": 3,
+    "population": 273,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.9741,
+     "wilson_lower": 0.9267
+    }
+   },
    "dimension": "",
    "cwe": [
     "CWE-1357",
@@ -3760,7 +8292,64 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 27,
+   "population": 464,
+   "held_out_population": 188,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "",
+     "population": 47,
+     "held_out_population": 0,
+     "tp": 21,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "json",
+     "population": 417,
+     "held_out_population": 188,
+     "tp": 0,
+     "fp": 6,
+     "unsure": 1,
+     "held_out": {
+      "tp": 0,
+      "fp": 1,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 47,
+     "held_out_population": 0
+    },
+    "gold-model": {
+     "population": 417,
+     "held_out_population": 188
+    }
+   },
+   "weighted": {
+    "precision": 0.1013,
+    "wilson_lower": 0.0147,
+    "wilson_upper": 0.4604,
+    "n_eff": 7.4,
+    "n_eff_kish": 7.4,
+    "tp": 21,
+    "fp": 6,
+    "population": 464,
+    "strata": 2,
+    "pooled": {
+     "precision": 0.7778,
+     "wilson_lower": 0.5924
+    }
+   },
    "dimension": "",
    "cwe": [
     "CWE-1357",
@@ -3799,7 +8388,64 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 16,
+   "population": 26,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "",
+     "population": 18,
+     "held_out_population": 0,
+     "tp": 8,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 8,
+     "held_out_population": 0,
+     "tp": 8,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 18,
+     "held_out_population": 0
+    },
+    "gold-model": {
+     "population": 8,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.7839,
+    "wilson_upper": 1.0,
+    "n_eff": 13.9,
+    "n_eff_kish": 13.9,
+    "tp": 16,
+    "fp": 0,
+    "population": 26,
+    "strata": 2,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.8064
+    }
+   },
    "dimension": "",
    "cwe": [
     "CWE-1357",
@@ -3838,7 +8484,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 4,
+   "population": 5,
+   "held_out_population": 3,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 5,
+     "held_out_population": 3,
+     "tp": 4,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 2,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 5,
+     "held_out_population": 3
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.5101,
+    "wilson_upper": 1.0,
+    "n_eff": 4.0,
+    "n_eff_kish": 4.0,
+    "tp": 4,
+    "fp": 0,
+    "population": 5,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.5101
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-400"
@@ -3876,7 +8561,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 3,
+   "population": 7,
+   "held_out_population": 1,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 7,
+     "held_out_population": 1,
+     "tp": 1,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 7,
+     "held_out_population": 1
+    }
+   },
+   "weighted": {
+    "precision": 0.3333,
+    "wilson_lower": 0.0615,
+    "wilson_upper": 0.7923,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 1,
+    "fp": 2,
+    "population": 7,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.3333,
+     "wilson_lower": 0.0615
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-391",
@@ -3915,7 +8639,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 3,
+   "population": 9,
+   "held_out_population": 1,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 9,
+     "held_out_population": 1,
+     "tp": 3,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 9,
+     "held_out_population": 1
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.4385,
+    "wilson_upper": 1.0,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 3,
+    "fp": 0,
+    "population": 9,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.4385
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-391",
@@ -3953,7 +8716,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 6,
+   "population": 15,
+   "held_out_population": 1,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 15,
+     "held_out_population": 1,
+     "tp": 6,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 15,
+     "held_out_population": 1
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.6097,
+    "wilson_upper": 1.0,
+    "n_eff": 6.0,
+    "n_eff_kish": 6.0,
+    "tp": 6,
+    "fp": 0,
+    "population": 15,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.6097
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-400"
@@ -3990,7 +8792,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 7,
+   "population": 9,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 9,
+     "held_out_population": 0,
+     "tp": 7,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 9,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.6457,
+    "wilson_upper": 1.0,
+    "n_eff": 7.0,
+    "n_eff_kish": 7.0,
+    "tp": 7,
+    "fp": 0,
+    "population": 9,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.6457
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-400"
@@ -4027,7 +8868,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 2,
+   "population": 4,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 4,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 4,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.6576,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 0,
+    "fp": 2,
+    "population": 4,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-79"
@@ -4065,6 +8945,45 @@
    ],
    "dates": {},
    "population": 1,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "typescript",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.2065,
+    "wilson_upper": 1.0,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 1,
+    "fp": 0,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.2065
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-319"
@@ -4102,7 +9021,64 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 6,
+   "population": 10,
+   "held_out_population": 1,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "typescript",
+     "population": 3,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 7,
+     "held_out_population": 1,
+     "tp": 1,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 3,
+     "held_out_population": 0
+    },
+    "gold-model": {
+     "population": 7,
+     "held_out_population": 1
+    }
+   },
+   "weighted": {
+    "precision": 0.3333,
+    "wilson_lower": 0.0885,
+    "wilson_upper": 0.7202,
+    "n_eff": 5.2,
+    "n_eff_kish": 5.2,
+    "tp": 2,
+    "fp": 4,
+    "population": 10,
+    "strata": 2,
+    "pooled": {
+     "precision": 0.3333,
+     "wilson_lower": 0.0968
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-391",
@@ -4140,7 +9116,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 4,
+   "population": 5,
+   "held_out_population": 3,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 5,
+     "held_out_population": 3,
+     "tp": 4,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 3,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 5,
+     "held_out_population": 3
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.5101,
+    "wilson_upper": 1.0,
+    "n_eff": 4.0,
+    "n_eff_kish": 4.0,
+    "tp": 4,
+    "fp": 0,
+    "population": 5,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.5101
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-400",
@@ -4179,6 +9194,45 @@
    ],
    "dates": {},
    "population": 1,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.7935,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 0,
+    "fp": 1,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-400",
@@ -4219,6 +9273,63 @@
    ],
    "dates": {},
    "population": 5,
+   "held_out_population": 1,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "cve-fix",
+     "language": "typescript",
+     "population": 1,
+     "held_out_population": 1,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 4,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 4,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "cve-fix": {
+     "population": 1,
+     "held_out_population": 1
+    },
+    "gold-model": {
+     "population": 4,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.2,
+    "wilson_lower": 0.0362,
+    "wilson_upper": 0.6245,
+    "n_eff": 5.0,
+    "n_eff_kish": 5.0,
+    "tp": 1,
+    "fp": 4,
+    "population": 5,
+    "strata": 2,
+    "pooled": {
+     "precision": 0.2,
+     "wilson_lower": 0.0362
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-78"
@@ -4256,6 +9367,45 @@
    ],
    "dates": {},
    "population": 1,
+   "held_out_population": 1,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 1,
+     "held_out_population": 1,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 1,
+     "held_out_population": 1
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.2065,
+    "wilson_upper": 1.0,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 1,
+    "fp": 0,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.2065
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-78"
@@ -4292,7 +9442,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 3,
+   "population": 10,
+   "held_out_population": 8,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 10,
+     "held_out_population": 8,
+     "tp": 1,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 2,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 10,
+     "held_out_population": 8
+    }
+   },
+   "weighted": {
+    "precision": 0.3333,
+    "wilson_lower": 0.0615,
+    "wilson_upper": 0.7923,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 1,
+    "fp": 2,
+    "population": 10,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.3333,
+     "wilson_lower": 0.0615
+    }
+   },
    "dimension": "assurance",
    "cwe": [
     "CWE-1164"
@@ -4330,6 +9519,45 @@
    ],
    "dates": {},
    "population": 1,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.7935,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 0,
+    "fp": 1,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "security",
    "cwe": [
     "CWE-89"
@@ -4366,7 +9594,32 @@
     "ai-corpus-model"
    ],
    "dates": {},
-   "population": 0,
+   "population": 1,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "typescript",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 0,
+     "unsure": 1,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": null,
    "dimension": "security",
    "cwe": [
     "CWE-918"
@@ -4404,6 +9657,45 @@
    ],
    "dates": {},
    "population": 3,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 3,
+     "held_out_population": 0,
+     "tp": 3,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 3,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.4385,
+    "wilson_upper": 1.0,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 3,
+    "fp": 0,
+    "population": 3,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.4385
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-1164"
@@ -4440,7 +9732,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 3,
+   "population": 4,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 4,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 3,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 4,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.5615,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 0,
+    "fp": 3,
+    "population": 4,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "quality",
    "cwe": [
     "CWE-1164"
@@ -4477,7 +9808,46 @@
     "gold-model"
    ],
    "dates": {},
-   "population": 4,
+   "population": 22,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 22,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 4,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 22,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.4899,
+    "n_eff": 4.0,
+    "n_eff_kish": 4.0,
+    "tp": 0,
+    "fp": 4,
+    "population": 22,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
    "dimension": "assurance",
    "cwe": [
     "CWE-1164"
@@ -4494,9 +9864,11 @@
  },
  "tier": {
   "held_out_only": true,
+  "method": "stratified",
   "rules": [],
   "overall": null,
   "claim": false,
+  "population_unknown": [],
   "categories": {}
  }
 }
