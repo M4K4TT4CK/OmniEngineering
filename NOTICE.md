@@ -25,6 +25,9 @@ The **Redistributed** column is the load-bearing one.
 
 The optional extras in `pyproject.toml` (`ast`, `mcp`, `api`, `dev`, `tools`)
 are installed by pip on the operator's request and are not redistributed.
+The tree-sitter grammars the language packs read (various licences) are
+downloaded by `tools/install_tools.sh` into the user's cache on request and
+are not redistributed either.
 
 The PyYAML and tomli wheels in a bundle are the projects' own published wheels,
 which carry their licence files in their `dist-info` metadata. That this meets
