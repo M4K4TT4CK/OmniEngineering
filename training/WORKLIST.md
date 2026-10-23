@@ -1,6 +1,6 @@
 # What to work on next
 
-Generated 2026-10-22T19:33:28+00:00 by `tools/worklist.py` from the last training cycle.
+Generated 2026-10-23T16:44:22+00:00 by `tools/worklist.py` from the last training cycle.
 
 Nothing here is a decision. Each entry says what the measurement shows and what question it raises.
 
@@ -10,8 +10,8 @@ Nothing here is a decision. Each entry says what the measurement shows and what 
 
 A language that appears only in well-maintained repositories cannot be measured. There is nothing to compare its rules against, so they can be asserted but never tested.
 
-- **go** — 846,292 lines of good code, 15,256 broken
-- **cpp** — 217,159 lines of good code, 0 broken
+- **go** — 850,737 lines of good code, 15,256 broken
+- **cpp** — 222,982 lines of good code, 0 broken
 - **rust** — 56,386 lines of good code, 0 broken
 - **rst** — 23,759 lines of good code, 0 broken
 - **c** — 7,186 lines of good code, 7 broken
@@ -19,7 +19,21 @@ A language that appears only in well-maintained repositories cannot be measured.
 
 Add a deliberately-vulnerable repository for each, to `tools/fetch_corpus.sh` and `tools/corpus.py`. Closing eight of these gaps is what surfaced three false criticals that had survived every injection trial ever run.
 
-### 2. [HIGH] No real finding has ever been reviewed by a person
+### 2. [HIGH] Controls whose checks never fire — a permanent false pass
+
+A control whose every covering check never fires anywhere in the corpus can never be reported as violated. It will read as SATISFIED forever, in a compliance report, on any codebase.
+
+- **CWE-Top25-2024**
+    - CWE-190 -> arbiter/go.parsed-int-narrowed, arbiter/java.parsed-number-narrowed, arbiter/java.parsed-count-overflow
+    - CWE-200 -> arbiter/python.error-traceback-to-client, arbiter/python.error-message-to-client, arbiter/python.debug-mode-enabled
+    - CWE-22 -> arbiter/go.path-traversal-request, arbiter/ruby.path-traversal-request, arbiter/ruby.upload-client-filename
+    - CWE-287 -> arbiter/python.jwt-unverified-decode, arbiter/typescript.jwt-decode-unverified, arbiter/typescript.jwt-verify-insecure-options
+    - CWE-352 -> arbiter/python.csrf-protection-disabled, arbiter/typescript.csrf-unsafe-methods-ignored, arbiter/typescript.session-cookie-cross-site
+    - CWE-400 -> arbiter/python.http-no-timeout, arbiter/python.http-timeout-disabled, arbiter/python.retry-loop-no-backoff
+
+Either the check is dead and the mapping should go, or the check is alive and the corpus does not exercise it — in which case add a repository or an injection case that does. A permanent pass is the worst thing a compliance report can contain, because it looks exactly like evidence.
+
+### 3. [HIGH] No real finding has ever been reviewed by a person
 
 Calibration reads **only** the adjudicated ledger — the one a person fills in — and it is empty, so the calibration machinery is currently doing nothing at all.
 
@@ -36,37 +50,31 @@ arbiter learn
 
 Twenty adjudications on one rule is the point where `arbiter learn` stops calling it unproven. A dozen on the noisiest rules is worth more than another million trials.
 
-### 3. [HIGH] 163 real-world fix pairs waiting for a verdict
+### 4. [HIGH] 169 real-world fix pairs waiting for a verdict
 
 A commit where a maintainer changed code a rule fired on, after which it stopped firing. This is the only evidence in the whole system that the tool did not generate for itself — nobody wrote these commits to be found by a scanner.
 
-- `arbiter/supply.unpinned-npm-dep` — 148 candidate pair(s)
+- `arbiter/supply.unpinned-npm-dep` — 146 candidate pair(s)
+- `arbiter/authored.undeclared-import` — 5 candidate pair(s)
 - `arbiter/secrets.pg-url` — 3 candidate pair(s)
+- `arbiter/supply.unpinned-action` — 2 candidate pair(s)
+- `arbiter/secrets.private-key` — 2 candidate pair(s)
 - `arbiter/resource.public-object-store` — 2 candidate pair(s)
-- `arbiter/supply.unpinned-action` — 1 candidate pair(s)
 - `arbiter/resource.host-network` — 1 candidate pair(s)
-- `arbiter/resource.unencrypted-queue` — 1 candidate pair(s)
-- `arbiter/resource.k8s-no-security-context` — 1 candidate pair(s)
-- `arbiter/resource.k8s-privilege-escalation-not-disabled` — 1 candidate pair(s)
+- `arbiter/secrets.assigned-credential` — 1 candidate pair(s)
 
 Each one is a CANDIDATE: a finding also disappears when the code around it is rewritten for unrelated reasons. Confirm that the change addressed the finding, then it becomes a permanent regression case — this rule must fire on the parent commit and must not fire on the child, forever. A rule that fires on both sides of a commit that plainly fixed the thing is wrong, and nothing else in the pipeline would have told you.
 
-### 4. [HIGH] Contested findings, ready to adjudicate
+### 5. [HIGH] Contested findings, ready to adjudicate
 
-348 findings where both Arbiter and an external analyzer cover the kind of defect, and only one of them fired. Exactly one is wrong about that line, so a verdict there resolves a real uncertainty instead of confirming a settled one.
+373 findings where both Arbiter and an external analyzer cover the kind of defect, and only one of them fired. Exactly one is wrong about that line, so a verdict there resolves a real uncertainty instead of confirming a settled one.
 
-- 173 where only **checkov** fired
-- 95 where only **arbiter** fired
-- 78 where only **semgrep** fired
-- 2 where only **gitleaks** fired
+- 187 where only **checkov** fired
+- 98 where only **arbiter** fired
+- 85 where only **semgrep** fired
+- 3 where only **gitleaks** fired
 
 A batch is already prepared. Twenty of these are worth more than twenty random findings, because a finding two independent tools agree on is the least informative thing a person can spend a verdict on.
-
-### 5. [MEDIUM] Kinds of defect only the external tools catch
-
-An external analyzer checks something Arbiter has no rule for at all. This is not a disagreement and adjudicating it teaches nothing — it is a list of rules worth writing.
-
-- **tls** — 12 finding(s) nothing native covers
 
 ### 6. [LOW] Rules with too little evidence to judge
 

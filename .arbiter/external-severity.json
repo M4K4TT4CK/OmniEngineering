@@ -1,13 +1,13 @@
 {
   "schema_version": "1.0",
-  "generated": "2026-10-22T14:56:58Z",
+  "generated": "2026-10-23T14:31:46Z",
   "repos_scanned": 41,
   "repos_timed_out": [],
   "repos_failed": [],
   "lines_by_population": {
-    "vulnerable": 727913,
-    "clean": 2504070,
-    "examples": 600191
+    "vulnerable": 727939,
+    "clean": 2516085,
+    "examples": 600302
   },
   "bands": [
     [
@@ -28,16 +28,16 @@
   "lines_by_population_language": {
     "clean": {
       "terraform": 28584,
-      "markdown": 223999,
-      "unknown": 130889,
-      "json": 45735,
-      "yaml": 296118,
-      "go": 846292,
+      "markdown": 224374,
+      "unknown": 130913,
+      "json": 45741,
+      "yaml": 297288,
+      "go": 850737,
       "hcl": 163,
       "shell": 10840,
       "ini": 18,
-      "python": 71130,
-      "toml": 10164,
+      "python": 71134,
+      "toml": 10332,
       "makefile": 2505,
       "rst": 23759,
       "html": 190629,
@@ -47,7 +47,7 @@
       "typescript": 159592,
       "rust": 56386,
       "ruby": 24133,
-      "cpp": 217159,
+      "cpp": 222982,
       "c": 7186,
       "java": 57131,
       "dockerfile": 676,
@@ -60,7 +60,7 @@
       "unknown": 116052,
       "terraform": 7505,
       "dockerfile": 8197,
-      "yaml": 18440,
+      "yaml": 18466,
       "javascript": 112945,
       "html": 41451,
       "css": 36734,
@@ -82,7 +82,7 @@
       "markdown": 40553,
       "unknown": 48427,
       "shell": 4154,
-      "yaml": 256624,
+      "yaml": 256735,
       "json": 152809,
       "python": 27114,
       "javascript": 20674,
@@ -108,16 +108,16 @@
     "bandit/B101": {
       "tool": "bandit",
       "title": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
-      "clean_hits": 103,
-      "vulnerable_hits": 10,
-      "example_hits": 14,
+      "clean_hits": 3682,
+      "vulnerable_hits": 33,
+      "example_hits": 298,
       "languages": [
         "python"
       ],
       "repos_seen": 8,
       "clean_kloc": 71.1,
       "vulnerable_kloc": 20.1,
-      "ratio": 0.34,
+      "ratio": 0.03,
       "severity": "info",
       "basis": "measured"
     },
@@ -156,8 +156,8 @@
     "bandit/B105": {
       "tool": "bandit",
       "title": "Possible hardcoded password: 'password123'",
-      "clean_hits": 6,
-      "vulnerable_hits": 34,
+      "clean_hits": 10,
+      "vulnerable_hits": 69,
       "example_hits": 3,
       "languages": [
         "python"
@@ -165,23 +165,23 @@
       "repos_seen": 5,
       "clean_kloc": 71.1,
       "vulnerable_kloc": 20.1,
-      "ratio": 20.0,
+      "ratio": 24.36,
       "severity": "medium",
       "basis": "measured"
     },
     "bandit/B106": {
       "tool": "bandit",
       "title": "Possible hardcoded password: 'pw'",
-      "clean_hits": 3,
-      "vulnerable_hits": 3,
-      "example_hits": 2,
+      "clean_hits": 4,
+      "vulnerable_hits": 9,
+      "example_hits": 3,
       "languages": [
         "python"
       ],
       "repos_seen": 4,
       "clean_kloc": 71.1,
       "vulnerable_kloc": 20.1,
-      "ratio": 3.53,
+      "ratio": 7.94,
       "severity": "low",
       "basis": "measured"
     },
@@ -220,8 +220,8 @@
     "bandit/B110": {
       "tool": "bandit",
       "title": "Try, Except, Pass detected.",
-      "clean_hits": 4,
-      "vulnerable_hits": 5,
+      "clean_hits": 7,
+      "vulnerable_hits": 16,
       "example_hits": 0,
       "languages": [
         "python"
@@ -229,7 +229,7 @@
       "repos_seen": 3,
       "clean_kloc": 71.1,
       "vulnerable_kloc": 20.1,
-      "ratio": 4.41,
+      "ratio": 8.07,
       "severity": "low",
       "basis": "measured"
     },
@@ -252,17 +252,17 @@
     "bandit/B113": {
       "tool": "bandit",
       "title": "Call to requests without timeout",
-      "clean_hits": 3,
-      "vulnerable_hits": 12,
-      "example_hits": 6,
+      "clean_hits": 120,
+      "vulnerable_hits": 26,
+      "example_hits": 11,
       "languages": [
         "python"
       ],
       "repos_seen": 7,
       "clean_kloc": 71.1,
       "vulnerable_kloc": 20.1,
-      "ratio": 14.12,
-      "severity": "medium",
+      "ratio": 0.76,
+      "severity": "info",
       "basis": "measured"
     },
     "bandit/B201": {
@@ -284,7 +284,7 @@
     "bandit/B301": {
       "tool": "bandit",
       "title": "Pickle and modules that wrap it can be unsafe when used to deserialize untrusted data, possible security issue.",
-      "clean_hits": 1,
+      "clean_hits": 7,
       "vulnerable_hits": 3,
       "example_hits": 0,
       "languages": [
@@ -293,9 +293,9 @@
       "repos_seen": 3,
       "clean_kloc": 71.1,
       "vulnerable_kloc": 20.1,
-      "ratio": 10.59,
-      "severity": null,
-      "basis": "insufficient-observations"
+      "ratio": 1.51,
+      "severity": "info",
+      "basis": "measured"
     },
     "bandit/B306": {
       "tool": "bandit",
@@ -332,8 +332,8 @@
     "bandit/B310": {
       "tool": "bandit",
       "title": "Audit url open for permitted schemes. Allowing use of file:/ or custom schemes is often unexpected.",
-      "clean_hits": 4,
-      "vulnerable_hits": 5,
+      "clean_hits": 5,
+      "vulnerable_hits": 11,
       "example_hits": 5,
       "languages": [
         "python"
@@ -341,7 +341,7 @@
       "repos_seen": 4,
       "clean_kloc": 71.1,
       "vulnerable_kloc": 20.1,
-      "ratio": 4.41,
+      "ratio": 7.77,
       "severity": "low",
       "basis": "measured"
     },
@@ -349,7 +349,7 @@
       "tool": "bandit",
       "title": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
       "clean_hits": 1,
-      "vulnerable_hits": 12,
+      "vulnerable_hits": 19,
       "example_hits": 2,
       "languages": [
         "python"
@@ -357,7 +357,7 @@
       "repos_seen": 4,
       "clean_kloc": 71.1,
       "vulnerable_kloc": 20.1,
-      "ratio": 42.36,
+      "ratio": 67.08,
       "severity": "medium",
       "basis": "measured"
     },
@@ -413,15 +413,15 @@
       "tool": "bandit",
       "title": "Use of weak MD5 hash for security. Consider usedforsecurity=False",
       "clean_hits": 1,
-      "vulnerable_hits": 5,
-      "example_hits": 3,
+      "vulnerable_hits": 6,
+      "example_hits": 4,
       "languages": [
         "python"
       ],
       "repos_seen": 4,
       "clean_kloc": 71.1,
       "vulnerable_kloc": 20.1,
-      "ratio": 17.65,
+      "ratio": 21.18,
       "severity": "medium",
       "basis": "measured"
     },
@@ -444,16 +444,16 @@
     "bandit/B404": {
       "tool": "bandit",
       "title": "Consider possible security implications associated with the subprocess module.",
-      "clean_hits": 41,
+      "clean_hits": 42,
       "vulnerable_hits": 6,
-      "example_hits": 3,
+      "example_hits": 4,
       "languages": [
         "python"
       ],
       "repos_seen": 6,
       "clean_kloc": 71.1,
       "vulnerable_kloc": 20.1,
-      "ratio": 0.52,
+      "ratio": 0.5,
       "severity": "info",
       "basis": "measured"
     },
@@ -461,7 +461,7 @@
       "tool": "bandit",
       "title": "Using make_parser to parse untrusted XML data is known to be vulnerable to XML attacks. Replace make_parser with the equ",
       "clean_hits": 0,
-      "vulnerable_hits": 1,
+      "vulnerable_hits": 2,
       "example_hits": 0,
       "languages": [
         "python"
@@ -509,7 +509,7 @@
       "tool": "bandit",
       "title": "Call to requests with verify=False disabling SSL certificate checks, security issue.",
       "clean_hits": 0,
-      "vulnerable_hits": 3,
+      "vulnerable_hits": 6,
       "example_hits": 0,
       "languages": [
         "python"
@@ -518,8 +518,8 @@
       "clean_kloc": 71.1,
       "vulnerable_kloc": 20.1,
       "ratio": "inf",
-      "severity": null,
-      "basis": "insufficient-observations"
+      "severity": "low",
+      "basis": "measured-single-repo"
     },
     "bandit/B506": {
       "tool": "bandit",
@@ -556,16 +556,16 @@
     "bandit/B603": {
       "tool": "bandit",
       "title": "subprocess call - check for execution of untrusted input.",
-      "clean_hits": 27,
-      "vulnerable_hits": 5,
-      "example_hits": 3,
+      "clean_hits": 53,
+      "vulnerable_hits": 15,
+      "example_hits": 12,
       "languages": [
         "python"
       ],
       "repos_seen": 6,
       "clean_kloc": 71.1,
       "vulnerable_kloc": 20.1,
-      "ratio": 0.65,
+      "ratio": 1.0,
       "severity": "info",
       "basis": "measured"
     },
@@ -604,24 +604,24 @@
     "bandit/B607": {
       "tool": "bandit",
       "title": "Starting a process with a partial executable path",
-      "clean_hits": 5,
-      "vulnerable_hits": 4,
-      "example_hits": 3,
+      "clean_hits": 12,
+      "vulnerable_hits": 11,
+      "example_hits": 11,
       "languages": [
         "python"
       ],
       "repos_seen": 4,
       "clean_kloc": 71.1,
       "vulnerable_kloc": 20.1,
-      "ratio": 2.82,
-      "severity": "info",
+      "ratio": 3.24,
+      "severity": "low",
       "basis": "measured"
     },
     "bandit/B608": {
       "tool": "bandit",
       "title": "Possible SQL injection vector through string-based query construction.",
       "clean_hits": 0,
-      "vulnerable_hits": 5,
+      "vulnerable_hits": 9,
       "example_hits": 1,
       "languages": [
         "python"
@@ -636,7 +636,7 @@
     "bandit/B704": {
       "tool": "bandit",
       "title": "Potential XSS with ``markupsafe.Markup`` detected. Do not use ``Markup`` on untrusted data.",
-      "clean_hits": 2,
+      "clean_hits": 3,
       "vulnerable_hits": 0,
       "example_hits": 0,
       "languages": [
@@ -1341,7 +1341,7 @@
       "tool": "checkov",
       "title": "Ensure that certificate validation isn't disabled with curl",
       "clean_hits": 0,
-      "vulnerable_hits": 1,
+      "vulnerable_hits": 2,
       "example_hits": 0,
       "languages": [
         "dockerfile"
@@ -1411,8 +1411,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -1427,8 +1427,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -1443,8 +1443,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -1459,8 +1459,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -1475,8 +1475,8 @@
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -1492,7 +1492,7 @@
         "yaml"
       ],
       "repos_seen": 8,
-      "clean_kloc": 341.9,
+      "clean_kloc": 343.0,
       "vulnerable_kloc": 159.5,
       "ratio": 2.25,
       "severity": "info",
@@ -2412,9 +2412,9 @@
         "yaml"
       ],
       "repos_seen": 4,
-      "clean_kloc": 370.4,
+      "clean_kloc": 371.6,
       "vulnerable_kloc": 167.0,
-      "ratio": 26.62,
+      "ratio": 26.7,
       "severity": "medium",
       "basis": "measured"
     },
@@ -2508,8 +2508,8 @@
         "yaml"
       ],
       "repos_seen": 1,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -2526,7 +2526,7 @@
         "yaml"
       ],
       "repos_seen": 4,
-      "clean_kloc": 370.4,
+      "clean_kloc": 371.6,
       "vulnerable_kloc": 167.0,
       "ratio": 1.11,
       "severity": "info",
@@ -3589,9 +3589,9 @@
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 370.4,
+      "clean_kloc": 371.6,
       "vulnerable_kloc": 167.0,
-      "ratio": 4.44,
+      "ratio": 4.45,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -3607,9 +3607,9 @@
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 370.4,
+      "clean_kloc": 371.6,
       "vulnerable_kloc": 167.0,
-      "ratio": 4.44,
+      "ratio": 4.45,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -3625,9 +3625,9 @@
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 370.4,
+      "clean_kloc": 371.6,
       "vulnerable_kloc": 167.0,
-      "ratio": 4.44,
+      "ratio": 4.45,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -3643,9 +3643,9 @@
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 370.4,
+      "clean_kloc": 371.6,
       "vulnerable_kloc": 167.0,
-      "ratio": 4.44,
+      "ratio": 4.45,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -5296,7 +5296,7 @@
       "repos_seen": 19,
       "clean_kloc": 131.6,
       "vulnerable_kloc": 124.2,
-      "ratio": 66.26,
+      "ratio": 66.27,
       "severity": "medium",
       "basis": "measured"
     },
@@ -5313,7 +5313,7 @@
       "repos_seen": 15,
       "clean_kloc": 131.6,
       "vulnerable_kloc": 124.2,
-      "ratio": 89.16,
+      "ratio": 89.17,
       "severity": "medium",
       "basis": "measured"
     },
@@ -5321,8 +5321,8 @@
       "tool": "checkov",
       "title": "Ensure that COPY is used instead of ADD in Dockerfiles",
       "clean_hits": 0,
-      "vulnerable_hits": 25,
-      "example_hits": 8,
+      "vulnerable_hits": 29,
+      "example_hits": 13,
       "languages": [
         "dockerfile"
       ],
@@ -5337,7 +5337,7 @@
       "tool": "checkov",
       "title": "Ensure update instructions are not use alone in the Dockerfile",
       "clean_hits": 0,
-      "vulnerable_hits": 1,
+      "vulnerable_hits": 2,
       "example_hits": 0,
       "languages": [
         "dockerfile"
@@ -6272,9 +6272,9 @@
         "yaml"
       ],
       "repos_seen": 7,
-      "clean_kloc": 341.9,
+      "clean_kloc": 343.0,
       "vulnerable_kloc": 159.5,
-      "ratio": 3.57,
+      "ratio": 3.58,
       "severity": "low",
       "basis": "measured"
     },
@@ -6289,7 +6289,7 @@
         "yaml"
       ],
       "repos_seen": 8,
-      "clean_kloc": 341.9,
+      "clean_kloc": 343.0,
       "vulnerable_kloc": 159.5,
       "ratio": 1.91,
       "severity": "info",
@@ -6306,9 +6306,9 @@
         "yaml"
       ],
       "repos_seen": 7,
-      "clean_kloc": 341.9,
+      "clean_kloc": 343.0,
       "vulnerable_kloc": 159.5,
-      "ratio": 3.57,
+      "ratio": 3.58,
       "severity": "low",
       "basis": "measured"
     },
@@ -6323,7 +6323,7 @@
         "yaml"
       ],
       "repos_seen": 8,
-      "clean_kloc": 341.9,
+      "clean_kloc": 343.0,
       "vulnerable_kloc": 159.5,
       "ratio": 1.91,
       "severity": "info",
@@ -6340,9 +6340,9 @@
         "yaml"
       ],
       "repos_seen": 6,
-      "clean_kloc": 341.9,
+      "clean_kloc": 343.0,
       "vulnerable_kloc": 159.5,
-      "ratio": 4.29,
+      "ratio": 4.3,
       "severity": "low",
       "basis": "measured"
     },
@@ -6356,9 +6356,9 @@
         "yaml"
       ],
       "repos_seen": 5,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
-      "ratio": 4.28,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
+      "ratio": 4.29,
       "severity": "low",
       "basis": "measured"
     },
@@ -6372,8 +6372,8 @@
         "yaml"
       ],
       "repos_seen": 1,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -6382,15 +6382,15 @@
       "tool": "checkov",
       "title": "Minimize ClusterRoles that grant control over validating or mutating admission webhook configurations",
       "clean_hits": 1,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 3,
       "example_hits": 1,
       "languages": [
         "yaml"
       ],
       "repos_seen": 4,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
-      "ratio": 32.12,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
+      "ratio": 48.3,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -6398,14 +6398,14 @@
       "tool": "checkov",
       "title": "Minimize ClusterRoles that grant permissions to approve CertificateSigningRequests",
       "clean_hits": 0,
-      "vulnerable_hits": 1,
+      "vulnerable_hits": 2,
       "example_hits": 0,
       "languages": [
         "yaml"
       ],
       "repos_seen": 1,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6414,14 +6414,14 @@
       "tool": "checkov",
       "title": "Minimize Roles and ClusterRoles that grant permissions to bind RoleBindings or ClusterRoleBindings",
       "clean_hits": 0,
-      "vulnerable_hits": 1,
+      "vulnerable_hits": 2,
       "example_hits": 0,
       "languages": [
         "yaml"
       ],
       "repos_seen": 1,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6430,14 +6430,14 @@
       "tool": "checkov",
       "title": "Minimize Roles and ClusterRoles that grant permissions to escalate Roles or ClusterRoles",
       "clean_hits": 0,
-      "vulnerable_hits": 1,
+      "vulnerable_hits": 2,
       "example_hits": 0,
       "languages": [
         "yaml"
       ],
       "repos_seen": 1,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6452,8 +6452,8 @@
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6468,8 +6468,8 @@
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6484,8 +6484,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6500,8 +6500,8 @@
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6517,16 +6517,16 @@
         "yaml"
       ],
       "repos_seen": 7,
-      "clean_kloc": 341.9,
+      "clean_kloc": 343.0,
       "vulnerable_kloc": 159.5,
-      "ratio": 4.29,
+      "ratio": 4.3,
       "severity": "low",
       "basis": "measured"
     },
     "checkov/CKV_K8S_21": {
       "tool": "checkov",
       "title": "The default namespace should not be used",
-      "clean_hits": 435,
+      "clean_hits": 452,
       "vulnerable_hits": 25,
       "example_hits": 352,
       "languages": [
@@ -6534,7 +6534,7 @@
         "yaml"
       ],
       "repos_seen": 6,
-      "clean_kloc": 341.9,
+      "clean_kloc": 343.0,
       "vulnerable_kloc": 159.5,
       "ratio": 0.12,
       "severity": "info",
@@ -6551,9 +6551,9 @@
         "yaml"
       ],
       "repos_seen": 8,
-      "clean_kloc": 341.9,
+      "clean_kloc": 343.0,
       "vulnerable_kloc": 159.5,
-      "ratio": 4.5,
+      "ratio": 4.52,
       "severity": "low",
       "basis": "measured"
     },
@@ -6568,9 +6568,9 @@
         "yaml"
       ],
       "repos_seen": 7,
-      "clean_kloc": 341.9,
+      "clean_kloc": 343.0,
       "vulnerable_kloc": 159.5,
-      "ratio": 4.29,
+      "ratio": 4.3,
       "severity": "low",
       "basis": "measured"
     },
@@ -6584,8 +6584,8 @@
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6600,8 +6600,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6617,9 +6617,9 @@
         "yaml"
       ],
       "repos_seen": 7,
-      "clean_kloc": 341.9,
+      "clean_kloc": 343.0,
       "vulnerable_kloc": 159.5,
-      "ratio": 4.29,
+      "ratio": 4.3,
       "severity": "low",
       "basis": "measured"
     },
@@ -6634,9 +6634,9 @@
         "yaml"
       ],
       "repos_seen": 8,
-      "clean_kloc": 341.9,
+      "clean_kloc": 343.0,
       "vulnerable_kloc": 159.5,
-      "ratio": 2.14,
+      "ratio": 2.15,
       "severity": "info",
       "basis": "measured"
     },
@@ -6651,9 +6651,9 @@
         "yaml"
       ],
       "repos_seen": 7,
-      "clean_kloc": 341.9,
+      "clean_kloc": 343.0,
       "vulnerable_kloc": 159.5,
-      "ratio": 3.43,
+      "ratio": 3.44,
       "severity": "low",
       "basis": "measured"
     },
@@ -6668,9 +6668,9 @@
         "yaml"
       ],
       "repos_seen": 7,
-      "clean_kloc": 341.9,
+      "clean_kloc": 343.0,
       "vulnerable_kloc": 159.5,
-      "ratio": 3.39,
+      "ratio": 3.4,
       "severity": "low",
       "basis": "measured"
     },
@@ -6684,8 +6684,8 @@
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6701,9 +6701,9 @@
         "yaml"
       ],
       "repos_seen": 7,
-      "clean_kloc": 341.9,
+      "clean_kloc": 343.0,
       "vulnerable_kloc": 159.5,
-      "ratio": 4.29,
+      "ratio": 4.3,
       "severity": "low",
       "basis": "measured"
     },
@@ -6718,9 +6718,9 @@
         "yaml"
       ],
       "repos_seen": 8,
-      "clean_kloc": 341.9,
+      "clean_kloc": 343.0,
       "vulnerable_kloc": 159.5,
-      "ratio": 2.14,
+      "ratio": 2.15,
       "severity": "info",
       "basis": "measured"
     },
@@ -6735,9 +6735,9 @@
         "yaml"
       ],
       "repos_seen": 8,
-      "clean_kloc": 341.9,
+      "clean_kloc": 343.0,
       "vulnerable_kloc": 159.5,
-      "ratio": 1.96,
+      "ratio": 1.97,
       "severity": "info",
       "basis": "measured"
     },
@@ -6751,8 +6751,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6768,7 +6768,7 @@
         "yaml"
       ],
       "repos_seen": 7,
-      "clean_kloc": 341.9,
+      "clean_kloc": 343.0,
       "vulnerable_kloc": 159.5,
       "ratio": 2.26,
       "severity": "info",
@@ -6778,15 +6778,15 @@
       "tool": "checkov",
       "title": "Minimize wildcard use in Roles and ClusterRoles",
       "clean_hits": 3,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 3,
       "example_hits": 1,
       "languages": [
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
-      "ratio": 10.71,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
+      "ratio": 16.1,
       "severity": "medium",
       "basis": "measured"
     },
@@ -6801,9 +6801,9 @@
         "yaml"
       ],
       "repos_seen": 7,
-      "clean_kloc": 341.9,
+      "clean_kloc": 343.0,
       "vulnerable_kloc": 159.5,
-      "ratio": 3.21,
+      "ratio": 3.23,
       "severity": "low",
       "basis": "measured"
     },
@@ -6818,9 +6818,9 @@
         "yaml"
       ],
       "repos_seen": 7,
-      "clean_kloc": 341.9,
+      "clean_kloc": 343.0,
       "vulnerable_kloc": 159.5,
-      "ratio": 3.21,
+      "ratio": 3.23,
       "severity": "low",
       "basis": "measured"
     },
@@ -6898,8 +6898,8 @@
         "yaml"
       ],
       "repos_seen": 1,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6914,8 +6914,8 @@
         "yaml"
       ],
       "repos_seen": 1,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6930,8 +6930,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6946,8 +6946,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6962,8 +6962,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6978,8 +6978,8 @@
         "yaml"
       ],
       "repos_seen": 1,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -7011,8 +7011,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 324.7,
-      "vulnerable_kloc": 25.9,
+      "clean_kloc": 325.9,
+      "vulnerable_kloc": 26.0,
       "ratio": "inf",
       "severity": "medium",
       "basis": "measured"
@@ -7027,8 +7027,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -7046,9 +7046,9 @@
         "yaml"
       ],
       "repos_seen": 7,
-      "clean_kloc": 371.1,
+      "clean_kloc": 372.3,
       "vulnerable_kloc": 175.2,
-      "ratio": 1.69,
+      "ratio": 1.7,
       "severity": "info",
       "basis": "measured"
     },
@@ -7080,7 +7080,7 @@
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 395.8,
+      "clean_kloc": 397.0,
       "vulnerable_kloc": 46.1,
       "ratio": "inf",
       "severity": null,
@@ -7089,14 +7089,14 @@
     "gitleaks/curl-auth-header": {
       "tool": "gitleaks",
       "title": "curl-auth-header",
-      "clean_hits": 1,
+      "clean_hits": 3,
       "vulnerable_hits": 0,
       "example_hits": 0,
       "languages": [
         "markdown"
       ],
       "repos_seen": 1,
-      "clean_kloc": 224.0,
+      "clean_kloc": 224.4,
       "vulnerable_kloc": 67.0,
       "ratio": null,
       "severity": null,
@@ -7105,8 +7105,8 @@
     "gitleaks/generic-api-key": {
       "tool": "gitleaks",
       "title": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
-      "clean_hits": 33,
-      "vulnerable_hits": 42,
+      "clean_hits": 49,
+      "vulnerable_hits": 87,
       "example_hits": 19,
       "languages": [
         "dockerfile",
@@ -7126,9 +7126,9 @@
         "yaml"
       ],
       "repos_seen": 17,
-      "clean_kloc": 1996.3,
-      "vulnerable_kloc": 627.7,
-      "ratio": 4.05,
+      "clean_kloc": 2002.4,
+      "vulnerable_kloc": 627.8,
+      "ratio": 5.66,
       "severity": "low",
       "basis": "measured"
     },
@@ -7136,7 +7136,7 @@
       "tool": "gitleaks",
       "title": "Identified a HashiCorp Terraform password field, risking unauthorized infrastructure configuration and security breaches",
       "clean_hits": 0,
-      "vulnerable_hits": 3,
+      "vulnerable_hits": 4,
       "example_hits": 0,
       "languages": [
         "terraform"
@@ -7151,8 +7151,8 @@
     "gitleaks/jwt": {
       "tool": "gitleaks",
       "title": "Uncovered a JSON Web Token, which may lead to unauthorized access to web applications and sensitive user data.",
-      "clean_hits": 7,
-      "vulnerable_hits": 14,
+      "clean_hits": 14,
+      "vulnerable_hits": 26,
       "example_hits": 0,
       "languages": [
         "go",
@@ -7162,9 +7162,9 @@
         "unknown"
       ],
       "repos_seen": 6,
-      "clean_kloc": 1417.9,
+      "clean_kloc": 1422.7,
       "vulnerable_kloc": 301.6,
-      "ratio": 9.4,
+      "ratio": 8.76,
       "severity": "low",
       "basis": "measured"
     },
@@ -7178,8 +7178,8 @@
         "yaml"
       ],
       "repos_seen": 1,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -7187,24 +7187,24 @@
     "gitleaks/kubernetes-secret-yaml": {
       "tool": "gitleaks",
       "title": "Possible Kubernetes Secret detected, posing a risk of leaking credentials/tokens from your deployments",
-      "clean_hits": 84,
-      "vulnerable_hits": 2,
+      "clean_hits": 133,
+      "vulnerable_hits": 3,
       "example_hits": 8,
       "languages": [
         "yaml"
       ],
       "repos_seen": 4,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
-      "ratio": 0.38,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
+      "ratio": 0.36,
       "severity": "info",
       "basis": "measured"
     },
     "gitleaks/private-key": {
       "tool": "gitleaks",
       "title": "Identified a Private Key, which may compromise cryptographic security and sensitive data encryption.",
-      "clean_hits": 63,
-      "vulnerable_hits": 8,
+      "clean_hits": 88,
+      "vulnerable_hits": 9,
       "example_hits": 0,
       "languages": [
         "go",
@@ -7218,9 +7218,9 @@
         "yaml"
       ],
       "repos_seen": 8,
-      "clean_kloc": 1798.5,
+      "clean_kloc": 1804.7,
       "vulnerable_kloc": 471.3,
-      "ratio": 0.48,
+      "ratio": 0.39,
       "severity": "info",
       "basis": "measured"
     },
@@ -7234,7 +7234,7 @@
         "markdown"
       ],
       "repos_seen": 1,
-      "clean_kloc": 224.0,
+      "clean_kloc": 224.4,
       "vulnerable_kloc": 67.0,
       "ratio": null,
       "severity": null,
@@ -7244,7 +7244,7 @@
       "tool": "gitleaks",
       "title": "Found a Stripe Access Token, posing a risk to payment processing services and sensitive financial data.",
       "clean_hits": 0,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 3,
       "example_hits": 0,
       "languages": [
         "python"
@@ -7276,7 +7276,7 @@
       "tool": "ruff",
       "title": "Module level import not at top of file",
       "clean_hits": 1,
-      "vulnerable_hits": 9,
+      "vulnerable_hits": 17,
       "example_hits": 1,
       "languages": [
         "python"
@@ -7284,7 +7284,7 @@
       "repos_seen": 4,
       "clean_kloc": 71.1,
       "vulnerable_kloc": 20.1,
-      "ratio": 31.77,
+      "ratio": 60.02,
       "severity": "medium",
       "basis": "measured"
     },
@@ -7293,7 +7293,7 @@
       "title": "Multiple statements on one line (colon)",
       "clean_hits": 0,
       "vulnerable_hits": 1,
-      "example_hits": 5,
+      "example_hits": 11,
       "languages": [
         "python"
       ],
@@ -7341,7 +7341,7 @@
       "tool": "ruff",
       "title": "Do not use bare `except`",
       "clean_hits": 0,
-      "vulnerable_hits": 9,
+      "vulnerable_hits": 14,
       "example_hits": 3,
       "languages": [
         "python"
@@ -7356,25 +7356,25 @@
     "ruff/E741": {
       "tool": "ruff",
       "title": "Ambiguous variable name: `l`",
-      "clean_hits": 1,
+      "clean_hits": 5,
       "vulnerable_hits": 3,
-      "example_hits": 3,
+      "example_hits": 4,
       "languages": [
         "python"
       ],
       "repos_seen": 3,
       "clean_kloc": 71.1,
       "vulnerable_kloc": 20.1,
-      "ratio": 10.59,
-      "severity": null,
-      "basis": "insufficient-observations"
+      "ratio": 2.12,
+      "severity": "info",
+      "basis": "measured"
     },
     "ruff/F401": {
       "tool": "ruff",
       "title": "`aws_cdk.Fn` imported but unused",
       "clean_hits": 0,
-      "vulnerable_hits": 34,
-      "example_hits": 51,
+      "vulnerable_hits": 38,
+      "example_hits": 96,
       "languages": [
         "python",
         "unknown"
@@ -7406,8 +7406,8 @@
       "tool": "ruff",
       "title": "`DoItFast` may be undefined, or defined from star imports",
       "clean_hits": 0,
-      "vulnerable_hits": 4,
-      "example_hits": 1,
+      "vulnerable_hits": 12,
+      "example_hits": 4,
       "languages": [
         "python"
       ],
@@ -7415,15 +7415,15 @@
       "clean_kloc": 71.1,
       "vulnerable_kloc": 20.1,
       "ratio": "inf",
-      "severity": null,
-      "basis": "insufficient-observations"
+      "severity": "medium",
+      "basis": "measured"
     },
     "ruff/F541": {
       "tool": "ruff",
       "title": "f-string without any placeholders",
       "clean_hits": 0,
-      "vulnerable_hits": 7,
-      "example_hits": 4,
+      "vulnerable_hits": 27,
+      "example_hits": 7,
       "languages": [
         "python"
       ],
@@ -7454,8 +7454,8 @@
       "tool": "ruff",
       "title": "Local variable `template` is assigned to but never used",
       "clean_hits": 0,
-      "vulnerable_hits": 11,
-      "example_hits": 40,
+      "vulnerable_hits": 16,
+      "example_hits": 65,
       "languages": [
         "python"
       ],
@@ -7470,7 +7470,7 @@
       "tool": "ruff",
       "title": "Simple statements must be separated by newlines or semicolons",
       "clean_hits": 0,
-      "vulnerable_hits": 5,
+      "vulnerable_hits": 25,
       "example_hits": 0,
       "languages": [
         "python"
@@ -7486,40 +7486,40 @@
       "tool": "semgrep",
       "title": "The result of command substitution $(...) or `...`, if unquoted, is split on whitespace or other separators specified by",
       "clean_hits": 1,
-      "vulnerable_hits": 4,
-      "example_hits": 12,
+      "vulnerable_hits": 5,
+      "example_hits": 17,
       "languages": [
         "shell",
         "unknown"
       ],
       "repos_seen": 6,
-      "clean_kloc": 141.7,
+      "clean_kloc": 141.8,
       "vulnerable_kloc": 119.4,
-      "ratio": 4.75,
+      "ratio": 5.93,
       "severity": "low",
       "basis": "measured"
     },
     "semgrep/semgrep-rules.bash.lang.correctness.unquoted-variable-expansion-in-command": {
       "tool": "semgrep",
       "title": "Variable expansions must be double-quoted so as to prevent being split into multiple pieces according to whitespace or w",
-      "clean_hits": 20,
-      "vulnerable_hits": 32,
-      "example_hits": 60,
+      "clean_hits": 47,
+      "vulnerable_hits": 119,
+      "example_hits": 299,
       "languages": [
         "shell",
         "unknown"
       ],
       "repos_seen": 14,
-      "clean_kloc": 141.7,
+      "clean_kloc": 141.8,
       "vulnerable_kloc": 119.4,
-      "ratio": 1.9,
-      "severity": "info",
+      "ratio": 3.0,
+      "severity": "low",
       "basis": "measured"
     },
     "semgrep/semgrep-rules.bash.lang.security.ifs-tampering": {
       "tool": "semgrep",
       "title": "The special variable IFS affects how splitting takes place when expanding unquoted variables. Don't set it globally. Pre",
-      "clean_hits": 3,
+      "clean_hits": 5,
       "vulnerable_hits": 0,
       "example_hits": 0,
       "languages": [
@@ -7551,9 +7551,9 @@
     "semgrep/semgrep-rules.dockerfile.audit.dockerfile-source-not-pinned": {
       "tool": "semgrep",
       "title": "To ensure reproducible builds, pin Dockerfile `FROM` commands to a specific hash. You can find the hash by running `dock",
-      "clean_hits": 7,
-      "vulnerable_hits": 435,
-      "example_hits": 66,
+      "clean_hits": 9,
+      "vulnerable_hits": 481,
+      "example_hits": 83,
       "languages": [
         "dockerfile",
         "unknown"
@@ -7561,7 +7561,7 @@
       "repos_seen": 20,
       "clean_kloc": 131.6,
       "vulnerable_kloc": 124.2,
-      "ratio": 65.8,
+      "ratio": 56.6,
       "severity": "medium",
       "basis": "measured"
     },
@@ -7600,16 +7600,16 @@
     "semgrep/semgrep-rules.dockerfile.best-practice.avoid-platform-with-from": {
       "tool": "semgrep",
       "title": "Using '--platform' with FROM restricts the image to build on a single platform. Further, this must be the same as the bu",
-      "clean_hits": 1,
+      "clean_hits": 2,
       "vulnerable_hits": 1,
-      "example_hits": 23,
+      "example_hits": 24,
       "languages": [
         "dockerfile"
       ],
       "repos_seen": 4,
       "clean_kloc": 0.7,
       "vulnerable_kloc": 8.2,
-      "ratio": 0.08,
+      "ratio": 0.04,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -7634,7 +7634,7 @@
       "title": "Detected docker image with no explicit version attached. Images should be tagged with an explicit version to produce det",
       "clean_hits": 1,
       "vulnerable_hits": 3,
-      "example_hits": 38,
+      "example_hits": 49,
       "languages": [
         "dockerfile"
       ],
@@ -7650,7 +7650,7 @@
       "title": "This 'apt-get install' is missing '--no-install-recommends'. This prevents unnecessary packages from being installed, th",
       "clean_hits": 0,
       "vulnerable_hits": 27,
-      "example_hits": 4,
+      "example_hits": 5,
       "languages": [
         "dockerfile"
       ],
@@ -7666,7 +7666,7 @@
       "title": "This 'pip install' is missing '--no-cache-dir'. This flag prevents package archives from being kept around, thereby redu",
       "clean_hits": 1,
       "vulnerable_hits": 21,
-      "example_hits": 12,
+      "example_hits": 13,
       "languages": [
         "dockerfile",
         "unknown"
@@ -7730,8 +7730,8 @@
       "tool": "semgrep",
       "title": "The package cache was not deleted after running 'apt-get update', which increases the size of the image. Remove the pack",
       "clean_hits": 0,
-      "vulnerable_hits": 121,
-      "example_hits": 6,
+      "vulnerable_hits": 126,
+      "example_hits": 8,
       "languages": [
         "dockerfile"
       ],
@@ -7745,8 +7745,8 @@
     "semgrep/semgrep-rules.dockerfile.best-practice.remove-package-lists": {
       "tool": "semgrep",
       "title": "The package lists were not deleted after running 'apt-get update', which increases the size of the image. Remove the pac",
-      "clean_hits": 1,
-      "vulnerable_hits": 77,
+      "clean_hits": 2,
+      "vulnerable_hits": 82,
       "example_hits": 3,
       "languages": [
         "dockerfile"
@@ -7754,7 +7754,7 @@
       "repos_seen": 3,
       "clean_kloc": 0.7,
       "vulnerable_kloc": 8.2,
-      "ratio": 6.35,
+      "ratio": 3.38,
       "severity": "low",
       "basis": "measured"
     },
@@ -7762,7 +7762,7 @@
       "tool": "semgrep",
       "title": "Only the exit code from the final command in this RUN instruction will be evaluated unless 'pipefail' is set. If you wan",
       "clean_hits": 0,
-      "vulnerable_hits": 101,
+      "vulnerable_hits": 108,
       "example_hits": 4,
       "languages": [
         "dockerfile"
@@ -7777,7 +7777,7 @@
     "semgrep/semgrep-rules.dockerfile.best-practice.use-either-wget-or-curl": {
       "tool": "semgrep",
       "title": "'wget' and 'curl' are similar tools. Choose one and do not install the other to decrease image size.",
-      "clean_hits": 1,
+      "clean_hits": 2,
       "vulnerable_hits": 0,
       "example_hits": 0,
       "languages": [
@@ -7843,7 +7843,7 @@
       "title": "By not specifying a USER, a program in the container may run as 'root'. This is a security hazard. If an attacker can co",
       "clean_hits": 0,
       "vulnerable_hits": 199,
-      "example_hits": 56,
+      "example_hits": 80,
       "languages": [
         "dockerfile"
       ],
@@ -7875,7 +7875,7 @@
       "tool": "semgrep",
       "title": "Detected a relative WORKDIR. Use absolute paths. This prevents issues based on assumptions about the WORKDIR of previous",
       "clean_hits": 1,
-      "vulnerable_hits": 1,
+      "vulnerable_hits": 4,
       "example_hits": 0,
       "languages": [
         "dockerfile"
@@ -7883,15 +7883,15 @@
       "repos_seen": 2,
       "clean_kloc": 0.7,
       "vulnerable_kloc": 8.2,
-      "ratio": 0.08,
-      "severity": null,
-      "basis": "insufficient-observations"
+      "ratio": 0.33,
+      "severity": "info",
+      "basis": "measured"
     },
     "semgrep/semgrep-rules.generic.secrets.gitleaks.aws-access-token": {
       "tool": "semgrep",
       "title": "A gitleaks aws-access-token was detected which attempts to identify hard-coded credentials. It is not recommended to sto",
       "clean_hits": 2,
-      "vulnerable_hits": 7,
+      "vulnerable_hits": 9,
       "example_hits": 0,
       "languages": [
         "markdown",
@@ -7900,18 +7900,18 @@
         "yaml"
       ],
       "repos_seen": 5,
-      "clean_kloc": 619.8,
+      "clean_kloc": 621.4,
       "vulnerable_kloc": 113.1,
-      "ratio": 19.19,
+      "ratio": 24.73,
       "severity": "medium",
       "basis": "measured"
     },
     "semgrep/semgrep-rules.generic.secrets.gitleaks.generic-api-key": {
       "tool": "semgrep",
       "title": "A gitleaks generic-api-key was detected which attempts to identify hard-coded credentials.  It is not recommended to sto",
-      "clean_hits": 27,
-      "vulnerable_hits": 31,
-      "example_hits": 14,
+      "clean_hits": 45,
+      "vulnerable_hits": 43,
+      "example_hits": 19,
       "languages": [
         "dotenv",
         "go",
@@ -7926,9 +7926,9 @@
         "yaml"
       ],
       "repos_seen": 12,
-      "clean_kloc": 1919.2,
-      "vulnerable_kloc": 608.4,
-      "ratio": 3.62,
+      "clean_kloc": 1925.2,
+      "vulnerable_kloc": 608.5,
+      "ratio": 3.02,
       "severity": "low",
       "basis": "measured"
     },
@@ -7936,7 +7936,7 @@
       "tool": "semgrep",
       "title": "A gitleaks hashicorp-tf-password was detected which attempts to identify hard-coded credentials. It is not recommended t",
       "clean_hits": 0,
-      "vulnerable_hits": 3,
+      "vulnerable_hits": 4,
       "example_hits": 0,
       "languages": [
         "terraform"
@@ -7952,7 +7952,7 @@
       "tool": "semgrep",
       "title": "A gitleaks jwt was detected which attempts to identify hard-coded credentials. It is not recommended to store credential",
       "clean_hits": 1,
-      "vulnerable_hits": 11,
+      "vulnerable_hits": 15,
       "example_hits": 0,
       "languages": [
         "java",
@@ -7961,9 +7961,9 @@
         "unknown"
       ],
       "repos_seen": 4,
-      "clean_kloc": 571.6,
+      "clean_kloc": 572.0,
       "vulnerable_kloc": 286.3,
-      "ratio": 21.96,
+      "ratio": 29.97,
       "severity": "medium",
       "basis": "measured"
     },
@@ -7977,8 +7977,8 @@
         "yaml"
       ],
       "repos_seen": 1,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -8000,7 +8000,7 @@
         "yaml"
       ],
       "repos_seen": 7,
-      "clean_kloc": 952.2,
+      "clean_kloc": 954.0,
       "vulnerable_kloc": 456.0,
       "ratio": 0.46,
       "severity": "info",
@@ -8016,7 +8016,7 @@
         "markdown"
       ],
       "repos_seen": 1,
-      "clean_kloc": 224.0,
+      "clean_kloc": 224.4,
       "vulnerable_kloc": 67.0,
       "ratio": null,
       "severity": null,
@@ -8026,7 +8026,7 @@
       "tool": "semgrep",
       "title": "A gitleaks stripe-access-token was detected which attempts to identify hard-coded credentials. It is not recommended to ",
       "clean_hits": 0,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 3,
       "example_hits": 0,
       "languages": [
         "python"
@@ -8050,7 +8050,7 @@
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 395.8,
+      "clean_kloc": 397.0,
       "vulnerable_kloc": 46.1,
       "ratio": "inf",
       "severity": null,
@@ -8067,8 +8067,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 324.7,
-      "vulnerable_kloc": 25.9,
+      "clean_kloc": 325.9,
+      "vulnerable_kloc": 26.0,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -8076,8 +8076,8 @@
     "semgrep/semgrep-rules.generic.secrets.security.detected-bcrypt-hash": {
       "tool": "semgrep",
       "title": "bcrypt hash detected",
-      "clean_hits": 2,
-      "vulnerable_hits": 2,
+      "clean_hits": 4,
+      "vulnerable_hits": 4,
       "example_hits": 0,
       "languages": [
         "javascript",
@@ -8085,17 +8085,17 @@
         "unknown"
       ],
       "repos_seen": 4,
-      "clean_kloc": 378.1,
+      "clean_kloc": 378.5,
       "vulnerable_kloc": 296.0,
       "ratio": 1.28,
-      "severity": null,
-      "basis": "insufficient-observations"
+      "severity": "info",
+      "basis": "measured"
     },
     "semgrep/semgrep-rules.generic.secrets.security.detected-generic-api-key": {
       "tool": "semgrep",
       "title": "Generic API Key detected",
       "clean_hits": 0,
-      "vulnerable_hits": 3,
+      "vulnerable_hits": 7,
       "example_hits": 0,
       "languages": [
         "html",
@@ -8103,11 +8103,11 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 510.0,
-      "vulnerable_kloc": 172.8,
+      "clean_kloc": 511.1,
+      "vulnerable_kloc": 172.9,
       "ratio": "inf",
-      "severity": null,
-      "basis": "insufficient-observations"
+      "severity": "medium",
+      "basis": "measured"
     },
     "semgrep/semgrep-rules.generic.secrets.security.detected-generic-secret": {
       "tool": "semgrep",
@@ -8121,9 +8121,9 @@
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 544.2,
+      "clean_kloc": 545.8,
       "vulnerable_kloc": 89.0,
-      "ratio": 3.06,
+      "ratio": 3.07,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -8139,7 +8139,7 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 565.9,
+      "clean_kloc": 567.4,
       "vulnerable_kloc": 226.5,
       "ratio": null,
       "severity": null,
@@ -8156,7 +8156,7 @@
         "yaml"
       ],
       "repos_seen": 1,
-      "clean_kloc": 455.7,
+      "clean_kloc": 456.9,
       "vulnerable_kloc": 83.3,
       "ratio": "inf",
       "severity": null,
@@ -8166,7 +8166,7 @@
       "tool": "semgrep",
       "title": "JWT token detected",
       "clean_hits": 2,
-      "vulnerable_hits": 17,
+      "vulnerable_hits": 26,
       "example_hits": 0,
       "languages": [
         "html",
@@ -8176,9 +8176,9 @@
         "unknown"
       ],
       "repos_seen": 5,
-      "clean_kloc": 762.2,
+      "clean_kloc": 762.6,
       "vulnerable_kloc": 327.8,
-      "ratio": 19.77,
+      "ratio": 30.25,
       "severity": "medium",
       "basis": "measured"
     },
@@ -8192,7 +8192,7 @@
         "markdown"
       ],
       "repos_seen": 1,
-      "clean_kloc": 224.0,
+      "clean_kloc": 224.4,
       "vulnerable_kloc": 67.0,
       "ratio": null,
       "severity": null,
@@ -8209,7 +8209,7 @@
         "unknown"
       ],
       "repos_seen": 5,
-      "clean_kloc": 354.9,
+      "clean_kloc": 355.3,
       "vulnerable_kloc": 183.0,
       "ratio": 0.28,
       "severity": "info",
@@ -8241,7 +8241,7 @@
         "markdown"
       ],
       "repos_seen": 1,
-      "clean_kloc": 224.0,
+      "clean_kloc": 224.4,
       "vulnerable_kloc": 67.0,
       "ratio": "inf",
       "severity": "low",
@@ -8251,13 +8251,13 @@
       "tool": "semgrep",
       "title": "A session cookie was detected without setting the 'HttpOnly' flag. The 'HttpOnly' flag for cookies instructs the browser",
       "clean_hits": 0,
-      "vulnerable_hits": 1,
+      "vulnerable_hits": 2,
       "example_hits": 0,
       "languages": [
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
       "ratio": "inf",
       "severity": null,
@@ -8267,13 +8267,13 @@
       "tool": "semgrep",
       "title": "A session cookie was detected without setting the 'Secure' flag. The 'secure' flag for cookies prevents the client from ",
       "clean_hits": 0,
-      "vulnerable_hits": 1,
+      "vulnerable_hits": 2,
       "example_hits": 0,
       "languages": [
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
       "ratio": "inf",
       "severity": null,
@@ -8289,7 +8289,7 @@
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8305,7 +8305,7 @@
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8321,7 +8321,7 @@
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8330,14 +8330,14 @@
     "semgrep/semgrep-rules.go.lang.correctness.exported_loop_pointer": {
       "tool": "semgrep",
       "title": "`app` is a loop pointer that may be exported from the loop. This pointer is shared between loop iterations, so the expor",
-      "clean_hits": 11,
+      "clean_hits": 13,
       "vulnerable_hits": 0,
       "example_hits": 0,
       "languages": [
         "go"
       ],
       "repos_seen": 2,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8353,7 +8353,7 @@
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8362,14 +8362,14 @@
     "semgrep/semgrep-rules.go.lang.correctness.permissions.incorrect-default-permission": {
       "tool": "semgrep",
       "title": "Detected file permissions that are set to more than `0600` (user/owner can read and write). Setting file permissions to ",
-      "clean_hits": 15,
+      "clean_hits": 20,
       "vulnerable_hits": 0,
       "example_hits": 0,
       "languages": [
         "go"
       ],
       "repos_seen": 3,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8378,16 +8378,16 @@
     "semgrep/semgrep-rules.go.lang.correctness.use-filepath-join": {
       "tool": "semgrep",
       "title": "`path.Join(...)` always joins using a forward slash. This may cause issues on Windows or other systems using a different",
-      "clean_hits": 14,
-      "vulnerable_hits": 22,
+      "clean_hits": 21,
+      "vulnerable_hits": 23,
       "example_hits": 0,
       "languages": [
         "go"
       ],
       "repos_seen": 3,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
-      "ratio": 87.17,
+      "ratio": 61.07,
       "severity": "medium",
       "basis": "measured"
     },
@@ -8401,7 +8401,7 @@
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8417,7 +8417,7 @@
         "go"
       ],
       "repos_seen": 4,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8426,14 +8426,14 @@
     "semgrep/semgrep-rules.go.lang.security.audit.crypto.missing-ssl-minversion": {
       "tool": "semgrep",
       "title": "`MinVersion` is missing from this TLS configuration.  By default, as of Go 1.22, TLS 1.2 is currently used as the minimu",
-      "clean_hits": 23,
+      "clean_hits": 29,
       "vulnerable_hits": 0,
       "example_hits": 0,
       "languages": [
         "go"
       ],
       "repos_seen": 2,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8442,18 +8442,18 @@
     "semgrep/semgrep-rules.go.lang.security.audit.crypto.use-of-md5": {
       "tool": "semgrep",
       "title": "Detected MD5 hash algorithm which is considered insecure. MD5 is not collision resistant and is therefore not suitable a",
-      "clean_hits": 1,
+      "clean_hits": 2,
       "vulnerable_hits": 3,
       "example_hits": 0,
       "languages": [
         "go"
       ],
       "repos_seen": 2,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
-      "ratio": 166.42,
-      "severity": null,
-      "basis": "insufficient-observations"
+      "ratio": 83.65,
+      "severity": "medium",
+      "basis": "measured"
     },
     "semgrep/semgrep-rules.go.lang.security.audit.crypto.use-of-sha1": {
       "tool": "semgrep",
@@ -8465,7 +8465,7 @@
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8481,7 +8481,7 @@
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8490,16 +8490,16 @@
     "semgrep/semgrep-rules.go.lang.security.audit.dangerous-exec-command": {
       "tool": "semgrep",
       "title": "Detected non-static command inside Command. Audit the input to 'exec.Command'. If unverified user data can reach this ca",
-      "clean_hits": 6,
-      "vulnerable_hits": 2,
+      "clean_hits": 16,
+      "vulnerable_hits": 3,
       "example_hits": 0,
       "languages": [
         "go"
       ],
       "repos_seen": 3,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
-      "ratio": 18.49,
+      "ratio": 10.46,
       "severity": "medium",
       "basis": "measured"
     },
@@ -8513,7 +8513,7 @@
         "go"
       ],
       "repos_seen": 2,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
       "ratio": "inf",
       "severity": null,
@@ -8523,31 +8523,31 @@
       "tool": "semgrep",
       "title": "A session cookie was detected without setting the 'HttpOnly' flag. The 'HttpOnly' flag for cookies instructs the browser",
       "clean_hits": 3,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 3,
       "example_hits": 0,
       "languages": [
         "go"
       ],
       "repos_seen": 4,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
-      "ratio": 36.98,
+      "ratio": 55.76,
       "severity": "medium",
       "basis": "measured"
     },
     "semgrep/semgrep-rules.go.lang.security.audit.net.cookie-missing-secure": {
       "tool": "semgrep",
       "title": "A session cookie was detected without setting the 'Secure' flag. The 'secure' flag for cookies prevents the client from ",
-      "clean_hits": 4,
-      "vulnerable_hits": 2,
+      "clean_hits": 5,
+      "vulnerable_hits": 3,
       "example_hits": 0,
       "languages": [
         "go"
       ],
       "repos_seen": 4,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
-      "ratio": 27.74,
+      "ratio": 33.46,
       "severity": "medium",
       "basis": "measured"
     },
@@ -8555,13 +8555,13 @@
       "tool": "semgrep",
       "title": "Found a formatted template string passed to 'template.HTML()'. 'template.HTML()' does not escape contents. Be absolutely",
       "clean_hits": 0,
-      "vulnerable_hits": 1,
+      "vulnerable_hits": 4,
       "example_hits": 0,
       "languages": [
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
       "ratio": "inf",
       "severity": null,
@@ -8577,7 +8577,7 @@
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
       "ratio": "inf",
       "severity": null,
@@ -8586,14 +8586,14 @@
     "semgrep/semgrep-rules.go.lang.security.audit.net.pprof-debug-exposure": {
       "tool": "semgrep",
       "title": "The profiling 'pprof' endpoint is automatically exposed on /debug/pprof. This could leak information about the server. I",
-      "clean_hits": 1,
+      "clean_hits": 2,
       "vulnerable_hits": 0,
       "example_hits": 0,
       "languages": [
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8602,16 +8602,16 @@
     "semgrep/semgrep-rules.go.lang.security.audit.net.use-tls": {
       "tool": "semgrep",
       "title": "Found an HTTP server without TLS. Use 'http.ListenAndServeTLS' instead. See https://golang.org/pkg/net/http/#ListenAndSe",
-      "clean_hits": 5,
+      "clean_hits": 6,
       "vulnerable_hits": 4,
       "example_hits": 5,
       "languages": [
         "go"
       ],
       "repos_seen": 5,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
-      "ratio": 44.38,
+      "ratio": 37.18,
       "severity": "medium",
       "basis": "measured"
     },
@@ -8625,7 +8625,7 @@
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
       "ratio": "inf",
       "severity": null,
@@ -8634,14 +8634,14 @@
     "semgrep/semgrep-rules.go.lang.security.audit.unsafe-reflect-by-name": {
       "tool": "semgrep",
       "title": "If an attacker can supply values that the application then uses to determine which method or field to invoke, the potent",
-      "clean_hits": 1,
+      "clean_hits": 2,
       "vulnerable_hits": 0,
       "example_hits": 0,
       "languages": [
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8650,14 +8650,14 @@
     "semgrep/semgrep-rules.go.lang.security.audit.use-of-unsafe-block": {
       "tool": "semgrep",
       "title": "Using the unsafe package in Go gives you low-level memory management and many of the strengths of the C language, but al",
-      "clean_hits": 4,
+      "clean_hits": 5,
       "vulnerable_hits": 0,
-      "example_hits": 1,
+      "example_hits": 2,
       "languages": [
         "go"
       ],
       "repos_seen": 3,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8673,41 +8673,41 @@
         "go"
       ],
       "repos_seen": 4,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
-      "ratio": 3.96,
+      "ratio": 3.98,
       "severity": "low",
       "basis": "measured"
     },
     "semgrep/semgrep-rules.go.lang.security.audit.xss.no-direct-write-to-responsewriter": {
       "tool": "semgrep",
       "title": "Detected directly writing or similar in 'http.ResponseWriter.write()'. This bypasses HTML escaping that prevents cross-s",
-      "clean_hits": 13,
+      "clean_hits": 14,
       "vulnerable_hits": 1,
-      "example_hits": 1,
+      "example_hits": 3,
       "languages": [
         "go"
       ],
       "repos_seen": 4,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
-      "ratio": 4.27,
+      "ratio": 3.98,
       "severity": "low",
       "basis": "measured"
     },
     "semgrep/semgrep-rules.go.lang.security.audit.xss.no-fprintf-to-responsewriter": {
       "tool": "semgrep",
       "title": "Detected 'Fprintf' or similar writing to 'http.ResponseWriter'. This bypasses HTML escaping that prevents cross-site scr",
-      "clean_hits": 4,
-      "vulnerable_hits": 4,
-      "example_hits": 1,
+      "clean_hits": 5,
+      "vulnerable_hits": 9,
+      "example_hits": 4,
       "languages": [
         "go"
       ],
       "repos_seen": 4,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
-      "ratio": 55.47,
+      "ratio": 100.38,
       "severity": "medium",
       "basis": "measured"
     },
@@ -8731,29 +8731,29 @@
       "tool": "semgrep",
       "title": "Semgrep could not determine that the argument to 'template.HTML()' is a constant. 'template.HTML()' and similar does not",
       "clean_hits": 0,
-      "vulnerable_hits": 3,
+      "vulnerable_hits": 7,
       "example_hits": 0,
       "languages": [
         "go"
       ],
       "repos_seen": 2,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
       "ratio": "inf",
-      "severity": null,
-      "basis": "insufficient-observations"
+      "severity": "medium",
+      "basis": "measured"
     },
     "semgrep/semgrep-rules.go.lang.security.bad-tmp-file-creation": {
       "tool": "semgrep",
       "title": "File creation in shared tmp directory without using `io.CreateTemp`.",
-      "clean_hits": 1,
+      "clean_hits": 3,
       "vulnerable_hits": 0,
       "example_hits": 0,
       "languages": [
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8762,34 +8762,34 @@
     "semgrep/semgrep-rules.go.lang.security.injection.open-redirect": {
       "tool": "semgrep",
       "title": "An HTTP redirect was found to be crafted from user-input `r`. This can lead to open redirect vulnerabilities, potentiall",
-      "clean_hits": 4,
+      "clean_hits": 8,
       "vulnerable_hits": 1,
       "example_hits": 0,
       "languages": [
         "go"
       ],
       "repos_seen": 3,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
-      "ratio": 13.87,
-      "severity": "medium",
+      "ratio": 6.97,
+      "severity": "low",
       "basis": "measured"
     },
     "semgrep/semgrep-rules.go.lang.security.injection.raw-html-format": {
       "tool": "semgrep",
       "title": "Detected user input flowing into a manually constructed HTML string. You may be accidentally bypassing secure methods of",
-      "clean_hits": 1,
-      "vulnerable_hits": 1,
+      "clean_hits": 2,
+      "vulnerable_hits": 3,
       "example_hits": 1,
       "languages": [
         "go"
       ],
       "repos_seen": 3,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
-      "ratio": 55.47,
-      "severity": null,
-      "basis": "insufficient-observations"
+      "ratio": 83.65,
+      "severity": "medium",
+      "basis": "measured"
     },
     "semgrep/semgrep-rules.go.lang.security.potential-dos-via-decompression-bomb": {
       "tool": "semgrep",
@@ -8801,7 +8801,7 @@
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8810,16 +8810,16 @@
     "semgrep/semgrep-rules.go.lang.security.shared-url-struct-mutation": {
       "tool": "semgrep",
       "title": "Shared URL struct may have been accidentally mutated. Ensure that this behavior is intended.",
-      "clean_hits": 9,
-      "vulnerable_hits": 20,
+      "clean_hits": 26,
+      "vulnerable_hits": 74,
       "example_hits": 0,
       "languages": [
         "go"
       ],
       "repos_seen": 3,
-      "clean_kloc": 846.3,
+      "clean_kloc": 850.7,
       "vulnerable_kloc": 15.3,
-      "ratio": 123.27,
+      "ratio": 158.71,
       "severity": "medium",
       "basis": "measured"
     },
@@ -8843,7 +8843,7 @@
       "tool": "semgrep",
       "title": "A cookie was detected without setting the 'HttpOnly' flag. The 'HttpOnly' flag for cookies instructs the browser to forb",
       "clean_hits": 0,
-      "vulnerable_hits": 3,
+      "vulnerable_hits": 5,
       "example_hits": 0,
       "languages": [
         "java"
@@ -8852,14 +8852,14 @@
       "clean_kloc": 57.1,
       "vulnerable_kloc": 38.4,
       "ratio": "inf",
-      "severity": null,
-      "basis": "insufficient-observations"
+      "severity": "low",
+      "basis": "measured-single-repo"
     },
     "semgrep/semgrep-rules.java.lang.security.audit.cookie-missing-secure-flag": {
       "tool": "semgrep",
       "title": "A cookie was detected without setting the 'secure' flag. The 'secure' flag for cookies prevents the client from transmit",
       "clean_hits": 0,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 3,
       "example_hits": 0,
       "languages": [
         "java"
@@ -8891,7 +8891,7 @@
       "tool": "semgrep",
       "title": "Detected use of the functions `Math.random()` or `java.util.Random()`. These are both not cryptographically strong rando",
       "clean_hits": 0,
-      "vulnerable_hits": 5,
+      "vulnerable_hits": 6,
       "example_hits": 0,
       "languages": [
         "java"
@@ -8907,7 +8907,7 @@
       "tool": "semgrep",
       "title": "Detected a formatted string in a SQL statement. This could lead to SQL injection if variables in the SQL statement are n",
       "clean_hits": 0,
-      "vulnerable_hits": 7,
+      "vulnerable_hits": 8,
       "example_hits": 0,
       "languages": [
         "java"
@@ -8939,7 +8939,7 @@
       "tool": "semgrep",
       "title": "Detected a formatted string in a SQL statement. This could lead to SQL injection if variables in the SQL statement are n",
       "clean_hits": 0,
-      "vulnerable_hits": 5,
+      "vulnerable_hits": 7,
       "example_hits": 0,
       "languages": [
         "java"
@@ -9131,7 +9131,7 @@
       "tool": "semgrep",
       "title": "Default session middleware settings: `setSecure` not set to true. This ensures that the cookie is sent only over HTTPS t",
       "clean_hits": 0,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 3,
       "example_hits": 0,
       "languages": [
         "java"
@@ -9147,7 +9147,7 @@
       "tool": "semgrep",
       "title": "The tag \"http-method\" is used to specify on which HTTP methods the java web security constraint apply. The target securi",
       "clean_hits": 0,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 4,
       "example_hits": 0,
       "languages": [
         "unknown"
@@ -9185,8 +9185,8 @@
         "yaml"
       ],
       "repos_seen": 1,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -9259,7 +9259,7 @@
       "tool": "semgrep",
       "title": "Detected a method annotated with 'RequestMapping' that does not specify the HTTP method. CSRF protections are not enable",
       "clean_hits": 0,
-      "vulnerable_hits": 15,
+      "vulnerable_hits": 21,
       "example_hits": 0,
       "languages": [
         "java"
@@ -9292,7 +9292,7 @@
       "tool": "semgrep",
       "title": "Detected the use of eval(). eval() can be dangerous if used to evaluate dynamic content. If this content can be input fr",
       "clean_hits": 0,
-      "vulnerable_hits": 5,
+      "vulnerable_hits": 7,
       "example_hits": 0,
       "languages": [
         "javascript",
@@ -9308,8 +9308,8 @@
     "semgrep/semgrep-rules.javascript.browser.security.insecure-document-method": {
       "tool": "semgrep",
       "title": "User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XS",
-      "clean_hits": 2,
-      "vulnerable_hits": 16,
+      "clean_hits": 4,
+      "vulnerable_hits": 35,
       "example_hits": 0,
       "languages": [
         "javascript",
@@ -9318,15 +9318,15 @@
       "repos_seen": 7,
       "clean_kloc": 182.8,
       "vulnerable_kloc": 177.8,
-      "ratio": 8.22,
+      "ratio": 9.0,
       "severity": "low",
       "basis": "measured"
     },
     "semgrep/semgrep-rules.javascript.browser.security.insecure-innerhtml": {
       "tool": "semgrep",
       "title": "User controlled data in a `document.getElementById(\"employeeRecord\").innerHTML` is an anti-pattern that can lead to XSS ",
-      "clean_hits": 2,
-      "vulnerable_hits": 16,
+      "clean_hits": 4,
+      "vulnerable_hits": 35,
       "example_hits": 0,
       "languages": [
         "javascript",
@@ -9335,7 +9335,7 @@
       "repos_seen": 7,
       "clean_kloc": 182.8,
       "vulnerable_kloc": 177.8,
-      "ratio": 8.22,
+      "ratio": 9.0,
       "severity": "low",
       "basis": "measured"
     },
@@ -9407,7 +9407,7 @@
       "tool": "semgrep",
       "title": "Directory listing/indexing is enabled, which may lead to disclosure of sensitive directories and files. It is recommende",
       "clean_hits": 0,
-      "vulnerable_hits": 1,
+      "vulnerable_hits": 5,
       "example_hits": 0,
       "languages": [
         "typescript"
@@ -9416,8 +9416,8 @@
       "clean_kloc": 159.6,
       "vulnerable_kloc": 64.9,
       "ratio": "inf",
-      "severity": null,
-      "basis": "insufficient-observations"
+      "severity": "low",
+      "basis": "measured-single-repo"
     },
     "semgrep/semgrep-rules.javascript.express.security.audit.express-cookie-session-default-name": {
       "tool": "semgrep",
@@ -9599,8 +9599,8 @@
     "semgrep/semgrep-rules.javascript.express.security.audit.xss.direct-response-write": {
       "tool": "semgrep",
       "title": "Detected directly writing to a Response object from user-defined input. This bypasses any HTML escaping and may expose y",
-      "clean_hits": 5,
-      "vulnerable_hits": 1,
+      "clean_hits": 7,
+      "vulnerable_hits": 3,
       "example_hits": 1,
       "languages": [
         "javascript"
@@ -9608,7 +9608,7 @@
       "repos_seen": 3,
       "clean_kloc": 23.2,
       "vulnerable_kloc": 112.9,
-      "ratio": 0.04,
+      "ratio": 0.09,
       "severity": "info",
       "basis": "measured"
     },
@@ -9648,7 +9648,7 @@
       "tool": "semgrep",
       "title": "Detected an explicit unescape in a Mustache template, using triple braces '{{{...}}}' or ampersand '&'. If external data",
       "clean_hits": 0,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 3,
       "example_hits": 0,
       "languages": [
         "html",
@@ -9665,7 +9665,7 @@
       "tool": "semgrep",
       "title": "Detected a template variable used in a script tag. Although template variables are HTML escaped, HTML escaping does not ",
       "clean_hits": 1,
-      "vulnerable_hits": 4,
+      "vulnerable_hits": 5,
       "example_hits": 0,
       "languages": [
         "html"
@@ -9673,7 +9673,7 @@
       "repos_seen": 3,
       "clean_kloc": 190.6,
       "vulnerable_kloc": 41.5,
-      "ratio": 18.4,
+      "ratio": 22.99,
       "severity": "medium",
       "basis": "measured"
     },
@@ -9714,8 +9714,8 @@
       "tool": "semgrep",
       "title": "User controlled data in a jQuery's `.html(...)` is an anti-pattern that can lead to XSS vulnerabilities",
       "clean_hits": 0,
-      "vulnerable_hits": 20,
-      "example_hits": 2,
+      "vulnerable_hits": 39,
+      "example_hits": 3,
       "languages": [
         "javascript"
       ],
@@ -9730,8 +9730,8 @@
       "tool": "semgrep",
       "title": "User controlled data in a `$(...)` is an anti-pattern that can lead to XSS vulnerabilities",
       "clean_hits": 0,
-      "vulnerable_hits": 25,
-      "example_hits": 1,
+      "vulnerable_hits": 245,
+      "example_hits": 5,
       "languages": [
         "javascript"
       ],
@@ -9746,7 +9746,7 @@
       "tool": "semgrep",
       "title": "JQuery's `html` function is susceptible to Cross Site Scripting (XSS) attacks. If you're just passing text, consider `te",
       "clean_hits": 0,
-      "vulnerable_hits": 16,
+      "vulnerable_hits": 29,
       "example_hits": 1,
       "languages": [
         "javascript"
@@ -9795,7 +9795,7 @@
       "title": "found alert() call; should this be in production code?",
       "clean_hits": 0,
       "vulnerable_hits": 4,
-      "example_hits": 1,
+      "example_hits": 2,
       "languages": [
         "javascript"
       ],
@@ -9841,8 +9841,8 @@
     "semgrep/semgrep-rules.javascript.lang.best-practice.lazy-load-module": {
       "tool": "semgrep",
       "title": "Lazy loading can complicate code bundling if care is not taken, also `require`s are run synchronously by Node.js. If the",
-      "clean_hits": 5,
-      "vulnerable_hits": 3,
+      "clean_hits": 6,
+      "vulnerable_hits": 4,
       "example_hits": 2,
       "languages": [
         "javascript",
@@ -9851,7 +9851,7 @@
       "repos_seen": 6,
       "clean_kloc": 182.8,
       "vulnerable_kloc": 177.8,
-      "ratio": 0.62,
+      "ratio": 0.69,
       "severity": "info",
       "basis": "measured"
     },
@@ -9859,7 +9859,7 @@
       "tool": "semgrep",
       "title": "Detected a useless comparison operation `timer == timer` or `timer != timer`. This operation is always true. If testing ",
       "clean_hits": 0,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 4,
       "example_hits": 0,
       "languages": [
         "javascript"
@@ -9874,9 +9874,9 @@
     "semgrep/semgrep-rules.javascript.lang.correctness.missing-template-string-indicator": {
       "tool": "semgrep",
       "title": "This looks like a JavaScript template string. Are you missing a '$' in front of '{...}'?",
-      "clean_hits": 15,
-      "vulnerable_hits": 7,
-      "example_hits": 7,
+      "clean_hits": 38,
+      "vulnerable_hits": 31,
+      "example_hits": 14,
       "languages": [
         "javascript",
         "typescript"
@@ -9884,7 +9884,7 @@
       "repos_seen": 7,
       "clean_kloc": 182.8,
       "vulnerable_kloc": 177.8,
-      "ratio": 0.48,
+      "ratio": 0.84,
       "severity": "info",
       "basis": "measured"
     },
@@ -9908,9 +9908,9 @@
     "semgrep/semgrep-rules.javascript.lang.correctness.no-stringify-keys": {
       "tool": "semgrep",
       "title": "JSON stringify does not produce a stable key ordering, and should not be relied on for producing object keys. Consider u",
-      "clean_hits": 3,
+      "clean_hits": 5,
       "vulnerable_hits": 0,
-      "example_hits": 3,
+      "example_hits": 10,
       "languages": [
         "javascript",
         "typescript"
@@ -9925,9 +9925,9 @@
     "semgrep/semgrep-rules.javascript.lang.correctness.useless-assignment": {
       "tool": "semgrep",
       "title": "`const` is assigned twice; the first assignment is useless",
-      "clean_hits": 2,
-      "vulnerable_hits": 13,
-      "example_hits": 7,
+      "clean_hits": 4,
+      "vulnerable_hits": 35,
+      "example_hits": 9,
       "languages": [
         "javascript",
         "typescript"
@@ -9935,7 +9935,7 @@
       "repos_seen": 10,
       "clean_kloc": 182.8,
       "vulnerable_kloc": 177.8,
-      "ratio": 6.68,
+      "ratio": 9.0,
       "severity": "low",
       "basis": "measured"
     },
@@ -9943,7 +9943,7 @@
       "tool": "semgrep",
       "title": "Found data from an Express or Next web request flowing to `eval`. If this data is user-controllable this can lead to exe",
       "clean_hits": 0,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 4,
       "example_hits": 0,
       "languages": [
         "javascript",
@@ -9961,7 +9961,7 @@
       "title": "Detected that function argument `relativePath` has entered the fs module. An attacker could potentially control the loca",
       "clean_hits": 0,
       "vulnerable_hits": 1,
-      "example_hits": 3,
+      "example_hits": 5,
       "languages": [
         "javascript",
         "typescript"
@@ -9976,9 +9976,9 @@
     "semgrep/semgrep-rules.javascript.lang.security.audit.detect-non-literal-regexp": {
       "tool": "semgrep",
       "title": "RegExp() called with a `component` function argument, this might allow an attacker to cause a Regular Expression Denial-",
-      "clean_hits": 13,
-      "vulnerable_hits": 12,
-      "example_hits": 3,
+      "clean_hits": 30,
+      "vulnerable_hits": 25,
+      "example_hits": 4,
       "languages": [
         "javascript",
         "typescript"
@@ -9986,7 +9986,7 @@
       "repos_seen": 10,
       "clean_kloc": 182.8,
       "vulnerable_kloc": 177.8,
-      "ratio": 0.95,
+      "ratio": 0.86,
       "severity": "info",
       "basis": "measured"
     },
@@ -10009,7 +10009,7 @@
     "semgrep/semgrep-rules.javascript.lang.security.audit.detect-redos": {
       "tool": "semgrep",
       "title": "Detected the use of a regular expression `([0-9]+)+\\#` which appears to be vulnerable to a Regular expression Denial-of-",
-      "clean_hits": 2,
+      "clean_hits": 5,
       "vulnerable_hits": 2,
       "example_hits": 0,
       "languages": [
@@ -10019,15 +10019,15 @@
       "repos_seen": 4,
       "clean_kloc": 182.8,
       "vulnerable_kloc": 177.8,
-      "ratio": 1.03,
-      "severity": null,
-      "basis": "insufficient-observations"
+      "ratio": 0.41,
+      "severity": "info",
+      "basis": "measured"
     },
     "semgrep/semgrep-rules.javascript.lang.security.audit.hardcoded-hmac-key": {
       "tool": "semgrep",
       "title": "Detected a hardcoded hmac key. Avoid hardcoding secrets and consider using an alternate option such as reading the secre",
       "clean_hits": 0,
-      "vulnerable_hits": 1,
+      "vulnerable_hits": 2,
       "example_hits": 0,
       "languages": [
         "typescript"
@@ -10075,7 +10075,7 @@
       "tool": "semgrep",
       "title": "Possibility of prototype polluting assignment detected. By adding or modifying attributes of an object prototype, it is ",
       "clean_hits": 0,
-      "vulnerable_hits": 1,
+      "vulnerable_hits": 17,
       "example_hits": 0,
       "languages": [
         "javascript"
@@ -10084,8 +10084,8 @@
       "clean_kloc": 23.2,
       "vulnerable_kloc": 112.9,
       "ratio": "inf",
-      "severity": null,
-      "basis": "insufficient-observations"
+      "severity": "low",
+      "basis": "measured-single-repo"
     },
     "semgrep/semgrep-rules.javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop": {
       "tool": "semgrep",
@@ -10124,7 +10124,7 @@
       "tool": "semgrep",
       "title": "Using non-static data to retrieve and run functions from the object is dangerous. If the data is user-controlled, it may",
       "clean_hits": 4,
-      "vulnerable_hits": 21,
+      "vulnerable_hits": 106,
       "example_hits": 0,
       "languages": [
         "javascript",
@@ -10133,8 +10133,8 @@
       "repos_seen": 7,
       "clean_kloc": 182.8,
       "vulnerable_kloc": 177.8,
-      "ratio": 5.4,
-      "severity": "low",
+      "ratio": 27.24,
+      "severity": "medium",
       "basis": "measured"
     },
     "semgrep/semgrep-rules.javascript.lang.security.audit.unsafe-formatstring": {
@@ -10142,7 +10142,7 @@
       "title": "Detected string concatenation with a non-literal variable in a util.format / console.log function. If an attacker inject",
       "clean_hits": 2,
       "vulnerable_hits": 1,
-      "example_hits": 3,
+      "example_hits": 4,
       "languages": [
         "javascript",
         "typescript"
@@ -10158,7 +10158,7 @@
       "tool": "semgrep",
       "title": "Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections.",
       "clean_hits": 0,
-      "vulnerable_hits": 6,
+      "vulnerable_hits": 10,
       "example_hits": 0,
       "languages": [
         "markdown",
@@ -10166,7 +10166,7 @@
         "unknown"
       ],
       "repos_seen": 1,
-      "clean_kloc": 426.0,
+      "clean_kloc": 426.4,
       "vulnerable_kloc": 203.2,
       "ratio": "inf",
       "severity": "low",
@@ -10176,7 +10176,7 @@
       "tool": "semgrep",
       "title": "This template literal looks like HTML and has interpolated variables. These variables are not HTML-encoded by default. I",
       "clean_hits": 4,
-      "vulnerable_hits": 9,
+      "vulnerable_hits": 10,
       "example_hits": 2,
       "languages": [
         "javascript",
@@ -10185,7 +10185,7 @@
       "repos_seen": 6,
       "clean_kloc": 182.8,
       "vulnerable_kloc": 177.8,
-      "ratio": 2.31,
+      "ratio": 2.57,
       "severity": "info",
       "basis": "measured"
     },
@@ -10241,7 +10241,7 @@
       "tool": "semgrep",
       "title": "Evaluating non-constant commands. This can lead to command injection.",
       "clean_hits": 0,
-      "vulnerable_hits": 1,
+      "vulnerable_hits": 2,
       "example_hits": 0,
       "languages": [
         "php"
@@ -10257,7 +10257,7 @@
       "tool": "semgrep",
       "title": "Executing non-constant commands. This can lead to command injection.",
       "clean_hits": 0,
-      "vulnerable_hits": 13,
+      "vulnerable_hits": 17,
       "example_hits": 0,
       "languages": [
         "php"
@@ -10305,7 +10305,7 @@
       "tool": "semgrep",
       "title": "User input is passed to a function that executes a shell command. This can lead to remote code execution.",
       "clean_hits": 0,
-      "vulnerable_hits": 5,
+      "vulnerable_hits": 9,
       "example_hits": 0,
       "languages": [
         "php"
@@ -10321,7 +10321,7 @@
       "tool": "semgrep",
       "title": "File name based on user input risks server-side request forgery.",
       "clean_hits": 0,
-      "vulnerable_hits": 6,
+      "vulnerable_hits": 12,
       "example_hits": 0,
       "languages": [
         "php"
@@ -10337,7 +10337,7 @@
       "tool": "semgrep",
       "title": "User data flows into this manually-constructed SQL string. User data can be safely inserted into SQL strings using prepa",
       "clean_hits": 0,
-      "vulnerable_hits": 7,
+      "vulnerable_hits": 14,
       "example_hits": 0,
       "languages": [
         "php"
@@ -10353,7 +10353,7 @@
       "tool": "semgrep",
       "title": "Make sure comparisons involving md5 values are strict (use `===` not `==`) to avoid type juggling issues",
       "clean_hits": 0,
-      "vulnerable_hits": 8,
+      "vulnerable_hits": 9,
       "example_hits": 0,
       "languages": [
         "php"
@@ -10417,7 +10417,7 @@
       "tool": "semgrep",
       "title": "Executing non-constant commands. This can lead to command injection. You should use `escapeshellarg()` when using comman",
       "clean_hits": 0,
-      "vulnerable_hits": 4,
+      "vulnerable_hits": 8,
       "example_hits": 0,
       "languages": [
         "php"
@@ -10426,8 +10426,8 @@
       "clean_kloc": 65.1,
       "vulnerable_kloc": 14.2,
       "ratio": "inf",
-      "severity": null,
-      "basis": "insufficient-observations"
+      "severity": "low",
+      "basis": "measured-single-repo"
     },
     "semgrep/semgrep-rules.php.lang.security.unlink-use": {
       "tool": "semgrep",
@@ -10449,7 +10449,7 @@
       "tool": "semgrep",
       "title": "Detected usage of weak crypto function. Consider using stronger alternatives.",
       "clean_hits": 0,
-      "vulnerable_hits": 18,
+      "vulnerable_hits": 21,
       "example_hits": 0,
       "languages": [
         "php"
@@ -10465,7 +10465,7 @@
       "tool": "semgrep",
       "title": "An encryption mode of operation is being used without proper message authentication. This can potentially result in the ",
       "clean_hits": 0,
-      "vulnerable_hits": 3,
+      "vulnerable_hits": 4,
       "example_hits": 0,
       "languages": [
         "python"
@@ -10497,7 +10497,7 @@
       "tool": "semgrep",
       "title": "Detected usage of @csrf_exempt, which indicates that there is no CSRF token set for this route. This could lead to an at",
       "clean_hits": 0,
-      "vulnerable_hits": 1,
+      "vulnerable_hits": 3,
       "example_hits": 0,
       "languages": [
         "python"
@@ -10512,16 +10512,16 @@
     "semgrep/semgrep-rules.python.django.security.django-no-csrf-token": {
       "tool": "semgrep",
       "title": "Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.",
-      "clean_hits": 5,
-      "vulnerable_hits": 83,
-      "example_hits": 1,
+      "clean_hits": 8,
+      "vulnerable_hits": 156,
+      "example_hits": 2,
       "languages": [
         "html"
       ],
       "repos_seen": 8,
       "clean_kloc": 190.6,
       "vulnerable_kloc": 41.5,
-      "ratio": 76.34,
+      "ratio": 89.68,
       "severity": "medium",
       "basis": "measured"
     },
@@ -10561,7 +10561,7 @@
       "tool": "semgrep",
       "title": "User-controlled data from a request is passed to 'execute()'. This could lead to a SQL injection and therefore protected",
       "clean_hits": 0,
-      "vulnerable_hits": 1,
+      "vulnerable_hits": 2,
       "example_hits": 0,
       "languages": [
         "python"
@@ -10721,7 +10721,7 @@
       "tool": "semgrep",
       "title": "Found a Flask cookie with insecurely configured properties.  By default the secure, httponly and samesite ar configured ",
       "clean_hits": 0,
-      "vulnerable_hits": 7,
+      "vulnerable_hits": 11,
       "example_hits": 0,
       "languages": [
         "python"
@@ -10833,7 +10833,7 @@
       "tool": "semgrep",
       "title": "Detected the use of an insecure deserialization library in a Flask route. These libraries are prone to code execution vu",
       "clean_hits": 0,
-      "vulnerable_hits": 4,
+      "vulnerable_hits": 5,
       "example_hits": 0,
       "languages": [
         "python"
@@ -10842,14 +10842,14 @@
       "clean_kloc": 71.1,
       "vulnerable_kloc": 20.1,
       "ratio": "inf",
-      "severity": null,
-      "basis": "insufficient-observations"
+      "severity": "medium",
+      "basis": "measured"
     },
     "semgrep/semgrep-rules.python.flask.security.open-redirect": {
       "tool": "semgrep",
       "title": "Data from request is passed to redirect(). This is an open redirect and could be exploited. Consider using 'url_for()' t",
       "clean_hits": 0,
-      "vulnerable_hits": 4,
+      "vulnerable_hits": 7,
       "example_hits": 0,
       "languages": [
         "python"
@@ -10858,13 +10858,13 @@
       "clean_kloc": 71.1,
       "vulnerable_kloc": 20.1,
       "ratio": "inf",
-      "severity": null,
-      "basis": "insufficient-observations"
+      "severity": "medium",
+      "basis": "measured"
     },
     "semgrep/semgrep-rules.python.flask.security.xss.audit.direct-use-of-jinja2": {
       "tool": "semgrep",
       "title": "Detected direct use of jinja2. If not done properly, this may bypass HTML escaping which opens up the application to cro",
-      "clean_hits": 1,
+      "clean_hits": 2,
       "vulnerable_hits": 1,
       "example_hits": 0,
       "languages": [
@@ -10873,7 +10873,7 @@
       "repos_seen": 2,
       "clean_kloc": 71.1,
       "vulnerable_kloc": 20.1,
-      "ratio": 3.53,
+      "ratio": 1.77,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -10897,7 +10897,7 @@
       "tool": "semgrep",
       "title": "Detected a segment of a Flask template where autoescaping is explicitly disabled with '| safe' filter. This allows rende",
       "clean_hits": 0,
-      "vulnerable_hits": 6,
+      "vulnerable_hits": 8,
       "example_hits": 0,
       "languages": [
         "html"
@@ -10928,16 +10928,16 @@
     "semgrep/semgrep-rules.python.lang.best-practice.arbitrary-sleep": {
       "tool": "semgrep",
       "title": "time.sleep() call; did you mean to leave this in?",
-      "clean_hits": 1,
-      "vulnerable_hits": 10,
-      "example_hits": 5,
+      "clean_hits": 2,
+      "vulnerable_hits": 15,
+      "example_hits": 9,
       "languages": [
         "python"
       ],
       "repos_seen": 4,
       "clean_kloc": 71.1,
       "vulnerable_kloc": 20.1,
-      "ratio": 35.3,
+      "ratio": 26.48,
       "severity": "medium",
       "basis": "measured"
     },
@@ -10946,7 +10946,7 @@
       "title": "Errors should only be logged when handled. The code logs the error and propogates the exception, consider reducing the l",
       "clean_hits": 1,
       "vulnerable_hits": 0,
-      "example_hits": 2,
+      "example_hits": 5,
       "languages": [
         "python"
       ],
@@ -11009,9 +11009,9 @@
     "semgrep/semgrep-rules.python.lang.best-practice.unspecified-open-encoding": {
       "tool": "semgrep",
       "title": "Missing 'encoding' parameter. 'open()' uses device locale encodings by default, corrupting files with special characters",
-      "clean_hits": 8,
-      "vulnerable_hits": 11,
-      "example_hits": 27,
+      "clean_hits": 18,
+      "vulnerable_hits": 22,
+      "example_hits": 36,
       "languages": [
         "python",
         "unknown"
@@ -11019,7 +11019,7 @@
       "repos_seen": 9,
       "clean_kloc": 202.0,
       "vulnerable_kloc": 136.2,
-      "ratio": 2.04,
+      "ratio": 1.81,
       "severity": "info",
       "basis": "measured"
     },
@@ -11074,7 +11074,7 @@
     "semgrep/semgrep-rules.python.lang.correctness.common-mistakes.string-concat-in-list": {
       "tool": "semgrep",
       "title": "Detected strings that are implicitly concatenated inside a list. Python will implicitly concatenate strings when not exp",
-      "clean_hits": 2,
+      "clean_hits": 3,
       "vulnerable_hits": 3,
       "example_hits": 0,
       "languages": [
@@ -11083,7 +11083,7 @@
       "repos_seen": 3,
       "clean_kloc": 71.1,
       "vulnerable_kloc": 20.1,
-      "ratio": 5.3,
+      "ratio": 3.53,
       "severity": "low",
       "basis": "measured"
     },
@@ -11155,7 +11155,7 @@
       "tool": "semgrep",
       "title": "Detected use of `exit`. Use `sys.exit` over the python shell `exit` built-in. `exit` is a helper for the interactive she",
       "clean_hits": 0,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 3,
       "example_hits": 1,
       "languages": [
         "python"
@@ -11170,8 +11170,8 @@
     "semgrep/semgrep-rules.python.lang.maintainability.is-function-without-parentheses": {
       "tool": "semgrep",
       "title": "Is \"is_custom\" a function or an attribute? If it is a function, you may have meant lab.is_custom() because lab.is_custom",
-      "clean_hits": 9,
-      "vulnerable_hits": 10,
+      "clean_hits": 15,
+      "vulnerable_hits": 62,
       "example_hits": 0,
       "languages": [
         "python"
@@ -11179,8 +11179,8 @@
       "repos_seen": 6,
       "clean_kloc": 71.1,
       "vulnerable_kloc": 20.1,
-      "ratio": 3.92,
-      "severity": "low",
+      "ratio": 14.59,
+      "severity": "medium",
       "basis": "measured"
     },
     "semgrep/semgrep-rules.python.lang.maintainability.return-not-in-function": {
@@ -11219,7 +11219,7 @@
       "tool": "semgrep",
       "title": "Detected 'create_subprocess_exec' function without a static string. If this data can be controlled by a malicious actor,",
       "clean_hits": 0,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 10,
       "example_hits": 0,
       "languages": [
         "python"
@@ -11228,8 +11228,8 @@
       "clean_kloc": 71.1,
       "vulnerable_kloc": 20.1,
       "ratio": "inf",
-      "severity": null,
-      "basis": "insufficient-observations"
+      "severity": "low",
+      "basis": "measured-single-repo"
     },
     "semgrep/semgrep-rules.python.lang.security.audit.dangerous-asyncio-create-exec-tainted-env-args": {
       "tool": "semgrep",
@@ -11282,8 +11282,8 @@
     "semgrep/semgrep-rules.python.lang.security.audit.dangerous-subprocess-use-audit": {
       "tool": "semgrep",
       "title": "Detected subprocess function 'Popen' without a static string. If this data can be controlled by a malicious actor, it ma",
-      "clean_hits": 9,
-      "vulnerable_hits": 3,
+      "clean_hits": 16,
+      "vulnerable_hits": 4,
       "example_hits": 1,
       "languages": [
         "python",
@@ -11292,7 +11292,7 @@
       "repos_seen": 6,
       "clean_kloc": 202.0,
       "vulnerable_kloc": 136.2,
-      "ratio": 0.49,
+      "ratio": 0.37,
       "severity": "info",
       "basis": "measured"
     },
@@ -11315,8 +11315,8 @@
     "semgrep/semgrep-rules.python.lang.security.audit.dynamic-urllib-use-detected": {
       "tool": "semgrep",
       "title": "Detected a dynamic value being used with urllib. urllib supports 'file://' schemes, so a dynamic value controlled by a m",
-      "clean_hits": 4,
-      "vulnerable_hits": 5,
+      "clean_hits": 5,
+      "vulnerable_hits": 11,
       "example_hits": 5,
       "languages": [
         "python"
@@ -11324,7 +11324,7 @@
       "repos_seen": 5,
       "clean_kloc": 71.1,
       "vulnerable_kloc": 20.1,
-      "ratio": 4.41,
+      "ratio": 7.77,
       "severity": "low",
       "basis": "measured"
     },
@@ -11380,7 +11380,7 @@
       "tool": "semgrep",
       "title": "Detected a request using 'http://'. This request will be unencrypted. Use 'https://' instead.",
       "clean_hits": 0,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 3,
       "example_hits": 0,
       "languages": [
         "python"
@@ -11397,7 +11397,7 @@
       "title": "Detected a request using 'http://'. This request will be unencrypted, and attackers could listen into traffic on the net",
       "clean_hits": 0,
       "vulnerable_hits": 1,
-      "example_hits": 2,
+      "example_hits": 7,
       "languages": [
         "python"
       ],
@@ -11412,8 +11412,8 @@
       "tool": "semgrep",
       "title": "Detected a python logger call with a potential hardcoded secret '[+] find a new token: %s' being logged. This may lead t",
       "clean_hits": 0,
-      "vulnerable_hits": 1,
-      "example_hits": 2,
+      "vulnerable_hits": 4,
+      "example_hits": 15,
       "languages": [
         "python"
       ],
@@ -11491,7 +11491,7 @@
     "semgrep/semgrep-rules.python.lang.security.dangerous-globals-use": {
       "tool": "semgrep",
       "title": "Found non static data as an index to 'globals()'. This is extremely dangerous because it allows an attacker to execute a",
-      "clean_hits": 1,
+      "clean_hits": 2,
       "vulnerable_hits": 0,
       "example_hits": 0,
       "languages": [
@@ -11524,7 +11524,7 @@
       "tool": "semgrep",
       "title": "Avoid using `pickle`, which is known to lead to code execution vulnerabilities. When unpickling, the serialized data cou",
       "clean_hits": 0,
-      "vulnerable_hits": 6,
+      "vulnerable_hits": 8,
       "example_hits": 0,
       "languages": [
         "python"
@@ -11577,7 +11577,7 @@
       "languages": [
         "python"
       ],
-      "repos_seen": 5,
+      "repos_seen": 4,
       "clean_kloc": 71.1,
       "vulnerable_kloc": 20.1,
       "ratio": 1.18,
@@ -11604,7 +11604,7 @@
       "tool": "semgrep",
       "title": "The Python documentation recommends using `defusedxml` instead of `xml` because the native Python `xml` library is vulne",
       "clean_hits": 0,
-      "vulnerable_hits": 1,
+      "vulnerable_hits": 3,
       "example_hits": 0,
       "languages": [
         "python"
@@ -11636,8 +11636,8 @@
       "tool": "semgrep",
       "title": "There's an HTTP request made with requests, but the raise_for_status() utility method isn't used. This can result in req",
       "clean_hits": 0,
-      "vulnerable_hits": 15,
-      "example_hits": 4,
+      "vulnerable_hits": 31,
+      "example_hits": 9,
       "languages": [
         "python"
       ],
@@ -11652,8 +11652,8 @@
       "tool": "semgrep",
       "title": "Detected a 'requests' call without a timeout set. By default, 'requests' calls wait until the connection is closed. This",
       "clean_hits": 0,
-      "vulnerable_hits": 19,
-      "example_hits": 7,
+      "vulnerable_hits": 51,
+      "example_hits": 12,
       "languages": [
         "python"
       ],
@@ -11668,7 +11668,7 @@
       "tool": "semgrep",
       "title": "Certificate verification has been explicitly disabled. This permits insecure connections to insecure servers. Re-enable ",
       "clean_hits": 0,
-      "vulnerable_hits": 3,
+      "vulnerable_hits": 6,
       "example_hits": 0,
       "languages": [
         "python"
@@ -11677,8 +11677,8 @@
       "clean_kloc": 71.1,
       "vulnerable_kloc": 20.1,
       "ratio": "inf",
-      "severity": null,
-      "basis": "insufficient-observations"
+      "severity": "low",
+      "basis": "measured-single-repo"
     },
     "semgrep/semgrep-rules.python.sqlalchemy.security.sqlalchemy-execute-raw-query": {
       "tool": "semgrep",
@@ -11796,7 +11796,7 @@
       "tool": "semgrep",
       "title": "Should not use md5 to generate hashes. md5 is proven to be vulnerable through the use of brute-force attacks. Could also",
       "clean_hits": 0,
-      "vulnerable_hits": 3,
+      "vulnerable_hits": 6,
       "example_hits": 0,
       "languages": [
         "ruby"
@@ -11805,8 +11805,8 @@
       "clean_kloc": 24.1,
       "vulnerable_kloc": 3.6,
       "ratio": "inf",
-      "severity": null,
-      "basis": "insufficient-observations"
+      "severity": "low",
+      "basis": "measured-single-repo"
     },
     "semgrep/semgrep-rules.ruby.lang.security.weak-hashes-sha1": {
       "tool": "semgrep",
@@ -11972,7 +11972,7 @@
       "tool": "semgrep",
       "title": "Detected a template variable used in an anchor tag with the 'href' attribute. This allows a malicious actor to input the",
       "clean_hits": 0,
-      "vulnerable_hits": 1,
+      "vulnerable_hits": 2,
       "example_hits": 0,
       "languages": [
         "unknown"
@@ -12068,7 +12068,7 @@
       "tool": "semgrep",
       "title": "Found user-controllable input to Ruby reflection functionality. This allows a remote user to influence runtime behavior,",
       "clean_hits": 0,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 3,
       "example_hits": 0,
       "languages": [
         "ruby"
@@ -12084,7 +12084,7 @@
       "tool": "semgrep",
       "title": "Found an unscoped `find(...)` with user-controllable input. If the ActiveRecord model being searched against is sensitiv",
       "clean_hits": 0,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 3,
       "example_hits": 0,
       "languages": [
         "ruby"
@@ -12131,7 +12131,7 @@
     "semgrep/semgrep-rules.rust.lang.security.args": {
       "tool": "semgrep",
       "title": "args should not be used for security operations. From the docs: \"The first element is traditionally the path of the exec",
-      "clean_hits": 2,
+      "clean_hits": 4,
       "vulnerable_hits": 0,
       "example_hits": 0,
       "languages": [
@@ -12147,7 +12147,7 @@
     "semgrep/semgrep-rules.rust.lang.security.args-os": {
       "tool": "semgrep",
       "title": "args_os should not be used for security operations. From the docs: \"The first element is traditionally the path of the e",
-      "clean_hits": 2,
+      "clean_hits": 3,
       "vulnerable_hits": 0,
       "example_hits": 0,
       "languages": [
@@ -12163,7 +12163,7 @@
     "semgrep/semgrep-rules.rust.lang.security.current-exe": {
       "tool": "semgrep",
       "title": "current_exe should not be used for security operations. From the docs: \"The output of this function should not be truste",
-      "clean_hits": 1,
+      "clean_hits": 3,
       "vulnerable_hits": 0,
       "example_hits": 0,
       "languages": [
@@ -12195,7 +12195,7 @@
     "semgrep/semgrep-rules.rust.lang.security.unsafe-usage": {
       "tool": "semgrep",
       "title": "Detected 'unsafe' usage, please audit for secure usage",
-      "clean_hits": 3,
+      "clean_hits": 4,
       "vulnerable_hits": 0,
       "example_hits": 0,
       "languages": [
@@ -12212,7 +12212,7 @@
       "tool": "semgrep",
       "title": "The AWS RDS Cluster is not configured to use IAM authentication. Consider using IAM for authentication.",
       "clean_hits": 0,
-      "vulnerable_hits": 1,
+      "vulnerable_hits": 9,
       "example_hits": 0,
       "languages": [
         "terraform"
@@ -12221,8 +12221,8 @@
       "clean_kloc": 28.6,
       "vulnerable_kloc": 7.5,
       "ratio": "inf",
-      "severity": null,
-      "basis": "insufficient-observations"
+      "severity": "low",
+      "basis": "measured-single-repo"
     },
     "semgrep/semgrep-rules.terraform.aws.best-practice.aws-rds-iam-authentication-not-enabled": {
       "tool": "semgrep",
@@ -12260,7 +12260,7 @@
       "tool": "semgrep",
       "title": "Ensure that Amazon S3 bucket versioning is not enabled. Consider using versioning if you don't have alternative backup m",
       "clean_hits": 1,
-      "vulnerable_hits": 5,
+      "vulnerable_hits": 9,
       "example_hits": 0,
       "languages": [
         "terraform"
@@ -12268,7 +12268,7 @@
       "repos_seen": 3,
       "clean_kloc": 28.6,
       "vulnerable_kloc": 7.5,
-      "ratio": 19.04,
+      "ratio": 34.28,
       "severity": "medium",
       "basis": "measured"
     },
@@ -12404,7 +12404,7 @@
       "tool": "semgrep",
       "title": "The security group rule allows ingress from public internet. Opening up ports to the public internet is potentially dang",
       "clean_hits": 0,
-      "vulnerable_hits": 7,
+      "vulnerable_hits": 34,
       "example_hits": 0,
       "languages": [
         "terraform"
@@ -12420,7 +12420,7 @@
       "tool": "semgrep",
       "title": "The AWS security group rule is missing a description, or its description is empty or the default value.  Security groups",
       "clean_hits": 0,
-      "vulnerable_hits": 8,
+      "vulnerable_hits": 33,
       "example_hits": 0,
       "languages": [
         "terraform"
@@ -12500,7 +12500,7 @@
       "tool": "semgrep",
       "title": "Detected admin access granted in your policy. This means anyone with this policy can perform administrative actions. Ins",
       "clean_hits": 2,
-      "vulnerable_hits": 1,
+      "vulnerable_hits": 2,
       "example_hits": 0,
       "languages": [
         "terraform"
@@ -12508,7 +12508,7 @@
       "repos_seen": 2,
       "clean_kloc": 28.6,
       "vulnerable_kloc": 7.5,
-      "ratio": 1.9,
+      "ratio": 3.81,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -12692,7 +12692,7 @@
       "tool": "semgrep",
       "title": "Resources in the AWS subnet are assigned a public IP address. Resources should not be exposed on the public internet, bu",
       "clean_hits": 0,
-      "vulnerable_hits": 7,
+      "vulnerable_hits": 8,
       "example_hits": 0,
       "languages": [
         "terraform"
@@ -12724,7 +12724,7 @@
       "tool": "semgrep",
       "title": "Detected wildcard access granted to sts:AssumeRole. This means anyone with your AWS account ID and the name of the role ",
       "clean_hits": 0,
-      "vulnerable_hits": 1,
+      "vulnerable_hits": 2,
       "example_hits": 0,
       "languages": [
         "terraform"
@@ -12739,6 +12739,22 @@
     "semgrep/semgrep-rules.terraform.azure.best-practice.azure-keyvault-recovery-enabled": {
       "tool": "semgrep",
       "title": "Ensure the key vault is recoverable https://docs.bridgecrew.io/docs/ensure-the-key-vault-is-recoverable",
+      "clean_hits": 0,
+      "vulnerable_hits": 1,
+      "example_hits": 0,
+      "languages": [
+        "terraform"
+      ],
+      "repos_seen": 1,
+      "clean_kloc": 28.6,
+      "vulnerable_kloc": 7.5,
+      "ratio": "inf",
+      "severity": null,
+      "basis": "insufficient-observations"
+    },
+    "semgrep/semgrep-rules.terraform.azure.best-practice.azure-postgresql-server-connection-throttling-enabled": {
+      "tool": "semgrep",
+      "title": "Ensure server parameter connection_throttling is set to ON for PostgreSQL Database Server",
       "clean_hits": 0,
       "vulnerable_hits": 1,
       "example_hits": 0,
@@ -12772,7 +12788,7 @@
       "tool": "semgrep",
       "title": "Ensure server parameter log_connections is set to ON for PostgreSQL Database Server",
       "clean_hits": 0,
-      "vulnerable_hits": 1,
+      "vulnerable_hits": 2,
       "example_hits": 0,
       "languages": [
         "terraform"
@@ -13252,7 +13268,7 @@
     "semgrep/semgrep-rules.typescript.lang.correctness.useless-ternary": {
       "tool": "semgrep",
       "title": "It looks like no matter how that._helper is evaluated, this expression returns that.offset.left - cop.left. This is prob",
-      "clean_hits": 3,
+      "clean_hits": 4,
       "vulnerable_hits": 1,
       "example_hits": 0,
       "languages": [
@@ -13262,14 +13278,14 @@
       "repos_seen": 3,
       "clean_kloc": 182.8,
       "vulnerable_kloc": 177.8,
-      "ratio": 0.34,
-      "severity": null,
-      "basis": "insufficient-observations"
+      "ratio": 0.26,
+      "severity": "info",
+      "basis": "measured"
     },
     "semgrep/semgrep-rules.typescript.react.best-practice.react-props-in-state": {
       "tool": "semgrep",
       "title": "Copying a prop into state in React -- this is bad practice as all updates to it are ignored. Instead, read props directl",
-      "clean_hits": 3,
+      "clean_hits": 4,
       "vulnerable_hits": 0,
       "example_hits": 0,
       "languages": [
@@ -13285,7 +13301,7 @@
     "semgrep/semgrep-rules.typescript.react.best-practice.react-props-spreading": {
       "tool": "semgrep",
       "title": "It's best practice to explicitly pass props to an HTML component rather than use the spread operator. The spread operato",
-      "clean_hits": 62,
+      "clean_hits": 133,
       "vulnerable_hits": 1,
       "example_hits": 0,
       "languages": [
@@ -13294,16 +13310,16 @@
       "repos_seen": 4,
       "clean_kloc": 159.6,
       "vulnerable_kloc": 64.9,
-      "ratio": 0.04,
+      "ratio": 0.02,
       "severity": "info",
       "basis": "measured"
     },
     "semgrep/semgrep-rules.typescript.react.portability.i18next.jsx-not-internationalized": {
       "tool": "semgrep",
       "title": "JSX element not internationalized: '\n          Don't worry, we've got you covered \ud83d\ude4c\n        '.  You should support diffe",
-      "clean_hits": 129,
-      "vulnerable_hits": 6,
-      "example_hits": 7,
+      "clean_hits": 626,
+      "vulnerable_hits": 27,
+      "example_hits": 17,
       "languages": [
         "javascript",
         "typescript"
@@ -13311,7 +13327,7 @@
       "repos_seen": 6,
       "clean_kloc": 182.8,
       "vulnerable_kloc": 177.8,
-      "ratio": 0.05,
+      "ratio": 0.04,
       "severity": "info",
       "basis": "measured"
     },
@@ -13335,14 +13351,14 @@
       "tool": "semgrep",
       "title": "Service 'mongo' allows for privilege escalation via setuid or setgid binaries. Add 'no-new-privileges:true' in 'security",
       "clean_hits": 0,
-      "vulnerable_hits": 141,
-      "example_hits": 2,
+      "vulnerable_hits": 215,
+      "example_hits": 3,
       "languages": [
         "yaml"
       ],
       "repos_seen": 5,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": "medium",
       "basis": "measured"
@@ -13351,14 +13367,14 @@
       "tool": "semgrep",
       "title": "Service 'mongo' is running with a writable root filesystem. This may allow malicious applications to download and run ad",
       "clean_hits": 0,
-      "vulnerable_hits": 141,
-      "example_hits": 2,
+      "vulnerable_hits": 215,
+      "example_hits": 3,
       "languages": [
         "yaml"
       ],
       "repos_seen": 5,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": "medium",
       "basis": "measured"
@@ -13366,64 +13382,64 @@
     "semgrep/semgrep-rules.yaml.github-actions.security.audit.third-party-action-not-pinned-to-commit-sha": {
       "tool": "semgrep",
       "title": "An action sourced from a third-party repository on GitHub is not pinned to a full length commit SHA. Pinning an action t",
-      "clean_hits": 43,
-      "vulnerable_hits": 20,
+      "clean_hits": 121,
+      "vulnerable_hits": 32,
       "example_hits": 3,
       "languages": [
         "yaml"
       ],
       "repos_seen": 25,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
-      "ratio": 7.47,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
+      "ratio": 4.26,
       "severity": "low",
       "basis": "measured"
     },
     "semgrep/semgrep-rules.yaml.github-actions.security.gha-curl-pipe-shell": {
       "tool": "semgrep",
       "title": "A `run:` step pipes the output of `curl` or `wget` directly into a shell interpreter. This is the \"curl | bash\" install ",
-      "clean_hits": 5,
+      "clean_hits": 10,
       "vulnerable_hits": 1,
       "example_hits": 0,
       "languages": [
         "yaml"
       ],
       "repos_seen": 4,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
-      "ratio": 3.21,
-      "severity": "low",
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
+      "ratio": 1.61,
+      "severity": "info",
       "basis": "measured"
     },
     "semgrep/semgrep-rules.yaml.github-actions.security.github-actions-mutable-action-tag": {
       "tool": "semgrep",
       "title": "GitHub Actions step uses a mutable tag or branch reference. Tags and branch names can be silently repointed by the actio",
-      "clean_hits": 54,
-      "vulnerable_hits": 35,
-      "example_hits": 6,
+      "clean_hits": 218,
+      "vulnerable_hits": 101,
+      "example_hits": 10,
       "languages": [
         "yaml"
       ],
       "repos_seen": 28,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
-      "ratio": 10.41,
-      "severity": "medium",
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
+      "ratio": 7.46,
+      "severity": "low",
       "basis": "measured"
     },
     "semgrep/semgrep-rules.yaml.github-actions.security.run-shell-injection": {
       "tool": "semgrep",
       "title": "Using variable interpolation `${{...}}` with `github` context data in a `run:` step could allow an attacker to inject th",
       "clean_hits": 6,
-      "vulnerable_hits": 5,
+      "vulnerable_hits": 7,
       "example_hits": 0,
       "languages": [
         "yaml"
       ],
       "repos_seen": 8,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
-      "ratio": 13.38,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
+      "ratio": 18.78,
       "severity": "medium",
       "basis": "measured"
     },
@@ -13431,47 +13447,47 @@
       "tool": "semgrep",
       "title": "When you set a fractional CPU limit on a container, the CPU cycles available will be throttled, even though most nodes c",
       "clean_hits": 12,
-      "vulnerable_hits": 3,
+      "vulnerable_hits": 4,
       "example_hits": 11,
       "languages": [
         "yaml"
       ],
       "repos_seen": 6,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
-      "ratio": 4.01,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
+      "ratio": 5.37,
       "severity": "low",
       "basis": "measured"
     },
     "semgrep/semgrep-rules.yaml.kubernetes.security.allow-privilege-escalation": {
       "tool": "semgrep",
       "title": "In Kubernetes, each pod runs in its own isolated environment with its own set of security policies. However, certain con",
-      "clean_hits": 3,
+      "clean_hits": 7,
       "vulnerable_hits": 3,
       "example_hits": 18,
       "languages": [
         "yaml"
       ],
       "repos_seen": 5,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
-      "ratio": 16.06,
-      "severity": "medium",
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
+      "ratio": 6.9,
+      "severity": "low",
       "basis": "measured"
     },
     "semgrep/semgrep-rules.yaml.kubernetes.security.allow-privilege-escalation-no-securitycontext": {
       "tool": "semgrep",
       "title": "In Kubernetes, each pod runs in its own isolated environment with its own set of security policies. However, certain con",
-      "clean_hits": 216,
-      "vulnerable_hits": 11,
-      "example_hits": 113,
+      "clean_hits": 234,
+      "vulnerable_hits": 12,
+      "example_hits": 118,
       "languages": [
         "yaml"
       ],
       "repos_seen": 8,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
-      "ratio": 0.82,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
+      "ratio": 0.83,
       "severity": "info",
       "basis": "measured"
     },
@@ -13485,8 +13501,8 @@
         "yaml"
       ],
       "repos_seen": 1,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -13501,8 +13517,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -13517,8 +13533,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -13533,9 +13549,9 @@
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
-      "ratio": 16.06,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
+      "ratio": 16.1,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -13549,8 +13565,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -13565,8 +13581,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -13574,79 +13590,79 @@
     "semgrep/semgrep-rules.yaml.kubernetes.security.run-as-non-root": {
       "tool": "semgrep",
       "title": "When running containers in Kubernetes, it's important to ensure that they  are properly secured to prevent privilege esc",
-      "clean_hits": 177,
+      "clean_hits": 184,
       "vulnerable_hits": 14,
-      "example_hits": 127,
+      "example_hits": 130,
       "languages": [
         "yaml"
       ],
       "repos_seen": 8,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
-      "ratio": 1.27,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
+      "ratio": 1.22,
       "severity": "info",
       "basis": "measured"
     },
     "semgrep/semgrep-rules.yaml.kubernetes.security.run-as-non-root-container-level-missing-security-context": {
       "tool": "semgrep",
       "title": "When running containers in Kubernetes, it's important to ensure that they are properly secured to prevent privilege esca",
-      "clean_hits": 13,
-      "vulnerable_hits": 1,
+      "clean_hits": 36,
+      "vulnerable_hits": 3,
       "example_hits": 0,
       "languages": [
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
-      "ratio": 1.24,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
+      "ratio": 1.34,
       "severity": "info",
       "basis": "measured"
     },
     "semgrep/semgrep-rules.yaml.kubernetes.security.run-as-non-root-security-context-pod-level": {
       "tool": "semgrep",
       "title": "When running containers in Kubernetes, it's important to ensure that they are properly secured to prevent privilege esca",
-      "clean_hits": 51,
+      "clean_hits": 55,
       "vulnerable_hits": 1,
       "example_hits": 0,
       "languages": [
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
-      "ratio": 0.31,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
+      "ratio": 0.29,
       "severity": "info",
       "basis": "measured"
     },
     "semgrep/semgrep-rules.yaml.kubernetes.security.secrets-in-config-file": {
       "tool": "semgrep",
       "title": "Secrets (azhzLWdvYXQtODUwNTc4NDZhODA0NmEyNWIzNWYzOGYzYTI2NDlkY2U=) should not be stored in infrastructure as code files.",
-      "clean_hits": 84,
-      "vulnerable_hits": 2,
-      "example_hits": 9,
+      "clean_hits": 218,
+      "vulnerable_hits": 3,
+      "example_hits": 13,
       "languages": [
         "yaml"
       ],
       "repos_seen": 4,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
-      "ratio": 0.38,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
+      "ratio": 0.22,
       "severity": "info",
       "basis": "measured"
     },
     "semgrep/semgrep-rules.yaml.kubernetes.security.skip-tls-verify-service": {
       "tool": "semgrep",
       "title": "Service is disabling TLS certificate verification when communicating with the server. This makes your HTTPS connections ",
-      "clean_hits": 1,
+      "clean_hits": 2,
       "vulnerable_hits": 0,
       "example_hits": 1,
       "languages": [
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -13654,16 +13670,16 @@
     "semgrep/semgrep-rules.yaml.kubernetes.security.writable-filesystem-container": {
       "tool": "semgrep",
       "title": "Container kustomizegoat is running with a writable root filesystem. This may allow malicious applications to download an",
-      "clean_hits": 226,
-      "vulnerable_hits": 16,
-      "example_hits": 131,
+      "clean_hits": 251,
+      "vulnerable_hits": 17,
+      "example_hits": 136,
       "languages": [
         "yaml"
       ],
       "repos_seen": 9,
-      "clean_kloc": 296.1,
-      "vulnerable_kloc": 18.4,
-      "ratio": 1.14,
+      "clean_kloc": 297.3,
+      "vulnerable_kloc": 18.5,
+      "ratio": 1.09,
       "severity": "info",
       "basis": "measured"
     }
