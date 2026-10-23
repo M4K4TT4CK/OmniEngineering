@@ -1,0 +1,46 @@
+{
+  "app": "java/file-upload",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "src/main/java/com/example/upload/FileStorage.java",
+      "line": 87,
+      "cwe": [
+        "CWE-400",
+        "CWE-770"
+      ],
+      "category": "unbounded-input",
+      "severity": "high",
+      "justification": "ImageIO.read() decodes any uploaded image fully into memory with no check of declared dimensions, so a small (well under the 50MB limit) PNG declaring e.g. 50000x50000 pixels allocates gigabytes and OOM-kills the JVM; check width/height via ImageReader metadata before decoding.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "src/main/java/com/example/upload/FileStorage.java",
+      "line": 45,
+      "cwe": [
+        "CWE-460",
+        "CWE-404"
+      ],
+      "category": "ignored-error",
+      "severity": "low",
+      "justification": "If the upload stream fails mid-copy (client disconnect, disk full) Files.copy leaves a partial file at the final name; it is then listed/downloaded as if complete and blocks re-upload with 409. Write to a temp file and atomically move.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "src/main/java/com/example/upload/FileStorage.java",
+      "line": 43,
+      "cwe": [
+        "CWE-434"
+      ],
+      "category": "unrestricted-upload",
+      "severity": "low",
+      "justification": "Any file type and name (e.g. .html, .svg, .jar) is accepted and later served back with a content type probed from the extension; Content-Disposition: attachment mitigates browser XSS, so this is low, but there is no allowlist, no nosniff header and no per-user quota.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

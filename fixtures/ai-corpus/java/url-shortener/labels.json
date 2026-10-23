@@ -1,0 +1,44 @@
+{
+  "app": "java/url-shortener",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "src/main/java/shortener/App.java",
+      "line": 269,
+      "cwe": [
+        "CWE-918",
+        "CWE-367"
+      ],
+      "category": "ssrf",
+      "severity": "medium",
+      "justification": "The SSRF guard resolves the host in isPublicHost() and then lets HttpClient resolve it again for the real request, so a DNS-rebinding host passes the check and the fetch hits 127.0.0.1/169.254.169.254; the blocklist also misses ranges such as NAT64 64:ff9b::/96, 0.0.0.0/8 and 198.18/15. Fix by connecting to the vetted address (or via an egress proxy); the README admits the gap but it is still a blocker for a server fetching user URLs.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "src/main/java/shortener/App.java",
+      "line": 279,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "missing-timeout",
+      "severity": "medium",
+      "justification": "HttpRequest.timeout only bounds the wait for response headers; the body is then read from an InputStream with no read deadline, so a server that trickles bytes holds the request thread indefinitely. Title fetching is synchronous on an 8-thread fixed pool, so a handful of such links make the whole service unresponsive.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "src/test/java/shortener/AppTest.java",
+      "line": 133,
+      "end_line": 139,
+      "cwe": [],
+      "category": "test-ineffective",
+      "severity": "low",
+      "justification": "titleFetcherRefusesInternalAddresses asserts null for internal targets, but every one of these fetches would return null anyway (nothing listening / the app's own JSON 404 is not HTML / connect timeout), so the test passes even if isPublicHost() is deleted. It should test isPublicHost() directly or stand up an HTML server on loopback.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

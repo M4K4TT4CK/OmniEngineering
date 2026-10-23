@@ -1,0 +1,108 @@
+{
+  "app": "python/webhook-receiver",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "app.py",
+      "line": 77,
+      "cwe": [
+        "CWE-321",
+        "CWE-345"
+      ],
+      "category": "weak-crypto",
+      "severity": "high",
+      "justification": "Forwarded events are re-signed with the provider's WEBHOOK_SECRET, so every merchant must hold that secret to verify callbacks, and any merchant can then forge signed provider events (e.g. fake payment.succeeded) to this receiver. Use a separate per-merchant signing key.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "app.py",
+      "line": 94,
+      "cwe": [
+        "CWE-770",
+        "CWE-400"
+      ],
+      "category": "unbounded-input",
+      "severity": "medium",
+      "justification": "The full request body is read into memory before the signature is checked and there is no size limit, so an unauthenticated client can send huge bodies to exhaust memory.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "app.py",
+      "line": 141,
+      "cwe": [
+        "CWE-639",
+        "CWE-863"
+      ],
+      "category": "idor",
+      "severity": "medium",
+      "justification": "The merchant events listing is guarded by one global API token, so whoever holds it can read every merchant's payment events by changing merchant_id; there is no per-merchant authorization.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "app.py",
+      "line": 98,
+      "cwe": [
+        "CWE-294"
+      ],
+      "category": "replay",
+      "severity": "low",
+      "justification": "Signature covers only the body and there is no timestamp/nonce tolerance window; de-duplication by event id blunts exact replays, but captured signed events are valid forever (README admits no replay protection).",
+      "source": "independent"
+    },
+    {
+      "id": "D5",
+      "file": "app.py",
+      "line": 81,
+      "cwe": [
+        "CWE-754"
+      ],
+      "category": "retry-no-backoff",
+      "severity": "medium",
+      "justification": "Forwarding of successful payments is a single attempt: a timeout or 5xx just marks the row 'failed', and a crash after insert leaves it 'pending' forever, so merchants silently miss payment notifications with no retry or re-drive.",
+      "source": "independent"
+    },
+    {
+      "id": "D6",
+      "file": "app.py",
+      "line": 98,
+      "cwe": [
+        "CWE-755"
+      ],
+      "category": "unhandled-input-error",
+      "severity": "low",
+      "justification": "hmac.compare_digest raises TypeError when given a str with non-ASCII characters, so an unauthenticated request with a non-ASCII X-Signature header produces a 500 instead of 401.",
+      "source": "independent"
+    },
+    {
+      "id": "D7",
+      "file": "app.py",
+      "line": 122,
+      "cwe": [
+        "CWE-755"
+      ],
+      "category": "unhandled-input-error",
+      "severity": "low",
+      "justification": "json.loads accepts UTF-16/UTF-32 bodies but body.decode() assumes UTF-8, so a validly signed non-UTF-8 JSON event raises UnicodeDecodeError and returns 500 (provider will keep redelivering).",
+      "source": "independent"
+    },
+    {
+      "id": "D8",
+      "file": "requirements.txt",
+      "line": 1,
+      "end_line": 4,
+      "cwe": [
+        "CWE-1104"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "fastapi, uvicorn, httpx and pytest are completely unpinned, so builds are non-reproducible and exposed to breaking or malicious releases.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}
