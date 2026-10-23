@@ -7,8 +7,11 @@ what is around it: the value reaching the sink is a constant, the request
 body is already capped by a middleware two lines up, the test file is a
 fixture. This pass shows a model ONE finding at a time, with the rule's own
 description and remediation, the known false-positive patterns recorded for
-the rule, and a bounded excerpt of the finding's own file (the enclosing
-function plus the file's imports), and asks for a verdict:
+the rule, and a bounded excerpt built by `context.build` -- the same
+builder the model labellers use: the enclosing function with its decorators
+and annotations, the class header, the file's imports, same-file callees,
+and the repository definitions of functions called on the taint path when
+they live in another file -- and asks for a verdict:
 
     {"verdict": "confirmed" | "rejected" | "unsure", "reason": str, "line": int | null}
 
@@ -26,11 +29,13 @@ candidate gets `verdict: "not_verified"` with the reason, and the report says
 how many findings were not model-verified. Over budget is the same: the
 remaining candidates are `not_verified` with reason `budget`.
 
-**3. The model sees only the excerpt.** One file, the finding's own, bounded
-to `excerpt_lines` lines plus at most `MAX_IMPORT_LINES` import lines, with
-secrets masked by `judgement._mask_secrets`. Code and comments in it are
+**3. The model sees only the excerpt.** The finding's own function (at most
+`excerpt_lines` lines), and from other files of the same repository (the
+scan's inventory) only definitions resolved by import or receiver type, at
+most `context.Limits.defs` of them; everything bounded to `Limits.total`
+lines and masked by `judgement._mask_secrets`. Code and comments in it are
 declared untrusted data in the system prompt. The reply is parsed as data; a
-line number outside the excerpt is dropped.
+line number not shown from the finding's own file is dropped.
 
 ## Determinism
 
@@ -56,10 +61,11 @@ import os
 import re
 import urllib.error
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from . import context
 from .core import SEV_RANK, Finding, sev_at_least
 from .judgement import (
     ANTHROPIC_URL,
@@ -70,7 +76,9 @@ from .judgement import (
     _mask_secrets,
 )
 
-PROMPT_VERSION = "verify-v1"
+# verify-v2 (2026-10-23): excerpts from `context.build` (decorators,
+# cross-file definitions on the taint path); every cached verdict refreshes.
+PROMPT_VERSION = "verify-v2"
 CACHE_BUCKET = "verify"
 CACHE_RELATIVE_PATH = Path(".arbiter") / "verify-cache.json"
 VERDICTS = ("confirmed", "rejected", "unsure")
@@ -112,10 +120,13 @@ SYSTEM = """\
 You check one finding from a static analyzer against the code it points at.
 
 You are given the rule (its id, title, description and remediation), notes on \
-patterns where the rule is known to fire wrongly, and an excerpt of the one \
-file the finding is in: the enclosing function or a window around the flagged \
-line, plus the file's imports. Every excerpt line starts with its real line \
-number.
+patterns where the rule is known to fire wrongly, and an excerpt of the file \
+the finding is in: the enclosing function (with its decorators or \
+annotations) or a window around the flagged line, the class header, the \
+file's imports and functions it calls. The flagged line is marked >>. A \
+section headed "--- <path>: definition of ..." is the definition, in another \
+file of the same repository, of a function called on the way to the flagged \
+line. Every excerpt line starts with its real line number in its own file.
 
 Decide whether the finding is a true instance of what the rule describes, at \
 or near the flagged line:
@@ -264,73 +275,62 @@ def _ask(provider: Provider, system: str, user: str) -> Reply:
 # Excerpt
 # ---------------------------------------------------------------------------
 
-_IMPORT = re.compile(
-    r"^\s*(?:import\s|from\s+\S+\s+import\s|package\s|require(?:_relative)?[\s(]|"
-    r"using\s+[\w.]+\s*;|#include\s|use\s+[\w:]+|const\s+\w+\s*=\s*require\(|"
-    r"export\s+\*\s+from\s)"
-)
-
-
 @dataclass
 class Excerpt:
     text: str             # numbered, masked
-    lines: set            # line numbers shown
+    lines: set            # line numbers shown from the finding's own file
     start: int
     end: int
     path: str
+    definitions: list = field(default_factory=list)   # [(repo path, name)] from other files
 
     @property
     def digest(self) -> str:
         return hashlib.sha256(self.text.encode("utf-8")).hexdigest()
 
 
-def _enclosing(abspath: str, language: str, line: int) -> tuple[int, int] | None:
-    try:
-        from . import ast as _ast
-        fns = _ast.functions(abspath, language)
-    except Exception:  # noqa: BLE001 - no tree is "use a window", never a crash
-        return None
-    best = None
-    for fn in fns:
-        inside = fn.start_line <= line <= fn.end_line
-        if inside and (best is None or (fn.end_line - fn.start_line) < (best[1] - best[0])):
-            best = (fn.start_line, fn.end_line)
-    return best
+def _limits(max_lines: int) -> context.Limits:
+    max_lines = max(10, int(max_lines))
+    return context.Limits(function_lines=max_lines, import_lines=MAX_IMPORT_LINES,
+                          total=max(context.LIMITS.total, max_lines + 100))
 
 
 def build_excerpt(text: str, line: int, max_lines: int,
-                  span: tuple[int, int] | None = None, path: str = "") -> Excerpt:
-    """The bounded, numbered, masked excerpt for one finding in one file."""
-    rows = text.splitlines()
-    n = len(rows)
-    max_lines = max(10, int(max_lines))
-    if n == 0:
+                  span: tuple[int, int] | None = None, path: str = "",
+                  language: str | None = None, repo: context.RepoView | None = None) -> Excerpt:
+    """The bounded, numbered, masked excerpt for one finding (`context.build`)."""
+    if not text.splitlines():
         return Excerpt(text="", lines=set(), start=0, end=0, path=path)
-    if line < 1 or line > n:
-        start, end = 1, min(n, max_lines)
-    elif span and (span[1] - span[0] + 1) <= max_lines:
-        start, end = span
-    else:
-        half = max_lines // 2
-        start = max(1, line - half)
-        end = min(n, start + max_lines - 1)
-        start = max(1, end - max_lines + 1)
-    shown = set(range(start, end + 1))
-    imports = [i for i in range(1, n + 1)
-               if i not in shown and _IMPORT.match(rows[i - 1])][:MAX_IMPORT_LINES]
-    out: list[str] = []
-    if imports:
-        out.append("# imports")
-        out += [f"{i:>5}| {rows[i - 1]}" for i in imports]
-        out.append("# excerpt")
-    out += [f"{i:>5}| {rows[i - 1]}" for i in range(start, end + 1)]
-    return Excerpt(text=_mask_secrets("\n".join(out)), lines=shown | set(imports),
-                   start=start, end=end, path=path)
+    if line < 1 or line > len(text.splitlines()):
+        line, span = 1, None
+    ctx = context.build(text, path, line, language, repo=repo, limits=_limits(max_lines), span=span)
+    return Excerpt(text=ctx.text, lines=ctx.lines, start=ctx.start, end=ctx.end, path=path,
+                   definitions=ctx.definitions)
+
+
+_REPO_VIEWS: dict = {}
+
+
+def _repo_view(inventory, repo_id: str) -> context.RepoView:
+    """The scan's own files of one repository, read through the probe cache.
+    One view per (inventory, repo) for the run."""
+    from .probes import _read
+    key = (id(inventory), repo_id)
+    hit = _REPO_VIEWS.get(key)
+    if hit is not None and hit[0] is inventory:
+        return hit[1]
+    files = {x.path: x for x in inventory.by_repo.get(repo_id, []) or inventory.files
+             if not x.binary}
+    view = context.RepoView(paths=list(files), read_raw=lambda rel: _read(files[rel]) if rel in files else "")
+    _REPO_VIEWS.clear()
+    _REPO_VIEWS[key] = (inventory, view)
+    return view
 
 
 def excerpt_for(f: Finding, inventory, max_lines: int) -> Excerpt | None:
-    """The excerpt from the finding's own file; None when it is not in the
-    inventory (cross-repo, manifest-less, or a path the scan never read)."""
+    """The excerpt for the finding's own file and line; None when the file is
+    not in the inventory (cross-repo, manifest-less, or a path the scan never
+    read)."""
     from .probes import _read
     path = f.location.path
     if not path:
@@ -344,8 +344,9 @@ def excerpt_for(f: Finding, inventory, max_lines: int) -> Excerpt | None:
     if not text:
         return None
     line = f.location.start_line or 0
-    span = _enclosing(fi.abspath, fi.language, line) if line else None
-    return build_excerpt(text, line, max_lines, span, path)
+    language = fi.language if fi.language in context._EXTS else None
+    return build_excerpt(text, line, max_lines, path=path, language=language,
+                         repo=_repo_view(inventory, fi.repo_id))
 
 
 # ---------------------------------------------------------------------------
