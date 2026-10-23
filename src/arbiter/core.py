@@ -150,6 +150,10 @@ class Finding:
     # rule metadata (rule_meta.py). Distinct from `req:` tags, which name the
     # requirements the commits touching this file cite.
     requirements: list[str] = field(default_factory=list)
+    # The model verification pass (verify.py): {verdict, reason, model,
+    # prompt_version, cached, line}. Empty when the pass did not run. It never
+    # changes severity, status or suppression; the tier mapping reads it.
+    verification: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not self.id:

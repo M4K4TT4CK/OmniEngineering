@@ -65,6 +65,36 @@ def _sarif_level(report: Report, f: Finding) -> str:
     return SARIF_LEVEL.get(f.severity, "warning")
 
 
+def _verification_text(f: Finding) -> str:
+    """'model: rejected -- <reason>' when the verification pass looked; ''
+    when it did not run. `not_verified` is spelled out: it is not a pass."""
+    v = f.verification or {}
+    verdict = v.get("verdict")
+    if not verdict:
+        return ""
+    label = "not model-verified" if verdict == "not_verified" else f"model: {verdict}"
+    reason = v.get("reason") or ""
+    cached = " (cached)" if v.get("cached") else ""
+    return f"{label}{cached}" + (f" -- {reason}" if reason else "")
+
+
+def _verification_tally(members: list[Finding]) -> str:
+    counts: dict[str, int] = {}
+    for m in members:
+        verdict = (m.verification or {}).get("verdict")
+        if verdict:
+            counts[verdict] = counts.get(verdict, 0) + 1
+    if not counts:
+        return ""
+    order = ["confirmed", "rejected", "unsure", "not_verified"]
+    return "model: " + ", ".join(f"{counts[k]} {k.replace('_', ' ')}" for k in order if k in counts)
+
+
+def _verification_summary(report: Report) -> str:
+    from .verify import summary_line
+    return summary_line((report.scan_scope or {}).get("verification") or {})
+
+
 def _grouped(findings: list[Finding], key) -> list[list[Finding]]:
     """Cluster findings that share `key(f)`, preserving first-seen order.
 
@@ -232,6 +262,14 @@ def _bluf_lines(report: Report) -> list[str]:
             f"{noted} finding(s) below carry a scope note from this repo's own docs, "
             "marked unverified -- a doc's claim, not a check that ran."
         )
+    vs = (report.scan_scope or {}).get("verification") or {}
+    if vs.get("not_verified"):
+        lines.append(
+            f"{vs['not_verified']} of {vs.get('candidates', 0)} finding(s) at or above "
+            f"{vs.get('min_severity', 'medium')} were not model-verified"
+            + (f" ({vs['reason']})" if vs.get("reason") else "")
+            + " -- no verdict, which is not a confirmation."
+        )
     no_fix = sum(1 for f in report.active() if f.remediation_source == "default")
     if no_fix:
         lines.append(
@@ -296,6 +334,7 @@ def write_sarif(report: Report, path: str, min_severity: str | None = None) -> N
                 "tier": f.tier or "advisory",
                 "tier_reason": f.tier_reason,
                 **({"requirements": list(f.requirements)} if f.requirements else {}),
+                **({"verification": f.verification} if f.verification else {}),
             },
         })
     doc = {
@@ -449,8 +488,16 @@ def render_console(report: Report, color: bool | None = None, limit: int = 40) -
             L.append(f"  {tag} {where}  {f.title}{conf}")
             L.append(_color(color, "dim", f"           {f.rule_id}  {f.id}  [{f.tier or 'advisory'}]"
                                           + (f" {f.tier_reason}" if f.tier_reason else "")))
+            vt = _verification_text(f)
+            if vt:
+                L.append(_color(color, "dim", f"           {vt}"))
         if len(active) > limit:
             L.append(_color(color, "dim", f"  … {len(active) - limit} more (see the JSON report)"))
+        L.append("")
+
+    vsum = _verification_summary(report)
+    if vsum:
+        L.append("  " + vsum)
         L.append("")
 
     skipped = [p for p in report.probes if p.status != "ran"]
@@ -508,6 +555,10 @@ def render_markdown(report: Report) -> str:
         L.append(tier_summary(report).replace("tiers: ", "**Tiers:** ", 1))
         L.append("")
     L.extend(requirement_block(active, base=(report.scan_scope or {}).get("changed_since")))
+    vsum = _verification_summary(report)
+    if vsum:
+        L.append(vsum[0].upper() + vsum[1:] + ".")
+        L.append("")
 
     if sc.dimensions:
         gaps: dict[str, list[str]] = defaultdict(list)
@@ -555,6 +606,9 @@ def render_markdown(report: Report) -> str:
                     L.append(f"  \n  Fix: {_remediation_text(f)}")
                     if f.scope_note:
                         L.append(f"  \n  ⚠ {f.scope_note}")
+                    vt = _verification_text(f)
+                    if vt:
+                        L.append(f"  \n  ⚖ {vt}")
                     continue
 
                 files = {m.location.path for m in members}
@@ -576,6 +630,12 @@ def render_markdown(report: Report) -> str:
                 scope_notes = dict.fromkeys(m.scope_note for m in members if m.scope_note)
                 if scope_notes:
                     L.append(f"  \n  ⚠ {' / '.join(scope_notes)}")
+                tally = _verification_tally(members)
+                if tally:
+                    L.append(f"  \n  ⚖ {tally}")
+                    for m in members:
+                        if (m.verification or {}).get("verdict") not in (None, "confirmed"):
+                            L.append(f"  \n  ⚖ `{m.location.short()}` {_verification_text(m)}")
             L.append("")
 
     skipped = [p for p in report.probes if p.status != "ran"]
@@ -644,6 +704,9 @@ def _html_rows_findings(active: list[Finding], loc_cell) -> str:
                 ) + "</span>"
             fix = f"<br><span class='muted'>Fix: {e(_remediation_text(f))}</span>"
             scope = f"<br><span class='muted'>&#9888; {e(f.scope_note)}</span>" if f.scope_note else ""
+            vt = _verification_text(f)
+            if vt:
+                scope += f"<br><span class='muted'>&#9878; {e(vt)}</span>"
             out.append(
                 f"<tr><td><span class='pill s-{f.severity}'>{f.severity}</span></td>"
                 f"<td>{e(f.title)}<br><span class='muted mono'>{e(f.rule_id)} · {e(f.id)}"
@@ -660,6 +723,9 @@ def _html_rows_findings(active: list[Finding], loc_cell) -> str:
         fix = f"<br><span class='muted'>Fix: {e(' / '.join(remediations))}</span>"
         scope_notes = dict.fromkeys(m.scope_note for m in members if m.scope_note)
         scope = f"<br><span class='muted'>&#9888; {e(' / '.join(scope_notes))}</span>" if scope_notes else ""
+        tally = _verification_tally(members)
+        if tally:
+            scope += f"<br><span class='muted'>&#9878; {e(tally)}</span>"
         locs = [f"{loc_cell(m)} <span class='muted'>({e(m.repo_id)})</span>" for m in members]
         loc_html = "<br>".join(locs[:GROUP_LOCATION_CAP])
         if len(locs) > GROUP_LOCATION_CAP:

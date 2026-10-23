@@ -354,6 +354,7 @@ def run_scan(
     cache_path: str | None = None,
     verify_cache: bool = False,
     verify_sample: float = 0.05,
+    model_verify: bool | None = None,
 ) -> Report:
     started = time.time()
     if use_adapters:
@@ -574,6 +575,17 @@ def run_scan(
     apply_scope_notes(findings, inv)
     from .cwe import apply as apply_cwe
     apply_cwe(findings)
+
+    # The model verification pass (verify.py) runs last among the finding
+    # passes, so it sees each finding's final severity and suppression and
+    # never spends a call on one policy has already silenced. It annotates;
+    # it never removes. Off unless the profile or config asks for it, and
+    # never under a profile that forbids model calls.
+    from . import verify as _verify
+    if _verify.wanted(config, caps, model_verify):
+        scan_scope["verification"] = _verify.run(
+            findings, inv, config,
+            repo_root=(repos[0].path if repos else None))
 
     report = Report(
         system=system_name,
