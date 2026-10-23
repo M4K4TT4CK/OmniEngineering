@@ -1958,6 +1958,205 @@
         "app-level auth detection is name-based and can be fooled by auth done outside the repository (a gateway)",
         "Dev-corpus code recall 2% to 28%, precision 9% to 52%; held-out 10 of 142 (aggregate only). New rules stay advisory until the ledger admits them."
       ]
+    },
+    {
+      "id": "ARB-084",
+      "category": "capability",
+      "title": "Code-size, complexity and test-presence checks",
+      "description": "The quality and AST-metrics probes report what makes code hard to review or change: functions over a cyclomatic-complexity limit (arbiter/ast.high-complexity), nested too deeply (arbiter/ast.deep-nesting) or too long (arbiter/ast.function-too-long), files over a line limit (arbiter/quality.file-too-long), a high density of TODO/FIXME markers (arbiter/quality.todo-density) and a repository with source but no tests (arbiter/quality.no-tests). Limits come from arbiter.yaml. Shipped with Arbiter 0.1.0 (8158e1a, 2026-09-12) before the requirement registry; recorded here so their findings trace to a requirement (ARB-064).",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/probes.py",
+        "arbiter.yaml",
+        "tests/test_probes_quality.py",
+        "src/arbiter/packs/rules/native.yaml"
+      ],
+      "acceptance_criteria": [
+        "each of the six rules is emitted by probe_quality or probe_ast_metrics and listed in native.yaml with requirements ARB-084",
+        "limits are read from arbiter.yaml",
+        "findings carry requirements ARB-084 in the JSON report"
+      ],
+      "validation_required": [
+        "python -m pytest -q",
+        "tests/test_rule_requirements.py"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "size and complexity limits are conventions not defects; findings stay advisory"
+      ]
+    },
+    {
+      "id": "ARB-085",
+      "category": "capability",
+      "title": "Provider-neutral IaC resource policy",
+      "description": "The resource probe evaluates Terraform/CloudFormation/Kubernetes resources normalised to provider-neutral kinds against packs/rules/resource.yaml: encryption at rest (database, object store, volume, queue), public exposure (public object store, publicly accessible database, unrestricted ingress, host network), transport security (plaintext listener, plaintext database connections, weak TLS version, no HTTPS redirect), logging and retention, deletion protection, and the Kubernetes pod-security checks (privileged, privilege escalation, host namespaces and paths, root user, capabilities, security context, resource limits, mutable image tags, writable root filesystem). It also says when a value is only known at apply time (arbiter/resource.unknown-until-apply) and when HCL source was read literally instead of from a plan (arbiter/resource.source-is-literal-hcl). Shipped in 8158e1a, 64d028d and 9b7a984 (2026-09-12/13) before the requirement registry; recorded here for ARB-064 traceability.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/packs/rules/resource.yaml",
+        "src/arbiter/probes.py",
+        "src/arbiter/graph.py",
+        "tests/test_probes_iac.py",
+        "src/arbiter/packs/rules/native.yaml"
+      ],
+      "acceptance_criteria": [
+        "every resource.yaml rule carries requirements ARB-085",
+        "resource.unknown-until-apply and resource.source-is-literal-hcl carry ARB-085 in native.yaml",
+        "a rule fires on the provider-neutral kind for AWS Azure and GCP resources alike"
+      ],
+      "validation_required": [
+        "python -m pytest -q",
+        "tests/test_rule_requirements.py"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "provider-specific normalisation lives in the graph normalisers; a resource type they do not normalise is not assessed"
+      ]
+    },
+    {
+      "id": "ARB-086",
+      "category": "capability",
+      "title": "Committed provider-issued tokens and credential URLs",
+      "description": "The secrets probe reports fixed-prefix credentials committed to the tree, one rule per pattern in probes.SECRET_PATTERNS: AWS access keys, GitHub and GitLab tokens, Google API keys, JWTs, npm and PyPI tokens, OpenAI and Anthropic keys, Postgres URLs with a password, SendGrid, Slack and Stripe keys and Slack webhooks. Shipped in 8158e1a (2026-09-12) and efdeb51 (2026-09-13, provider-issued tokens) before the requirement registry; recorded here for ARB-064 traceability. The heuristic rules secrets.assigned-credential and secrets.private-key keep ARB-065.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/probes.py",
+        "tests/test_probes_security.py",
+        "src/arbiter/packs/rules/native.yaml"
+      ],
+      "acceptance_criteria": [
+        "every SECRET_PATTERNS entry has a native.yaml entry with requirements ARB-086",
+        "a planted token of each provider format is reported and its value is masked in the report"
+      ],
+      "validation_required": [
+        "python -m pytest -q",
+        "tests/test_rule_requirements.py"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "prefix patterns miss credentials with no fixed prefix; those are assigned-credential's job"
+      ]
+    },
+    {
+      "id": "ARB-087",
+      "category": "capability",
+      "title": "Supply-chain checks: pinning, workflow triggers and nonexistent packages",
+      "description": "The supply-chain and authored probes report dependencies that can change or do not exist: GitHub Actions not pinned to a commit SHA (arbiter/supply.unpinned-action), workflows triggered by pull_request_target (arbiter/supply.pull-request-target), npm and Python dependencies without a pinned version (arbiter/supply.unpinned-npm-dep, arbiter/supply.unpinned-python-dep), and imports of packages that no registry or manifest knows (arbiter/authored.import-of-nonexistent-package). Shipped in 8158e1a and bcb5fc6 (2026-09-12) before the requirement registry; recorded here for ARB-064 traceability.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/probes.py",
+        "src/arbiter/authored.py",
+        "tests/test_probes_quality.py",
+        "tests/test_probes_security.py",
+        "src/arbiter/packs/rules/native.yaml"
+      ],
+      "acceptance_criteria": [
+        "the five rules carry requirements ARB-087 in native.yaml",
+        "findings carry ARB-087 in the JSON report"
+      ],
+      "validation_required": [
+        "python -m pytest -q",
+        "tests/test_rule_requirements.py"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "nonexistent-package detection depends on what the manifests and the offline package list know"
+      ]
+    },
+    {
+      "id": "ARB-088",
+      "category": "capability",
+      "title": "Cross-artifact consistency: interface and contract checks",
+      "description": "The interface probe compares what repositories in one system say about each other: a constant that disagrees across repositories, an environment variable read but never provided or provided but never read, an IAM permission needed but not granted or granted but unused, and a port listened on but not exposed. The contract probe compares artifacts that describe the same thing: a documented route that is not registered, a dropped column still referenced, and an API spec that could not be compared. Shipped in 8158e1a and 489a085 (2026-09-12) before the requirement registry; recorded here for ARB-064 traceability.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/probes.py",
+        "tests/test_graph_system.py",
+        "tests/test_probes_drift.py",
+        "src/arbiter/packs/rules/native.yaml"
+      ],
+      "acceptance_criteria": [
+        "the six interface and three contract rules carry requirements ARB-088 in native.yaml",
+        "the interface probe declares itself not applicable on a single-repository scan (ARB-033)"
+      ],
+      "validation_required": [
+        "python -m pytest -q",
+        "tests/test_rule_requirements.py"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "the interface checks need a multi-repository system; on one repository they are not applicable"
+      ]
+    },
+    {
+      "id": "ARB-089",
+      "category": "capability",
+      "title": "Written claims checked against the code",
+      "description": "Three rules check prose that makes a claim about the code: a configuration section documents an environment variable no source file reads (arbiter/drift.documented-env-var-absent), a docstring promises behaviour the body does not have (arbiter/authored.docstring-promises-absent-behaviour), and the judgement pass finds a claim the code contradicts (arbiter/judgement.claim-contradicts-code). Shipped in 8158e1a, bcb5fc6 and 64d028d (2026-09-12) before the requirement registry; recorded here for ARB-064 traceability. The judgement provider fix for 5.x models was made under ARB-065.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/probes.py",
+        "src/arbiter/authored.py",
+        "src/arbiter/judgement.py",
+        "tests/test_judgement_provider.py",
+        "src/arbiter/packs/rules/native.yaml"
+      ],
+      "acceptance_criteria": [
+        "the three rules carry requirements ARB-089 in native.yaml",
+        "judgement.claim-contradicts-code is only produced by the judgement pass and never without a provider"
+      ],
+      "validation_required": [
+        "python -m pytest -q",
+        "tests/test_rule_requirements.py"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "the judgement rule depends on a model provider and is not run offline"
+      ]
+    },
+    {
+      "id": "ARB-090",
+      "category": "capability",
+      "title": "Assurance census: suppressions and analysis exclusions are reported",
+      "description": "The assurance probe reports what the analysis was told not to look at, so a clean result can be read for what it covers: tool configuration that excludes paths from analysis (arbiter/assurance.analysis-excluded) and a per-tool count of inline suppressions (arbiter/assurance.suppression-census). Shipped in bcb5fc6 (2026-09-12) before the requirement registry; the census was later fixed under ARB-049 (FAIL-048, suppressions inside strings) and ARB-065 (gosec #nosec labelled gosec). Recorded here for ARB-064 traceability.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/assurance.py",
+        "tests/test_probes_quality.py",
+        "src/arbiter/packs/rules/native.yaml"
+      ],
+      "acceptance_criteria": [
+        "both rules carry requirements ARB-090 in native.yaml",
+        "an exclusion file with patterns produces one analysis-excluded finding naming the tool"
+      ],
+      "validation_required": [
+        "python -m pytest -q",
+        "tests/test_rule_requirements.py"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "the census is informational; counts are not defects"
+      ]
     }
   ]
 }
