@@ -75,6 +75,46 @@ class TestLiveProbe(McpRegistrationFixture):
         self.assertIsNone(tools)
         self.assertIn("no answer within", detail)
 
+    def test_env_var_placeholders_are_expanded_before_probing(self) -> None:
+        # Claude Code's own .mcp.json format supports ${VAR:-default} and
+        # expands it itself before spawning a server; the probe must do the
+        # same or it passes the literal placeholder string as the command
+        # path, reporting a working server as "command not found".
+        os.environ["OMNI_TEST_PROJECT_DIR"] = str(ROOT)
+        self.addCleanup(os.environ.pop, "OMNI_TEST_PROJECT_DIR", None)
+        self.register({"omni": {
+            "command": sys.executable,
+            "args": ["${OMNI_TEST_PROJECT_DIR:-.}/omni", "mcp", "serve"],
+        }})
+        report = self.doctor()
+        self.assertEqual(report.errors, [])
+        self.assertEqual(len(report.passed), 1)
+        self.assertIn("lists", report.passed[0])
+
+
+class TestEnvVarExpansion(unittest.TestCase):
+    def setUp(self) -> None:
+        self.addCleanup(os.environ.pop, "OMNI_TEST_VAR", None)
+
+    def test_set_variable_with_default_uses_the_set_value(self) -> None:
+        os.environ["OMNI_TEST_VAR"] = "/real/path"
+        self.assertEqual(ma.expand_mcp_env_placeholders("${OMNI_TEST_VAR:-.}/cli.mjs"), "/real/path/cli.mjs")
+
+    def test_unset_variable_with_default_uses_the_default(self) -> None:
+        os.environ.pop("OMNI_TEST_VAR", None)
+        self.assertEqual(ma.expand_mcp_env_placeholders("${OMNI_TEST_VAR:-.}/cli.mjs"), "./cli.mjs")
+
+    def test_braced_without_default_resolves_to_empty_when_unset(self) -> None:
+        os.environ.pop("OMNI_TEST_VAR", None)
+        self.assertEqual(ma.expand_mcp_env_placeholders("${OMNI_TEST_VAR}"), "")
+
+    def test_bare_dollar_form_is_also_expanded(self) -> None:
+        os.environ["OMNI_TEST_VAR"] = "value"
+        self.assertEqual(ma.expand_mcp_env_placeholders("$OMNI_TEST_VAR/tail"), "value/tail")
+
+    def test_string_with_no_placeholder_is_unchanged(self) -> None:
+        self.assertEqual(ma.expand_mcp_env_placeholders("node"), "node")
+
 
 class TestRegistrationShape(McpRegistrationFixture):
     def test_absent_registration_is_not_a_finding(self) -> None:
