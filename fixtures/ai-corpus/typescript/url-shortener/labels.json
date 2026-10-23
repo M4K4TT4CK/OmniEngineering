@@ -172,5 +172,12 @@
       "source": "independent"
     }
   ],
-  "false_alarms": []
+  "false_alarms": [
+    {
+      "rule": "arbiter/typescript.promise-catch-noop",
+      "file": "src/app.ts",
+      "line": 82,
+      "reason": "best-effort cancel of a stream reader after the bytes needed were read; a failure to cancel has no consequence to handle"
+    }
+  ]
 }

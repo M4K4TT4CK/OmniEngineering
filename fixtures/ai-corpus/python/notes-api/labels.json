@@ -41,5 +41,12 @@
       "source": "independent"
     }
   ],
-  "false_alarms": []
+  "false_alarms": [
+    {
+      "rule": "arbiter/authored.undeclared-import",
+      "file": "app.py",
+      "line": 13,
+      "reason": "pydantic is FastAPI's own dependency and BaseModel is FastAPI's documented request-model API; requirements.txt declares fastapi"
+    }
+  ]
 }

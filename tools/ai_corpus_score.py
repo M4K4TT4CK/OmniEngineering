@@ -27,10 +27,13 @@ labels.json:
 
 A finding detects a defect when it is in the same file, its line is within
 `--tolerance` lines of the defect's [line, end_line] span, and either it
-carries one of the defect's CWEs or its rule matches one of `match_rules`
-(fnmatch globs). `match_rules` is written when reconciling, for a rule that
-reports the defect under a neighbouring CWE; it records a judgement, so each
-one should be explainable from the defect's justification.
+carries one of the defect's CWEs or its rule matches a glob in the defect's
+`match_rules` or in corpus.json's `category_rules` for the defect's category.
+`category_rules` is the one place a rule with no CWE (dependency pinning,
+undeclared imports) is tied to a defect category; per-defect `match_rules`
+is written when reconciling, for a rule that reports the defect under a
+neighbouring CWE. Both record a judgement, so each should be explainable
+from the defect's justification.
 
 `source: "independent"` labels were written before Arbiter was run on the
 app; `"reconcile"` ones were added afterwards because Arbiter reported a real
@@ -41,9 +44,10 @@ Precision counts every in-scope finding: one that detects a label is a true
 positive, one listed in `false_alarms` is a false positive, and one that is
 neither is *unreviewed* -- counted as a false positive in the headline
 figure and listed, so a rule change that starts firing somewhere new shows
-up as work to do rather than as silent noise. Maintainability metrics
-(`metric_rule_prefixes` in corpus.json) and info-severity findings are out of
-scope: they are measurements, not defect claims.
+up as work to do rather than as silent noise. Maintainability metrics and
+census rows (`metric_rule_prefixes` in corpus.json) are out of scope: they
+are measurements, not defect claims. Info-severity findings stay in scope,
+because some defect rules (unpinned dependencies) report at info.
 
 The apps are data. Nothing here builds, installs or runs them.
 """
@@ -155,28 +159,36 @@ def _check_line(app_dir: Path, where: str, file, line, end_line) -> list[str]:
 # ---------------------------------------------------------------------------
 
 def in_scope(finding: dict, cfg: dict) -> bool:
-    if finding.get("severity") == "info":
-        return False
     return not any(finding["rule"].startswith(p) for p in cfg["metric_rule_prefixes"])
 
 
-def detects(finding: dict, defect: dict, tolerance: int) -> bool:
+def detects(finding: dict, defect: dict, tolerance: int, cfg: dict | None = None) -> bool:
     if finding["path"] != defect["file"]:
         return False
+    if not finding["line"] or finding["line"] < 1:
+        # A file-level finding (some manifest rules report no line): it can
+        # only be matched on the weakness, anywhere in the file.
+        return _same_weakness(finding, defect, cfg)
     lo = defect["line"] - tolerance
     hi = defect.get("end_line", defect["line"]) + tolerance
     f_lo = finding["line"]
     f_hi = max(finding.get("end_line") or f_lo, f_lo)
     if f_hi < lo or f_lo > hi:
         return False
+    return _same_weakness(finding, defect, cfg)
+
+
+def _same_weakness(finding: dict, defect: dict, cfg: dict | None) -> bool:
     if set(finding.get("cwe") or ()) & set(defect.get("cwe") or ()):
         return True
-    return any(fnmatch.fnmatchcase(finding["rule"], g) for g in defect.get("match_rules", ()))
+    globs = list(defect.get("match_rules", ()))
+    globs += [g for g in (cfg or {}).get("category_rules", {}).get(defect.get("category"), [])]
+    return any(fnmatch.fnmatchcase(finding["rule"], g) for g in globs)
 
 
 def _is_listed_false_alarm(finding: dict, fa: dict, tolerance: int) -> bool:
     return (finding["rule"] == fa["rule"] and finding["path"] == fa["file"]
-            and abs(finding["line"] - fa["line"]) <= tolerance)
+            and abs((finding["line"] or 0) - fa["line"]) <= tolerance)
 
 
 def score_app(app: str, language: str, labels: dict, findings: list[dict], cfg: dict,
@@ -189,12 +201,13 @@ def score_app(app: str, language: str, labels: dict, findings: list[dict], cfg: 
         else:
             s.out_of_scope += 1
     for d in s.defects:
-        by = sorted({f["rule"] for f in scoped if detects(f, d, tolerance)})
+        by = sorted({f["rule"] for f in scoped if detects(f, d, tolerance, cfg)})
         (s.detected if by else s.missed).append({**d, "by": by})
     used_fa: set[int] = set()
     for f in scoped:
-        if any(detects(f, d, tolerance) for d in s.defects):
-            s.true_positives.append(f)
+        hits = [d["id"] for d in s.defects if detects(f, d, tolerance, cfg)]
+        if hits:
+            s.true_positives.append({**f, "detects": hits})
             continue
         hit = next((i for i, fa in enumerate(labels["false_alarms"])
                     if _is_listed_false_alarm(f, fa, tolerance)), None)
@@ -209,6 +222,24 @@ def score_app(app: str, language: str, labels: dict, findings: list[dict], cfg: 
 
 def _ratio(n: int, d: int) -> float | None:
     return round(n / d, 3) if d else None
+
+
+def code_only(scores: list[AppScore], hygiene: set[str]) -> list[AppScore]:
+    """The same scores with dependency-hygiene labels, and the findings that
+    detected them, left out: one app's package.json can carry more labels
+    than all of its code, and a headline dominated by version ranges says
+    little about the code."""
+    out = []
+    for s in scores:
+        keep = [d for d in s.defects if d["category"] not in hygiene]
+        ids = {d["id"] for d in keep}
+        tps = [f for f in s.true_positives if ids & set(f["detects"])]
+        out.append(AppScore(app=s.app, language=s.language, defects=keep,
+                            detected=[d for d in s.detected if d["category"] not in hygiene],
+                            missed=[d for d in s.missed if d["category"] not in hygiene],
+                            true_positives=tps, false_alarms=s.false_alarms, unreviewed=s.unreviewed,
+                            out_of_scope=s.out_of_scope, stale_false_alarms=s.stale_false_alarms))
+    return out
 
 
 def summarize(scores: list[AppScore]) -> dict:
@@ -283,10 +314,9 @@ def scan(app_dir: Path, use_adapters: bool = False) -> list[dict]:
              "title": f.title} for f in report.active()]
 
 
-def render_markdown(summary: dict, scores: list[AppScore], cats: list[dict], rules: list[dict]) -> str:
+def _summary_table(summary: dict) -> list[str]:
     pct = lambda v: "—" if v is None else f"{v * 100:.0f}%"  # noqa: E731
-    lines = ["# AI-written corpus score", "",
-             "| language | apps | defects | recall | recall (independent) | recall high+crit | findings | TP | FP | unreviewed | precision |",
+    lines = ["| language | apps | defects | recall | recall (independent) | recall high+crit | findings | TP | FP | unreviewed | precision |",
              "|---|---|---|---|---|---|---|---|---|---|---|"]
     for name in sorted(summary, key=lambda k: (k == "all", k)):
         r = summary[name]
@@ -294,6 +324,18 @@ def render_markdown(summary: dict, scores: list[AppScore], cats: list[dict], rul
                      f"{pct(r['recall_independent'])} | {pct(r['recall_high_critical'])} | "
                      f"{r['findings_in_scope']} | {r['true_positives']} | {r['false_alarms']} | "
                      f"{r['unreviewed']} | {pct(r['precision'])} |")
+    return lines
+
+
+def render_markdown(summary: dict, scores: list[AppScore], cats: list[dict], rules: list[dict],
+                    code_summary: dict | None = None, hygiene: set[str] | None = None) -> str:
+    pct = lambda v: "—" if v is None else f"{v * 100:.0f}%"  # noqa: E731
+    lines = ["# AI-written corpus score", ""]
+    if code_summary is not None:
+        lines += [f"## Code defects (excluding {', '.join(sorted(hygiene or ()))})", ""]
+        lines += _summary_table(code_summary)
+        lines += ["", "## All labels", ""]
+    lines += _summary_table(summary)
     lines += ["", "## Recall by category", "", "| category | detected / defects | recall |", "|---|---|---|"]
     lines += [f"| {c['category']} | {c['detected']}/{c['defects']} | {pct(c['recall'])} |" for c in cats]
     lines += ["", "## Precision by rule", "", "| rule | TP | FP | unreviewed | precision |", "|---|---|---|---|---|"]
@@ -342,11 +384,14 @@ def main(argv: list[str] | None = None) -> int:
         scores.append(score_app(rel, rel.split("/")[0], load_labels(a), scan(a, args.adapters),
                                 cfg, args.tolerance))
     summary, cats, rules = summarize(scores), by_category(scores), by_rule(scores)
+    hygiene = set(cfg.get("hygiene_categories", []))
+    code_summary = summarize(code_only(scores, hygiene)) if hygiene else None
     if args.json:
-        args.json.write_text(json.dumps({"summary": summary, "categories": cats, "rules": rules,
+        args.json.write_text(json.dumps({"summary": summary, "code_summary": code_summary,
+                                         "categories": cats, "rules": rules,
                                          "apps": [s.__dict__ for s in scores]}, indent=1) + "\n",
                              encoding="utf-8")
-    md = render_markdown(summary, scores, cats, rules)
+    md = render_markdown(summary, scores, cats, rules, code_summary, hygiene)
     if args.markdown:
         args.markdown.write_text(md, encoding="utf-8")
     else:

@@ -123,5 +123,18 @@
       "source": "independent"
     }
   ],
-  "false_alarms": []
+  "false_alarms": [
+    {
+      "rule": "arbiter/assurance.test-asserts-nothing",
+      "file": "test_jobqueue.py",
+      "line": 91,
+      "reason": "the test asserts through its helpers: the Barrier(3, timeout=5) breaks unless three jobs run at once, the job then fails, and wait_for(..., SUCCEEDED) raises; it can fail"
+    },
+    {
+      "rule": "arbiter/authored.undeclared-import",
+      "file": "api.py",
+      "line": 8,
+      "reason": "pydantic is FastAPI's own dependency and BaseModel is FastAPI's documented request-model API; requirements.txt declares fastapi"
+    }
+  ]
 }

@@ -52,5 +52,30 @@
       "source": "independent"
     }
   ],
-  "false_alarms": []
+  "false_alarms": [
+    {
+      "rule": "arbiter/go.db-call-no-deadline",
+      "file": "main.go",
+      "line": 134,
+      "reason": "debatable, judged not a defect here: local SQLite file, no network round-trip for a deadline to bound"
+    },
+    {
+      "rule": "arbiter/go.db-call-no-deadline",
+      "file": "main.go",
+      "line": 146,
+      "reason": "debatable, judged not a defect here: local SQLite file, no network round-trip for a deadline to bound"
+    },
+    {
+      "rule": "arbiter/go.db-call-no-deadline",
+      "file": "main.go",
+      "line": 230,
+      "reason": "debatable, judged not a defect here: local SQLite file, no network round-trip for a deadline to bound"
+    },
+    {
+      "rule": "arbiter/go.db-call-no-deadline",
+      "file": "main.go",
+      "line": 260,
+      "reason": "debatable, judged not a defect here: local SQLite file, no network round-trip for a deadline to bound"
+    }
+  ]
 }

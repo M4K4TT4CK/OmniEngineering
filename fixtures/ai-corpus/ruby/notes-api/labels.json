@@ -40,5 +40,12 @@
       "source": "independent"
     }
   ],
-  "false_alarms": []
+  "false_alarms": [
+    {
+      "rule": "arbiter/ruby.sql-injection",
+      "file": "app.rb",
+      "line": 252,
+      "reason": "the interpolated `sql` is assembled from literal fragments only (app.rb:244-249); the search term and every other value are bound through ? placeholders"
+    }
+  ]
 }

@@ -16,7 +16,7 @@ acs = importlib.util.module_from_spec(_spec)
 sys.modules["ai_corpus_score"] = acs
 _spec.loader.exec_module(acs)
 
-CFG = {"metric_rule_prefixes": ["arbiter/ast.", "arbiter/quality."]}
+CFG = {"metric_rule_prefixes": ["arbiter/ast.", "arbiter/quality.", "arbiter/assurance.census"]}
 
 
 def _defect(**kw):

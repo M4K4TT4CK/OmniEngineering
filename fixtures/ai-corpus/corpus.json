@@ -1,7 +1,51 @@
 {
- "_about": "Scoring settings for tools/ai_corpus_score.py. Findings from these rule prefixes are maintainability measurements, not defect claims, and are left out of precision.",
+ "_about": "Scoring settings for tools/ai_corpus_score.py. Findings from these rule prefixes are maintainability measurements or census rows, not defect claims, and are left out of precision.",
  "metric_rule_prefixes": [
   "arbiter/ast.",
-  "arbiter/quality."
+  "arbiter/quality.",
+  "arbiter/assurance.suppression-census"
+ ],
+ "category_rules": {
+  "_about": "Rules that report a defect category under no CWE (or a different one). Keyed by labels.json `category`; values are fnmatch globs over rule ids.",
+  "unpinned-dependency": [
+   "arbiter/supply.unpinned-*"
+  ],
+  "undeclared-dependency": [
+   "arbiter/authored.undeclared-import"
+  ],
+  "test-no-assertion": [
+   "arbiter/assurance.test-asserts-nothing",
+   "arbiter/*.test-without-assertion",
+   "arbiter/ruby.vacuous-spec"
+  ],
+  "test-ineffective": [
+   "arbiter/assurance.test-asserts-nothing",
+   "arbiter/*.test-without-assertion",
+   "arbiter/ruby.vacuous-spec"
+  ],
+  "doc-drift": [
+   "arbiter/drift.*"
+  ],
+  "swallowed-exception": [
+   "arbiter/*.swallowed-*",
+   "arbiter/*.empty-catch*",
+   "arbiter/*.promise-catch-noop",
+   "arbiter/ruby.rescue-exception"
+  ],
+  "retry-no-backoff": [
+   "arbiter/*.retry*backoff",
+   "arbiter/ruby.retry-unbounded"
+  ],
+  "missing-timeout": [
+   "arbiter/*no-timeout",
+   "arbiter/python.http-timeout-disabled"
+  ],
+  "skipped-test": [
+   "arbiter/*skipped*",
+   "arbiter/assurance.permanently-skipped-test"
+  ]
+ },
+ "hygiene_categories": [
+  "unpinned-dependency"
  ]
 }

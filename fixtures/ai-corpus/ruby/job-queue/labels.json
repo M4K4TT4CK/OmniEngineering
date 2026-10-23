@@ -79,5 +79,12 @@
       "source": "independent"
     }
   ],
-  "false_alarms": []
+  "false_alarms": [
+    {
+      "rule": "arbiter/drift.documented-env-var-absent",
+      "file": "README.md",
+      "line": 28,
+      "reason": "WORKERS is read in config.ru:4 (ENV.fetch(\"WORKERS\", \"4\")); the probe does not read .ru files"
+    }
+  ]
 }

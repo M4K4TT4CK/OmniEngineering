@@ -39,7 +39,7 @@
       ],
       "category": "unbounded-input",
       "severity": "medium",
-      "justification": "Only the output width is bounded (≤10000); height is derived from the source aspect ratio with no cap, so a tall thin image with width=10000 requests a BufferedImage of 10000 x millions of pixels (OOM or int overflow), and ImageIO.read at line 82 has no pixel limit either.",
+      "justification": "Only the output width is bounded (\u226410000); height is derived from the source aspect ratio with no cap, so a tall thin image with width=10000 requests a BufferedImage of 10000 x millions of pixels (OOM or int overflow), and ImageIO.read at line 82 has no pixel limit either.",
       "source": "independent"
     },
     {
@@ -143,5 +143,42 @@
       "source": "independent"
     }
   ],
-  "false_alarms": []
+  "false_alarms": [
+    {
+      "rule": "arbiter/authored.undeclared-import",
+      "file": "src/main/java/jobqueue/Handlers.java",
+      "line": 4,
+      "reason": "jakarta.mail.* is the API of org.eclipse.angus:angus-mail, which pom.xml declares (it depends on jakarta.mail-api); the import is satisfied by the declared artifact's own dependency"
+    },
+    {
+      "rule": "arbiter/authored.undeclared-import",
+      "file": "src/main/java/jobqueue/Handlers.java",
+      "line": 5,
+      "reason": "jakarta.mail.* is the API of org.eclipse.angus:angus-mail, which pom.xml declares (it depends on jakarta.mail-api); the import is satisfied by the declared artifact's own dependency"
+    },
+    {
+      "rule": "arbiter/authored.undeclared-import",
+      "file": "src/main/java/jobqueue/Handlers.java",
+      "line": 6,
+      "reason": "jakarta.mail.* is the API of org.eclipse.angus:angus-mail, which pom.xml declares (it depends on jakarta.mail-api); the import is satisfied by the declared artifact's own dependency"
+    },
+    {
+      "rule": "arbiter/authored.undeclared-import",
+      "file": "src/main/java/jobqueue/Handlers.java",
+      "line": 7,
+      "reason": "jakarta.mail.* is the API of org.eclipse.angus:angus-mail, which pom.xml declares (it depends on jakarta.mail-api); the import is satisfied by the declared artifact's own dependency"
+    },
+    {
+      "rule": "arbiter/authored.undeclared-import",
+      "file": "src/main/java/jobqueue/Handlers.java",
+      "line": 8,
+      "reason": "jakarta.mail.* is the API of org.eclipse.angus:angus-mail, which pom.xml declares (it depends on jakarta.mail-api); the import is satisfied by the declared artifact's own dependency"
+    },
+    {
+      "rule": "arbiter/authored.undeclared-import",
+      "file": "src/main/java/jobqueue/Handlers.java",
+      "line": 9,
+      "reason": "jakarta.mail.* is the API of org.eclipse.angus:angus-mail, which pom.xml declares (it depends on jakarta.mail-api); the import is satisfied by the declared artifact's own dependency"
+    }
+  ]
 }

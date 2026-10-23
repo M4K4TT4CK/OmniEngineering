@@ -189,5 +189,12 @@
       "source": "independent"
     }
   ],
-  "false_alarms": []
+  "false_alarms": [
+    {
+      "rule": "arbiter/typescript.promise-catch-noop",
+      "file": "src/app.ts",
+      "line": 148,
+      "reason": "not swallowed: the null is the not-found signal, checked on the next line and turned into a 404"
+    }
+  ]
 }

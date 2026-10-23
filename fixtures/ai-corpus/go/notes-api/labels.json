@@ -53,5 +53,72 @@
       "source": "independent"
     }
   ],
-  "false_alarms": []
+  "false_alarms": [
+    {
+      "rule": "arbiter/go.sql-injection",
+      "file": "main.go",
+      "line": 439,
+      "reason": "the only concatenated value is the package constant `noteCols` (main.go:383, a fixed column list); every user value is a ? placeholder"
+    },
+    {
+      "rule": "arbiter/go.sql-injection",
+      "file": "main.go",
+      "line": 476,
+      "reason": "the only concatenated value is the package constant `noteCols` (main.go:383, a fixed column list); every user value is a ? placeholder"
+    },
+    {
+      "rule": "arbiter/go.sql-injection",
+      "file": "main.go",
+      "line": 501,
+      "reason": "the only concatenated value is the package constant `noteCols` (main.go:383, a fixed column list); every user value is a ? placeholder"
+    },
+    {
+      "rule": "arbiter/go.db-call-no-deadline",
+      "file": "main.go",
+      "line": 293,
+      "reason": "debatable, judged not a defect here: the database is a local SQLite file opened by the process, so there is no network round-trip for a deadline to bound; neither the independent pass nor reconciliation would block the PR on it"
+    },
+    {
+      "rule": "arbiter/go.db-call-no-deadline",
+      "file": "main.go",
+      "line": 319,
+      "reason": "debatable, judged not a defect here: the database is a local SQLite file opened by the process, so there is no network round-trip for a deadline to bound; neither the independent pass nor reconciliation would block the PR on it"
+    },
+    {
+      "rule": "arbiter/go.db-call-no-deadline",
+      "file": "main.go",
+      "line": 341,
+      "reason": "debatable, judged not a defect here: the database is a local SQLite file opened by the process, so there is no network round-trip for a deadline to bound; neither the independent pass nor reconciliation would block the PR on it"
+    },
+    {
+      "rule": "arbiter/go.db-call-no-deadline",
+      "file": "main.go",
+      "line": 404,
+      "reason": "debatable, judged not a defect here: the database is a local SQLite file opened by the process, so there is no network round-trip for a deadline to bound; neither the independent pass nor reconciliation would block the PR on it"
+    },
+    {
+      "rule": "arbiter/go.db-call-no-deadline",
+      "file": "main.go",
+      "line": 449,
+      "reason": "debatable, judged not a defect here: the database is a local SQLite file opened by the process, so there is no network round-trip for a deadline to bound; neither the independent pass nor reconciliation would block the PR on it"
+    },
+    {
+      "rule": "arbiter/go.db-call-no-deadline",
+      "file": "main.go",
+      "line": 476,
+      "reason": "debatable, judged not a defect here: the database is a local SQLite file opened by the process, so there is no network round-trip for a deadline to bound; neither the independent pass nor reconciliation would block the PR on it"
+    },
+    {
+      "rule": "arbiter/go.db-call-no-deadline",
+      "file": "main.go",
+      "line": 500,
+      "reason": "debatable, judged not a defect here: the database is a local SQLite file opened by the process, so there is no network round-trip for a deadline to bound; neither the independent pass nor reconciliation would block the PR on it"
+    },
+    {
+      "rule": "arbiter/go.db-call-no-deadline",
+      "file": "main.go",
+      "line": 518,
+      "reason": "debatable, judged not a defect here: the database is a local SQLite file opened by the process, so there is no network round-trip for a deadline to bound; neither the independent pass nor reconciliation would block the PR on it"
+    }
+  ]
 }
