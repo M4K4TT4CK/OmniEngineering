@@ -1,6 +1,6 @@
 # What to work on next
 
-Generated 2026-10-21T19:32:23+00:00 by `tools/worklist.py` from the last training cycle.
+Generated 2026-10-22T19:33:28+00:00 by `tools/worklist.py` from the last training cycle.
 
 Nothing here is a decision. Each entry says what the measurement shows and what question it raises.
 
@@ -10,8 +10,8 @@ Nothing here is a decision. Each entry says what the measurement shows and what 
 
 A language that appears only in well-maintained repositories cannot be measured. There is nothing to compare its rules against, so they can be asserted but never tested.
 
-- **go** — 844,993 lines of good code, 15,256 broken
-- **cpp** — 212,772 lines of good code, 0 broken
+- **go** — 846,292 lines of good code, 15,256 broken
+- **cpp** — 217,159 lines of good code, 0 broken
 - **rust** — 56,386 lines of good code, 0 broken
 - **rst** — 23,759 lines of good code, 0 broken
 - **c** — 7,186 lines of good code, 7 broken
@@ -82,6 +82,7 @@ Not a defect — a gap. Fewer than five findings in total, so the ratio beside e
 - `arbiter/resource.privileged-container` — 0 good, 4 broken
 - `arbiter/resource.public-object-store` — 0 good, 1 broken
 - `arbiter/resource.unencrypted-queue` — 1 good, 1 broken
+- `arbiter/secrets.stripe-key` — 0 good, 1 broken
 
 More repetitions will not help. Effective sample size is bounded by how many different kinds of code and fault exist, not by trial count. These need more varied code.
 

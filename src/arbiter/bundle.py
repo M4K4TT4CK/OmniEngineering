@@ -12,8 +12,8 @@ The five external analyzers -- ruff, bandit, semgrep, checkov and gitleaks --
 are not included. Shipping them is a redistribution, and the redistribution
 review (L-6 in docs/licensing.md, tracked as ARB-005) has not been done;
 semgrep's LGPL-2.1 terms in particular need a person, not a build step, to sign
-off. A bundle of Arbiter alone conveys nothing but Arbiter, so it is not
-blocked. The manifest says so in words, so a bundle found on a disk a year
+off. A bundle of Arbiter and its runtime dependencies conveys no analyzer, so
+it is not blocked. The manifest says so in words, so a bundle found on a disk a year
 from now explains its own gap. Operators install the analyzers from their own
 mirror, and a scan that cannot find one reports the probe as *not assessed*
 rather than passing it, exactly as it does everywhere else.

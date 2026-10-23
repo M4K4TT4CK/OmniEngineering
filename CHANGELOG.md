@@ -8,6 +8,39 @@ under `[Unreleased]` (there are no release tags yet) and reference the
 ### 2026-10-22 (round 1 decisions)
 - ARB-065 | Gold budgets gain `accepted_breaches`: a rule over budget by a recorded decision stays in the report and in `rules_over_budget`, and the run fails again only if its rate passes a ceiling set about 10% above the rate at the decision (`failing_breaches`, tested). Recorded on 2026-10-22 by the user: `java.test-without-assertion` is a known breach (0.066/KLOC; its remaining findings are tests that only call the code), and `assurance.permanently-skipped-test` (0.0315) and `typescript.test-without-assertion` (0.034) are accepted overages. The run on the 1047341 report has 9 over budget, 3 of them accepted, and 6 failing.
 - ARB-065 | Decisions recorded by the user on 2026-10-22: the test-file exclusions in 1047341 and c4d8bfe stand (TLS off for a test's own local server, `override_settings(DEBUG=True)`, empty skipped tests, Java `@Override` tests). The three Django applications stay a separate corpus, not gold, so Python denominators don't move. Checking `assurance.test-asserts-nothing` for the same conditional-skip blind spot is round 2 work.
+### 2026-10-21 (licence)
+- ARB-005 | Relicensed under the Apache License, Version 2.0, by decision of
+the copyright holder (Nicholas J Pauken); the repository stays public. `LICENSE`
+is the standard, unmodified Apache-2.0 text, replacing the interim
+all-rights-reserved notice. `NOTICE` opens with "Arbiter / Copyright 2026
+Nicholas J Pauken" and reproduces the OmniEngineering workspace's NOTICE
+unchanged. `pyproject.toml` keeps `license = { file = "LICENSE" }` (the SPDX
+string form needs setuptools 77; the floor is 68) and adds the Apache
+classifier; the wheel builds and carries `LICENSE`, `NOTICE` and `NOTICE.md`.
+The planned proprietary per-repository licence (the L-3 draft grant) is
+dropped; `docs/licensing.md` is rewritten as the current position with a short
+history of the superseded draft. Scan output belongs to the user, now stated in
+`README.md`, `NOTICE` and `docs/licensing.md`. `NOTICE.md` adds tomli, the
+vendored 3d-force-graph viewer and the OmniEngineering workspace, and says the
+bundle carries the unmodified PyYAML/tomli wheels. `CONTRIBUTING.md` names
+Apache-2.0 §5 as the inbound basis and still takes no outside contributions;
+`TRADEMARKS.md` says it covers the OmniEngineering names only. ARB-005 stays
+pending: its fourth criterion, the L-6 redistribution review for bundling the
+analyzers (semgrep LGPL-2.1), is not done and needs a named reviewer.
+- ARB-005 | Pre-publication check (Milestone 1, `docs/gaps-and-next-steps.md`):
+a full-history gitleaks scan. Run earlier on 2026-10-21 over 272 commits: 70
+hits, all synthetic test values (68 in `tests/`, 2 in
+`fixtures/legacy-platform`), none in `src/`, `tools/` or `docs/`. Re-run for
+this change with gitleaks 8.21.2, `gitleaks detect --source . --log-opts="--all"
+--redact`: 292 commits scanned, 73 hits — 70 in `tests/`, 2 in
+`fixtures/legacy-platform/app/config.py` (a planted `DB_PASSWORD`, the same
+line in two commits), and 1 in a planted CWE-798 fixture under
+`fixtures/planted/python/bad/cwe25/` that exists only on an unpushed local
+branch; none in `src/`, `tools/` or `docs/`. Each distinct hit was inspected
+and is a synthetic test value. The published history alone
+(`--log-opts="--remotes=origin"`, 226 commits) gives 48 hits: 47 in `tests/`,
+1 in `fixtures/legacy-platform`. The `training/` redistribution check named
+in the same gap is not recorded here.
 ### 2026-10-21 (round 1 follow-ups)
 - ARB-065 | `test-d/` (tsd type-level tests, jose) and `integration-tests/` (opentelemetry-js) are test roles in the inventory, whole directory names only. Gold, ts-jose and ts-otel-js at `d67566e` against `3984b05`: `typescript.jwt-decode-unverified` 2 to 0 (both in jose's `test-d/`), `typescript.error-object-in-response` 1 to 0 (otel `integration-tests/`); no other rule moved; 476 jose and 55 otel TypeScript lines move from production to test.
 - ARB-062 | `ruby.csrf-protection-off-in-production` (CWE-352, high): `config.action_controller.allow_forgery_protection = false` in `config/environments/production.rb`, at the root or under any directory; Rails generates the same line in `test.rb`, which is not read. The pack schema's `files:` key (an fnmatch glob, until now undocumented) also takes a list of globs, validated at load; documented in `lang_rules.py` and `docs/probes.md`. Planted bad `production.rb`; good twins `production.rb` with the check on and `test.rb` with it off. No gold file sets it.

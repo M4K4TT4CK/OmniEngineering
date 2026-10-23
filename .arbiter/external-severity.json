@@ -1,13 +1,13 @@
 {
   "schema_version": "1.0",
-  "generated": "2026-10-21T15:07:19Z",
+  "generated": "2026-10-22T14:56:58Z",
   "repos_scanned": 41,
   "repos_timed_out": [],
   "repos_failed": [],
   "lines_by_population": {
-    "vulnerable": 711076,
-    "clean": 2483735,
-    "examples": 600176
+    "vulnerable": 727913,
+    "clean": 2504070,
+    "examples": 600191
   },
   "bands": [
     [
@@ -28,26 +28,26 @@
   "lines_by_population_language": {
     "clean": {
       "terraform": 28584,
-      "markdown": 223648,
-      "unknown": 117168,
+      "markdown": 223999,
+      "unknown": 130889,
       "json": 45735,
-      "yaml": 296002,
-      "go": 844993,
+      "yaml": 296118,
+      "go": 846292,
       "hcl": 163,
       "shell": 10840,
       "ini": 18,
-      "python": 70730,
-      "toml": 10138,
-      "makefile": 2503,
+      "python": 71130,
+      "toml": 10164,
+      "makefile": 2505,
       "rst": 23759,
       "html": 190629,
       "css": 7029,
       "sql": 28,
       "javascript": 23211,
-      "typescript": 159559,
+      "typescript": 159592,
       "rust": 56386,
       "ruby": 24133,
-      "cpp": 212772,
+      "cpp": 217159,
       "c": 7186,
       "java": 57131,
       "dockerfile": 676,
@@ -55,18 +55,18 @@
       "r": 5616
     },
     "vulnerable": {
-      "json": 141064,
-      "markdown": 64908,
-      "unknown": 115851,
+      "json": 141065,
+      "markdown": 66969,
+      "unknown": 116052,
       "terraform": 7505,
-      "dockerfile": 7908,
-      "yaml": 18124,
-      "javascript": 112555,
-      "html": 32906,
-      "css": 35741,
+      "dockerfile": 8197,
+      "yaml": 18440,
+      "javascript": 112945,
+      "html": 41451,
+      "css": 36734,
       "shell": 3385,
       "powershell": 166,
-      "python": 16108,
+      "python": 20149,
       "go": 15256,
       "toml": 2699,
       "typescript": 64869,
@@ -80,9 +80,9 @@
     },
     "examples": {
       "markdown": 40553,
-      "unknown": 48426,
+      "unknown": 48427,
       "shell": 4154,
-      "yaml": 256610,
+      "yaml": 256624,
       "json": 152809,
       "python": 27114,
       "javascript": 20674,
@@ -115,9 +115,9 @@
         "python"
       ],
       "repos_seen": 8,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": 0.43,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": 0.34,
       "severity": "info",
       "basis": "measured"
     },
@@ -131,8 +131,8 @@
         "python"
       ],
       "repos_seen": 3,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -141,49 +141,49 @@
       "tool": "bandit",
       "title": "Possible binding to all interfaces.",
       "clean_hits": 0,
-      "vulnerable_hits": 17,
+      "vulnerable_hits": 39,
       "example_hits": 7,
       "languages": [
         "python"
       ],
       "repos_seen": 5,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": "medium",
       "basis": "measured"
     },
     "bandit/B105": {
       "tool": "bandit",
-      "title": "Possible hardcoded password: 'your-secret-key-here'",
+      "title": "Possible hardcoded password: 'password123'",
       "clean_hits": 6,
-      "vulnerable_hits": 20,
+      "vulnerable_hits": 34,
       "example_hits": 3,
       "languages": [
         "python"
       ],
       "repos_seen": 5,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": 14.64,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": 20.0,
       "severity": "medium",
       "basis": "measured"
     },
     "bandit/B106": {
       "tool": "bandit",
-      "title": "Possible hardcoded password: '65079b006e85a7e798abecb99e47c154'",
+      "title": "Possible hardcoded password: 'pw'",
       "clean_hits": 3,
-      "vulnerable_hits": 1,
+      "vulnerable_hits": 3,
       "example_hits": 2,
       "languages": [
         "python"
       ],
       "repos_seen": 4,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": 1.46,
-      "severity": null,
-      "basis": "insufficient-observations"
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": 3.53,
+      "severity": "low",
+      "basis": "measured"
     },
     "bandit/B107": {
       "tool": "bandit",
@@ -195,9 +195,9 @@
         "python"
       ],
       "repos_seen": 2,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": 4.39,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": 3.53,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -211,8 +211,8 @@
         "python"
       ],
       "repos_seen": 2,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -221,15 +221,15 @@
       "tool": "bandit",
       "title": "Try, Except, Pass detected.",
       "clean_hits": 4,
-      "vulnerable_hits": 7,
+      "vulnerable_hits": 5,
       "example_hits": 0,
       "languages": [
         "python"
       ],
       "repos_seen": 3,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": 7.68,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": 4.41,
       "severity": "low",
       "basis": "measured"
     },
@@ -243,8 +243,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -253,15 +253,15 @@
       "tool": "bandit",
       "title": "Call to requests without timeout",
       "clean_hits": 3,
-      "vulnerable_hits": 14,
+      "vulnerable_hits": 12,
       "example_hits": 6,
       "languages": [
         "python"
       ],
       "repos_seen": 7,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": 20.49,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": 14.12,
       "severity": "medium",
       "basis": "measured"
     },
@@ -269,17 +269,17 @@
       "tool": "bandit",
       "title": "A Flask app appears to be run with debug=True, which exposes the Werkzeug debugger and allows the execution of arbitrary",
       "clean_hits": 2,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 20,
       "example_hits": 4,
       "languages": [
         "python"
       ],
       "repos_seen": 5,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": 4.39,
-      "severity": null,
-      "basis": "insufficient-observations"
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": 35.3,
+      "severity": "medium",
+      "basis": "measured"
     },
     "bandit/B301": {
       "tool": "bandit",
@@ -291,9 +291,9 @@
         "python"
       ],
       "repos_seen": 3,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": 13.17,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": 10.59,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -307,8 +307,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -317,15 +317,15 @@
       "tool": "bandit",
       "title": "Use of possibly insecure function - consider using safer ast.literal_eval.",
       "clean_hits": 1,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 1,
       "example_hits": 0,
       "languages": [
         "python"
       ],
       "repos_seen": 2,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": 8.78,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": 3.53,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -339,9 +339,9 @@
         "python"
       ],
       "repos_seen": 4,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": 5.49,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": 4.41,
       "severity": "low",
       "basis": "measured"
     },
@@ -349,15 +349,15 @@
       "tool": "bandit",
       "title": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
       "clean_hits": 1,
-      "vulnerable_hits": 10,
+      "vulnerable_hits": 12,
       "example_hits": 2,
       "languages": [
         "python"
       ],
       "repos_seen": 4,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": 43.91,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": 42.36,
       "severity": "medium",
       "basis": "measured"
     },
@@ -371,8 +371,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -387,8 +387,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -403,8 +403,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -413,15 +413,15 @@
       "tool": "bandit",
       "title": "Use of weak MD5 hash for security. Consider usedforsecurity=False",
       "clean_hits": 1,
-      "vulnerable_hits": 6,
+      "vulnerable_hits": 5,
       "example_hits": 3,
       "languages": [
         "python"
       ],
       "repos_seen": 4,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": 26.35,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": 17.65,
       "severity": "medium",
       "basis": "measured"
     },
@@ -435,9 +435,9 @@
         "python"
       ],
       "repos_seen": 3,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": 30.74,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": 24.71,
       "severity": "medium",
       "basis": "measured"
     },
@@ -445,15 +445,15 @@
       "tool": "bandit",
       "title": "Consider possible security implications associated with the subprocess module.",
       "clean_hits": 41,
-      "vulnerable_hits": 9,
+      "vulnerable_hits": 6,
       "example_hits": 3,
       "languages": [
         "python"
       ],
       "repos_seen": 6,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": 0.96,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": 0.52,
       "severity": "info",
       "basis": "measured"
     },
@@ -467,8 +467,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -483,8 +483,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -499,8 +499,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -515,8 +515,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -525,14 +525,14 @@
       "tool": "bandit",
       "title": "Use of unsafe yaml load. Allows instantiation of arbitrary objects. Consider yaml.safe_load().",
       "clean_hits": 0,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 1,
       "example_hits": 0,
       "languages": [
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -541,14 +541,14 @@
       "tool": "bandit",
       "title": "subprocess call with shell=True identified, security issue.",
       "clean_hits": 0,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 1,
       "example_hits": 0,
       "languages": [
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -557,15 +557,15 @@
       "tool": "bandit",
       "title": "subprocess call - check for execution of untrusted input.",
       "clean_hits": 27,
-      "vulnerable_hits": 6,
+      "vulnerable_hits": 5,
       "example_hits": 3,
       "languages": [
         "python"
       ],
       "repos_seen": 6,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": 0.98,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": 0.65,
       "severity": "info",
       "basis": "measured"
     },
@@ -579,8 +579,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -595,8 +595,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -611,10 +611,10 @@
         "python"
       ],
       "repos_seen": 4,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": 3.51,
-      "severity": "low",
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": 2.82,
+      "severity": "info",
       "basis": "measured"
     },
     "bandit/B608": {
@@ -627,8 +627,8 @@
         "python"
       ],
       "repos_seen": 3,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": "medium",
       "basis": "measured"
@@ -643,8 +643,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -1300,8 +1300,8 @@
       ],
       "repos_seen": 3,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
-      "ratio": 0.09,
+      "vulnerable_kloc": 8.2,
+      "ratio": 0.08,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -1316,7 +1316,7 @@
       ],
       "repos_seen": 1,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
+      "vulnerable_kloc": 8.2,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -1332,7 +1332,7 @@
       ],
       "repos_seen": 1,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
+      "vulnerable_kloc": 8.2,
       "ratio": "inf",
       "severity": "low",
       "basis": "measured-single-repo"
@@ -1348,7 +1348,7 @@
       ],
       "repos_seen": 1,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
+      "vulnerable_kloc": 8.2,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -1364,7 +1364,7 @@
       ],
       "repos_seen": 1,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
+      "vulnerable_kloc": 8.2,
       "ratio": "inf",
       "severity": "low",
       "basis": "measured-single-repo"
@@ -1380,7 +1380,7 @@
       ],
       "repos_seen": 1,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
+      "vulnerable_kloc": 8.2,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -1411,8 +1411,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -1427,8 +1427,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -1443,8 +1443,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -1459,8 +1459,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -1475,8 +1475,8 @@
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -1492,8 +1492,8 @@
         "yaml"
       ],
       "repos_seen": 8,
-      "clean_kloc": 341.7,
-      "vulnerable_kloc": 159.2,
+      "clean_kloc": 341.9,
+      "vulnerable_kloc": 159.5,
       "ratio": 2.25,
       "severity": "info",
       "basis": "measured"
@@ -2412,9 +2412,9 @@
         "yaml"
       ],
       "repos_seen": 4,
-      "clean_kloc": 370.3,
-      "vulnerable_kloc": 166.7,
-      "ratio": 26.66,
+      "clean_kloc": 370.4,
+      "vulnerable_kloc": 167.0,
+      "ratio": 26.62,
       "severity": "medium",
       "basis": "measured"
     },
@@ -2508,8 +2508,8 @@
         "yaml"
       ],
       "repos_seen": 1,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -2526,8 +2526,8 @@
         "yaml"
       ],
       "repos_seen": 4,
-      "clean_kloc": 370.3,
-      "vulnerable_kloc": 166.7,
+      "clean_kloc": 370.4,
+      "vulnerable_kloc": 167.0,
       "ratio": 1.11,
       "severity": "info",
       "basis": "measured"
@@ -3589,8 +3589,8 @@
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 370.3,
-      "vulnerable_kloc": 166.7,
+      "clean_kloc": 370.4,
+      "vulnerable_kloc": 167.0,
       "ratio": 4.44,
       "severity": null,
       "basis": "insufficient-observations"
@@ -3607,8 +3607,8 @@
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 370.3,
-      "vulnerable_kloc": 166.7,
+      "clean_kloc": 370.4,
+      "vulnerable_kloc": 167.0,
       "ratio": 4.44,
       "severity": null,
       "basis": "insufficient-observations"
@@ -3625,8 +3625,8 @@
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 370.3,
-      "vulnerable_kloc": 166.7,
+      "clean_kloc": 370.4,
+      "vulnerable_kloc": 167.0,
       "ratio": 4.44,
       "severity": null,
       "basis": "insufficient-observations"
@@ -3643,8 +3643,8 @@
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 370.3,
-      "vulnerable_kloc": 166.7,
+      "clean_kloc": 370.4,
+      "vulnerable_kloc": 167.0,
       "ratio": 4.44,
       "severity": null,
       "basis": "insufficient-observations"
@@ -5278,7 +5278,7 @@
       ],
       "repos_seen": 1,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
+      "vulnerable_kloc": 8.2,
       "ratio": "inf",
       "severity": "low",
       "basis": "measured-single-repo"
@@ -5287,16 +5287,16 @@
       "tool": "checkov",
       "title": "Ensure that HEALTHCHECK instructions have been added to container images",
       "clean_hits": 7,
-      "vulnerable_hits": 417,
+      "vulnerable_hits": 438,
       "example_hits": 70,
       "languages": [
         "dockerfile",
         "unknown"
       ],
       "repos_seen": 19,
-      "clean_kloc": 117.8,
-      "vulnerable_kloc": 123.8,
-      "ratio": 56.72,
+      "clean_kloc": 131.6,
+      "vulnerable_kloc": 124.2,
+      "ratio": 66.26,
       "severity": "medium",
       "basis": "measured"
     },
@@ -5304,16 +5304,16 @@
       "tool": "checkov",
       "title": "Ensure that a user for the container has been created",
       "clean_hits": 5,
-      "vulnerable_hits": 400,
+      "vulnerable_hits": 421,
       "example_hits": 68,
       "languages": [
         "dockerfile",
         "unknown"
       ],
       "repos_seen": 15,
-      "clean_kloc": 117.8,
-      "vulnerable_kloc": 123.8,
-      "ratio": 76.18,
+      "clean_kloc": 131.6,
+      "vulnerable_kloc": 124.2,
+      "ratio": 89.16,
       "severity": "medium",
       "basis": "measured"
     },
@@ -5328,7 +5328,7 @@
       ],
       "repos_seen": 5,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
+      "vulnerable_kloc": 8.2,
       "ratio": "inf",
       "severity": "medium",
       "basis": "measured"
@@ -5344,7 +5344,7 @@
       ],
       "repos_seen": 1,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
+      "vulnerable_kloc": 8.2,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -5360,8 +5360,8 @@
       ],
       "repos_seen": 7,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
-      "ratio": 0.94,
+      "vulnerable_kloc": 8.2,
+      "ratio": 0.91,
       "severity": "info",
       "basis": "measured"
     },
@@ -5376,7 +5376,7 @@
       ],
       "repos_seen": 1,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
+      "vulnerable_kloc": 8.2,
       "ratio": "inf",
       "severity": "low",
       "basis": "measured-single-repo"
@@ -5392,8 +5392,8 @@
       ],
       "repos_seen": 2,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
-      "ratio": 0.26,
+      "vulnerable_kloc": 8.2,
+      "ratio": 0.25,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -6272,9 +6272,9 @@
         "yaml"
       ],
       "repos_seen": 7,
-      "clean_kloc": 341.7,
-      "vulnerable_kloc": 159.2,
-      "ratio": 3.58,
+      "clean_kloc": 341.9,
+      "vulnerable_kloc": 159.5,
+      "ratio": 3.57,
       "severity": "low",
       "basis": "measured"
     },
@@ -6289,8 +6289,8 @@
         "yaml"
       ],
       "repos_seen": 8,
-      "clean_kloc": 341.7,
-      "vulnerable_kloc": 159.2,
+      "clean_kloc": 341.9,
+      "vulnerable_kloc": 159.5,
       "ratio": 1.91,
       "severity": "info",
       "basis": "measured"
@@ -6306,9 +6306,9 @@
         "yaml"
       ],
       "repos_seen": 7,
-      "clean_kloc": 341.7,
-      "vulnerable_kloc": 159.2,
-      "ratio": 3.58,
+      "clean_kloc": 341.9,
+      "vulnerable_kloc": 159.5,
+      "ratio": 3.57,
       "severity": "low",
       "basis": "measured"
     },
@@ -6323,8 +6323,8 @@
         "yaml"
       ],
       "repos_seen": 8,
-      "clean_kloc": 341.7,
-      "vulnerable_kloc": 159.2,
+      "clean_kloc": 341.9,
+      "vulnerable_kloc": 159.5,
       "ratio": 1.91,
       "severity": "info",
       "basis": "measured"
@@ -6340,8 +6340,8 @@
         "yaml"
       ],
       "repos_seen": 6,
-      "clean_kloc": 341.7,
-      "vulnerable_kloc": 159.2,
+      "clean_kloc": 341.9,
+      "vulnerable_kloc": 159.5,
       "ratio": 4.29,
       "severity": "low",
       "basis": "measured"
@@ -6356,9 +6356,9 @@
         "yaml"
       ],
       "repos_seen": 5,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
-      "ratio": 4.36,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
+      "ratio": 4.28,
       "severity": "low",
       "basis": "measured"
     },
@@ -6372,8 +6372,8 @@
         "yaml"
       ],
       "repos_seen": 1,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -6388,9 +6388,9 @@
         "yaml"
       ],
       "repos_seen": 4,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
-      "ratio": 32.66,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
+      "ratio": 32.12,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -6404,8 +6404,8 @@
         "yaml"
       ],
       "repos_seen": 1,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6420,8 +6420,8 @@
         "yaml"
       ],
       "repos_seen": 1,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6436,8 +6436,8 @@
         "yaml"
       ],
       "repos_seen": 1,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6452,8 +6452,8 @@
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6468,8 +6468,8 @@
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6484,8 +6484,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6500,8 +6500,8 @@
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6517,8 +6517,8 @@
         "yaml"
       ],
       "repos_seen": 7,
-      "clean_kloc": 341.7,
-      "vulnerable_kloc": 159.2,
+      "clean_kloc": 341.9,
+      "vulnerable_kloc": 159.5,
       "ratio": 4.29,
       "severity": "low",
       "basis": "measured"
@@ -6534,8 +6534,8 @@
         "yaml"
       ],
       "repos_seen": 6,
-      "clean_kloc": 341.7,
-      "vulnerable_kloc": 159.2,
+      "clean_kloc": 341.9,
+      "vulnerable_kloc": 159.5,
       "ratio": 0.12,
       "severity": "info",
       "basis": "measured"
@@ -6551,9 +6551,9 @@
         "yaml"
       ],
       "repos_seen": 8,
-      "clean_kloc": 341.7,
-      "vulnerable_kloc": 159.2,
-      "ratio": 4.51,
+      "clean_kloc": 341.9,
+      "vulnerable_kloc": 159.5,
+      "ratio": 4.5,
       "severity": "low",
       "basis": "measured"
     },
@@ -6568,8 +6568,8 @@
         "yaml"
       ],
       "repos_seen": 7,
-      "clean_kloc": 341.7,
-      "vulnerable_kloc": 159.2,
+      "clean_kloc": 341.9,
+      "vulnerable_kloc": 159.5,
       "ratio": 4.29,
       "severity": "low",
       "basis": "measured"
@@ -6584,8 +6584,8 @@
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6600,8 +6600,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6617,8 +6617,8 @@
         "yaml"
       ],
       "repos_seen": 7,
-      "clean_kloc": 341.7,
-      "vulnerable_kloc": 159.2,
+      "clean_kloc": 341.9,
+      "vulnerable_kloc": 159.5,
       "ratio": 4.29,
       "severity": "low",
       "basis": "measured"
@@ -6634,9 +6634,9 @@
         "yaml"
       ],
       "repos_seen": 8,
-      "clean_kloc": 341.7,
-      "vulnerable_kloc": 159.2,
-      "ratio": 2.15,
+      "clean_kloc": 341.9,
+      "vulnerable_kloc": 159.5,
+      "ratio": 2.14,
       "severity": "info",
       "basis": "measured"
     },
@@ -6651,8 +6651,8 @@
         "yaml"
       ],
       "repos_seen": 7,
-      "clean_kloc": 341.7,
-      "vulnerable_kloc": 159.2,
+      "clean_kloc": 341.9,
+      "vulnerable_kloc": 159.5,
       "ratio": 3.43,
       "severity": "low",
       "basis": "measured"
@@ -6668,9 +6668,9 @@
         "yaml"
       ],
       "repos_seen": 7,
-      "clean_kloc": 341.7,
-      "vulnerable_kloc": 159.2,
-      "ratio": 3.4,
+      "clean_kloc": 341.9,
+      "vulnerable_kloc": 159.5,
+      "ratio": 3.39,
       "severity": "low",
       "basis": "measured"
     },
@@ -6684,8 +6684,8 @@
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6701,8 +6701,8 @@
         "yaml"
       ],
       "repos_seen": 7,
-      "clean_kloc": 341.7,
-      "vulnerable_kloc": 159.2,
+      "clean_kloc": 341.9,
+      "vulnerable_kloc": 159.5,
       "ratio": 4.29,
       "severity": "low",
       "basis": "measured"
@@ -6718,9 +6718,9 @@
         "yaml"
       ],
       "repos_seen": 8,
-      "clean_kloc": 341.7,
-      "vulnerable_kloc": 159.2,
-      "ratio": 2.15,
+      "clean_kloc": 341.9,
+      "vulnerable_kloc": 159.5,
+      "ratio": 2.14,
       "severity": "info",
       "basis": "measured"
     },
@@ -6735,9 +6735,9 @@
         "yaml"
       ],
       "repos_seen": 8,
-      "clean_kloc": 341.7,
-      "vulnerable_kloc": 159.2,
-      "ratio": 1.97,
+      "clean_kloc": 341.9,
+      "vulnerable_kloc": 159.5,
+      "ratio": 1.96,
       "severity": "info",
       "basis": "measured"
     },
@@ -6751,8 +6751,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6768,8 +6768,8 @@
         "yaml"
       ],
       "repos_seen": 7,
-      "clean_kloc": 341.7,
-      "vulnerable_kloc": 159.2,
+      "clean_kloc": 341.9,
+      "vulnerable_kloc": 159.5,
       "ratio": 2.26,
       "severity": "info",
       "basis": "measured"
@@ -6784,9 +6784,9 @@
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
-      "ratio": 10.89,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
+      "ratio": 10.71,
       "severity": "medium",
       "basis": "measured"
     },
@@ -6801,9 +6801,9 @@
         "yaml"
       ],
       "repos_seen": 7,
-      "clean_kloc": 341.7,
-      "vulnerable_kloc": 159.2,
-      "ratio": 3.22,
+      "clean_kloc": 341.9,
+      "vulnerable_kloc": 159.5,
+      "ratio": 3.21,
       "severity": "low",
       "basis": "measured"
     },
@@ -6818,9 +6818,9 @@
         "yaml"
       ],
       "repos_seen": 7,
-      "clean_kloc": 341.7,
-      "vulnerable_kloc": 159.2,
-      "ratio": 3.22,
+      "clean_kloc": 341.9,
+      "vulnerable_kloc": 159.5,
+      "ratio": 3.21,
       "severity": "low",
       "basis": "measured"
     },
@@ -6898,8 +6898,8 @@
         "yaml"
       ],
       "repos_seen": 1,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6914,8 +6914,8 @@
         "yaml"
       ],
       "repos_seen": 1,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6930,8 +6930,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6946,8 +6946,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6962,8 +6962,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -6978,8 +6978,8 @@
         "yaml"
       ],
       "repos_seen": 1,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -7011,8 +7011,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 324.6,
-      "vulnerable_kloc": 25.6,
+      "clean_kloc": 324.7,
+      "vulnerable_kloc": 25.9,
       "ratio": "inf",
       "severity": "medium",
       "basis": "measured"
@@ -7027,8 +7027,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -7046,9 +7046,9 @@
         "yaml"
       ],
       "repos_seen": 7,
-      "clean_kloc": 371.0,
-      "vulnerable_kloc": 174.6,
-      "ratio": 1.7,
+      "clean_kloc": 371.1,
+      "vulnerable_kloc": 175.2,
+      "ratio": 1.69,
       "severity": "info",
       "basis": "measured"
     },
@@ -7072,23 +7072,40 @@
       "tool": "gitleaks",
       "title": "Identified a pattern that may indicate AWS credentials, risking unauthorized cloud resource access and data breaches on ",
       "clean_hits": 0,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 3,
       "example_hits": 0,
       "languages": [
+        "python",
         "terraform",
         "yaml"
       ],
-      "repos_seen": 2,
-      "clean_kloc": 324.6,
-      "vulnerable_kloc": 25.6,
+      "repos_seen": 3,
+      "clean_kloc": 395.8,
+      "vulnerable_kloc": 46.1,
       "ratio": "inf",
+      "severity": null,
+      "basis": "insufficient-observations"
+    },
+    "gitleaks/curl-auth-header": {
+      "tool": "gitleaks",
+      "title": "curl-auth-header",
+      "clean_hits": 1,
+      "vulnerable_hits": 0,
+      "example_hits": 0,
+      "languages": [
+        "markdown"
+      ],
+      "repos_seen": 1,
+      "clean_kloc": 224.0,
+      "vulnerable_kloc": 67.0,
+      "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
     },
     "gitleaks/generic-api-key": {
       "tool": "gitleaks",
       "title": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
-      "clean_hits": 18,
+      "clean_hits": 33,
       "vulnerable_hits": 42,
       "example_hits": 19,
       "languages": [
@@ -7108,10 +7125,10 @@
         "unknown",
         "yaml"
       ],
-      "repos_seen": 16,
-      "clean_kloc": 1980.4,
-      "vulnerable_kloc": 620.4,
-      "ratio": 7.45,
+      "repos_seen": 17,
+      "clean_kloc": 1996.3,
+      "vulnerable_kloc": 627.7,
+      "ratio": 4.05,
       "severity": "low",
       "basis": "measured"
     },
@@ -7134,60 +7151,110 @@
     "gitleaks/jwt": {
       "tool": "gitleaks",
       "title": "Uncovered a JSON Web Token, which may lead to unauthorized access to web applications and sensitive user data.",
-      "clean_hits": 2,
-      "vulnerable_hits": 16,
+      "clean_hits": 7,
+      "vulnerable_hits": 14,
       "example_hits": 0,
       "languages": [
+        "go",
         "java",
-        "javascript",
         "markdown",
         "typescript",
         "unknown"
       ],
       "repos_seen": 6,
-      "clean_kloc": 580.7,
-      "vulnerable_kloc": 396.6,
-      "ratio": 11.71,
-      "severity": "medium",
+      "clean_kloc": 1417.9,
+      "vulnerable_kloc": 301.6,
+      "ratio": 9.4,
+      "severity": "low",
       "basis": "measured"
+    },
+    "gitleaks/jwt-base64": {
+      "tool": "gitleaks",
+      "title": "Detected a Base64-encoded JSON Web Token, posing a risk of exposing encoded authentication and data exchange information",
+      "clean_hits": 1,
+      "vulnerable_hits": 0,
+      "example_hits": 0,
+      "languages": [
+        "yaml"
+      ],
+      "repos_seen": 1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
+      "ratio": null,
+      "severity": null,
+      "basis": "insufficient-observations"
     },
     "gitleaks/kubernetes-secret-yaml": {
       "tool": "gitleaks",
       "title": "Possible Kubernetes Secret detected, posing a risk of leaking credentials/tokens from your deployments",
-      "clean_hits": 83,
+      "clean_hits": 84,
       "vulnerable_hits": 2,
       "example_hits": 8,
       "languages": [
         "yaml"
       ],
-      "repos_seen": 3,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
-      "ratio": 0.39,
+      "repos_seen": 4,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
+      "ratio": 0.38,
       "severity": "info",
       "basis": "measured"
     },
     "gitleaks/private-key": {
       "tool": "gitleaks",
       "title": "Identified a Private Key, which may compromise cryptographic security and sensitive data encryption.",
-      "clean_hits": 43,
+      "clean_hits": 63,
       "vulnerable_hits": 8,
       "example_hits": 0,
       "languages": [
         "go",
         "java",
+        "json",
         "markdown",
         "terraform",
         "toml",
         "typescript",
-        "unknown"
+        "unknown",
+        "yaml"
       ],
-      "repos_seen": 7,
-      "clean_kloc": 1441.2,
-      "vulnerable_kloc": 309.5,
-      "ratio": 0.87,
+      "repos_seen": 8,
+      "clean_kloc": 1798.5,
+      "vulnerable_kloc": 471.3,
+      "ratio": 0.48,
       "severity": "info",
       "basis": "measured"
+    },
+    "gitleaks/slack-bot-token": {
+      "tool": "gitleaks",
+      "title": "Identified a Slack Bot token, which may compromise bot integrations and communication channel security.",
+      "clean_hits": 1,
+      "vulnerable_hits": 0,
+      "example_hits": 0,
+      "languages": [
+        "markdown"
+      ],
+      "repos_seen": 1,
+      "clean_kloc": 224.0,
+      "vulnerable_kloc": 67.0,
+      "ratio": null,
+      "severity": null,
+      "basis": "insufficient-observations"
+    },
+    "gitleaks/stripe-access-token": {
+      "tool": "gitleaks",
+      "title": "Found a Stripe Access Token, posing a risk to payment processing services and sensitive financial data.",
+      "clean_hits": 0,
+      "vulnerable_hits": 2,
+      "example_hits": 0,
+      "languages": [
+        "python"
+      ],
+      "repos_seen": 1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": "inf",
+      "severity": null,
+      "basis": "insufficient-observations"
     },
     "ruff/E401": {
       "tool": "ruff",
@@ -7199,8 +7266,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -7209,15 +7276,15 @@
       "tool": "ruff",
       "title": "Module level import not at top of file",
       "clean_hits": 1,
-      "vulnerable_hits": 10,
+      "vulnerable_hits": 9,
       "example_hits": 1,
       "languages": [
         "python"
       ],
       "repos_seen": 4,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": 43.91,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": 31.77,
       "severity": "medium",
       "basis": "measured"
     },
@@ -7231,24 +7298,8 @@
         "python"
       ],
       "repos_seen": 2,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": "inf",
-      "severity": null,
-      "basis": "insufficient-observations"
-    },
-    "ruff/E703": {
-      "tool": "ruff",
-      "title": "Statement ends with an unnecessary semicolon",
-      "clean_hits": 0,
-      "vulnerable_hits": 1,
-      "example_hits": 2,
-      "languages": [
-        "python"
-      ],
-      "repos_seen": 2,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -7257,30 +7308,14 @@
       "tool": "ruff",
       "title": "Comparison to `None` should be `cond is None`",
       "clean_hits": 0,
-      "vulnerable_hits": 4,
+      "vulnerable_hits": 2,
       "example_hits": 1,
       "languages": [
         "python"
       ],
-      "repos_seen": 3,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": "inf",
-      "severity": null,
-      "basis": "insufficient-observations"
-    },
-    "ruff/E712": {
-      "tool": "ruff",
-      "title": "Avoid equality comparisons to `True`; use `user.is_locked:` for truth checks",
-      "clean_hits": 0,
-      "vulnerable_hits": 1,
-      "example_hits": 0,
-      "languages": [
-        "python"
-      ],
-      "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "repos_seen": 2,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -7296,9 +7331,9 @@
         "unknown"
       ],
       "repos_seen": 3,
-      "clean_kloc": 187.9,
-      "vulnerable_kloc": 132.0,
-      "ratio": 1.42,
+      "clean_kloc": 202.0,
+      "vulnerable_kloc": 136.2,
+      "ratio": 1.48,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -7306,14 +7341,14 @@
       "tool": "ruff",
       "title": "Do not use bare `except`",
       "clean_hits": 0,
-      "vulnerable_hits": 11,
+      "vulnerable_hits": 9,
       "example_hits": 3,
       "languages": [
         "python"
       ],
       "repos_seen": 4,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": "medium",
       "basis": "measured"
@@ -7322,31 +7357,31 @@
       "tool": "ruff",
       "title": "Ambiguous variable name: `l`",
       "clean_hits": 1,
-      "vulnerable_hits": 4,
+      "vulnerable_hits": 3,
       "example_hits": 3,
       "languages": [
         "python"
       ],
-      "repos_seen": 4,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": 17.56,
-      "severity": "medium",
-      "basis": "measured"
+      "repos_seen": 3,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": 10.59,
+      "severity": null,
+      "basis": "insufficient-observations"
     },
     "ruff/F401": {
       "tool": "ruff",
       "title": "`aws_cdk.Fn` imported but unused",
       "clean_hits": 0,
-      "vulnerable_hits": 30,
+      "vulnerable_hits": 34,
       "example_hits": 51,
       "languages": [
         "python",
         "unknown"
       ],
       "repos_seen": 6,
-      "clean_kloc": 187.9,
-      "vulnerable_kloc": 132.0,
+      "clean_kloc": 202.0,
+      "vulnerable_kloc": 136.2,
       "ratio": "inf",
       "severity": "medium",
       "basis": "measured"
@@ -7355,33 +7390,33 @@
       "tool": "ruff",
       "title": "`from .views import *` used; unable to detect undefined names",
       "clean_hits": 0,
-      "vulnerable_hits": 6,
+      "vulnerable_hits": 4,
       "example_hits": 2,
       "languages": [
         "python"
       ],
       "repos_seen": 4,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
-      "severity": "medium",
-      "basis": "measured"
+      "severity": null,
+      "basis": "insufficient-observations"
     },
     "ruff/F405": {
       "tool": "ruff",
       "title": "`DoItFast` may be undefined, or defined from star imports",
       "clean_hits": 0,
-      "vulnerable_hits": 5,
+      "vulnerable_hits": 4,
       "example_hits": 1,
       "languages": [
         "python"
       ],
       "repos_seen": 3,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
-      "severity": "medium",
-      "basis": "measured"
+      "severity": null,
+      "basis": "insufficient-observations"
     },
     "ruff/F541": {
       "tool": "ruff",
@@ -7393,43 +7428,27 @@
         "python"
       ],
       "repos_seen": 2,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": "medium",
       "basis": "measured"
     },
-    "ruff/F601": {
-      "tool": "ruff",
-      "title": "Dictionary key literal `\"error\"` repeated",
-      "clean_hits": 0,
-      "vulnerable_hits": 1,
-      "example_hits": 0,
-      "languages": [
-        "python"
-      ],
-      "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": "inf",
-      "severity": null,
-      "basis": "insufficient-observations"
-    },
     "ruff/F811": {
       "tool": "ruff",
-      "title": "Redefinition of unused `Log` from line 4: `Log` redefined here",
+      "title": "Redefinition of unused `json` from line 12: `json` redefined here",
       "clean_hits": 0,
-      "vulnerable_hits": 5,
+      "vulnerable_hits": 3,
       "example_hits": 4,
       "languages": [
         "python"
       ],
-      "repos_seen": 3,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "repos_seen": 2,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
-      "severity": "medium",
-      "basis": "measured"
+      "severity": null,
+      "basis": "insufficient-observations"
     },
     "ruff/F841": {
       "tool": "ruff",
@@ -7441,8 +7460,8 @@
         "python"
       ],
       "repos_seen": 5,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": "medium",
       "basis": "measured"
@@ -7457,8 +7476,8 @@
         "python"
       ],
       "repos_seen": 2,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": "medium",
       "basis": "measured"
@@ -7474,9 +7493,9 @@
         "unknown"
       ],
       "repos_seen": 6,
-      "clean_kloc": 128.0,
-      "vulnerable_kloc": 119.2,
-      "ratio": 4.29,
+      "clean_kloc": 141.7,
+      "vulnerable_kloc": 119.4,
+      "ratio": 4.75,
       "severity": "low",
       "basis": "measured"
     },
@@ -7491,9 +7510,9 @@
         "unknown"
       ],
       "repos_seen": 14,
-      "clean_kloc": 128.0,
-      "vulnerable_kloc": 119.2,
-      "ratio": 1.72,
+      "clean_kloc": 141.7,
+      "vulnerable_kloc": 119.4,
+      "ratio": 1.9,
       "severity": "info",
       "basis": "measured"
     },
@@ -7524,7 +7543,7 @@
       ],
       "repos_seen": 1,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
+      "vulnerable_kloc": 8.2,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -7533,16 +7552,16 @@
       "tool": "semgrep",
       "title": "To ensure reproducible builds, pin Dockerfile `FROM` commands to a specific hash. You can find the hash by running `dock",
       "clean_hits": 7,
-      "vulnerable_hits": 414,
+      "vulnerable_hits": 435,
       "example_hits": 66,
       "languages": [
         "dockerfile",
         "unknown"
       ],
       "repos_seen": 20,
-      "clean_kloc": 117.8,
-      "vulnerable_kloc": 123.8,
-      "ratio": 56.32,
+      "clean_kloc": 131.6,
+      "vulnerable_kloc": 124.2,
+      "ratio": 65.8,
       "severity": "medium",
       "basis": "measured"
     },
@@ -7557,8 +7576,8 @@
       ],
       "repos_seen": 2,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
-      "ratio": 0.09,
+      "vulnerable_kloc": 8.2,
+      "ratio": 0.08,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -7573,8 +7592,8 @@
       ],
       "repos_seen": 3,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
-      "ratio": 0.6,
+      "vulnerable_kloc": 8.2,
+      "ratio": 0.58,
       "severity": "info",
       "basis": "measured"
     },
@@ -7589,8 +7608,8 @@
       ],
       "repos_seen": 4,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
-      "ratio": 0.09,
+      "vulnerable_kloc": 8.2,
+      "ratio": 0.08,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -7605,7 +7624,7 @@
       ],
       "repos_seen": 4,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
+      "vulnerable_kloc": 8.2,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -7621,8 +7640,8 @@
       ],
       "repos_seen": 6,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
-      "ratio": 0.26,
+      "vulnerable_kloc": 8.2,
+      "ratio": 0.25,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -7630,14 +7649,14 @@
       "tool": "semgrep",
       "title": "This 'apt-get install' is missing '--no-install-recommends'. This prevents unnecessary packages from being installed, th",
       "clean_hits": 0,
-      "vulnerable_hits": 26,
+      "vulnerable_hits": 27,
       "example_hits": 4,
       "languages": [
         "dockerfile"
       ],
-      "repos_seen": 5,
+      "repos_seen": 6,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
+      "vulnerable_kloc": 8.2,
       "ratio": "inf",
       "severity": "medium",
       "basis": "measured"
@@ -7653,9 +7672,9 @@
         "unknown"
       ],
       "repos_seen": 6,
-      "clean_kloc": 117.8,
-      "vulnerable_kloc": 123.8,
-      "ratio": 20.0,
+      "clean_kloc": 131.6,
+      "vulnerable_kloc": 124.2,
+      "ratio": 22.24,
       "severity": "medium",
       "basis": "measured"
     },
@@ -7670,7 +7689,7 @@
       ],
       "repos_seen": 1,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
+      "vulnerable_kloc": 8.2,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -7686,7 +7705,7 @@
       ],
       "repos_seen": 1,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
+      "vulnerable_kloc": 8.2,
       "ratio": "inf",
       "severity": "low",
       "basis": "measured-single-repo"
@@ -7702,7 +7721,7 @@
       ],
       "repos_seen": 4,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
+      "vulnerable_kloc": 8.2,
       "ratio": "inf",
       "severity": "medium",
       "basis": "measured"
@@ -7711,14 +7730,14 @@
       "tool": "semgrep",
       "title": "The package cache was not deleted after running 'apt-get update', which increases the size of the image. Remove the pack",
       "clean_hits": 0,
-      "vulnerable_hits": 120,
+      "vulnerable_hits": 121,
       "example_hits": 6,
       "languages": [
         "dockerfile"
       ],
-      "repos_seen": 4,
+      "repos_seen": 5,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
+      "vulnerable_kloc": 8.2,
       "ratio": "inf",
       "severity": "medium",
       "basis": "measured"
@@ -7734,8 +7753,8 @@
       ],
       "repos_seen": 3,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
-      "ratio": 6.58,
+      "vulnerable_kloc": 8.2,
+      "ratio": 6.35,
       "severity": "low",
       "basis": "measured"
     },
@@ -7750,7 +7769,7 @@
       ],
       "repos_seen": 4,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
+      "vulnerable_kloc": 8.2,
       "ratio": "inf",
       "severity": "medium",
       "basis": "measured"
@@ -7766,7 +7785,7 @@
       ],
       "repos_seen": 1,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
+      "vulnerable_kloc": 8.2,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -7782,7 +7801,7 @@
       ],
       "repos_seen": 1,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
+      "vulnerable_kloc": 8.2,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -7798,7 +7817,7 @@
       ],
       "repos_seen": 2,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
+      "vulnerable_kloc": 8.2,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -7814,7 +7833,7 @@
       ],
       "repos_seen": 1,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
+      "vulnerable_kloc": 8.2,
       "ratio": "inf",
       "severity": "low",
       "basis": "measured-single-repo"
@@ -7823,14 +7842,14 @@
       "tool": "semgrep",
       "title": "By not specifying a USER, a program in the container may run as 'root'. This is a security hazard. If an attacker can co",
       "clean_hits": 0,
-      "vulnerable_hits": 178,
+      "vulnerable_hits": 199,
       "example_hits": 56,
       "languages": [
         "dockerfile"
       ],
       "repos_seen": 7,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
+      "vulnerable_kloc": 8.2,
       "ratio": "inf",
       "severity": "medium",
       "basis": "measured"
@@ -7846,9 +7865,9 @@
         "unknown"
       ],
       "repos_seen": 8,
-      "clean_kloc": 117.8,
-      "vulnerable_kloc": 123.8,
-      "ratio": 28.57,
+      "clean_kloc": 131.6,
+      "vulnerable_kloc": 124.2,
+      "ratio": 31.77,
       "severity": "medium",
       "basis": "measured"
     },
@@ -7863,8 +7882,8 @@
       ],
       "repos_seen": 2,
       "clean_kloc": 0.7,
-      "vulnerable_kloc": 7.9,
-      "ratio": 0.09,
+      "vulnerable_kloc": 8.2,
+      "ratio": 0.08,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -7872,17 +7891,18 @@
       "tool": "semgrep",
       "title": "A gitleaks aws-access-token was detected which attempts to identify hard-coded credentials. It is not recommended to sto",
       "clean_hits": 2,
-      "vulnerable_hits": 6,
+      "vulnerable_hits": 7,
       "example_hits": 0,
       "languages": [
         "markdown",
+        "python",
         "terraform",
         "yaml"
       ],
-      "repos_seen": 4,
-      "clean_kloc": 548.2,
-      "vulnerable_kloc": 90.5,
-      "ratio": 18.17,
+      "repos_seen": 5,
+      "clean_kloc": 619.8,
+      "vulnerable_kloc": 113.1,
+      "ratio": 19.19,
       "severity": "medium",
       "basis": "measured"
     },
@@ -7890,7 +7910,7 @@
       "tool": "semgrep",
       "title": "A gitleaks generic-api-key was detected which attempts to identify hard-coded credentials.  It is not recommended to sto",
       "clean_hits": 27,
-      "vulnerable_hits": 33,
+      "vulnerable_hits": 31,
       "example_hits": 14,
       "languages": [
         "dotenv",
@@ -7906,9 +7926,9 @@
         "yaml"
       ],
       "repos_seen": 12,
-      "clean_kloc": 1903.3,
-      "vulnerable_kloc": 601.4,
-      "ratio": 3.87,
+      "clean_kloc": 1919.2,
+      "vulnerable_kloc": 608.4,
+      "ratio": 3.62,
       "severity": "low",
       "basis": "measured"
     },
@@ -7932,19 +7952,18 @@
       "tool": "semgrep",
       "title": "A gitleaks jwt was detected which attempts to identify hard-coded credentials. It is not recommended to store credential",
       "clean_hits": 1,
-      "vulnerable_hits": 13,
+      "vulnerable_hits": 11,
       "example_hits": 0,
       "languages": [
         "java",
-        "javascript",
         "markdown",
         "typescript",
         "unknown"
       ],
-      "repos_seen": 5,
-      "clean_kloc": 580.7,
-      "vulnerable_kloc": 396.6,
-      "ratio": 19.04,
+      "repos_seen": 4,
+      "clean_kloc": 571.6,
+      "vulnerable_kloc": 286.3,
+      "ratio": 21.96,
       "severity": "medium",
       "basis": "measured"
     },
@@ -7958,8 +7977,8 @@
         "yaml"
       ],
       "repos_seen": 1,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -7981,8 +8000,8 @@
         "yaml"
       ],
       "repos_seen": 7,
-      "clean_kloc": 938.0,
-      "vulnerable_kloc": 453.4,
+      "clean_kloc": 952.2,
+      "vulnerable_kloc": 456.0,
       "ratio": 0.46,
       "severity": "info",
       "basis": "measured"
@@ -7997,9 +8016,25 @@
         "markdown"
       ],
       "repos_seen": 1,
-      "clean_kloc": 223.6,
-      "vulnerable_kloc": 64.9,
+      "clean_kloc": 224.0,
+      "vulnerable_kloc": 67.0,
       "ratio": null,
+      "severity": null,
+      "basis": "insufficient-observations"
+    },
+    "semgrep/semgrep-rules.generic.secrets.gitleaks.stripe-access-token": {
+      "tool": "semgrep",
+      "title": "A gitleaks stripe-access-token was detected which attempts to identify hard-coded credentials. It is not recommended to ",
+      "clean_hits": 0,
+      "vulnerable_hits": 2,
+      "example_hits": 0,
+      "languages": [
+        "python"
+      ],
+      "repos_seen": 1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -8007,15 +8042,16 @@
       "tool": "semgrep",
       "title": "AWS Access Key ID Value detected. This is a sensitive credential and should not be hardcoded here. Instead, read this va",
       "clean_hits": 0,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 3,
       "example_hits": 0,
       "languages": [
+        "python",
         "terraform",
         "yaml"
       ],
-      "repos_seen": 2,
-      "clean_kloc": 324.6,
-      "vulnerable_kloc": 25.6,
+      "repos_seen": 3,
+      "clean_kloc": 395.8,
+      "vulnerable_kloc": 46.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -8031,8 +8067,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 324.6,
-      "vulnerable_kloc": 25.6,
+      "clean_kloc": 324.7,
+      "vulnerable_kloc": 25.9,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -8049,9 +8085,9 @@
         "unknown"
       ],
       "repos_seen": 4,
-      "clean_kloc": 364.0,
-      "vulnerable_kloc": 293.3,
-      "ratio": 1.24,
+      "clean_kloc": 378.1,
+      "vulnerable_kloc": 296.0,
+      "ratio": 1.28,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -8067,8 +8103,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 509.8,
-      "vulnerable_kloc": 163.6,
+      "clean_kloc": 510.0,
+      "vulnerable_kloc": 172.8,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -8085,9 +8121,9 @@
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 543.8,
-      "vulnerable_kloc": 86.6,
-      "ratio": 3.14,
+      "clean_kloc": 544.2,
+      "vulnerable_kloc": 89.0,
+      "ratio": 3.06,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -8103,8 +8139,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 565.4,
-      "vulnerable_kloc": 224.1,
+      "clean_kloc": 565.9,
+      "vulnerable_kloc": 226.5,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -8120,8 +8156,8 @@
         "yaml"
       ],
       "repos_seen": 1,
-      "clean_kloc": 455.6,
-      "vulnerable_kloc": 83.0,
+      "clean_kloc": 455.7,
+      "vulnerable_kloc": 83.3,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -8130,20 +8166,19 @@
       "tool": "semgrep",
       "title": "JWT token detected",
       "clean_hits": 2,
-      "vulnerable_hits": 19,
+      "vulnerable_hits": 17,
       "example_hits": 0,
       "languages": [
         "html",
         "java",
-        "javascript",
         "markdown",
         "typescript",
         "unknown"
       ],
-      "repos_seen": 6,
-      "clean_kloc": 771.3,
-      "vulnerable_kloc": 429.5,
-      "ratio": 17.06,
+      "repos_seen": 5,
+      "clean_kloc": 762.2,
+      "vulnerable_kloc": 327.8,
+      "ratio": 19.77,
       "severity": "medium",
       "basis": "measured"
     },
@@ -8157,8 +8192,8 @@
         "markdown"
       ],
       "repos_seen": 1,
-      "clean_kloc": 223.6,
-      "vulnerable_kloc": 64.9,
+      "clean_kloc": 224.0,
+      "vulnerable_kloc": 67.0,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -8174,11 +8209,27 @@
         "unknown"
       ],
       "repos_seen": 5,
-      "clean_kloc": 340.8,
-      "vulnerable_kloc": 180.8,
-      "ratio": 0.27,
+      "clean_kloc": 354.9,
+      "vulnerable_kloc": 183.0,
+      "ratio": 0.28,
       "severity": "info",
       "basis": "measured"
+    },
+    "semgrep/semgrep-rules.generic.secrets.security.detected-stripe-api-key": {
+      "tool": "semgrep",
+      "title": "Stripe API Key detected",
+      "clean_hits": 0,
+      "vulnerable_hits": 1,
+      "example_hits": 0,
+      "languages": [
+        "python"
+      ],
+      "repos_seen": 1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": "inf",
+      "severity": null,
+      "basis": "insufficient-observations"
     },
     "semgrep/semgrep-rules.generic.secrets.security.detected-username-and-password-in-uri": {
       "tool": "semgrep",
@@ -8190,8 +8241,8 @@
         "markdown"
       ],
       "repos_seen": 1,
-      "clean_kloc": 223.6,
-      "vulnerable_kloc": 64.9,
+      "clean_kloc": 224.0,
+      "vulnerable_kloc": 67.0,
       "ratio": "inf",
       "severity": "low",
       "basis": "measured-single-repo"
@@ -8206,7 +8257,7 @@
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
       "ratio": "inf",
       "severity": null,
@@ -8222,7 +8273,7 @@
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
       "ratio": "inf",
       "severity": null,
@@ -8238,7 +8289,7 @@
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8254,7 +8305,7 @@
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8270,7 +8321,7 @@
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8286,7 +8337,7 @@
         "go"
       ],
       "repos_seen": 2,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8302,7 +8353,7 @@
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8318,7 +8369,7 @@
         "go"
       ],
       "repos_seen": 3,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8334,9 +8385,9 @@
         "go"
       ],
       "repos_seen": 3,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
-      "ratio": 87.04,
+      "ratio": 87.17,
       "severity": "medium",
       "basis": "measured"
     },
@@ -8350,7 +8401,7 @@
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8366,7 +8417,7 @@
         "go"
       ],
       "repos_seen": 4,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8382,7 +8433,7 @@
         "go"
       ],
       "repos_seen": 2,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8398,9 +8449,9 @@
         "go"
       ],
       "repos_seen": 2,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
-      "ratio": 166.16,
+      "ratio": 166.42,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -8414,7 +8465,7 @@
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8430,7 +8481,7 @@
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8446,9 +8497,9 @@
         "go"
       ],
       "repos_seen": 3,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
-      "ratio": 18.46,
+      "ratio": 18.49,
       "severity": "medium",
       "basis": "measured"
     },
@@ -8462,7 +8513,7 @@
         "go"
       ],
       "repos_seen": 2,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
       "ratio": "inf",
       "severity": null,
@@ -8478,9 +8529,9 @@
         "go"
       ],
       "repos_seen": 4,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
-      "ratio": 36.93,
+      "ratio": 36.98,
       "severity": "medium",
       "basis": "measured"
     },
@@ -8494,9 +8545,9 @@
         "go"
       ],
       "repos_seen": 4,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
-      "ratio": 27.69,
+      "ratio": 27.74,
       "severity": "medium",
       "basis": "measured"
     },
@@ -8510,7 +8561,7 @@
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
       "ratio": "inf",
       "severity": null,
@@ -8526,7 +8577,7 @@
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
       "ratio": "inf",
       "severity": null,
@@ -8542,7 +8593,7 @@
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8558,9 +8609,9 @@
         "go"
       ],
       "repos_seen": 5,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
-      "ratio": 44.31,
+      "ratio": 44.38,
       "severity": "medium",
       "basis": "measured"
     },
@@ -8574,7 +8625,7 @@
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
       "ratio": "inf",
       "severity": null,
@@ -8590,7 +8641,7 @@
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8606,7 +8657,7 @@
         "go"
       ],
       "repos_seen": 3,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8622,7 +8673,7 @@
         "go"
       ],
       "repos_seen": 4,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
       "ratio": 3.96,
       "severity": "low",
@@ -8638,9 +8689,9 @@
         "go"
       ],
       "repos_seen": 4,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
-      "ratio": 4.26,
+      "ratio": 4.27,
       "severity": "low",
       "basis": "measured"
     },
@@ -8654,11 +8705,27 @@
         "go"
       ],
       "repos_seen": 4,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
-      "ratio": 55.39,
+      "ratio": 55.47,
       "severity": "medium",
       "basis": "measured"
+    },
+    "semgrep/semgrep-rules.go.lang.security.audit.xss.no-interpolation-js-template-string": {
+      "tool": "semgrep",
+      "title": "Detected template variable interpolation in a JavaScript template string. This is potentially vulnerable to cross-site s",
+      "clean_hits": 0,
+      "vulnerable_hits": 1,
+      "example_hits": 0,
+      "languages": [
+        "html"
+      ],
+      "repos_seen": 1,
+      "clean_kloc": 190.6,
+      "vulnerable_kloc": 41.5,
+      "ratio": "inf",
+      "severity": null,
+      "basis": "insufficient-observations"
     },
     "semgrep/semgrep-rules.go.lang.security.audit.xss.unsafe-template-type": {
       "tool": "semgrep",
@@ -8670,7 +8737,7 @@
         "go"
       ],
       "repos_seen": 2,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
       "ratio": "inf",
       "severity": null,
@@ -8686,7 +8753,7 @@
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8702,9 +8769,9 @@
         "go"
       ],
       "repos_seen": 3,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
-      "ratio": 13.85,
+      "ratio": 13.87,
       "severity": "medium",
       "basis": "measured"
     },
@@ -8718,9 +8785,9 @@
         "go"
       ],
       "repos_seen": 3,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
-      "ratio": 55.39,
+      "ratio": 55.47,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -8734,7 +8801,7 @@
         "go"
       ],
       "repos_seen": 1,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
       "ratio": null,
       "severity": null,
@@ -8750,9 +8817,9 @@
         "go"
       ],
       "repos_seen": 3,
-      "clean_kloc": 845.0,
+      "clean_kloc": 846.3,
       "vulnerable_kloc": 15.3,
-      "ratio": 123.08,
+      "ratio": 123.27,
       "severity": "medium",
       "basis": "measured"
     },
@@ -8926,8 +8993,8 @@
         "unknown"
       ],
       "repos_seen": 1,
-      "clean_kloc": 117.2,
-      "vulnerable_kloc": 115.9,
+      "clean_kloc": 130.9,
+      "vulnerable_kloc": 116.1,
       "ratio": "inf",
       "severity": "low",
       "basis": "measured-single-repo"
@@ -8942,8 +9009,8 @@
         "unknown"
       ],
       "repos_seen": 1,
-      "clean_kloc": 117.2,
-      "vulnerable_kloc": 115.9,
+      "clean_kloc": 130.9,
+      "vulnerable_kloc": 116.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -8958,8 +9025,8 @@
         "unknown"
       ],
       "repos_seen": 1,
-      "clean_kloc": 117.2,
-      "vulnerable_kloc": 115.9,
+      "clean_kloc": 130.9,
+      "vulnerable_kloc": 116.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -9086,8 +9153,8 @@
         "unknown"
       ],
       "repos_seen": 1,
-      "clean_kloc": 117.2,
-      "vulnerable_kloc": 115.9,
+      "clean_kloc": 130.9,
+      "vulnerable_kloc": 116.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -9102,8 +9169,8 @@
         "unknown"
       ],
       "repos_seen": 1,
-      "clean_kloc": 117.2,
-      "vulnerable_kloc": 115.9,
+      "clean_kloc": 130.9,
+      "vulnerable_kloc": 116.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -9118,8 +9185,8 @@
         "yaml"
       ],
       "repos_seen": 1,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -9216,8 +9283,8 @@
       ],
       "repos_seen": 3,
       "clean_kloc": 182.8,
-      "vulnerable_kloc": 177.4,
-      "ratio": 0.52,
+      "vulnerable_kloc": 177.8,
+      "ratio": 0.51,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -9233,7 +9300,7 @@
       ],
       "repos_seen": 4,
       "clean_kloc": 182.8,
-      "vulnerable_kloc": 177.4,
+      "vulnerable_kloc": 177.8,
       "ratio": "inf",
       "severity": "medium",
       "basis": "measured"
@@ -9242,35 +9309,51 @@
       "tool": "semgrep",
       "title": "User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XS",
       "clean_hits": 2,
-      "vulnerable_hits": 15,
+      "vulnerable_hits": 16,
       "example_hits": 0,
       "languages": [
         "javascript",
         "typescript"
       ],
-      "repos_seen": 8,
+      "repos_seen": 7,
       "clean_kloc": 182.8,
-      "vulnerable_kloc": 177.4,
-      "ratio": 7.73,
+      "vulnerable_kloc": 177.8,
+      "ratio": 8.22,
       "severity": "low",
       "basis": "measured"
     },
     "semgrep/semgrep-rules.javascript.browser.security.insecure-innerhtml": {
       "tool": "semgrep",
-      "title": "User controlled data in a `li.innerHTML` is an anti-pattern that can lead to XSS vulnerabilities",
+      "title": "User controlled data in a `document.getElementById(\"employeeRecord\").innerHTML` is an anti-pattern that can lead to XSS ",
       "clean_hits": 2,
-      "vulnerable_hits": 15,
+      "vulnerable_hits": 16,
       "example_hits": 0,
       "languages": [
         "javascript",
         "typescript"
       ],
-      "repos_seen": 8,
+      "repos_seen": 7,
       "clean_kloc": 182.8,
-      "vulnerable_kloc": 177.4,
-      "ratio": 7.73,
+      "vulnerable_kloc": 177.8,
+      "ratio": 8.22,
       "severity": "low",
       "basis": "measured"
+    },
+    "semgrep/semgrep-rules.javascript.browser.security.js-open-redirect-from-function": {
+      "tool": "semgrep",
+      "title": "The application accepts potentially user-controlled input `i` which can control the location of the current window conte",
+      "clean_hits": 0,
+      "vulnerable_hits": 1,
+      "example_hits": 0,
+      "languages": [
+        "javascript"
+      ],
+      "repos_seen": 1,
+      "clean_kloc": 23.2,
+      "vulnerable_kloc": 112.9,
+      "ratio": "inf",
+      "severity": null,
+      "basis": "insufficient-observations"
     },
     "semgrep/semgrep-rules.javascript.browser.security.raw-html-concat": {
       "tool": "semgrep",
@@ -9283,7 +9366,23 @@
       ],
       "repos_seen": 1,
       "clean_kloc": 23.2,
-      "vulnerable_kloc": 112.6,
+      "vulnerable_kloc": 112.9,
+      "ratio": "inf",
+      "severity": null,
+      "basis": "insufficient-observations"
+    },
+    "semgrep/semgrep-rules.javascript.browser.security.wildcard-postmessage-configuration": {
+      "tool": "semgrep",
+      "title": "The target origin of the window.postMessage() API is set to \"*\". This could allow for information disclosure due to the ",
+      "clean_hits": 0,
+      "vulnerable_hits": 1,
+      "example_hits": 0,
+      "languages": [
+        "javascript"
+      ],
+      "repos_seen": 1,
+      "clean_kloc": 23.2,
+      "vulnerable_kloc": 112.9,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -9299,7 +9398,7 @@
       ],
       "repos_seen": 5,
       "clean_kloc": 23.2,
-      "vulnerable_kloc": 112.6,
+      "vulnerable_kloc": 112.9,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -9331,7 +9430,7 @@
       ],
       "repos_seen": 2,
       "clean_kloc": 23.2,
-      "vulnerable_kloc": 112.6,
+      "vulnerable_kloc": 112.9,
       "ratio": 0.04,
       "severity": "info",
       "basis": "measured"
@@ -9347,7 +9446,7 @@
       ],
       "repos_seen": 3,
       "clean_kloc": 23.2,
-      "vulnerable_kloc": 112.6,
+      "vulnerable_kloc": 112.9,
       "ratio": 0.08,
       "severity": "info",
       "basis": "measured"
@@ -9363,7 +9462,7 @@
       ],
       "repos_seen": 3,
       "clean_kloc": 23.2,
-      "vulnerable_kloc": 112.6,
+      "vulnerable_kloc": 112.9,
       "ratio": 0.08,
       "severity": "info",
       "basis": "measured"
@@ -9379,7 +9478,7 @@
       ],
       "repos_seen": 3,
       "clean_kloc": 23.2,
-      "vulnerable_kloc": 112.6,
+      "vulnerable_kloc": 112.9,
       "ratio": 0.08,
       "severity": "info",
       "basis": "measured"
@@ -9395,7 +9494,7 @@
       ],
       "repos_seen": 2,
       "clean_kloc": 23.2,
-      "vulnerable_kloc": 112.6,
+      "vulnerable_kloc": 112.9,
       "ratio": 0.04,
       "severity": "info",
       "basis": "measured"
@@ -9411,7 +9510,7 @@
       ],
       "repos_seen": 3,
       "clean_kloc": 23.2,
-      "vulnerable_kloc": 112.6,
+      "vulnerable_kloc": 112.9,
       "ratio": 0.08,
       "severity": "info",
       "basis": "measured"
@@ -9428,7 +9527,7 @@
       ],
       "repos_seen": 2,
       "clean_kloc": 182.8,
-      "vulnerable_kloc": 177.4,
+      "vulnerable_kloc": 177.8,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -9460,7 +9559,7 @@
       ],
       "repos_seen": 2,
       "clean_kloc": 23.2,
-      "vulnerable_kloc": 112.6,
+      "vulnerable_kloc": 112.9,
       "ratio": 0.05,
       "severity": "info",
       "basis": "measured"
@@ -9508,7 +9607,7 @@
       ],
       "repos_seen": 3,
       "clean_kloc": 23.2,
-      "vulnerable_kloc": 112.6,
+      "vulnerable_kloc": 112.9,
       "ratio": 0.04,
       "severity": "info",
       "basis": "measured"
@@ -9523,9 +9622,9 @@
         "unknown"
       ],
       "repos_seen": 2,
-      "clean_kloc": 117.2,
-      "vulnerable_kloc": 115.9,
-      "ratio": 3.03,
+      "clean_kloc": 130.9,
+      "vulnerable_kloc": 116.1,
+      "ratio": 3.38,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -9540,7 +9639,7 @@
       ],
       "repos_seen": 1,
       "clean_kloc": 190.6,
-      "vulnerable_kloc": 32.9,
+      "vulnerable_kloc": 41.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -9556,8 +9655,8 @@
         "unknown"
       ],
       "repos_seen": 2,
-      "clean_kloc": 307.8,
-      "vulnerable_kloc": 148.8,
+      "clean_kloc": 321.5,
+      "vulnerable_kloc": 157.5,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -9566,17 +9665,17 @@
       "tool": "semgrep",
       "title": "Detected a template variable used in a script tag. Although template variables are HTML escaped, HTML escaping does not ",
       "clean_hits": 1,
-      "vulnerable_hits": 3,
+      "vulnerable_hits": 4,
       "example_hits": 0,
       "languages": [
         "html"
       ],
       "repos_seen": 3,
       "clean_kloc": 190.6,
-      "vulnerable_kloc": 32.9,
-      "ratio": 17.38,
-      "severity": null,
-      "basis": "insufficient-observations"
+      "vulnerable_kloc": 41.5,
+      "ratio": 18.4,
+      "severity": "medium",
+      "basis": "measured"
     },
     "semgrep/semgrep-rules.javascript.express.security.audit.xss.pug.template-explicit-unescape": {
       "tool": "semgrep",
@@ -9588,8 +9687,8 @@
         "unknown"
       ],
       "repos_seen": 1,
-      "clean_kloc": 117.2,
-      "vulnerable_kloc": 115.9,
+      "clean_kloc": 130.9,
+      "vulnerable_kloc": 116.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -9606,8 +9705,8 @@
       ],
       "repos_seen": 2,
       "clean_kloc": 182.8,
-      "vulnerable_kloc": 177.4,
-      "ratio": 6.18,
+      "vulnerable_kloc": 177.8,
+      "ratio": 6.17,
       "severity": "low",
       "basis": "measured"
     },
@@ -9622,7 +9721,7 @@
       ],
       "repos_seen": 5,
       "clean_kloc": 23.2,
-      "vulnerable_kloc": 112.6,
+      "vulnerable_kloc": 112.9,
       "ratio": "inf",
       "severity": "medium",
       "basis": "measured"
@@ -9638,7 +9737,7 @@
       ],
       "repos_seen": 5,
       "clean_kloc": 23.2,
-      "vulnerable_kloc": 112.6,
+      "vulnerable_kloc": 112.9,
       "ratio": "inf",
       "severity": "medium",
       "basis": "measured"
@@ -9654,7 +9753,7 @@
       ],
       "repos_seen": 4,
       "clean_kloc": 23.2,
-      "vulnerable_kloc": 112.6,
+      "vulnerable_kloc": 112.9,
       "ratio": "inf",
       "severity": "medium",
       "basis": "measured"
@@ -9695,30 +9794,46 @@
       "tool": "semgrep",
       "title": "found alert() call; should this be in production code?",
       "clean_hits": 0,
-      "vulnerable_hits": 6,
+      "vulnerable_hits": 4,
       "example_hits": 1,
       "languages": [
         "javascript"
       ],
-      "repos_seen": 5,
+      "repos_seen": 4,
       "clean_kloc": 23.2,
-      "vulnerable_kloc": 112.6,
+      "vulnerable_kloc": 112.9,
       "ratio": "inf",
-      "severity": "medium",
-      "basis": "measured"
+      "severity": null,
+      "basis": "insufficient-observations"
     },
     "semgrep/semgrep-rules.javascript.lang.best-practice.javascript-confirm": {
       "tool": "semgrep",
       "title": "found confirm() call; should this be in production code?",
       "clean_hits": 0,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 3,
       "example_hits": 0,
       "languages": [
         "javascript"
       ],
-      "repos_seen": 2,
+      "repos_seen": 3,
       "clean_kloc": 23.2,
-      "vulnerable_kloc": 112.6,
+      "vulnerable_kloc": 112.9,
+      "ratio": "inf",
+      "severity": null,
+      "basis": "insufficient-observations"
+    },
+    "semgrep/semgrep-rules.javascript.lang.best-practice.javascript-prompt": {
+      "tool": "semgrep",
+      "title": "found prompt() call; should this be in production code?",
+      "clean_hits": 0,
+      "vulnerable_hits": 1,
+      "example_hits": 0,
+      "languages": [
+        "javascript"
+      ],
+      "repos_seen": 1,
+      "clean_kloc": 23.2,
+      "vulnerable_kloc": 112.9,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -9735,23 +9850,23 @@
       ],
       "repos_seen": 6,
       "clean_kloc": 182.8,
-      "vulnerable_kloc": 177.4,
+      "vulnerable_kloc": 177.8,
       "ratio": 0.62,
       "severity": "info",
       "basis": "measured"
     },
     "semgrep/semgrep-rules.javascript.lang.correctness.eqeq-is-bad": {
       "tool": "semgrep",
-      "title": "Detected a useless comparison operation `r == r` or `r != r`. This operation is always true. If testing for floating poi",
+      "title": "Detected a useless comparison operation `timer == timer` or `timer != timer`. This operation is always true. If testing ",
       "clean_hits": 0,
-      "vulnerable_hits": 1,
+      "vulnerable_hits": 2,
       "example_hits": 0,
       "languages": [
         "javascript"
       ],
       "repos_seen": 1,
       "clean_kloc": 23.2,
-      "vulnerable_kloc": 112.6,
+      "vulnerable_kloc": 112.9,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -9768,7 +9883,7 @@
       ],
       "repos_seen": 7,
       "clean_kloc": 182.8,
-      "vulnerable_kloc": 177.4,
+      "vulnerable_kloc": 177.8,
       "ratio": 0.48,
       "severity": "info",
       "basis": "measured"
@@ -9785,7 +9900,7 @@
       ],
       "repos_seen": 3,
       "clean_kloc": 182.8,
-      "vulnerable_kloc": 177.4,
+      "vulnerable_kloc": 177.8,
       "ratio": 0.34,
       "severity": null,
       "basis": "insufficient-observations"
@@ -9802,7 +9917,7 @@
       ],
       "repos_seen": 3,
       "clean_kloc": 182.8,
-      "vulnerable_kloc": 177.4,
+      "vulnerable_kloc": 177.8,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -9811,16 +9926,16 @@
       "tool": "semgrep",
       "title": "`const` is assigned twice; the first assignment is useless",
       "clean_hits": 2,
-      "vulnerable_hits": 11,
+      "vulnerable_hits": 13,
       "example_hits": 7,
       "languages": [
         "javascript",
         "typescript"
       ],
-      "repos_seen": 9,
+      "repos_seen": 10,
       "clean_kloc": 182.8,
-      "vulnerable_kloc": 177.4,
-      "ratio": 5.67,
+      "vulnerable_kloc": 177.8,
+      "ratio": 6.68,
       "severity": "low",
       "basis": "measured"
     },
@@ -9836,7 +9951,7 @@
       ],
       "repos_seen": 2,
       "clean_kloc": 182.8,
-      "vulnerable_kloc": 177.4,
+      "vulnerable_kloc": 177.8,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -9853,16 +9968,16 @@
       ],
       "repos_seen": 3,
       "clean_kloc": 182.8,
-      "vulnerable_kloc": 177.4,
+      "vulnerable_kloc": 177.8,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
     },
     "semgrep/semgrep-rules.javascript.lang.security.audit.detect-non-literal-regexp": {
       "tool": "semgrep",
-      "title": "RegExp() called with a `t` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Servi",
+      "title": "RegExp() called with a `component` function argument, this might allow an attacker to cause a Regular Expression Denial-",
       "clean_hits": 13,
-      "vulnerable_hits": 11,
+      "vulnerable_hits": 12,
       "example_hits": 3,
       "languages": [
         "javascript",
@@ -9870,8 +9985,8 @@
       ],
       "repos_seen": 10,
       "clean_kloc": 182.8,
-      "vulnerable_kloc": 177.4,
-      "ratio": 0.87,
+      "vulnerable_kloc": 177.8,
+      "ratio": 0.95,
       "severity": "info",
       "basis": "measured"
     },
@@ -9886,7 +10001,7 @@
       ],
       "repos_seen": 2,
       "clean_kloc": 23.2,
-      "vulnerable_kloc": 112.6,
+      "vulnerable_kloc": 112.9,
       "ratio": 0.07,
       "severity": null,
       "basis": "insufficient-observations"
@@ -9903,7 +10018,7 @@
       ],
       "repos_seen": 4,
       "clean_kloc": 182.8,
-      "vulnerable_kloc": 177.4,
+      "vulnerable_kloc": 177.8,
       "ratio": 1.03,
       "severity": null,
       "basis": "insufficient-observations"
@@ -9935,7 +10050,7 @@
       ],
       "repos_seen": 1,
       "clean_kloc": 23.2,
-      "vulnerable_kloc": 112.6,
+      "vulnerable_kloc": 112.9,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -9956,6 +10071,22 @@
       "severity": null,
       "basis": "insufficient-observations"
     },
+    "semgrep/semgrep-rules.javascript.lang.security.audit.prototype-pollution.prototype-pollution-assignment": {
+      "tool": "semgrep",
+      "title": "Possibility of prototype polluting assignment detected. By adding or modifying attributes of an object prototype, it is ",
+      "clean_hits": 0,
+      "vulnerable_hits": 1,
+      "example_hits": 0,
+      "languages": [
+        "javascript"
+      ],
+      "repos_seen": 1,
+      "clean_kloc": 23.2,
+      "vulnerable_kloc": 112.9,
+      "ratio": "inf",
+      "severity": null,
+      "basis": "insufficient-observations"
+    },
     "semgrep/semgrep-rules.javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop": {
       "tool": "semgrep",
       "title": "Possibility of prototype polluting function detected. By adding or modifying attributes of an object prototype, it is po",
@@ -9968,8 +10099,8 @@
       ],
       "repos_seen": 4,
       "clean_kloc": 182.8,
-      "vulnerable_kloc": 177.4,
-      "ratio": 4.12,
+      "vulnerable_kloc": 177.8,
+      "ratio": 4.11,
       "severity": "low",
       "basis": "measured"
     },
@@ -9993,7 +10124,7 @@
       "tool": "semgrep",
       "title": "Using non-static data to retrieve and run functions from the object is dangerous. If the data is user-controlled, it may",
       "clean_hits": 4,
-      "vulnerable_hits": 20,
+      "vulnerable_hits": 21,
       "example_hits": 0,
       "languages": [
         "javascript",
@@ -10001,8 +10132,8 @@
       ],
       "repos_seen": 7,
       "clean_kloc": 182.8,
-      "vulnerable_kloc": 177.4,
-      "ratio": 5.15,
+      "vulnerable_kloc": 177.8,
+      "ratio": 5.4,
       "severity": "low",
       "basis": "measured"
     },
@@ -10018,8 +10149,8 @@
       ],
       "repos_seen": 5,
       "clean_kloc": 182.8,
-      "vulnerable_kloc": 177.4,
-      "ratio": 0.52,
+      "vulnerable_kloc": 177.8,
+      "ratio": 0.51,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -10035,8 +10166,8 @@
         "unknown"
       ],
       "repos_seen": 1,
-      "clean_kloc": 411.5,
-      "vulnerable_kloc": 196.9,
+      "clean_kloc": 426.0,
+      "vulnerable_kloc": 203.2,
       "ratio": "inf",
       "severity": "low",
       "basis": "measured-single-repo"
@@ -10053,8 +10184,8 @@
       ],
       "repos_seen": 6,
       "clean_kloc": 182.8,
-      "vulnerable_kloc": 177.4,
-      "ratio": 2.32,
+      "vulnerable_kloc": 177.8,
+      "ratio": 2.31,
       "severity": "info",
       "basis": "measured"
     },
@@ -10340,15 +10471,15 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
     },
     "semgrep/semgrep-rules.python.django.maintainability.conflicting-path-assignment": {
       "tool": "semgrep",
-      "title": "The path for `` is assigned once to view `include('introduction.urls')` and once to `include(\"django.contrib.auth.urls\")",
+      "title": "The path for `` is assigned once to view `include(\"introduction.urls\")` and once to `include(\"django.contrib.auth.urls\")",
       "clean_hits": 0,
       "vulnerable_hits": 1,
       "example_hits": 0,
@@ -10356,72 +10487,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": "inf",
-      "severity": null,
-      "basis": "insufficient-observations"
-    },
-    "semgrep/semgrep-rules.python.django.maintainability.duplicate-name-assignment": {
-      "tool": "semgrep",
-      "title": "The name `A8` is used for both `2021/A8/lab2` and `2021/A8/lab3`, which can lead to unexpected behavior when using URL r",
-      "clean_hits": 0,
-      "vulnerable_hits": 1,
-      "example_hits": 0,
-      "languages": [
-        "python"
-      ],
-      "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": "inf",
-      "severity": null,
-      "basis": "insufficient-observations"
-    },
-    "semgrep/semgrep-rules.python.django.security.audit.avoid-insecure-deserialization": {
-      "tool": "semgrep",
-      "title": "Avoid using insecure deserialization library, backed by `pickle`, `_pickle`, `cpickle`, `dill`, `shelve`, or `yaml`, whi",
-      "clean_hits": 0,
-      "vulnerable_hits": 1,
-      "example_hits": 0,
-      "languages": [
-        "python"
-      ],
-      "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": "inf",
-      "severity": null,
-      "basis": "insufficient-observations"
-    },
-    "semgrep/semgrep-rules.python.django.security.audit.avoid-raw-sql": {
-      "tool": "semgrep",
-      "title": "Detected the use of 'RawSQL' or 'raw' indicating the execution of a non-parameterized SQL query. This could lead to a SQ",
-      "clean_hits": 0,
-      "vulnerable_hits": 1,
-      "example_hits": 0,
-      "languages": [
-        "python"
-      ],
-      "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": "inf",
-      "severity": null,
-      "basis": "insufficient-observations"
-    },
-    "semgrep/semgrep-rules.python.django.security.audit.django-secure-set-cookie": {
-      "tool": "semgrep",
-      "title": "Django cookies should be handled securely by setting secure=True, httponly=True, and samesite='Lax' in response.set_cook",
-      "clean_hits": 0,
-      "vulnerable_hits": 2,
-      "example_hits": 0,
-      "languages": [
-        "python"
-      ],
-      "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -10430,30 +10497,14 @@
       "tool": "semgrep",
       "title": "Detected usage of @csrf_exempt, which indicates that there is no CSRF token set for this route. This could lead to an at",
       "clean_hits": 0,
-      "vulnerable_hits": 5,
-      "example_hits": 0,
-      "languages": [
-        "python"
-      ],
-      "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": "inf",
-      "severity": "low",
-      "basis": "measured-single-repo"
-    },
-    "semgrep/semgrep-rules.python.django.security.audit.xss.direct-use-of-httpresponse": {
-      "tool": "semgrep",
-      "title": "Detected data rendered directly to the end user via 'HttpResponse' or a similar object. This bypasses Django's built-in ",
-      "clean_hits": 0,
       "vulnerable_hits": 1,
       "example_hits": 0,
       "languages": [
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -10462,15 +10513,15 @@
       "tool": "semgrep",
       "title": "Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.",
       "clean_hits": 5,
-      "vulnerable_hits": 68,
+      "vulnerable_hits": 83,
       "example_hits": 1,
       "languages": [
         "html"
       ],
       "repos_seen": 8,
       "clean_kloc": 190.6,
-      "vulnerable_kloc": 32.9,
-      "ratio": 78.79,
+      "vulnerable_kloc": 41.5,
+      "ratio": 76.34,
       "severity": "medium",
       "basis": "measured"
     },
@@ -10478,46 +10529,14 @@
       "tool": "semgrep",
       "title": "Found user data in a call to 'eval'. This is extremely dangerous because it can enable an attacker to execute arbitrary ",
       "clean_hits": 0,
-      "vulnerable_hits": 2,
-      "example_hits": 0,
-      "languages": [
-        "python"
-      ],
-      "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": "inf",
-      "severity": null,
-      "basis": "insufficient-observations"
-    },
-    "semgrep/semgrep-rules.python.django.security.injection.command.subprocess-injection": {
-      "tool": "semgrep",
-      "title": "Detected user input entering a `subprocess` call unsafely. This could result in a command injection vulnerability. An at",
-      "clean_hits": 0,
-      "vulnerable_hits": 2,
-      "example_hits": 0,
-      "languages": [
-        "python"
-      ],
-      "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": "inf",
-      "severity": null,
-      "basis": "insufficient-observations"
-    },
-    "semgrep/semgrep-rules.python.django.security.injection.path-traversal.path-traversal-join": {
-      "tool": "semgrep",
-      "title": "Data from request is passed to os.path.join() and to open(). This is a path traversal vulnerability, which can lead to s",
-      "clean_hits": 0,
       "vulnerable_hits": 1,
       "example_hits": 0,
       "languages": [
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -10526,30 +10545,30 @@
       "tool": "semgrep",
       "title": "Detected user input flowing into a manually constructed HTML string. You may be accidentally bypassing secure methods of",
       "clean_hits": 0,
-      "vulnerable_hits": 2,
-      "example_hits": 0,
-      "languages": [
-        "python"
-      ],
-      "repos_seen": 2,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": "inf",
-      "severity": null,
-      "basis": "insufficient-observations"
-    },
-    "semgrep/semgrep-rules.python.django.security.injection.request-data-write": {
-      "tool": "semgrep",
-      "title": "Found user-controlled request data passed into '.write(...)'. This could be dangerous if a malicious actor is able to co",
-      "clean_hits": 0,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 1,
       "example_hits": 0,
       "languages": [
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": "inf",
+      "severity": null,
+      "basis": "insufficient-observations"
+    },
+    "semgrep/semgrep-rules.python.django.security.injection.sql.sql-injection-db-cursor-execute": {
+      "tool": "semgrep",
+      "title": "User-controlled data from a request is passed to 'execute()'. This could lead to a SQL injection and therefore protected",
+      "clean_hits": 0,
+      "vulnerable_hits": 1,
+      "example_hits": 0,
+      "languages": [
+        "python"
+      ],
+      "repos_seen": 1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -10564,8 +10583,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -10580,8 +10599,24 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": "inf",
+      "severity": null,
+      "basis": "insufficient-observations"
+    },
+    "semgrep/semgrep-rules.python.django.security.injection.tainted-url-host": {
+      "tool": "semgrep",
+      "title": "User data flows into the host portion of this manually-constructed URL. This could allow an attacker to send data to the",
+      "clean_hits": 0,
+      "vulnerable_hits": 1,
+      "example_hits": 0,
+      "languages": [
+        "python"
+      ],
+      "repos_seen": 1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -10590,33 +10625,65 @@
       "tool": "semgrep",
       "title": "Running flask app with host 0.0.0.0 could expose the server publicly.",
       "clean_hits": 0,
-      "vulnerable_hits": 5,
+      "vulnerable_hits": 26,
       "example_hits": 7,
       "languages": [
         "python"
       ],
       "repos_seen": 5,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": "medium",
       "basis": "measured"
+    },
+    "semgrep/semgrep-rules.python.flask.security.audit.avoid_hardcoded_config_DEBUG": {
+      "tool": "semgrep",
+      "title": "Hardcoded variable `DEBUG` detected. Set this by using FLASK_DEBUG environment variable",
+      "clean_hits": 0,
+      "vulnerable_hits": 1,
+      "example_hits": 0,
+      "languages": [
+        "python"
+      ],
+      "repos_seen": 1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": "inf",
+      "severity": null,
+      "basis": "insufficient-observations"
+    },
+    "semgrep/semgrep-rules.python.flask.security.audit.avoid_hardcoded_config_SECRET_KEY": {
+      "tool": "semgrep",
+      "title": "Hardcoded variable `SECRET_KEY` detected. Use environment variables or config files instead",
+      "clean_hits": 0,
+      "vulnerable_hits": 9,
+      "example_hits": 0,
+      "languages": [
+        "python"
+      ],
+      "repos_seen": 1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": "inf",
+      "severity": "low",
+      "basis": "measured-single-repo"
     },
     "semgrep/semgrep-rules.python.flask.security.audit.debug-enabled": {
       "tool": "semgrep",
       "title": "Detected Flask app with debug=True. Do not deploy to production with this flag enabled as it will leak sensitive informa",
       "clean_hits": 0,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 20,
       "example_hits": 4,
       "languages": [
         "python"
       ],
       "repos_seen": 4,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
-      "severity": null,
-      "basis": "insufficient-observations"
+      "severity": "medium",
+      "basis": "measured"
     },
     "semgrep/semgrep-rules.python.flask.security.audit.directly-returned-format-string": {
       "tool": "semgrep",
@@ -10628,8 +10695,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -10644,8 +10711,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -10654,14 +10721,46 @@
       "tool": "semgrep",
       "title": "Found a Flask cookie with insecurely configured properties.  By default the secure, httponly and samesite ar configured ",
       "clean_hits": 0,
+      "vulnerable_hits": 7,
+      "example_hits": 0,
+      "languages": [
+        "python"
+      ],
+      "repos_seen": 1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": "inf",
+      "severity": "low",
+      "basis": "measured-single-repo"
+    },
+    "semgrep/semgrep-rules.python.flask.security.injection.eval-injection": {
+      "tool": "semgrep",
+      "title": "Detected user data flowing into eval. This is code injection and should be avoided.",
+      "clean_hits": 0,
       "vulnerable_hits": 1,
       "example_hits": 0,
       "languages": [
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": "inf",
+      "severity": null,
+      "basis": "insufficient-observations"
+    },
+    "semgrep/semgrep-rules.python.flask.security.injection.nan-injection": {
+      "tool": "semgrep",
+      "title": "Found user input going directly into typecast for bool(), float(), or complex(). This allows an attacker to inject Pytho",
+      "clean_hits": 0,
+      "vulnerable_hits": 1,
+      "example_hits": 0,
+      "languages": [
+        "python"
+      ],
+      "repos_seen": 1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -10676,8 +10775,56 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": "inf",
+      "severity": null,
+      "basis": "insufficient-observations"
+    },
+    "semgrep/semgrep-rules.python.flask.security.injection.ssrf-requests": {
+      "tool": "semgrep",
+      "title": "Data from request object is passed to a new server-side request. This could lead to a server-side request forgery (SSRF)",
+      "clean_hits": 0,
+      "vulnerable_hits": 1,
+      "example_hits": 0,
+      "languages": [
+        "python"
+      ],
+      "repos_seen": 1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": "inf",
+      "severity": null,
+      "basis": "insufficient-observations"
+    },
+    "semgrep/semgrep-rules.python.flask.security.injection.subprocess-injection": {
+      "tool": "semgrep",
+      "title": "Detected user input entering a `subprocess` call unsafely. This could result in a command injection vulnerability. An at",
+      "clean_hits": 0,
+      "vulnerable_hits": 1,
+      "example_hits": 0,
+      "languages": [
+        "python"
+      ],
+      "repos_seen": 1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": "inf",
+      "severity": null,
+      "basis": "insufficient-observations"
+    },
+    "semgrep/semgrep-rules.python.flask.security.injection.tainted-sql-string": {
+      "tool": "semgrep",
+      "title": "Detected user input used to manually construct a SQL string. This is usually bad practice because manual construction co",
+      "clean_hits": 0,
+      "vulnerable_hits": 1,
+      "example_hits": 0,
+      "languages": [
+        "python"
+      ],
+      "repos_seen": 1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -10686,14 +10833,14 @@
       "tool": "semgrep",
       "title": "Detected the use of an insecure deserialization library in a Flask route. These libraries are prone to code execution vu",
       "clean_hits": 0,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 4,
       "example_hits": 0,
       "languages": [
         "python"
       ],
       "repos_seen": 2,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -10702,14 +10849,14 @@
       "tool": "semgrep",
       "title": "Data from request is passed to redirect(). This is an open redirect and could be exploited. Consider using 'url_for()' t",
       "clean_hits": 0,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 4,
       "example_hits": 0,
       "languages": [
         "python"
       ],
-      "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "repos_seen": 2,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -10724,9 +10871,9 @@
         "python"
       ],
       "repos_seen": 2,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": 4.39,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": 3.53,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -10740,8 +10887,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -10757,7 +10904,7 @@
       ],
       "repos_seen": 1,
       "clean_kloc": 190.6,
-      "vulnerable_kloc": 32.9,
+      "vulnerable_kloc": 41.5,
       "ratio": "inf",
       "severity": "low",
       "basis": "measured-single-repo"
@@ -10772,8 +10919,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -10782,15 +10929,15 @@
       "tool": "semgrep",
       "title": "time.sleep() call; did you mean to leave this in?",
       "clean_hits": 1,
-      "vulnerable_hits": 8,
+      "vulnerable_hits": 10,
       "example_hits": 5,
       "languages": [
         "python"
       ],
-      "repos_seen": 3,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": 35.13,
+      "repos_seen": 4,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": 35.3,
       "severity": "medium",
       "basis": "measured"
     },
@@ -10804,8 +10951,8 @@
         "python"
       ],
       "repos_seen": 2,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -10814,32 +10961,32 @@
       "tool": "semgrep",
       "title": "file object opened without corresponding close",
       "clean_hits": 1,
-      "vulnerable_hits": 3,
+      "vulnerable_hits": 0,
       "example_hits": 1,
       "languages": [
         "python",
         "unknown"
       ],
-      "repos_seen": 3,
-      "clean_kloc": 187.9,
-      "vulnerable_kloc": 132.0,
-      "ratio": 4.27,
+      "repos_seen": 2,
+      "clean_kloc": 202.0,
+      "vulnerable_kloc": 136.2,
+      "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
     },
     "semgrep/semgrep-rules.python.lang.best-practice.pass-body-fn": {
       "tool": "semgrep",
-      "title": "`pass` is the body of function software_and_data_integrity_failure_lab3. Consider removing this or raise NotImplementedE",
+      "title": "`pass` is the body of function main. Consider removing this or raise NotImplementedError() if this is a TODO",
       "clean_hits": 1,
-      "vulnerable_hits": 1,
+      "vulnerable_hits": 0,
       "example_hits": 0,
       "languages": [
         "python"
       ],
-      "repos_seen": 2,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": 4.39,
+      "repos_seen": 1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -10853,8 +11000,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -10863,16 +11010,16 @@
       "tool": "semgrep",
       "title": "Missing 'encoding' parameter. 'open()' uses device locale encodings by default, corrupting files with special characters",
       "clean_hits": 8,
-      "vulnerable_hits": 13,
+      "vulnerable_hits": 11,
       "example_hits": 27,
       "languages": [
         "python",
         "unknown"
       ],
       "repos_seen": 9,
-      "clean_kloc": 187.9,
-      "vulnerable_kloc": 132.0,
-      "ratio": 2.31,
+      "clean_kloc": 202.0,
+      "vulnerable_kloc": 136.2,
+      "ratio": 2.04,
       "severity": "info",
       "basis": "measured"
     },
@@ -10886,8 +11033,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -10902,8 +11049,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -10912,15 +11059,15 @@
       "tool": "semgrep",
       "title": "Found identical comparison using is. Ensure this is what you intended.",
       "clean_hits": 1,
-      "vulnerable_hits": 0,
+      "vulnerable_hits": 1,
       "example_hits": 0,
       "languages": [
         "python"
       ],
-      "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": null,
+      "repos_seen": 2,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": 3.53,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -10928,17 +11075,17 @@
       "tool": "semgrep",
       "title": "Detected strings that are implicitly concatenated inside a list. Python will implicitly concatenate strings when not exp",
       "clean_hits": 2,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 3,
       "example_hits": 0,
       "languages": [
         "python"
       ],
       "repos_seen": 3,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": 4.39,
-      "severity": null,
-      "basis": "insufficient-observations"
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": 5.3,
+      "severity": "low",
+      "basis": "measured"
     },
     "semgrep/semgrep-rules.python.lang.correctness.return-in-init": {
       "tool": "semgrep",
@@ -10950,8 +11097,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -10966,8 +11113,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -10982,8 +11129,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -10998,8 +11145,8 @@
         "python"
       ],
       "repos_seen": 2,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -11014,25 +11161,25 @@
         "python"
       ],
       "repos_seen": 2,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
     },
     "semgrep/semgrep-rules.python.lang.maintainability.is-function-without-parentheses": {
       "tool": "semgrep",
-      "title": "Is \"is_authenticated\" a function or an attribute? If it is a function, you may have meant request.user.is_authenticated(",
+      "title": "Is \"is_custom\" a function or an attribute? If it is a function, you may have meant lab.is_custom() because lab.is_custom",
       "clean_hits": 9,
-      "vulnerable_hits": 7,
+      "vulnerable_hits": 10,
       "example_hits": 0,
       "languages": [
         "python"
       ],
       "repos_seen": 6,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": 3.42,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": 3.92,
       "severity": "low",
       "basis": "measured"
     },
@@ -11046,8 +11193,8 @@
         "python"
       ],
       "repos_seen": 3,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -11062,25 +11209,9 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": null,
-      "severity": null,
-      "basis": "insufficient-observations"
-    },
-    "semgrep/semgrep-rules.python.lang.maintainability.useless-literal": {
-      "tool": "semgrep",
-      "title": "key `\"error\"` is uselessly assigned twice",
-      "clean_hits": 0,
-      "vulnerable_hits": 1,
-      "example_hits": 0,
-      "languages": [
-        "python"
-      ],
-      "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -11094,8 +11225,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -11110,8 +11241,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -11126,8 +11257,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -11142,8 +11273,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -11152,16 +11283,16 @@
       "tool": "semgrep",
       "title": "Detected subprocess function 'Popen' without a static string. If this data can be controlled by a malicious actor, it ma",
       "clean_hits": 9,
-      "vulnerable_hits": 5,
+      "vulnerable_hits": 3,
       "example_hits": 1,
       "languages": [
         "python",
         "unknown"
       ],
       "repos_seen": 6,
-      "clean_kloc": 187.9,
-      "vulnerable_kloc": 132.0,
-      "ratio": 0.79,
+      "clean_kloc": 202.0,
+      "vulnerable_kloc": 136.2,
+      "ratio": 0.49,
       "severity": "info",
       "basis": "measured"
     },
@@ -11175,8 +11306,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -11191,9 +11322,9 @@
         "python"
       ],
       "repos_seen": 5,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": 5.49,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": 4.41,
       "severity": "low",
       "basis": "measured"
     },
@@ -11201,15 +11332,15 @@
       "tool": "semgrep",
       "title": "Detected the use of eval(). eval() can be dangerous if used to evaluate dynamic content. If this content can be input fr",
       "clean_hits": 1,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 1,
       "example_hits": 0,
       "languages": [
         "python"
       ],
       "repos_seen": 2,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": 8.78,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": 3.53,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -11223,9 +11354,25 @@
         "python"
       ],
       "repos_seen": 2,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": null,
+      "severity": null,
+      "basis": "insufficient-observations"
+    },
+    "semgrep/semgrep-rules.python.lang.security.audit.formatted-sql-query": {
+      "tool": "semgrep",
+      "title": "Detected possible formatted SQL query. Use parameterized queries instead.",
+      "clean_hits": 0,
+      "vulnerable_hits": 1,
+      "example_hits": 0,
+      "languages": [
+        "python"
+      ],
+      "repos_seen": 1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -11239,8 +11386,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -11255,8 +11402,8 @@
         "python"
       ],
       "repos_seen": 2,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -11271,8 +11418,8 @@
         "python"
       ],
       "repos_seen": 3,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -11281,14 +11428,14 @@
       "tool": "semgrep",
       "title": "It looks like MD5 is used as a password hash. MD5 is not considered a secure password hash because it can be cracked by ",
       "clean_hits": 0,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 1,
       "example_hits": 0,
       "languages": [
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -11303,8 +11450,8 @@
         "python"
       ],
       "repos_seen": 2,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -11319,8 +11466,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -11329,14 +11476,14 @@
       "tool": "semgrep",
       "title": "Found 'subprocess' function 'Popen' with 'shell=True'. This is dangerous because this call will spawn the command using ",
       "clean_hits": 0,
-      "vulnerable_hits": 2,
+      "vulnerable_hits": 1,
       "example_hits": 0,
       "languages": [
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -11351,15 +11498,15 @@
         "unknown"
       ],
       "repos_seen": 1,
-      "clean_kloc": 117.2,
-      "vulnerable_kloc": 115.9,
+      "clean_kloc": 130.9,
+      "vulnerable_kloc": 116.1,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
     },
     "semgrep/semgrep-rules.python.lang.security.dangerous-subprocess-use": {
       "tool": "semgrep",
-      "title": "Detected subprocess function 'cmd_lab' with user controlled data. A malicious actor could leverage this to perform comma",
+      "title": "Detected subprocess function 'Popen' with user controlled data. A malicious actor could leverage this to perform command",
       "clean_hits": 0,
       "vulnerable_hits": 1,
       "example_hits": 0,
@@ -11367,8 +11514,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -11383,24 +11530,40 @@
         "python"
       ],
       "repos_seen": 2,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": "medium",
       "basis": "measured"
+    },
+    "semgrep/semgrep-rules.python.lang.security.deserialization.avoid-pyyaml-load": {
+      "tool": "semgrep",
+      "title": "Detected a possible YAML deserialization vulnerability. `yaml.unsafe_load`, `yaml.Loader`, `yaml.CLoader`, and `yaml.Uns",
+      "clean_hits": 0,
+      "vulnerable_hits": 1,
+      "example_hits": 0,
+      "languages": [
+        "python"
+      ],
+      "repos_seen": 1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": "inf",
+      "severity": null,
+      "basis": "insufficient-observations"
     },
     "semgrep/semgrep-rules.python.lang.security.insecure-hash-algorithm-md5": {
       "tool": "semgrep",
       "title": "Detected MD5 hash algorithm which is considered insecure. MD5 is not collision resistant and is therefore not suitable a",
       "clean_hits": 0,
-      "vulnerable_hits": 7,
+      "vulnerable_hits": 6,
       "example_hits": 1,
       "languages": [
         "python"
       ],
       "repos_seen": 3,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": "medium",
       "basis": "measured"
@@ -11409,15 +11572,15 @@
       "tool": "semgrep",
       "title": "Detected SHA1 hash algorithm which is considered insecure. SHA1 is not collision resistant and is therefore not suitable",
       "clean_hits": 3,
-      "vulnerable_hits": 0,
+      "vulnerable_hits": 1,
       "example_hits": 3,
       "languages": [
         "python"
       ],
-      "repos_seen": 4,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
-      "ratio": null,
+      "repos_seen": 5,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": 1.18,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -11431,8 +11594,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -11447,8 +11610,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -11463,8 +11626,8 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -11473,14 +11636,14 @@
       "tool": "semgrep",
       "title": "There's an HTTP request made with requests, but the raise_for_status() utility method isn't used. This can result in req",
       "clean_hits": 0,
-      "vulnerable_hits": 16,
+      "vulnerable_hits": 15,
       "example_hits": 4,
       "languages": [
         "python"
       ],
       "repos_seen": 5,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": "medium",
       "basis": "measured"
@@ -11489,14 +11652,14 @@
       "tool": "semgrep",
       "title": "Detected a 'requests' call without a timeout set. By default, 'requests' calls wait until the connection is closed. This",
       "clean_hits": 0,
-      "vulnerable_hits": 22,
+      "vulnerable_hits": 19,
       "example_hits": 7,
       "languages": [
         "python"
       ],
       "repos_seen": 6,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": "medium",
       "basis": "measured"
@@ -11511,8 +11674,24 @@
         "python"
       ],
       "repos_seen": 1,
-      "clean_kloc": 70.7,
-      "vulnerable_kloc": 16.1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
+      "ratio": "inf",
+      "severity": null,
+      "basis": "insufficient-observations"
+    },
+    "semgrep/semgrep-rules.python.sqlalchemy.security.sqlalchemy-execute-raw-query": {
+      "tool": "semgrep",
+      "title": "Avoiding SQL string concatenation: untrusted input concatenated with raw SQL query can result in SQL Injection. In order",
+      "clean_hits": 0,
+      "vulnerable_hits": 1,
+      "example_hits": 0,
+      "languages": [
+        "python"
+      ],
+      "repos_seen": 1,
+      "clean_kloc": 71.1,
+      "vulnerable_kloc": 20.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -11735,8 +11914,8 @@
         "unknown"
       ],
       "repos_seen": 1,
-      "clean_kloc": 117.2,
-      "vulnerable_kloc": 115.9,
+      "clean_kloc": 130.9,
+      "vulnerable_kloc": 116.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -11751,8 +11930,8 @@
         "unknown"
       ],
       "repos_seen": 1,
-      "clean_kloc": 117.2,
-      "vulnerable_kloc": 115.9,
+      "clean_kloc": 130.9,
+      "vulnerable_kloc": 116.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -11767,8 +11946,8 @@
         "unknown"
       ],
       "repos_seen": 1,
-      "clean_kloc": 117.2,
-      "vulnerable_kloc": 115.9,
+      "clean_kloc": 130.9,
+      "vulnerable_kloc": 116.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -11783,8 +11962,8 @@
         "unknown"
       ],
       "repos_seen": 1,
-      "clean_kloc": 117.2,
-      "vulnerable_kloc": 115.9,
+      "clean_kloc": 130.9,
+      "vulnerable_kloc": 116.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -11799,8 +11978,8 @@
         "unknown"
       ],
       "repos_seen": 1,
-      "clean_kloc": 117.2,
-      "vulnerable_kloc": 115.9,
+      "clean_kloc": 130.9,
+      "vulnerable_kloc": 116.1,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -11960,7 +12139,7 @@
       ],
       "repos_seen": 1,
       "clean_kloc": 56.4,
-      "vulnerable_kloc": 711.1,
+      "vulnerable_kloc": 727.9,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -11976,7 +12155,7 @@
       ],
       "repos_seen": 1,
       "clean_kloc": 56.4,
-      "vulnerable_kloc": 711.1,
+      "vulnerable_kloc": 727.9,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -11992,7 +12171,7 @@
       ],
       "repos_seen": 1,
       "clean_kloc": 56.4,
-      "vulnerable_kloc": 711.1,
+      "vulnerable_kloc": 727.9,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -12008,7 +12187,7 @@
       ],
       "repos_seen": 1,
       "clean_kloc": 56.4,
-      "vulnerable_kloc": 711.1,
+      "vulnerable_kloc": 727.9,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -12024,7 +12203,7 @@
       ],
       "repos_seen": 1,
       "clean_kloc": 56.4,
-      "vulnerable_kloc": 711.1,
+      "vulnerable_kloc": 727.9,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -13065,7 +13244,7 @@
       ],
       "repos_seen": 2,
       "clean_kloc": 182.8,
-      "vulnerable_kloc": 177.4,
+      "vulnerable_kloc": 177.8,
       "ratio": 0.11,
       "severity": "info",
       "basis": "measured"
@@ -13082,7 +13261,7 @@
       ],
       "repos_seen": 3,
       "clean_kloc": 182.8,
-      "vulnerable_kloc": 177.4,
+      "vulnerable_kloc": 177.8,
       "ratio": 0.34,
       "severity": null,
       "basis": "insufficient-observations"
@@ -13131,7 +13310,7 @@
       ],
       "repos_seen": 6,
       "clean_kloc": 182.8,
-      "vulnerable_kloc": 177.4,
+      "vulnerable_kloc": 177.8,
       "ratio": 0.05,
       "severity": "info",
       "basis": "measured"
@@ -13162,8 +13341,8 @@
         "yaml"
       ],
       "repos_seen": 5,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": "medium",
       "basis": "measured"
@@ -13178,8 +13357,8 @@
         "yaml"
       ],
       "repos_seen": 5,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": "medium",
       "basis": "measured"
@@ -13188,15 +13367,15 @@
       "tool": "semgrep",
       "title": "An action sourced from a third-party repository on GitHub is not pinned to a full length commit SHA. Pinning an action t",
       "clean_hits": 43,
-      "vulnerable_hits": 19,
+      "vulnerable_hits": 20,
       "example_hits": 3,
       "languages": [
         "yaml"
       ],
-      "repos_seen": 24,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
-      "ratio": 7.22,
+      "repos_seen": 25,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
+      "ratio": 7.47,
       "severity": "low",
       "basis": "measured"
     },
@@ -13210,9 +13389,9 @@
         "yaml"
       ],
       "repos_seen": 4,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
-      "ratio": 3.27,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
+      "ratio": 3.21,
       "severity": "low",
       "basis": "measured"
     },
@@ -13220,15 +13399,15 @@
       "tool": "semgrep",
       "title": "GitHub Actions step uses a mutable tag or branch reference. Tags and branch names can be silently repointed by the actio",
       "clean_hits": 54,
-      "vulnerable_hits": 34,
+      "vulnerable_hits": 35,
       "example_hits": 6,
       "languages": [
         "yaml"
       ],
       "repos_seen": 28,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
-      "ratio": 10.28,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
+      "ratio": 10.41,
       "severity": "medium",
       "basis": "measured"
     },
@@ -13242,9 +13421,9 @@
         "yaml"
       ],
       "repos_seen": 8,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
-      "ratio": 13.61,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
+      "ratio": 13.38,
       "severity": "medium",
       "basis": "measured"
     },
@@ -13258,9 +13437,9 @@
         "yaml"
       ],
       "repos_seen": 6,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
-      "ratio": 4.08,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
+      "ratio": 4.01,
       "severity": "low",
       "basis": "measured"
     },
@@ -13274,9 +13453,9 @@
         "yaml"
       ],
       "repos_seen": 5,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
-      "ratio": 16.33,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
+      "ratio": 16.06,
       "severity": "medium",
       "basis": "measured"
     },
@@ -13290,9 +13469,9 @@
         "yaml"
       ],
       "repos_seen": 8,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
-      "ratio": 0.83,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
+      "ratio": 0.82,
       "severity": "info",
       "basis": "measured"
     },
@@ -13306,8 +13485,8 @@
         "yaml"
       ],
       "repos_seen": 1,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -13322,8 +13501,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -13338,8 +13517,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -13354,9 +13533,9 @@
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
-      "ratio": 16.33,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
+      "ratio": 16.06,
       "severity": null,
       "basis": "insufficient-observations"
     },
@@ -13370,8 +13549,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -13386,8 +13565,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": "inf",
       "severity": null,
       "basis": "insufficient-observations"
@@ -13402,9 +13581,9 @@
         "yaml"
       ],
       "repos_seen": 8,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
-      "ratio": 1.29,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
+      "ratio": 1.27,
       "severity": "info",
       "basis": "measured"
     },
@@ -13418,9 +13597,9 @@
         "yaml"
       ],
       "repos_seen": 3,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
-      "ratio": 1.26,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
+      "ratio": 1.24,
       "severity": "info",
       "basis": "measured"
     },
@@ -13434,9 +13613,9 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
-      "ratio": 0.32,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
+      "ratio": 0.31,
       "severity": "info",
       "basis": "measured"
     },
@@ -13450,9 +13629,9 @@
         "yaml"
       ],
       "repos_seen": 4,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
-      "ratio": 0.39,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
+      "ratio": 0.38,
       "severity": "info",
       "basis": "measured"
     },
@@ -13466,8 +13645,8 @@
         "yaml"
       ],
       "repos_seen": 2,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
       "ratio": null,
       "severity": null,
       "basis": "insufficient-observations"
@@ -13482,9 +13661,9 @@
         "yaml"
       ],
       "repos_seen": 9,
-      "clean_kloc": 296.0,
-      "vulnerable_kloc": 18.1,
-      "ratio": 1.16,
+      "clean_kloc": 296.1,
+      "vulnerable_kloc": 18.4,
+      "ratio": 1.14,
       "severity": "info",
       "basis": "measured"
     }
