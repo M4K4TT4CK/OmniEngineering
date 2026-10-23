@@ -266,6 +266,7 @@ class Interp:
     def _index(self) -> None:
         stack = [self.root]
         top_assign: dict[str, list] = {}
+        reassigned: set[str] = set()
         while stack:
             n = stack.pop()
             t = n.type
@@ -278,10 +279,20 @@ class Interp:
                 if nm is not None:
                     self.class_names.add(text(nm))
             if self._top_level_const(n):
+                immutable = self._immutable(n)
                 for name, val in self._const_bindings(n):
-                    top_assign.setdefault(name, []).append(val)
+                    top_assign.setdefault(name, []).append(val if immutable(name) else None)
+            elif t in ("assignment", "assignment_expression", "augmented_assignment",
+                       "augmented_assignment_expression", "operator_assignment", "assignment_statement",
+                       "update_expression", "inc_statement", "dec_statement"):
+                left = n.child_by_field_name("left") or n.child_by_field_name("argument")
+                if left is not None:
+                    for name in re.findall(r"[A-Za-z_]\w*", text(left).split("[")[0])[-1:]:
+                        reassigned.add(name)
             stack.extend(n.children)
         for name, vals in top_assign.items():
+            if name in reassigned and not (self.lang == "python" and name.isupper()):
+                continue
             if len(vals) == 1 and vals[0] is not None:
                 v = vals[0]
                 av = self._literal(v)
@@ -291,6 +302,23 @@ class Interp:
     def _top_level_const(self, n) -> bool:
         return n.type in ("assignment", "lexical_declaration", "variable_declaration", "const_declaration",
                           "var_declaration", "field_declaration", "const_spec") and self._outside_funcs(n)
+
+    def _immutable(self, n):
+        """Whether a file-level binding cannot change: Java `final`, TS
+        `const`, Go `const`, or an ALL_CAPS name (Python, Ruby)."""
+        t = n.type
+        if t == "field_declaration":
+            mods = next((c for c in n.children if c.type == "modifiers"), None)
+            final = mods is not None and "final" in text(mods).split()
+            return lambda _name: final
+        if t == "lexical_declaration":
+            const = text(n).lstrip().startswith("const")
+            return lambda _name: const
+        if t in ("const_declaration", "const_spec"):
+            return lambda _name: True
+        if t == "var_declaration" or t == "variable_declaration":
+            return lambda _name: False
+        return lambda name: name.isupper() or (self.lang == "ruby" and name[:1].isupper())
 
     def _outside_funcs(self, n) -> bool:
         cur = n.parent
@@ -1048,9 +1076,8 @@ class Interp:
         self.tick()
         k = nkey(node)
         if k in self.spec.sanitizers:
-            for c in named(node):
-                self.eval(c, env)
-            return self.note(node, clean())
+            inner = self._eval(node, env)
+            return self.note(node, inner if inner.kind == CLEAN else clean())
         if k in self.spec.inputs:
             inner = self._eval(node, env)
             return self.note(node, AV(TAINT, NOCONST, None, _via(inner.via, frozenset([span(node)]))))

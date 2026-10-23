@@ -189,3 +189,129 @@ execSync(`git add ${p}`);
 export function f(dir: string) { execSync(`du -sh ${dir}`); }
 """
     assert lines(tmp_path, "typescript", "shell-command-built", code) == [4]
+
+
+# ---------------------------------------------------------------------------
+# Other languages
+# ---------------------------------------------------------------------------
+
+def test_java_mutable_field_is_not_a_constant(tmp_path):
+    # Juliet's `_21` variants: a private field set in bad() before the
+    # helper reads it. A non-final field is not a file constant, so the
+    # helper's `if (badPrivate)` is not folded and the finding stays.
+    code = """\
+class A {
+    private boolean badPrivate = false;
+    public void bad() throws Exception {
+        badPrivate = true;
+        String data = source();
+        Runtime.getRuntime().exec("/bin/ls " + data);
+    }
+    private String source() {
+        String data;
+        if (badPrivate) { data = System.getenv("ADD"); } else { data = null; }
+        return data;
+    }
+}
+"""
+    assert lines(tmp_path, "java", "command-injection", code) == [6]
+
+
+def test_java_owasp_constant_tricks_are_dropped(tmp_path):
+    code = """\
+class B {
+    public void doPost(javax.servlet.http.HttpServletRequest request) throws Exception {
+        String param = request.getParameter("p");
+        int num = 106;
+        String bar = (7 * 18) + num > 200 ? "This_should_always_happen" : param;
+        String sql = "SELECT * FROM users WHERE name = '" + bar + "'";
+        java.sql.Statement st = conn.createStatement();
+        st.executeQuery(sql);
+        String cmd = Utils.getOSCommandString("echo");
+        Runtime.getRuntime().exec(cmd + bar);
+        String real = "SELECT * FROM users WHERE name = '" + param + "'";
+        st.executeQuery(real);
+    }
+}
+"""
+    assert lines(tmp_path, "java", "sql-string-built", code) == [12]
+    assert lines(tmp_path, "java", "command-injection", code) == []
+
+
+def test_go_hoisted_shell_and_helper_sql(tmp_path):
+    code = """\
+package p
+
+import ("database/sql"; "os/exec")
+
+const shell = "sh"
+
+func q(o string) string { return "SELECT id FROM t WHERE o = '" + o + "'" }
+
+func A(db *sql.DB, o string, dir string) {
+	db.Query(q(o))
+	exec.Command(shell, "-c", "tar czf x.tgz "+dir).Run()
+}
+"""
+    assert lines(tmp_path, "go", "sql-injection", code) == [10]
+    assert lines(tmp_path, "go", "command-injection", code) == [11]
+
+
+def test_go_error_text_tuple_return_is_not_tainted(tmp_path):
+    code = """\
+package p
+
+import ("errors"; "net/http")
+
+func pem() (a, b []byte, err error) { return nil, nil, errors.New("x") }
+
+func H(w http.ResponseWriter, r *http.Request) {
+	root, _, err := pem()
+	if err != nil {
+		msg := "failed: " + err.Error()
+		http.Error(w, msg, http.StatusInternalServerError)
+		return
+	}
+	w.Write(root)
+}
+"""
+    assert lines(tmp_path, "go", "error-text-in-response", code) == [11]
+
+
+def test_python_helper_command_and_overwrite(tmp_path):
+    code = """\
+import subprocess
+from flask import request
+
+def build(name):
+    return "tar czf /x/" + name + ".tgz"
+
+def a():
+    subprocess.run(build(request.form["n"]), shell=True)
+
+def b():
+    name = request.form["n"]
+    name = "nightly"
+    cmd = build(name)
+    subprocess.run(cmd, shell=True)
+"""
+    assert lines(tmp_path, "python", "command-injection", code) == [8]
+
+
+def test_ruby_hoisted_sql_and_double_dash(tmp_path):
+    code = """\
+class C
+  def a
+    sql = "SELECT * FROM t WHERE o = '#{params[:o]}'"
+    ActiveRecord::Base.connection.select_all(sql)
+  end
+
+  def b
+    tool = "git"
+    system(tool, "clone", params[:repo], "/srv")
+    system(tool, "clone", "--", params[:repo], "/srv")
+  end
+end
+"""
+    assert lines(tmp_path, "ruby", "sql-injection", code) == [4]
+    assert lines(tmp_path, "ruby", "argument-injection", code) == [9]
