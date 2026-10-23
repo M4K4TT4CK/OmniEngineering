@@ -1,0 +1,152 @@
+{
+  "app": "typescript/notes-api",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "src/app.ts",
+      "line": 33,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "unbounded-input",
+      "severity": "medium",
+      "justification": "verifyPassword calls crypto.scryptSync on every /login request, unauthenticated requests for unknown users included (dummy hash). That blocks the single event loop for each attempt, so a modest login flood from several IPs stalls all users; it should use async crypto.scrypt.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "src/app.ts",
+      "line": 26,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "unbounded-input",
+      "severity": "low",
+      "justification": "hashPassword uses synchronous scryptSync in the /signup request path, which blocks the event loop on every unauthenticated signup. It should use the async scrypt.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "package.json",
+      "line": 13,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "package.json",
+      "line": 14,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D5",
+      "file": "package.json",
+      "line": 17,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D6",
+      "file": "package.json",
+      "line": 18,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D7",
+      "file": "package.json",
+      "line": 19,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D8",
+      "file": "package.json",
+      "line": 20,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D9",
+      "file": "package.json",
+      "line": 21,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D10",
+      "file": "package.json",
+      "line": 22,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D11",
+      "file": "package.json",
+      "line": 23,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D12",
+      "file": "package.json",
+      "line": 24,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

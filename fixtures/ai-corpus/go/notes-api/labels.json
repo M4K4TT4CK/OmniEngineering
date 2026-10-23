@@ -1,0 +1,57 @@
+{
+  "app": "go/notes-api",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "main.go",
+      "line": 141,
+      "cwe": [
+        "CWE-252"
+      ],
+      "category": "ignored-error",
+      "severity": "low",
+      "justification": "writeJSON discards the json.Encode error, so write/encode failures on every response go unlogged.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "main.go",
+      "line": 226,
+      "cwe": [
+        "CWE-252"
+      ],
+      "category": "ignored-error",
+      "severity": "low",
+      "justification": "Error from deleting an expired token is ignored (a.db.Exec result discarded); DB failures here are invisible.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "main.go",
+      "line": 255,
+      "cwe": [
+        "CWE-252"
+      ],
+      "category": "ignored-error",
+      "severity": "low",
+      "justification": "The expired-token purge in issueToken ignores the db.Exec error; a failing purge silently lets the tokens table grow without bound.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "main.go",
+      "line": 89,
+      "end_line": 92,
+      "cwe": [
+        "CWE-770"
+      ],
+      "category": "rate-limit-bypass",
+      "severity": "low",
+      "justification": "Fixed-window limiter resets at window boundaries, so a user can make ~120 requests within a few seconds straddling a boundary, exceeding the stated 60 requests/minute. Documented as fixed-window in README; would ask for a sliding window/token bucket rather than block.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

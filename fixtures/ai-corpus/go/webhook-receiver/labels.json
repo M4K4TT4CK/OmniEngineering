@@ -1,0 +1,56 @@
+{
+  "app": "go/webhook-receiver",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "main.go",
+      "line": 185,
+      "cwe": [
+        "CWE-345"
+      ],
+      "category": "key-reuse",
+      "severity": "high",
+      "justification": "Forwarded events are signed with the same WEBHOOK_SECRET shared with the payment provider; for merchants to verify them they must hold that secret, which then lets any merchant forge valid provider webhooks (e.g. payment.succeeded for any merchant). Needs a per-merchant signing key.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "main.go",
+      "line": 186,
+      "cwe": [
+        "CWE-918"
+      ],
+      "category": "ssrf",
+      "severity": "medium",
+      "justification": "The server POSTs to callback URLs with no restriction on loopback/private/link-local/metadata addresses, and delivery_status/tries exposes reachability; anyone holding the admin token (or a mis-set URL) can make it hit internal services. README acknowledges; still needs egress filtering.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "main.go",
+      "line": 118,
+      "cwe": [
+        "CWE-294"
+      ],
+      "category": "replay",
+      "severity": "low",
+      "justification": "Signature covers only the body with no timestamp/nonce, so a captured request can be replayed; dedupe on event id limits this to events whose id is not yet stored (e.g. after DB loss or for intercepted-but-undelivered events). README acknowledges; low.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "main.go",
+      "line": 289,
+      "cwe": [
+        "CWE-252"
+      ],
+      "category": "ignored-error",
+      "severity": "low",
+      "justification": "json.NewEncoder(w).Encode(out) error is ignored in handleListEvents, so failed/partial responses go unlogged.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

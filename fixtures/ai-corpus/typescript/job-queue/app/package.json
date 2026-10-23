@@ -1,0 +1,25 @@
+{
+  "name": "job-queue",
+  "version": "1.0.0",
+  "private": true,
+  "description": "In-memory background job queue with an HTTP API and a worker thread pool",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "nodemailer": "^6.9.14",
+    "sharp": "^0.33.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/nodemailer": "^6.4.15",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}

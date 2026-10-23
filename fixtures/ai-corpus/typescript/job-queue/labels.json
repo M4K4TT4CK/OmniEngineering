@@ -1,0 +1,168 @@
+{
+  "app": "typescript/job-queue",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "src/handlers.ts",
+      "line": 16,
+      "end_line": 19,
+      "cwe": [
+        "CWE-22",
+        "CWE-73"
+      ],
+      "category": "path-traversal",
+      "severity": "high",
+      "justification": "resize-image takes an arbitrary caller-supplied filesystem path. IMAGE_ROOT is optional, so by default any readable file is processed and a '<name>-resized<ext>' file is written next to it anywhere the process can write. Even with IMAGE_ROOT set, symlinks are not resolved.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "src/server.ts",
+      "line": 46,
+      "cwe": [
+        "CWE-306"
+      ],
+      "category": "missing-authn",
+      "severity": "medium",
+      "justification": "POST /jobs has no authentication, so anyone who can reach the API can send arbitrary emails (any recipient, subject, body) through the configured SMTP account, which is an open spam relay, and can trigger file-system resize jobs.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "src/queue.ts",
+      "line": 113,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "missing-timeout",
+      "severity": "medium",
+      "justification": "Jobs are dispatched to a worker with no per-job timeout or watchdog. A hung SMTP connection or a slow sharp operation keeps that worker busy indefinitely, and a few of them stall the whole pool.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "src/queue.ts",
+      "line": 51,
+      "end_line": 52,
+      "cwe": [
+        "CWE-770",
+        "CWE-401"
+      ],
+      "category": "unbounded-memory",
+      "severity": "medium",
+      "justification": "Every job, including its payload of up to 1 MB, is kept in the jobs Map forever, and the pending queue has no bound or backpressure. Sustained or abusive submission grows memory until the process OOMs. The README acknowledges this.",
+      "source": "independent"
+    },
+    {
+      "id": "D5",
+      "file": "src/handlers.ts",
+      "line": 37,
+      "end_line": 42,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "missing-timeout",
+      "severity": "low",
+      "justification": "The nodemailer transport is created without explicit connectionTimeout/greetingTimeout/socketTimeout, so it falls back to the very long defaults (socket timeout of minutes) and a stalled SMTP server pins a worker thread for a long time.",
+      "source": "independent"
+    },
+    {
+      "id": "D6",
+      "file": "src/server.ts",
+      "line": 59,
+      "end_line": 60,
+      "cwe": [
+        "CWE-390"
+      ],
+      "category": "swallowed-exception",
+      "severity": "low",
+      "justification": "The catch-all returns 500 without logging the error, so unexpected failures in request handling leave no trace.",
+      "source": "independent"
+    },
+    {
+      "id": "D7",
+      "file": "test/queue.test.ts",
+      "line": 1,
+      "cwe": [],
+      "category": "missing-test",
+      "severity": "low",
+      "justification": "All tests run against test/fake-worker.js, so the real resize-image and send-email handlers and src/worker.ts are never exercised, and neither is IMAGE_ROOT enforcement. The 'send-email' HTTP test passes whatever the email code does.",
+      "source": "independent"
+    },
+    {
+      "id": "D8",
+      "file": "package.json",
+      "line": 16,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D9",
+      "file": "package.json",
+      "line": 17,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D10",
+      "file": "package.json",
+      "line": 20,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D11",
+      "file": "package.json",
+      "line": 21,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D12",
+      "file": "package.json",
+      "line": 22,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D13",
+      "file": "package.json",
+      "line": 23,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

@@ -1,0 +1,147 @@
+{
+  "app": "java/job-queue",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "src/main/java/jobqueue/Handlers.java",
+      "line": 56,
+      "cwe": [
+        "CWE-22",
+        "CWE-73"
+      ],
+      "category": "path-traversal",
+      "severity": "high",
+      "justification": "When IMAGE_DIR is unset (the default) any absolute path from the request is accepted, so callers can make the server read any image on disk and write '<name>-resized.<ext>' files next to it anywhere the process can write; the safe behaviour should be the default (require a base dir).",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "src/main/java/jobqueue/Handlers.java",
+      "line": 55,
+      "cwe": [
+        "CWE-59"
+      ],
+      "category": "path-traversal",
+      "severity": "low",
+      "justification": "The IMAGE_DIR containment check uses toAbsolutePath().normalize() rather than toRealPath(), so a symlink inside IMAGE_DIR pointing outside it passes startsWith() and both read and write escape the directory.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "src/main/java/jobqueue/Handlers.java",
+      "line": 86,
+      "end_line": 88,
+      "cwe": [
+        "CWE-770",
+        "CWE-400"
+      ],
+      "category": "unbounded-input",
+      "severity": "medium",
+      "justification": "Only the output width is bounded (≤10000); height is derived from the source aspect ratio with no cap, so a tall thin image with width=10000 requests a BufferedImage of 10000 x millions of pixels (OOM or int overflow), and ImageIO.read at line 82 has no pixel limit either.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "src/main/java/jobqueue/App.java",
+      "line": 41,
+      "cwe": [
+        "CWE-306"
+      ],
+      "category": "missing-authn",
+      "severity": "medium",
+      "justification": "The job API has no authentication at all, yet send-email sends arbitrary subject/body to arbitrary recipients through the configured (authenticated) SMTP account, making the service an open mail relay for anyone who can reach the port; the README note does not make it safe.",
+      "source": "independent"
+    },
+    {
+      "id": "D5",
+      "file": "src/main/java/jobqueue/Handlers.java",
+      "line": 154,
+      "cwe": [
+        "CWE-319"
+      ],
+      "category": "tls-disabled",
+      "severity": "medium",
+      "justification": "mail.smtp.starttls.enable is set but mail.smtp.starttls.required is not, so if the server (or a MITM stripping the STARTTLS capability) does not offer TLS, Jakarta Mail falls back to plaintext and sends SMTP_USER/SMTP_PASSWORD in clear.",
+      "source": "independent"
+    },
+    {
+      "id": "D6",
+      "file": "src/main/java/jobqueue/JobQueue.java",
+      "line": 109,
+      "cwe": [
+        "CWE-755"
+      ],
+      "category": "swallowed-exception",
+      "severity": "medium",
+      "justification": "run() catches only Exception; an Error from a handler (OutOfMemoryError from a huge image, NoClassDefFoundError for AWT in headless envs) escapes workLoop, the worker loop is never restarted (it was submitted once with execute), so worker capacity silently shrinks to zero and the job stays RUNNING forever.",
+      "source": "independent"
+    },
+    {
+      "id": "D7",
+      "file": "src/main/java/jobqueue/JobQueue.java",
+      "line": 46,
+      "cwe": [
+        "CWE-770",
+        "CWE-401"
+      ],
+      "category": "unbounded-memory",
+      "severity": "medium",
+      "justification": "Every job (payload up to 1MB plus result) is kept in the jobs map forever with no eviction or TTL, so memory grows without bound and an unauthenticated client can exhaust the heap; acknowledged in README but still a production blocker.",
+      "source": "independent"
+    },
+    {
+      "id": "D8",
+      "file": "src/main/java/jobqueue/JobQueue.java",
+      "line": 47,
+      "cwe": [
+        "CWE-770"
+      ],
+      "category": "unbounded-memory",
+      "severity": "medium",
+      "justification": "The work queue is an unbounded LinkedBlockingQueue and submit() never applies back-pressure (no 429/503), so submissions faster than the workers grow the backlog until OOM.",
+      "source": "independent"
+    },
+    {
+      "id": "D9",
+      "file": "src/main/java/jobqueue/JobQueue.java",
+      "line": 114,
+      "cwe": [
+        "CWE-1050"
+      ],
+      "category": "retry-no-backoff",
+      "severity": "low",
+      "justification": "Retries use a fixed 1s delay with no exponential backoff or jitter, and non-retryable failures (unreadable image, missing SMTP_HOST, no image writer) are retried 3 more times anyway; for SMTP this hammers a failing server in lock-step.",
+      "source": "independent"
+    },
+    {
+      "id": "D10",
+      "file": "src/main/java/jobqueue/App.java",
+      "line": 44,
+      "end_line": 45,
+      "cwe": [
+        "CWE-390",
+        "CWE-778"
+      ],
+      "category": "swallowed-exception",
+      "severity": "low",
+      "justification": "Any unexpected exception in request handling is turned into a 500 without being logged, so production failures leave no trace; if headers were already sent, the send() inside the catch throws again and is lost too.",
+      "source": "independent"
+    },
+    {
+      "id": "D11",
+      "file": "pom.xml",
+      "line": 35,
+      "end_line": 43,
+      "cwe": [
+        "CWE-1104"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "The README runs 'mvn compile exec:java' but exec-maven-plugin is not declared in the pom, so Maven resolves it by prefix to whatever version is latest (non-reproducible, unpinned build tooling).",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

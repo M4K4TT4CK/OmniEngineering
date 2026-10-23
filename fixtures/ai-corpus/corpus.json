@@ -1,0 +1,7 @@
+{
+ "_about": "Scoring settings for tools/ai_corpus_score.py. Findings from these rule prefixes are maintainability measurements, not defect claims, and are left out of precision.",
+ "metric_rule_prefixes": [
+  "arbiter/ast.",
+  "arbiter/quality."
+ ]
+}
