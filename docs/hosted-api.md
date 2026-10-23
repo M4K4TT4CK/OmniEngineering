@@ -55,14 +55,17 @@ eventually be written differently.
 
 | Layer | Responsibility |
 |---|---|
-| `service.py` | workspace lifecycle, archive ingest, path containment, profile checks, the three operations |
+| `service.py` | workspace lifecycle, archive ingest, path containment, profile checks, the four operations |
 | `mcp.py` | tool schemas and dispatch; no containment logic of its own |
 | `api.py` | keys, request limits, TLS enforcement, the audit line; no containment logic of its own |
 
-Three operations, and only three: `scan`, `gate` and `review_queue`.
-`service.OPERATIONS` names them, and a test asserts the set is exactly that.
+Four operations, and only four: `scan`, `gate`, `review_queue` and
+`review_draft`. `service.OPERATIONS` names them, and a test asserts the set is
+exactly that. The HTTP API exposes the first three (`api.ENDPOINTS`, also
+asserted); `review_draft` is reachable only through MCP, and it writes a file
+for a person to read and records nothing.
 
-Arbiter runs as a subprocess rather than an import. `run_scan` takes fifteen
+Arbiter runs as a subprocess rather than an import. `run_scan` takes twenty
 parameters and `src/arbiter/__init__.py` exports only `__version__`, so there is
 no stable Python API to bind to yet. The subprocess also means a probe that
 wedges or dies takes down a subprocess, not the server.
@@ -109,6 +112,11 @@ What the code already does:
 - **The network stays off.** `check_profile` refuses `connected` and `audit`,
   which declare `network: True`, unless the operator explicitly allows it. The
   hosted door never will. The MCP schemas offer only `offline` and `ci`.
+  One exception to know about: `assisted` declares `network: False` but
+  `model: True`, and `check_profile` does **not** refuse it. Its only traffic
+  is the model-verification call, and that call is made only when the
+  server's environment holds `ANTHROPIC_API_KEY`. A hosted deployment must
+  not set that variable; `deploy/` does not.
 - **The scanned repository is never executed.** No build, test, hook or entry
   point from the target runs at any stage. Probes read files.
 
@@ -212,7 +220,7 @@ own share is told that rather than told the service is busy — the two have
 different answers, one being "wait for your own scan" and the other "wait for
 somebody else's".
 
-`--no-expiry` mints a permanent key. It exists for something like a build
+Keys last 90 days unless `--expires-days N` says otherwise. `--no-expiry` mints a permanent key. It exists for something like a build
 server, and it is a deliberate exception rather than the default.
 
 Expired, revoked and unknown keys all get the same `401` message. Distinguishing
@@ -288,7 +296,7 @@ The endpoints below are what the service exposes. Almost nobody should have to
 touch them directly. The client is the way in:
 
 ```
-pip install arbiter-eval          # PyYAML and nothing else
+pip install git+https://github.com/paukennick/arbiter   # not on PyPI yet; PyYAML (and tomli on 3.10), nothing else
 export ARBITER_SERVER=https://arbiter.example.com
 export ARBITER_API_KEY=arb_...    # issued by hand, sent to you out of band
 
@@ -335,10 +343,10 @@ no endpoint that does — see below.
 | `POST /v1/scan` | an uploaded archive | the report |
 | `POST /v1/gate` | an uploaded archive | pass or fail, with the claim ledger |
 | `POST /v1/review-queue` | a report the caller already has | a queue with every mark blank, or an empty one when there is nothing left to ask about |
-| `GET /v1/health` | nothing; no key needed | version, and that it retains nothing |
+| `GET /v1/health` | nothing; no key needed | version, that it retains nothing and requires TLS, and every limit (requests per hour, concurrent scans per key and in total, upload cap, key lifetime) |
 
 Everything but `/v1/health` needs an `X-API-Key` header. Uploads are capped at
-`MAX_UPLOAD_BYTES` (100 MB) and refused before anything is written.
+`MAX_UPLOAD_BYTES` (100 MiB) and refused before anything is written.
 
 ## TLS, with no plaintext mode
 
@@ -436,7 +444,7 @@ the length of one request.
 ## What is built
 
 - `service.py`: `Workspace`, `extract_archive`, `resolve_within`,
-  `check_profile`, `scan`, `gate`, `review_queue`.
+  `check_profile`, `scan`, `gate`, `review_queue`, `review_draft`.
 - `api.py`: key issuance and verification, per-key and whole-server limits
   (in memory, or shared between processes through SQLite with
   `--limiter file`), the request log, the three request handlers, and a

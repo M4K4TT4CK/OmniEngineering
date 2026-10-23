@@ -62,7 +62,8 @@ request.
 
 We read files. Nothing from your upload is executed: no build, no test suite, no
 git hook, no entry point, no package install. The scan does not reach the
-network — the profiles that would allow it are refused on this service.
+network — the profiles that would allow it are refused on this service, and
+the service holds no model key, so no excerpt of your code is sent to a model.
 
 ## About the report you get back
 
