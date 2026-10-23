@@ -40,7 +40,7 @@ per CWE. Cells marked † are measured on pairs that were already in the corpus.
 
 | # | CWE | Python | TypeScript | Go | Java | Ruby |
 |---|---|---|---|---|---|---|
-| 1 | 79 XSS | S | N+S † | S | **gap** | S |
+| 1 | 79 XSS | S | N+S † | S | N | S |
 | 2 | 787 OOB write | n/a | n/a | n/a | n/a | n/a |
 | 3 | 89 SQL injection | N+S+B † | N+S † | N+S † | N+S † | N+S † |
 | 4 | 352 CSRF | N+S | **gap** | OOR | N+S | N |
@@ -49,20 +49,20 @@ per CWE. Cells marked † are measured on pairs that were already in the corpus.
 | 7 | 78 OS command injection | N+S+B † | N+S † | N+S † | N+S † | N+S † |
 | 8 | 416 Use after free | n/a | n/a | n/a | n/a | n/a |
 | 9 | 862 Missing authorization | OOR | OOR | OOR | OOR | OOR |
-| 10 | 434 Dangerous upload | **gap** | **gap** | **gap** | S | **gap** |
+| 10 | 434 Dangerous upload | **gap** | **gap** | **gap** | N+S | **gap** |
 | 11 | 94 Code injection | N+S+B † | N+S † | n/a | S | N+S † |
 | 12 | 20 Input validation | OOR | OOR | OOR | OOR | OOR |
-| 13 | 77 Command injection (argument) | **gap** | **gap** | **gap** | **gap** | **gap** |
+| 13 | 77 Command injection (argument) | **gap** | **gap** | **gap** | N | **gap** |
 | 14 | 287 Improper authentication | N+S | N | N | N+S | N+S |
 | 15 | 269 Privilege management | OOR | OOR | OOR | OOR | OOR |
 | 16 | 502 Deserialization | N+S+B † | S | n/a | N+S † | N † |
 | 17 | 200 Information exposure | N+S+B | N | N | N | N |
 | 18 | 863 Incorrect authorization | OOR | OOR | OOR | OOR | OOR |
-| 19 | 918 SSRF | S | **gap** | **gap** | **gap** | **gap** |
+| 19 | 918 SSRF | S | **gap** | **gap** | N | **gap** |
 | 20 | 119 Buffer bounds | n/a | n/a | n/a | n/a | n/a |
 | 21 | 476 NULL dereference | n/a | n/a | OOR | OOR | n/a |
 | 22 | 798 Hard-coded credentials | N+S+B | N+S | N | N | N+S |
-| 23 | 190 Integer overflow | n/a | n/a | **gap** | **gap** | n/a |
+| 23 | 190 Integer overflow | n/a | n/a | **gap** | N | n/a |
 | 24 | 400 Resource consumption | N+S+B † | N † | N † | N † | N † |
 | 25 | 306 Missing auth for critical function | OOR | OOR | OOR | OOR | OOR |
 
@@ -77,7 +77,7 @@ the total. "Native only" means no external analyzer is needed.
 | Python | 14 | 9 | 12 | 7 | 12 | 2 (434, 77) |
 | TypeScript | 14 | 8 | 7 | n/a | 10 | 4 (352, 434, 77, 918) |
 | Go | 12 | 6 | 3 | n/a | 7 | 5 (22, 434, 77, 918, 190) |
-| Java | 15 | 8 | 8 | n/a | 11 | 4 (79, 77, 918, 190) |
+| Java | 15 | 13 | 8 | n/a | 15 | 0 |
 | Ruby | 14 | 9 | 6 | n/a | 10 | 4 (22, 434, 77, 918) |
 
 gitleaks ran on every language and reported none of the planted credentials:
@@ -111,8 +111,9 @@ semgrep's bundled `generic.secrets.gitleaks.*` rules did report two of them.
   (`ssrf-injection-requests`) is the one that discriminates, and it is the one
   marked.
 - **Java 434**: caught by semgrep's `tainted-file-path`, because the defect
-  passes `getOriginalFilename()` into a path. Nothing checks the missing type
-  allowlist itself.
+  passes `getOriginalFilename()` into a path, and natively since round 2 by
+  `java.upload-client-filename` (see below), which also accepts an extension
+  check as the fix.
 - **Java 94**: semgrep `spel-injection` reports the handler method (its
   `@PostMapping` line), not the `parseExpression` call, so the marker sits on
   the line semgrep reports.
@@ -151,6 +152,38 @@ semgrep's bundled `generic.secrets.gitleaks.*` rules did report two of them.
   cookie is. `exception-message-to-client` is medium confidence and counts
   only a broad or library exception (`Exception`, `SQLException`, ...): the
   message of a validation or domain exception is usually meant for the caller.
+- **Java 79, 918, 77, 190, 434 (round 2)**: native rules in the same-method
+  form, a value bound from the request (`@RequestParam`, `@PathVariable`,
+  `@RequestHeader`, JAX-RS `@QueryParam`/`@PathParam`/`@FormParam`, or
+  `String x = request.getParameter(...)`) reaching the sink in the method
+  that binds it. `java.xss-unescaped-html` (high/medium): the bound string
+  spliced beside an HTML literal in a `return`, `ResponseEntity...body(...)`
+  or `ok(...)`, or a servlet that reads the request and prints a
+  non-constant into a `text/html` page through `getWriter()`. A file that
+  applies any HTML encoder (`HtmlUtils.htmlEscape`, `Encode.forHtml`,
+  `StringEscapeUtils.escapeHtml4`, ESAPI `encodeForHTML`, tomcat's
+  `HTMLFilter.filter`) is not reported: OWASP Benchmark escapes inside a
+  helper the value passes through, which a method-scoped check cannot follow.
+  `java.ssrf-request-url` (high/medium): the bound name, or `"http://" +` it,
+  as the URL of `new URL`/`URI.create`/`new HttpGet`/`Jsoup.connect`, a
+  RestTemplate method, or a WebClient/OkHttp `.uri`/`.url`, in a method that
+  makes a request; a fixed host with the value in the path, a host read back
+  (`getHost()`) or an allowlist is not reported. `java.argument-injection`
+  (high/medium, CWE-88/77): the bound name as an element of
+  `new ProcessBuilder`, `List.of`, `exec(new String[]{...})` or `command(...)`
+  for git, curl, ssh, rsync, tar and other option-parsing programs, with no
+  `"--"` before it. CWE-190 is `java.parsed-number-narrowed` (`(byte)`/`(short)`
+  of `Integer.parseInt`, `(int)` of `Long.parseLong`; a radix argument, a
+  `Number.intValue()` body and a byte-array fill are skipped) and
+  `java.parsed-count-overflow` (a count parsed in the method multiplied into
+  `new T[...]` or `ByteBuffer.allocate` with no comparison, `Math.min` or
+  `multiplyExact` of it); the planted `int * int` money total was replaced by
+  these forms, because a rule for every multiplication would be noise.
+  CWE-434 adds `java.upload-client-filename` (high/medium):
+  `getOriginalFilename()`/`getSubmittedFileName()`, or a local holding it, in
+  `transferTo`, `Files.copy/write`, `new File`, `Paths.get` or `resolve` in a
+  method that writes, with no `FilenameUtils.getName`, `getFileName()` or
+  extension check; semgrep's `tainted-file-path` still reports it too.
 - **TypeScript 352**: Express has no CSRF protection to switch off, so the
   defect is an *absent* middleware. semgrep's `express-check-csurf-middleware-usage`
   did not fire on the planted app.
@@ -201,13 +234,13 @@ not part of this change.
 | 2 | CWE-798 literal signing key or DB password passed to a known API (`Algorithm.HMAC256("…")`, `[]byte("…")` signing key, `DriverManager.getConnection(…, "pw")`) | native in Java and Go, and the Python and Ruby JWT-key form, since round 1 | Placeholder secrets are the classic AI output. The secrets probe misses them because the literal sits in an argument, not a credential-named assignment. |
 | 3 | CWE-352 CSRF switched off (`csrf.disable()`, `csrf(c -> c.disable())`, `skip_before_action :verify_authenticity_token`) | native in Java, Python and Ruby since round 1; TypeScript still a gap | The standard AI "fix" for a 403 on POST. It is an exact call pattern, and semgrep's Ruby rule cannot tell it from a correct controller. |
 | 4 | CWE-200 error detail returned to the client (`err.stack`, `traceback.format_exc()`, `e.backtrace`, `printStackTrace` into the body, `http.Error(w, err.Error(), 500)`) | native in all five languages since round 1 | Very common in generated handlers. A response sink containing the error in the same statement is practical. The Go `err.Error()` form needs a medium-confidence level. |
-| 5 | CWE-434 upload stored under the client's filename (`f.filename`, `file.originalname`, `header.Filename`, `getOriginalFilename()`, `original_filename` in a save or write path) | all five (Java via path rule only) | The names are framework-specific and stable. A same-function absence of an extension or MIME allowlist could raise the confidence. |
-| 6 | CWE-918 request value passed straight to an HTTP client (`fetch(req.query…)`, `client.Get(r.URL.Query()…)`, `URI.create(param)`, `Faraday#get(params…)`) | TS, Go, Java, Ruby | Link previews, webhooks and image proxies are common asks. The same-statement or same-function source-to-sink form is the existing `sql-injection` rules' shape. |
+| 5 | CWE-434 upload stored under the client's filename (`f.filename`, `file.originalname`, `header.Filename`, `getOriginalFilename()`, `original_filename` in a save or write path) | Python, TS, Go, Ruby; native in Java since round 2 | The names are framework-specific and stable. A same-function absence of an extension or MIME allowlist could raise the confidence. |
+| 6 | CWE-918 request value passed straight to an HTTP client (`fetch(req.query…)`, `client.Get(r.URL.Query()…)`, `URI.create(param)`, `Faraday#get(params…)`) | TS, Go, Ruby; native in Java since round 2 | Link previews, webhooks and image proxies are common asks. The same-statement or same-function source-to-sink form is the existing `sql-injection` rules' shape. |
 | 7 | CWE-22 request value joined into a path (`filepath.Join(dir, r.URL.Query()…)`, `File.join(…, params[…])`) with no `IsLocal`/`basename`/prefix check in scope | Go, Ruby | Common. The "unless_in_scope" guard condition fits the pack schema. |
-| 8 | CWE-77 argument injection: `git`/`curl`/`ssh` invoked with a non-literal argument and no `--` | all five | Less common, but none of the analyzers sees it. The tool names and the missing `--` are easy to check, though the defect is narrower. |
-| 9 | CWE-79 HTML string built from a `@RequestParam` in a `produces = TEXT_HTML` handler | Java | Less common, since Java assistants usually use templates. Practical, using the TS `html-from-request` shape. |
-| 10 | CWE-190 narrowing conversion of a parsed integer (`int32(n)` after `strconv.Atoi`) | Go | A gosec-style rule (G109/G115) is practical. The Java `int * int` overflow is not: every multiplication would be a candidate. |
+| 8 | CWE-77 argument injection: `git`/`curl`/`ssh` invoked with a non-literal argument and no `--` | Python, TS, Go, Ruby; native in Java since round 2 | Less common, but none of the analyzers sees it. The tool names and the missing `--` are easy to check, though the defect is narrower. |
+| 9 | CWE-79 HTML string built from a `@RequestParam` in a `produces = TEXT_HTML` handler | native in Java since round 2 | Less common, since Java assistants usually use templates. Practical, using the TS `html-from-request` shape. |
+| 10 | CWE-190 narrowing conversion of a parsed integer (`int32(n)` after `strconv.Atoi`) | Go; native in Java since round 2 (`(byte) Integer.parseInt`, a parsed count in an allocation) | A gosec-style rule (G109/G115) is practical. The Java `int * int` overflow is not: every multiplication would be a candidate. |
 
 Not ranked: TypeScript 352 (absent middleware, low practicality per file),
-Java 190 and Python 77 (noise). The out-of-reach rows above are not ranked
+Python 77 (noise). The out-of-reach rows above are not ranked
 either: no single-file rule can assess them.
