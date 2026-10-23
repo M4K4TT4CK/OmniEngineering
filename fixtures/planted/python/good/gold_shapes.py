@@ -2,8 +2,13 @@
 import hashlib
 import os
 import secrets
+from typing import TYPE_CHECKING
 
 from flask import session
+
+if TYPE_CHECKING:
+    # Read by the type checker only, so not a runtime requirement (round 2).
+    from typing_extensions import Self
 
 MAX_ROWS = 500
 
@@ -13,6 +18,14 @@ def purge_owner(cursor, connection, table: str, owner: str) -> None:
     qn = connection.ops.quote_name
     cursor.execute("DELETE FROM %s WHERE owner = %%s" % qn(table), (owner,))
     cursor.execute("SELECT %s FROM %s LIMIT %s" % (qn("id"), qn(table), MAX_ROWS))
+
+
+def purge_table(cursor, connection, table: str, owner: str, mine: bool) -> None:
+    # Every assignment to the spliced local is a quoted name (round 2).
+    target = connection.ops.quote_name(table)
+    if not mine:
+        target = connection.ops.quote_name(table + "_archive")
+    cursor.execute("DELETE FROM %s" % target)
 
 
 def remember_me(response):

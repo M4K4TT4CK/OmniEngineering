@@ -190,7 +190,11 @@ restricts a rule to paths matching an fnmatch glob, or any glob of a list
 (`*` also crosses `/`): the JSX rules read `*.[jt]sx`, the RSpec rules
 `*_spec.rb`, and `ruby.csrf-protection-off-in-production` reads
 `config/environments/production.rb` at the root or under any directory,
-because the same line is Rails' generated default in `test.rb`. The schema is documented at the top of
+because the same line is Rails' generated default in `test.rb`. A Python rule
+may also give `safe_splice_calls` and `safe_splice_names` (regexes): a hit that
+builds a string is skipped when every value spliced into it is a literal, a
+call or name those match, or a local whose every assignment in the enclosing
+function is (`python.sql-injection`; one function, no data flow). The schema is documented at the top of
 `src/arbiter/lang_rules.py`, and a pack that breaks it fails at import.
 Rule ids are `arbiter/<pack>.<id>`; each carries its CWE.
 

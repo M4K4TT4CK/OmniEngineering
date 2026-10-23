@@ -294,6 +294,17 @@ rules:
       (binary_operator left: (string) @s operator: "%"
         (#match? @s "%%s") (#not-match? @s "'%s'")) @x
       ((string (interpolation)) @x (#match? @x "%%s") (#not-match? @x "'%s'|'\\{"))
+    # Round 2 (ARB-065): the same atoms, followed one step into the enclosing
+    # function. A spliced local is safe when every assignment to it there is
+    # (`table = connection.ops.quote_name(self._table)` before `"DELETE FROM
+    # %s" % table`, Django's cache backend; `col_name =
+    # preparer.quote_identifier(...)`, celery), as is `str()` of a SQL
+    # fragment, a `", ".join(...)` of quoted names, a conditional between
+    # literals, psycopg's `sql.Identifier`/`sql.Literal`, and SQLAlchemy's
+    # `type.compile(dialect)`. A parameter or loop variable is never safe:
+    # nothing here follows a value across a call.
+    safe_splice_calls: "(?:\\w+\\.)*(?:quote_?\\w*|qn2?|escape_\\w+|format_table|Identifier|Literal|Placeholder)|(?:\\w+\\.)+compile"
+    safe_splice_names: "(?:\\w+\\.)*[A-Z][A-Z0-9_]+|\\w*sql"
     description: >-
       The value is spliced into the statement text, so whoever controls it
       controls the query. This is the shape every SQL-injection exploit

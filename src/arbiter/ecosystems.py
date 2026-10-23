@@ -27,6 +27,10 @@ MANIFESTS = {"go.mod", "go.sum", "pom.xml", "build.gradle", "build.gradle.kts",
 # A gem's runtime dependencies live in its .gemspec, which the Gemfile pulls in
 # with a bare `gemspec` line: Rails declares concurrent-ruby only there.
 GEMSPEC_SUFFIX = ".gemspec"
+# A Gradle subproject's build file may be named for the module rather than
+# `build.gradle`: spring-security's `spring-security-oauth2-client.gradle`
+# declares spring-r2dbc, and was never read (round 2, ARB-065).
+GRADLE_SUFFIXES = (".gradle", ".gradle.kts")
 
 ECOSYSTEM_OF = {"go": "go", "java": "maven", "ruby": "rubygems"}
 MANIFESTS_OF = {"go": {"go.mod"}, "java": {"pom.xml", "build.gradle", "build.gradle.kts", "libs.versions.toml"},
@@ -108,6 +112,11 @@ ARTIFACT = "artifact:"   # marks an artifactId in the declared set
 def java_declared(manifest_text: str, path: str = "") -> set[str]:
     """groupIds, Gradle plugin ids and `artifact:`-prefixed artifactIds."""
     groups = set(re.findall(r"<groupId>\s*([\w.\-]+)\s*</groupId>", manifest_text))
+    # A groupId given as a property (`<groupId>${conscrypt.groupId}</groupId>`
+    # with `<conscrypt.groupId>org.conscrypt</conscrypt.groupId>` in the
+    # parent's <properties>, netty): the property's value is the group.
+    groups |= set(re.findall(r"<[\w.\-]+\.groupId>\s*([\w.\-]+)\s*</[\w.\-]+\.groupId>",
+                             manifest_text))
     coords = re.findall(r"""['"]([\w.\-]+):([\w.\-]+)(?::[\w.\-]+)?['"]""", manifest_text)
     groups |= {g for g, _ in coords}
     groups |= set(re.findall(r"group\s*[:=]\s*['\"]([\w.\-]+)['\"]", manifest_text))
@@ -145,7 +154,20 @@ _JAVA_PACKAGE_GROUPS = {
     "okhttp3": ("com.squareup.okhttp3",),
     "dagger": ("com.google.dagger",),
     "org.openjdk.jmh": ("org.openjdk.jmh",),
-    "net.jpountz": ("org.lz4",),
+    "net.jpountz": ("org.lz4", "at.yawk.lz4"),
+    # Round 2 gold (ARB-065): packages named for neither their groupId nor
+    # their artifactId. netty's lz4 fork `at.yawk.lz4:lz4-java`, GraalVM's
+    # `org.graalvm.nativeimage:svm`, RXTX, Selenium (keycloak's
+    # test-framework, 44 of its 158), uap-java.
+    "com.oracle.svm": ("org.graalvm.nativeimage", "org.graalvm.sdk"),
+    "gnu.io": ("org.rxtx",),
+    "org.openqa.selenium": ("org.seleniumhq.selenium",),
+    "ua_parser": ("com.github.ua-parser",),
+    # spring-security: HtmlUnit 2 and Saxon under their SourceForge groups,
+    # and the Netscape LDAP SDK published as `ldapsdk:ldapsdk`.
+    "com.gargoylesoftware.htmlunit": ("net.sourceforge.htmlunit",),
+    "net.sf.saxon": ("net.sourceforge.saxon", "net.sf.saxon"),
+    "netscape.ldap": ("ldapsdk",),
 }
 
 
@@ -166,15 +188,42 @@ _JAVA_PACKAGE_GROUPS = {
 # A transitive dependency used directly is still a manifest gap in principle;
 # these are the ones whose provider guarantees them, so reporting them is noise.
 _JAVA_TRANSITIVE = {
-    "org.jspecify": ("org.springframework", "io.spring.nullability", "org.springframework.boot"),
+    "org.jspecify": ("org.springframework", "io.spring.nullability", "org.springframework.boot",
+                     "com.google.guava"),
     "org.aopalliance": ("org.springframework",),
     "org.reactivestreams": ("io.projectreactor", "io.reactivex.rxjava2", "io.reactivex.rxjava3",
                             "org.reactivestreams"),
-    "io.netty": ("io.projectreactor.netty", "io.grpc", "io.vertx", "io.quarkus"),
+    "io.netty": ("io.projectreactor.netty", "io.grpc", "io.vertx", "io.quarkus", "io.rsocket"),
     "net.minidev": ("com.nimbusds",),
     "net.shibboleth": ("org.opensaml",),
     "org.jose4j": ("org.wildfly.security", "org.bitbucket.b_c"),
     "org.opentest4j": ("org.junit",),
+    # Round 2 gold (ARB-065), keycloak and spring-security: Quarkus ArC and
+    # RESTEasy bring the CDI APIs (jakarta.inject, jakarta.annotation);
+    # titanium-json-ld and Quarkus bring jakarta.json; the Quarkus Operator
+    # SDK extension is built on the Java Operator SDK; Infinispan core
+    # depends on JGroups and RxJava 3; quarkus-agroal on Agroal; Undertow on
+    # XNIO; Guava 33.4+ on JSpecify; Selenium's HtmlUnit driver on HtmlUnit;
+    # rsocket-core on Netty buffers.
+    "jakarta.inject": ("io.quarkus", "jakarta.enterprise", "org.jboss.resteasy", "io.quarkiverse"),
+    "jakarta.annotation": ("io.quarkus", "jakarta.enterprise", "org.jboss.resteasy",
+                           "io.quarkiverse"),
+    "jakarta.json": ("com.apicatalog", "io.quarkus", "org.eclipse.parsson", "org.glassfish"),
+    "io.javaoperatorsdk": ("io.quarkiverse.operatorsdk",),
+    "org.jgroups": ("org.infinispan",),
+    "io.reactivex.rxjava3": ("org.infinispan",),
+    "io.agroal": ("io.quarkus",),
+    "org.xnio": ("io.undertow", "org.jboss.resteasy"),
+    "org.htmlunit": ("org.seleniumhq.selenium",),
+    # httpclient's jakarta-rest-client: httpcore5-jackson3 depends on Jackson 3
+    # (`tools.jackson.databind`); spring-r2dbc on the R2DBC SPI.
+    "tools.jackson": (ARTIFACT + "httpcore5-jackson3",),
+    "jakarta.ws.rs": ("org.apache.cxf", "org.jboss.resteasy", "org.glassfish.jersey",
+                      "io.quarkus"),
+    "io.r2dbc": (ARTIFACT + "spring-r2dbc",),
+    # Eclipse Angus Mail implements, and depends on, the Jakarta Mail API.
+    "jakarta.mail": ("org.eclipse.angus",),
+    "jakarta.activation": ("org.eclipse.angus",),
 }
 # First package segments that are a domain, not a name: for these the second
 # segment is the one an artifactId might match (`org.jose4j`).
@@ -200,7 +249,8 @@ def java_resolves(name: str, declared: set[str], local: set[str]) -> bool:
     if name.startswith(_JDK):
         return True
     for pkg, groups in _JAVA_PACKAGE_GROUPS.items():
-        if (name == pkg or name.startswith(pkg + ".")) and any(g in declared for g in groups):
+        if (name == pkg or name.startswith(pkg + ".")) and any(
+                g in declared or any(d.startswith(g + ".") for d in declared) for g in groups):
             return True
     for pkg, groups in _JAVA_TRANSITIVE.items():
         if name.startswith(pkg + ".") and any(
@@ -254,6 +304,10 @@ def ruby_imports(text: str) -> list[str]:
     return [m.group(1) for m in _RUBY_REQUIRE.finditer(text)]
 
 
+def ruby_import_sites(text: str) -> list[tuple[str, int]]:
+    return [(m.group(1), m.start(1)) for m in _RUBY_REQUIRE.finditer(text)]
+
+
 def ruby_declared(manifest_text: str) -> set[str]:
     gems = set(re.findall(r"""^\s*gem\s+['"]([\w.\-]+)['"]""", manifest_text, re.MULTILINE))
     gems |= set(re.findall(r"^\s{4}([\w.\-]+) \(", manifest_text, re.MULTILINE))  # Gemfile.lock specs
@@ -262,12 +316,40 @@ def ruby_declared(manifest_text: str) -> set[str]:
     return {g.lower() for g in gems}
 
 
+# Rails' component gems all arrive with `gem "rails"` (rack's test.rb pulls it
+# in inline and requires "action_controller/railtie").
+_RAILS_COMPONENTS = {"activesupport", "activerecord", "actionpack", "actionview",
+                     "activemodel", "activejob", "actionmailer", "actioncable",
+                     "activestorage", "railties"}
+
+
+def ruby_is_gemfile(name: str) -> bool:
+    """Gemfile, gems.rb, and a named Bundler gemfile (`release_gems.rb`, rubygems'
+    tool/bundler, used with BUNDLE_GEMFILE) and their lockfiles."""
+    return name in MANIFESTS_OF["ruby"] or name.endswith(("_gems.rb", "_gems.rb.lock"))
+
+
+# A script that declares its own gems with bundler/inline (`gemfile do gem
+# "rails" end`) declares them for itself.
+_RUBY_INLINE = re.compile(r"""^\s*require\s*\(?\s*['"]bundler/inline['"]""", re.M)
+# `begin; require "x"; rescue LoadError` is an optional require.
+_RUBY_RESCUED = re.compile(r"(?ms)^[ \t]*begin\b(.*?)^[ \t]*rescue\s+(?:::)?LoadError\b")
+
+
+def ruby_inline_declared(text: str) -> set[str]:
+    return ruby_declared(text) if _RUBY_INLINE.search(text) else set()
+
+
+def ruby_optional_spans(text: str) -> list[tuple[int, int]]:
+    return [(m.start(1), m.end(1)) for m in _RUBY_RESCUED.finditer(text)]
+
+
 def ruby_resolves(path: str, declared: set[str], local: set[str]) -> bool:
     head = path.split("/")[0]
     if head in RUBY_STDLIB or path in local or head in local:
         return True
     gem = _RUBY_REQUIRE_GEMS.get(path) or _RUBY_REQUIRE_GEMS.get(head)
-    if gem and gem in declared:
+    if gem and (gem in declared or (gem in _RAILS_COMPONENTS and "rails" in declared)):
         return True
     # `require "rack/test"` comes from gem rack-test; `require "rack"` from rack.
     for name in {head.lower(), path.lower().replace("/", "-"), head.lower().replace("_", "-")}:

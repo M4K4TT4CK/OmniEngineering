@@ -283,10 +283,12 @@ def _in_comment(text: str, pos: int) -> bool:
     return before.startswith(("*", "/*", "//", "#")) or "{@code" in before or "{@link" in before
 
 
+# `^[ \t]*`, not `^\s*`: under re.M `\s` also takes the blank lines above a
+# test, which reported it on the first of them (round 2, harness agent).
 _TEST_DEF = re.compile(
-    r"^\s*(?:async\s+)?def\s+(test_[A-Za-z0-9_]*)\s*\([^)]*\)\s*:"
-    r"|^\s*(?:it|test)\s*\(\s*[\"'`]([^\"'`]{1,80})[\"'`]\s*,\s*(?:async\s*)?\(?\s*\)?\s*=>\s*\{"
-    r"|^\s*func\s+(Test[A-Za-z0-9_]*)\s*\(",
+    r"^[ \t]*(?:async\s+)?def\s+(test_[A-Za-z0-9_]*)\s*\([^)]*\)\s*:"
+    r"|^[ \t]*(?:it|test)\s*\(\s*[\"'`]([^\"'`]{1,80})[\"'`]\s*,\s*(?:async\s*)?\(?\s*\)?\s*=>\s*\{"
+    r"|^[ \t]*func\s+(Test[A-Za-z0-9_]*)\s*\(",
     re.M,
 )
 
@@ -305,6 +307,20 @@ _ASSERTION = re.compile(
     r"\bassert\b|\bexpect\s*\(|\.should\b|\bassert[A-Z]\w*\s*\("
     r"|\bt\.(?:Error|Fatal|Fail)\w*\s*\(|\brequire\.\w+\s*\(|\bassert\.\w+\s*\("
     r"|\bpytest\.raises\b|\bwith\s+self\.assertRaises\b|\bthrows?\b"
+    # Round 2 (ARB-065), the forms `java.test-without-assertion` and
+    # `typescript.test-without-assertion` already accept: pytest's other
+    # context managers that fail when nothing happens (`pytest.warns`,
+    # `deprecated_call`), any `with *raises*(...)` helper (cryptography's
+    # `raises_unsupported_algorithm`), an explicit `fail`, node:assert
+    # functions imported by name and called bare (`strictEqual(...)`: 98 of
+    # undici's 100 findings), `ensure*` helpers, and a Promise `reject` that
+    # fails the test.
+    r"|\bpytest\.(?:warns|deprecated_call|fail)\b|\bwith\s+[\w.]*raises\w*\s*\("
+    r"|\bself\.fail\w*\s*\(|\breject\b"
+    r"|(?<![.\w])(?:strictEqual|deepStrictEqual|deepEqual|notStrictEqual|notDeepStrictEqual"
+    r"|notDeepEqual|notEqual|equal|ok|match|doesNotMatch|ifError|rejects|doesNotReject"
+    r"|doesNotThrow|fail)\s*\("
+    r"|\bensure\w*\s*\("
     # mock expectations: unmet ones fail the test at teardown
     r"|\.EXPECT\s*\(|\.AssertExpectations\s*\(|\.assert_called\w*\s*\("
     r"|\.Verify\s*\(|verify\s*\(|\.toHaveBeenCalled"
@@ -330,10 +346,291 @@ _ASSERTION = re.compile(
 # first-position pattern above reported 32 of its tests as asserting nothing.
 # Kept to Go, where `t` is the conventional *testing.T name; in Python or JS
 # a variable called `t` passed to a call says nothing about assertions.
-_GO_T_HELPER = re.compile(r"\b\w+\((?:[^()\n]*,)?\s*t\s*[,)]")
+# A struct literal that keeps the handle (`writer{t: t}`, coredns) hands it on
+# the same way.
+_GO_T_HELPER = re.compile(r"\b\w+\((?:[^()\n]*,)?\s*t\s*[,)]|\bt:\s*t\b")
 
 # Go's test harness entry point. It is not a test and has nothing to assert.
 _NOT_REALLY_A_TEST = re.compile(r"^(TestMain|TestAccPreCheck|TestHelperProcess)$")
+
+# The test says that not raising is the check, which is what the remediation
+# asks for: in its name ("should not crash", "no exceptions on record",
+# "...without error", otel-js; `test_x_does_not_raise`), or in a comment in
+# its body ("# Should not raise exception", celery; "// Should not panic",
+# coredns). The same exclusion `java.test-without-assertion` and
+# `typescript.test-without-assertion` make.
+_NO_RAISE_WORDS = re.compile(
+    r"(?i)\b(?:not|never|no|without|doesn't|don't|won't|doesnt|dont|n't)\s+"
+    r"(?:throw|crash|hang|error|exception|fail|panic|raise|block)(?:s|es|ing)?\b")
+_NO_RAISE_COMMENT = re.compile(
+    r"(?im)(?:#|//)[^\n]*?(?:\b(?:should|must|does|do|will|would|can|is|are)\s*(?:n't|\s+not|\s+never)\s+"
+    r"(?:raise|throw|panic|crash|fail|block|hang|error|blow up)"
+    r"|\b(?:without|no)\s+(?:raising|throwing|panicking|crashing|panics?|exceptions?)\b"
+    r"|\bpasses if no\b)")
+
+
+def _words(name: str) -> str:
+    return re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", name).replace("_", " ")
+
+
+# Which Python functions a runner collects: pytest's default `test_*.py` /
+# `*_test.py`, and unittest's and Django's `test*.py`. A `test_*` function in
+# any other module is not a test (Django's `django/test/runner.py` defines
+# `test_match_tags(test, tags, exclude_tags)`), and neither is one nested in a
+# function (Django's `@skipUnlessDBFeature(...) def test_func(): raise
+# ValueError` fixtures inside test_utils, celery's local `test_function`).
+_PY_TEST_MODULE = re.compile(r"(?:^test[^/]*|_tests?)\.py$")
+# A pytest-benchmark test (`def test_aesgcm_encrypt(benchmark)`, cryptography's
+# tests/bench) measures and has nothing to assert, as the Java rule's
+# performance-harness classes.
+_HARNESS_PARAMS = {"benchmark"}
+# Test methods (`def test_x(self)`) have never been judged: the delegated-
+# helper pattern `\w+\(\s*self\s*[,)]` matched the method's own `def` line,
+# so every one of them read as asserting. Round 2 found this while moving
+# Python to `ast`, and keeps the scope as it was, explicitly, until the user
+# decides; judging them adds 357 findings on gold (Django 226, celery 105,
+# urllib3 16, cryptography 10); of 15 read, 14 only call the code and one is
+# an empty override switching an inherited test off (CHANGELOG 2026-10-22,
+# round 2).
+JUDGE_PYTHON_METHODS = False
+_PY_SKIP_CALL = re.compile(
+    r"^\s*(?:pytest\.skip|self\.skipTest|raise\s+(?:unittest\.)?SkipTest)\b")
+# Unconditional skip calls inside a JS or Go test body.
+_BODY_SKIP_CALL = re.compile(
+    r"\b(?:this|t|ctx|context)\.skip\s*\(|\bt\.Skip(?:Now|f)?\s*\(")
+_JS_SKIPPED_BLOCK = re.compile(r"\bdescribe\.skip\s*\(|\bxdescribe\s*\(")
+_JS_HELPER_DEF = re.compile(
+    r"^[ \t]*(?:export\s+)?(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)\s*\("
+    r"|^[ \t]*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?"
+    r"(?:function\b[^{]*|\([^)]*\)\s*=>\s*|[A-Za-z_$][\w$]*\s*=>\s*)\{",
+    re.M)
+_GO_HELPER_DEF = re.compile(r"^func\s+(?:\([^)]*\)\s*)?([A-Za-z_]\w*)\s*\(", re.M)
+
+
+def _brace_end(text: str, open_pos: int, limit: int = 200_000) -> int:
+    """Index just past the brace that closes the one at `open_pos` (JS, Go).
+
+    Strings, template literals, runes and comments are skipped; a body that
+    does not close (malformed, or a brace inside a regex literal) ends at -1.
+    """
+    depth = 0
+    i, n = open_pos, min(len(text), open_pos + limit)
+    while i < n:
+        c = text[i]
+        if c in "\"'`":
+            j = i + 1
+            while j < n and text[j] != c:
+                if text[j] == "\\":
+                    j += 1
+                elif text[j] == "\n" and c != "`":
+                    break
+                j += 1
+            i = j + 1
+            continue
+        if c == "/" and i + 1 < n and text[i + 1] in "/*":
+            j = text.find("\n" if text[i + 1] == "/" else "*/", i + 2)
+            i = n if j < 0 else j + (1 if text[i + 1] == "/" else 2)
+            continue
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return i + 1
+        i += 1
+    return -1
+
+
+def _calls_any(body: str, names: set[str], own: str = "") -> bool:
+    return any(n != own and re.search(rf"(?<![\w$]){re.escape(n)}\s*\(|@{re.escape(n)}\b", body)
+               for n in names)
+
+
+def _asserting_helpers(defs: list[tuple[str, str]]) -> set[str]:
+    """Names of this file's functions that assert, directly or through another.
+
+    `testHeaderValue(...)` (axios), `testFileByMimeType` and `equalTest`
+    (nest), `@test_mutation()` (a Django decorator that wraps its test in
+    `assertRaisesMessage`): a test calling a helper defined in the same file
+    that asserts has delegated its assertion, as Go tests handing `t` on do.
+    """
+    found = {name for name, body in defs if _ASSERTION.search(body)}
+    for _ in range(2):
+        more = {name for name, body in defs if name not in found and _calls_any(body, found, name)}
+        if not more:
+            break
+        found |= more
+    return found
+
+
+def _judged(name: str, body: str, helpers: set[str]) -> bool:
+    """True when a test body has nothing that could fail it."""
+    if _NOT_REALLY_A_TEST.match(name) or _NO_RAISE_WORDS.search(_words(name)):
+        return False
+    if _ASSERTION.search(body) or _NO_RAISE_COMMENT.search(body):
+        return False
+    return not _calls_any(body, helpers, name)
+
+
+def _unconditional_body_skip(body: str) -> bool:
+    for m in _BODY_SKIP_CALL.finditer(body):
+        if not _in_comment(body, m.start()) and not _conditional_call_skip(body, m.start()):
+            return True
+    return False
+
+
+# A fixture or helper that happens to be named `test_*`: a `@pytest.fixture`
+# (aiohttp's `test_client`), or a function that returns or yields a value,
+# which pytest does not run as a test (Django's `test_processor(request)`
+# context processor in test_response.py).
+_PY_FIXTURE = re.compile(r"@(?:pytest\.)?fixture\b")
+
+
+def _returns_value(func) -> bool:
+    import ast
+    stack = list(func.body)
+    while stack:
+        node = stack.pop()
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)):
+            continue
+        if isinstance(node, ast.Return) and node.value is not None \
+                and not (isinstance(node.value, ast.Constant) and node.value.value is None):
+            return True
+        if isinstance(node, (ast.Yield, ast.YieldFrom)):
+            return True
+        stack.extend(ast.iter_child_nodes(node))
+    return False
+
+
+def _python_tests(f, text: str):
+    """(line, name) of each collected Python test that asserts nothing.
+
+    Read with `ast`, so a test's body is its own: the old span ran to the next
+    `def test_`, which folded in the NEXT test's decorators, and an
+    unconditional `@pytest.mark.skip` there hid this test (the conditional-skip
+    blind spot, round 2). A test is not judged when it never runs: an
+    unconditional skip decorator on it or its class (reported by
+    `permanently-skipped-test`, or an inherited test switched off), or an
+    unconditional `pytest.skip()` / `self.skipTest()` at the top of its body.
+    `skipif`, `xfail(<condition>)` and a skip under an `if` leave it running
+    somewhere, so its body is judged.
+    """
+    import ast
+    tree = ast.parse(text)
+    lines = text.split("\n")
+
+    def src(node) -> str:
+        return "\n".join(lines[node.lineno - 1: node.end_lineno])
+
+    def unconditional(decorators) -> bool:
+        return any(_SKIPPED_TEST.match("@" + (ast.get_source_segment(text, d) or ""))
+                   for d in decorators)
+
+    funcs = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+    helpers = _asserting_helpers([(n.name, src(n)) for n in funcs])
+    found: list[tuple[int, str]] = []
+
+    def visit(body, skipped: bool) -> None:
+        for node in body:
+            if isinstance(node, ast.ClassDef):
+                visit(node.body, skipped or unconditional(node.decorator_list))
+            elif isinstance(node, (ast.If, ast.Try, ast.With)):
+                for part in (node.body, getattr(node, "orelse", []),
+                             getattr(node, "finalbody", []),
+                             *[h.body for h in getattr(node, "handlers", [])]):
+                    visit(part, skipped)
+            elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) \
+                    and node.name.startswith("test_"):
+                if skipped or unconditional(node.decorator_list):
+                    continue
+                if node.end_lineno == node.lineno:
+                    continue    # `def test_x(self): pass`, a one-line body
+                args = node.args.posonlyargs + node.args.args + node.args.kwonlyargs
+                if _HARNESS_PARAMS & {a.arg for a in args}:
+                    continue
+                if not JUDGE_PYTHON_METHODS and args and args[0].arg == "self":
+                    continue
+
+                if any(_PY_SKIP_CALL.match(ast.get_source_segment(text, s) or "")
+                       for s in node.body):
+                    continue
+                decorated = " ".join("@" + (ast.get_source_segment(text, d) or "")
+                                     for d in node.decorator_list)
+                if _PY_FIXTURE.search(decorated) or _returns_value(node):
+                    continue
+                # From the line after `def`, so a comment above the first
+                # statement ("# should not raise exception") is read.
+                body = "\n".join(lines[node.lineno: node.end_lineno])
+                if _judged(node.name, decorated + "\n" + body, helpers):
+                    found.append((node.lineno, node.name))
+
+    visit(tree.body, False)
+    return found
+
+
+def _brace_tests(f, text: str):
+    """(line, name) of each JS/TS or Go test that asserts nothing.
+
+    The body is the test's own braces. The old span to the next test folded
+    in the next test's `it.skip(` or `t.Skip()` and hid this one. A test
+    with an unconditional skip call in its body, or inside a
+    `describe.skip`/`xdescribe` block, never runs and is not judged; a skip
+    under a branch (`if testing.Short() { t.Skip() }`) is, because the test
+    runs everywhere else.
+    """
+    go = f.language == "go"
+    defs = []
+    for m in (_GO_HELPER_DEF if go else _JS_HELPER_DEF).finditer(text):
+        name = next(g for g in m.groups() if g)
+        brace = text.find("{", m.end() - 1)
+        end = _brace_end(text, brace) if brace >= 0 else -1
+        if end > 0:
+            defs.append((name, text[brace:end]))
+    helpers = _asserting_helpers(defs)
+    skipped_blocks = []
+    if not go:
+        for m in _JS_SKIPPED_BLOCK.finditer(text):
+            if _in_comment(text, m.start()) or _conditional_call_skip(text, m.start()):
+                continue
+            brace = text.find("{", m.end())
+            end = _brace_end(text, brace) if brace >= 0 else -1
+            if end > 0:
+                skipped_blocks.append((brace, end))
+    found: list[tuple[int, str]] = []
+    for m in _TEST_DEF.finditer(text):
+        name = m.group(2) or m.group(3)
+        if not name or bool(m.group(3)) != go:
+            continue
+        brace = text.find("{", m.end() - 1)
+        end = _brace_end(text, brace) if brace >= 0 else -1
+        if end < 0:
+            continue
+        body = text[brace:end]
+        if "\n" not in body.strip():
+            continue
+        if any(a <= m.start() < b for a, b in skipped_blocks):
+            continue
+        if _unconditional_body_skip(body):
+            continue
+        if go and _GO_T_HELPER.search(body):
+            continue
+        if _judged(name, body, helpers):
+            found.append((_line_of(text, m.start()), name))
+    return found
+
+
+def _vacuous_tests(f, text: str) -> list[tuple[int, str]]:
+    """Tests whose body contains nothing that could fail them."""
+    if f.language == "python":
+        if not _PY_TEST_MODULE.search(f.path.rsplit("/", 1)[-1]):
+            return []
+        try:
+            return _python_tests(f, text)
+        except (SyntaxError, ValueError, RecursionError):
+            return []
+    if f.language in ("go", "javascript", "typescript"):
+        return _brace_tests(f, text)
+    return []
 
 
 def _is_test_file(f) -> bool:
@@ -577,27 +874,7 @@ def _untestable_tests(ctx: ProbeContext, repo_id: str) -> list[Finding]:
                 tags=["assurance", "test"],
             ))
 
-        # A test body with no assertion of any kind cannot fail except by
-        # raising. Bodies are taken as the span to the next test definition,
-        # which is coarse and deliberately biased toward NOT reporting: a
-        # helper between two tests gets folded into the first one's body and
-        # its assertions count.
-        defs = [(m.start(), (m.group(1) or m.group(2) or m.group(3) or "?"))
-                for m in _TEST_DEF.finditer(text)]
-        for i, (pos, name) in enumerate(defs):
-            end = defs[i + 1][0] if i + 1 < len(defs) else len(text)
-            body = text[pos:end]
-            if len(body.strip().split("\n")) < 2:
-                continue
-            if _NOT_REALLY_A_TEST.match(name):
-                continue
-            if _ASSERTION.search(body):
-                continue
-            if f.language == "go" and _GO_T_HELPER.search(body):
-                continue
-            if _SKIPPED_TEST.search(body):
-                continue  # already reported above
-            vacuous.append((f.path, _line_of(text, pos), name))
+        vacuous.extend((f.path, line, name) for line, name in _vacuous_tests(f, text))
 
     for path, line, name in vacuous[:100]:
         out.append(Finding(
