@@ -7,7 +7,7 @@ import com.auth0.jwt.interfaces.DecodedJWT;
 public class Cwe287Jwt {
     public String currentUser(String authorization) {
         String token = authorization.replaceFirst("^Bearer ", "");
-        DecodedJWT jwt = JWT.decode(token); // expect-ext: semgrep/semgrep-rules.java.java-jwt.security.audit.java-jwt-decode-without-verify
+        DecodedJWT jwt = JWT.decode(token); // expect: arbiter/java.jwt-decode-without-verify expect-ext: semgrep/semgrep-rules.java.java-jwt.security.audit.java-jwt-decode-without-verify
         return jwt.getSubject();
     }
 }
