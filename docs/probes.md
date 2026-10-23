@@ -226,7 +226,7 @@ named language. A scan that finds none of them says nothing about them.
 | Python | 787, 125, 416, 119 (memory-safe); 476 (`None` access raises); 190 (arbitrary-precision ints) | 862, 863, 306, 269, 20; 918 beyond one function; 434, 77 beyond one function | none |
 | TypeScript / JavaScript | 787, 125, 416, 119; 476 (`undefined` access raises); 190 (`number` is a double) | 862, 863, 306, 269, 20; 918, 434 and 77 beyond one function; 352 as a missing CSRF middleware | none |
 | Go | 787, 125, 416, 119 (outside `unsafe`); 94 (no runtime eval); 502 (stdlib decoders fill declared types) | 862, 863, 306, 269, 20, 476 (nil-flow analysis), 352 (absent middleware); 22, 434, 77 and 918 beyond one function | none |
-| Java | 787, 125, 416, 119 (outside JNI) | 862, 863, 306, 269, 20, 476 (nullness analysis); 918 beyond one function | 79, 77, 918, 190 |
+| Java | 787, 125, 416, 119 (outside JNI) | 862, 863, 306, 269, 20, 476 (nullness analysis); 79, 918, 77, 190 and 434 beyond one function | none |
 | Ruby | 787, 125, 416, 119 (outside C extensions); 476 (`nil` access raises); 190 (arbitrary-precision ints) | 862, 863, 306, 269, 20; 22, 434, 77 and 918 beyond one function | none |
 
 Gap cells that semgrep or bandit cover only when installed are listed as

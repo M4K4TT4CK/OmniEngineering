@@ -97,6 +97,40 @@ applications, corpus-clean or the gold TypeScript and Python repositories
 918 and Python 434 and 77 to N; native cells TypeScript 8 to 12, Python 9
 to 11; neither language has a gap cell left. `docs/probes.md` not-assessed
 rows updated.
+### 2026-10-22 (CWE Top 25 round 2: Java)
+- ARB-062 | Java native rules for the gaps left after round 1, each in the
+same-method form: a value bound from the request (`@RequestParam`,
+`@PathVariable`, `@RequestHeader`, JAX-RS `@QueryParam`/`@PathParam`/`@FormParam`,
+`String x = request.getParameter(...)`) reaching the sink in the method that
+binds it. CWE-79: `java.xss-unescaped-html` (high/medium; the bound string
+beside an HTML literal in a `return`, `body(...)` or `ok(...)`, or a servlet
+that reads the request and prints a non-constant into a `text/html` page; a
+file that applies an HTML encoder is skipped, since OWASP Benchmark escapes in
+a helper). CWE-918: `java.ssrf-request-url` (high/medium; the bound name or
+`"http://" +` it as the URL of `new URL`, `URI.create`, `new HttpGet`,
+`Jsoup.connect`, RestTemplate, WebClient `.uri` or OkHttp `.url`, in a method
+that makes a request; a fixed host, a `getHost()` check or an allowlist is
+not reported). CWE-77/88: `java.argument-injection` (high/medium; the bound
+name as a `ProcessBuilder`/`exec(String[])`/`command` element for git, curl,
+ssh, rsync, tar and other option parsers, with no `"--"` before it).
+CWE-190: `java.parsed-number-narrowed` (`(byte)`/`(short)` of
+`Integer.parseInt`, `(int)` of `Long.parseLong`; radix forms,
+`Number.intValue()` bodies and byte-array fills skipped) and
+`java.parsed-count-overflow` (a parsed count multiplied into an allocation
+with no range check); the planted `int * int` total became these forms.
+CWE-434: `java.upload-client-filename` (high/medium; `getOriginalFilename()`
+or `getSubmittedFileName()` in a write path, no `FilenameUtils.getName`,
+`getFileName()` or extension check). Planted pairs for all five; the gap:
+markers for Java 79, 77, 918 and 190 are expect: markers. Java Top 25: native
+8 to 13 cells, caught by anything 11 to 15 of 15, no Java gap left. Real
+code: WebGoat 3 true positives (the reflected-XSS lesson, the WebWolf upload,
+the zip upload); 17 false positives fixed and pinned by tests (a parameter's
+`.length()` beside HTML, a directory named after the user, a logged path, a
+zip entry name, gson's `intValue`, tomcat's drawboard colour bytes). Gold Java
+repositories (httpclient, netty, spring-security, tomcat, and keycloak scanned
+with the Java pack alone): 0 findings from the new rules. OWASP Benchmark Java: XSS recall 0 to 0.894 at FPR 0.455
+(score 0.44); cmdi, sqli and weak randomness unchanged; in-scope recall 1.0
+to 0.97, FPR 0.565 to 0.537, score 0.435 to 0.432.
 ### 2026-10-22 (round 1 decisions)
 - ARB-065 | Gold budgets gain `accepted_breaches`: a rule over budget by a recorded decision stays in the report and in `rules_over_budget`, and the run fails again only if its rate passes a ceiling set about 10% above the rate at the decision (`failing_breaches`, tested). Recorded on 2026-10-22 by the user: `java.test-without-assertion` is a known breach (0.066/KLOC; its remaining findings are tests that only call the code), and `assurance.permanently-skipped-test` (0.0315) and `typescript.test-without-assertion` (0.034) are accepted overages. The run on the 1047341 report has 9 over budget, 3 of them accepted, and 6 failing.
 - ARB-065 | Decisions recorded by the user on 2026-10-22: the test-file exclusions in 1047341 and c4d8bfe stand (TLS off for a test's own local server, `override_settings(DEBUG=True)`, empty skipped tests, Java `@Override` tests). The three Django applications stay a separate corpus, not gold, so Python denominators don't move. Checking `assurance.test-asserts-nothing` for the same conditional-skip blind spot is round 2 work.

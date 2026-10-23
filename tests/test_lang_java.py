@@ -26,6 +26,9 @@ RULES = {
     "jwt-unsigned-accepted", "jwt-decode-without-verify", "hardcoded-signing-key",
     "hardcoded-db-password", "csrf-disabled", "csrf-disabled-stateless",
     "stack-trace-to-client", "exception-message-to-client",
+    # CWE Top 25, round 2 (ARB-062)
+    "xss-unescaped-html", "ssrf-request-url", "argument-injection", "parsed-number-narrowed",
+    "parsed-count-overflow", "upload-client-filename",
 }
 
 pytestmark = pytest.mark.skipif(not ts.available(), reason="tree-sitter not installed")
@@ -523,3 +526,199 @@ def test_a_message_counts_only_for_its_own_broad_catch(tmp_path):
 def test_a_nested_call_in_the_issuer_peek_is_still_a_peek(tmp_path):
     code = _JWT_PEEK.replace("JWTParser.parse(token)", "JWTParser.parse(token.trim())")
     assert lines_of(tmp_path, code, "jwt-decode-without-verify") == [9]
+
+
+# --- CWE Top 25, round 2 (ARB-062) -----------------------------------------
+
+_XSS = """package app;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.util.HtmlUtils;
+@RestController
+class Svc {
+    @GetMapping("/a") String a(@RequestParam String q) { return "<b>" + q + "</b>"; }
+    @GetMapping("/b") String b(@RequestParam String q) { return "<b>" + q.length() + "</b>"; }
+    @GetMapping("/c") String c(@PathVariable Long id) { return "<b>" + id + "</b>"; }
+    @GetMapping("/d") String d(@RequestParam String q) { return "{\\"q\\": " + q.length() + "}"; }
+    @GetMapping("/e") String e(@RequestParam String q) { String t = title(); return "<h1>" + t + "</h1>"; }
+}
+"""
+
+
+def test_xss_needs_the_bound_string_beside_html_and_no_encoder(tmp_path):
+    # b prints only a length, c binds a number, d builds no HTML, e splices a
+    # value that is not the request parameter.
+    assert lines_of(tmp_path, _XSS, "xss-unescaped-html") == [6]
+    # An encoder anywhere in the file skips it: OWASP Benchmark escapes in an
+    # inner-class helper the value passes through, which no method-scoped
+    # check can follow.
+    helper = _XSS.replace("class Svc {", "class Svc {\n    String esc(String s) { return HtmlUtils.htmlEscape(s); }")
+    assert lines_of(tmp_path, helper, "xss-unescaped-html") == []
+
+
+_XSS_SERVLET = """package app;
+import javax.servlet.http.*;
+class Svc extends HttpServlet {
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws java.io.IOException {
+        String who = request.getParameter("who");
+        response.setContentType("%s");
+        java.io.PrintWriter out = response.getWriter();
+        out.println("Hello, " + who);
+        out.println("static text");
+    }
+}
+"""
+
+
+def test_servlet_xss_needs_an_html_page(tmp_path):
+    assert lines_of(tmp_path, _XSS_SERVLET % "text/html", "xss-unescaped-html") == [8]
+    assert lines_of(tmp_path, _XSS_SERVLET % "text/plain", "xss-unescaped-html") == []
+    encoded = (_XSS_SERVLET % "text/html").replace('" + who', '" + Encode.forHtml(who)')
+    assert lines_of(tmp_path, encoded, "xss-unescaped-html") == []
+
+
+_SSRF = """package app;
+import java.net.*;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
+@RestController
+class Svc {
+    RestTemplate rest = new RestTemplate();
+    @GetMapping("/a") String a(@RequestParam String url) { return rest.getForObject(url, String.class); }
+    @GetMapping("/b") String b(@RequestParam String id) { return rest.getForObject("https://api.example.com/items/" + id, String.class); }
+    @GetMapping("/c") String c(@RequestParam String url) { return URI.create(url).getScheme(); }
+    @GetMapping("/d") String d(@RequestParam String url) {
+        if (!ALLOWED_HOSTS.contains(URI.create(url).getHost())) throw new IllegalArgumentException();
+        return rest.getForObject(url, String.class);
+    }
+    String e(String url) { return rest.getForObject(url, String.class); }
+    @GetMapping("/f") String f(@RequestParam String host) { return rest.getForObject("http://" + host + "/x", String.class); }
+}
+"""
+
+
+def test_ssrf_needs_the_caller_to_pick_the_host(tmp_path):
+    # b only picks a path on a fixed host, c only parses, d checks the host,
+    # e is not bound to the request in this method.
+    assert lines_of(tmp_path, _SSRF, "ssrf-request-url") == [8, 16]
+
+
+_ARGV = """package app;
+import java.util.List;
+import org.springframework.web.bind.annotation.*;
+@RestController
+class Svc {
+    @PostMapping("/a") void a(@RequestParam String url) throws Exception { new ProcessBuilder("git", "clone", url).start(); }
+    @PostMapping("/b") void b(@RequestParam String url) throws Exception { new ProcessBuilder("git", "clone", "--", url).start(); }
+    @PostMapping("/c") void c(@RequestParam String name) throws Exception { new ProcessBuilder("echo", name).start(); }
+    void d(String url) throws Exception { new ProcessBuilder("git", "clone", url).start(); }
+    @PostMapping("/e") void e(@RequestParam String host) throws Exception { Runtime.getRuntime().exec(new String[] {"ping", "-c", "1", host}); }
+    @PostMapping("/f") void f(@RequestParam String src) throws Exception { new ProcessBuilder(List.of("rsync", "-a", "--", src, "/srv")).start(); }
+}
+"""
+
+
+def test_argument_injection_needs_a_request_value_before_double_dash(tmp_path):
+    # b and f end the options first; echo parses none; d is not request-bound.
+    assert lines_of(tmp_path, _ARGV, "argument-injection") == [6, 10]
+
+
+_NARROW = """package app;
+class Svc {
+    byte a(String s) { return (byte) Integer.parseInt(s); }
+    byte b(String hex) { return (byte) Integer.parseInt(hex, 16); }
+    int c(String s) { return (int) Long.parseLong(s); }
+    long d(String s) { return Long.parseLong(s); }
+    int e(String s) { return Math.toIntExact(Long.parseLong(s)); }
+    char f(String s) { return (char) Integer.parseInt(s, 16); }
+}
+"""
+
+
+def test_a_narrowing_cast_of_a_parse_is_reported_but_not_the_hex_byte_idiom(tmp_path):
+    assert lines_of(tmp_path, _NARROW, "parsed-number-narrowed") == [3, 5]
+
+
+_COUNT = """package app;
+class Svc {
+    byte[] a(String s) { int n = Integer.parseInt(s); return new byte[n * 16]; }
+    byte[] b(String s) { int n = Integer.parseInt(s); if (n > 1024) throw new IllegalArgumentException(); return new byte[n * 16]; }
+    byte[] c(String s) { int n = Integer.parseInt(s); return new byte[Math.multiplyExact(n, 16)]; }
+    byte[] d(int n) { return new byte[n * 16]; }
+    java.nio.ByteBuffer e(String s) { int n = Integer.parseInt(s); return java.nio.ByteBuffer.allocate(16 * n); }
+    byte[] f(String s) { int n = Integer.parseInt(s); n = Math.min(n, 64); return new byte[n * 16]; }
+}
+"""
+
+
+def test_a_parsed_count_in_an_allocation_needs_a_range_check(tmp_path):
+    assert lines_of(tmp_path, _COUNT, "parsed-count-overflow") == [3, 7]
+
+
+_UPLOAD = """package app;
+import java.io.File;
+import java.nio.file.*;
+import org.apache.commons.io.FilenameUtils;
+import org.springframework.web.multipart.MultipartFile;
+class Svc {
+    void a(MultipartFile f) throws Exception { f.transferTo(new File(DIR, f.getOriginalFilename())); }
+    void b(MultipartFile f) throws Exception { f.transferTo(new File(DIR, FilenameUtils.getName(f.getOriginalFilename()))); }
+    void c(MultipartFile f) throws Exception { f.transferTo(Paths.get(DIR, java.util.UUID.randomUUID().toString())); }
+    void d(MultipartFile f) throws Exception {
+        String name = f.getOriginalFilename();
+        Files.copy(f.getInputStream(), Paths.get(DIR).resolve(name));
+    }
+    String e(MultipartFile f) { return "uploaded " + f.getOriginalFilename(); }
+}
+"""
+
+
+def test_an_upload_is_reported_once_and_only_under_the_clients_name(tmp_path):
+    # a: one finding though two sinks nest; b strips the directory; c picks
+    # the name; e only echoes the name.
+    assert lines_of(tmp_path, _UPLOAD, "upload-client-filename") == [7, 12]
+
+
+_WEBGOAT = """package app;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+@RestController
+class Svc {
+    @PostMapping("/a") String a(@RequestParam String password) {
+        StringBuilder out = new StringBuilder();
+        out.append("<b>Length: </b>" + password.length() + "</br>");
+        return out.toString();
+    }
+    @PostMapping("/b") void b(@RequestParam("file") MultipartFile file, String username) throws Exception {
+        var dir = new java.io.File(ROOT, username);
+        try (var in = file.getInputStream()) {
+            java.nio.file.Files.copy(in, dir.toPath().resolve("avatar.png"));
+        }
+        log.debug("saved to {}", new java.io.File(dir, file.getOriginalFilename()));
+        var zip = new java.util.zip.ZipFile(dir);
+        var e = zip.entries().nextElement();
+        java.nio.file.Files.copy(zip.getInputStream(e), new java.io.File(dir, e.getName()).toPath());
+    }
+}
+"""
+
+
+def test_webgoat_lookalikes_are_not_xss_or_client_named_uploads(tmp_path):
+    # WebGoat SecurePasswordsAssignment prints only the password's length;
+    # FileServer names a directory after the user and logs the client's name;
+    # ProfileZipSlip's entry name is zip slip (CWE-22), not the upload's name.
+    assert lines_of(tmp_path, _WEBGOAT, "xss-unescaped-html") == []
+    assert lines_of(tmp_path, _WEBGOAT, "upload-client-filename") == []
+
+
+_NUMBER = """package app;
+class Svc extends Number {
+    public int intValue() { try { return Integer.parseInt(value); } catch (NumberFormatException e) { return (int) Long.parseLong(value); } }
+    void colours(String[] el, byte[] colors) { for (int i = 0; i < 4; i++) { colors[i] = (byte) Integer.parseInt(el[i]); } }
+    short port(String s) { return (short) Integer.parseInt(s); }
+}
+"""
+
+
+def test_number_contracts_and_byte_buffers_narrow_on_purpose(tmp_path):
+    # gson LazilyParsedNumber.intValue, tomcat drawboard DrawMessage colours.
+    assert lines_of(tmp_path, _NUMBER, "parsed-number-narrowed") == [5]

@@ -1,7 +1,7 @@
 {
  "target": "ai-corpus",
  "pinned_sha": "",
- "arbiter_commit": "b44a21552de385e4b3532ccab312053ac038cef6",
+ "arbiter_commit": "506aece11ad0f3fd20b6626085a0f03d8204af0a",
  "count": 104,
  "by_rule": {
   "arbiter/assurance.suppression-census": 1,
