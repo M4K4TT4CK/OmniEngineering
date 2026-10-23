@@ -1362,7 +1362,10 @@ register(Probe(
 # ===========================================================================
 
 _UNPINNED_PY = re.compile(r"^\s*([A-Za-z0-9._-]+)\s*(?:[><~!]=|>|<)?\s*([0-9][^\s;#]*)?\s*$")
-_ACTION_USES = re.compile(r"^\s*-?\s*uses:\s*([^\s@]+)@([^\s#]+)", re.M)
+# `[ \t]`, not `\s`: with re.M, `^\s*` also matched from a blank line above
+# and swallowed its newline, so the finding was reported on the blank line
+# (round 4: all 3 `v3` FP labels of supply.unpinned-action).
+_ACTION_USES = re.compile(r"^[ \t]*-?[ \t]*uses:[ \t]*([^\s@]+)@([^\s#]+)", re.M)
 _SHA40 = re.compile(r"^[0-9a-f]{40}$")
 
 
