@@ -1350,3 +1350,64 @@ rules:
       Generate the stored name (`UUID.randomUUID()`), choose the extension
       from an allowlist of content types you checked, store outside the web
       root, and keep the client's name only as data.
+
+  # ---------------------------------------------------------------------
+  # Defect classes found in AI-written code (ARB-083)
+  # ---------------------------------------------------------------------
+  # Each shape below is one a reviewer labelled in model-written services
+  # (fixtures/ai-corpus) that no earlier rule covered. All start advisory.
+  - id: mail-starttls-not-required
+    requirements: [ARB-083]
+    title: "`{text}` lets Jakarta Mail fall back to plaintext"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-319]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-8]
+    tags: [tls, smtp, ai-code]
+    # `starttls.enable` alone is opportunistic: STARTTLS is used only when
+    # the server advertises it, so a MITM that strips the capability gets
+    # the AUTH exchange in clear. `starttls.required` (anywhere in the
+    # file) or implicit TLS (`mail.smtp.ssl.enable`) makes it mandatory.
+    query: |
+      (method_invocation
+        name: (identifier) @m (#match? @m "^(put|setProperty)$")
+        arguments: (argument_list . (string_literal) @k (#match? @k "^\"mail\\.smtps?\\.starttls\\.enable\"$"))) @hit
+    unless_in_file: |
+      ((string_literal) @k (#match? @k "^\"mail\\.smtps?\\.(starttls\\.required|ssl\\.enable)\"$"))
+    description: >-
+      With only `mail.smtp.starttls.enable`, Jakarta Mail upgrades to TLS
+      when the server offers it and carries on in plaintext when it does
+      not. An attacker on the path removes STARTTLS from the server's
+      greeting and reads SMTP_USER and SMTP_PASSWORD from the AUTH command.
+    remediation: "Also set `mail.smtp.starttls.required=true` (or use implicit TLS with `mail.smtp.ssl.enable=true` on port 465)."
+
+  - id: mail-ssl-trust-all
+    requirements: [ARB-083]
+    title: "`{text}` trusts every mail server certificate"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-295]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-8]
+    tags: [tls, smtp, ai-code]
+    query: |
+      (method_invocation
+        name: (identifier) @m (#match? @m "^(put|setProperty)$")
+        arguments: (argument_list . (string_literal) @k (#match? @k "^\"mail\\.(smtps?|imaps?|pop3s?)\\.ssl\\.trust\"$")
+                   . (string_literal) @v (#eq? @v "\"*\""))) @hit
+      (method_invocation
+        name: (identifier) @m (#match? @m "^(put|setProperty)$")
+        arguments: (argument_list . (string_literal) @k (#match? @k "^\"mail\\.(smtps?|imaps?|pop3s?)\\.ssl\\.checkserveridentity\"$")
+                   . (string_literal) @v (#eq? @v "\"false\""))) @hit
+    # JavaMail reads `ssl.trust` only when no socket factory is given: with
+    # `ssl.socketFactory` set in the same method (Keycloak's truststore
+    # configurator) the factory's own trust store decides.
+    unless_in_scope: |
+      ((string_literal) @k (#match? @k "^\"mail\\.(smtps?|imaps?|pop3s?)\\.ssl\\.socketFactory\"$"))
+    description: >-
+      `mail.smtp.ssl.trust=*` accepts any certificate from any host, and
+      `ssl.checkserveridentity=false` accepts a valid certificate issued
+      for some other host. Either way the connection is encrypted to
+      whoever answers, and the SMTP credentials go to them.
+    remediation: "Remove the property; for a private CA, add it to the trust store or name the exact host in `mail.smtp.ssl.trust`."

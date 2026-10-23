@@ -828,3 +828,39 @@ rules:
       error. FastAPI and Starlette with `debug=True` return the traceback
       to the client. Left in code, it ships.
     remediation: "Read the flag from configuration (`debug=os.environ.get(\"FLASK_DEBUG\") == \"1\"`) and run behind gunicorn/uvicorn in production."
+
+  # --------------------------------------------------------------------------
+  # Defect classes found in AI-written code (ARB-083)
+  # --------------------------------------------------------------------------
+  # Each shape below is one a reviewer labelled in model-written services
+  # (fixtures/ai-corpus) that no earlier rule covered. All start advisory.
+  - id: mail-tls-unverified
+    requirements: [ARB-083]
+    title: "`{text}` negotiates TLS without verifying the server certificate"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-295]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-8]
+    tags: [tls, smtp, ai-code]
+    # smtplib, imaplib and poplib build `ssl._create_stdlib_context()` when
+    # no context is passed: CERT_NONE, no hostname check. HTTPS clients
+    # verify by default since 3.4.3; these mail clients still do not.
+    query: |
+      (call function: (attribute attribute: (identifier) @m) @fn
+        (#eq? @m "starttls")) @hit
+      (call function: [(attribute) (identifier)] @fn
+        (#match? @fn "^(smtplib\\.)?SMTP_SSL$|^(imaplib\\.)?IMAP4_SSL$|^(poplib\\.)?POP3_SSL$")) @hit
+    unless_inside: |
+      (call arguments: (argument_list (keyword_argument name: (identifier) @k
+        (#match? @k "^(context|ssl_context)$")))) @x
+      (call arguments: (argument_list (dictionary_splat))) @x
+    requires_file: |
+      (import_statement name: (dotted_name) @m (#match? @m "^(smtplib|imaplib|poplib)$")) @x
+      (import_from_statement module_name: (dotted_name) @m (#match? @m "^(smtplib|imaplib|poplib)$")) @x
+    description: >-
+      With no `context`, smtplib's `starttls()` and `SMTP_SSL` (and
+      imaplib/poplib's SSL classes) encrypt the connection but accept any
+      certificate. Anyone on the path can present their own, read the mail,
+      and capture the password sent by `login()` straight after.
+    remediation: "Pass `context=ssl.create_default_context()` to `starttls()` / `SMTP_SSL(...)` (`ssl_context=` for IMAP4_SSL)."

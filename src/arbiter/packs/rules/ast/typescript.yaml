@@ -1158,3 +1158,37 @@ rules:
       (`it.skip`, `describe.skip`, `xit` and `xdescribe` are reported by
       `assurance.permanently-skipped-test`.)
     remediation: "Fix it, delete it, or skip with a condition and a reason."
+
+  # ------------------------------------- defect classes in AI-written code (ARB-083)
+  # Each shape below is one a reviewer labelled in model-written services
+  # (fixtures/ai-corpus) that no earlier rule covered. All start advisory.
+  - id: mail-starttls-not-required
+    requirements: [ARB-083]
+    title: "nodemailer transport sends credentials without requiring TLS"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-319]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-8]
+    tags: [tls, smtp, ai-code]
+    # An SMTP transport that logs in (`auth:`) but is neither implicit TLS
+    # (`secure: true`) nor `requireTLS: true` upgrades only when the server
+    # advertises STARTTLS. `ignoreTLS: true` turns even that off.
+    query: |
+      ((call_expression
+        function: [(identifier) (member_expression)] @fn
+        arguments: (arguments . (object) @o)) @hit
+        (#match? @fn "(^|\\.)createTransport$")
+        (#match? @o "\\bauth\\s*:")
+        (#not-match? @o "\\brequireTLS\\s*:\\s*true|\\bsecure\\s*:\\s*true\\b|\\bservice\\s*:|\\b(sendmail|streamTransport|jsonTransport|SES)\\s*:"))
+      ((call_expression
+        function: [(identifier) (member_expression)] @fn
+        arguments: (arguments . (object) @o)) @hit
+        (#match? @fn "(^|\\.)createTransport$")
+        (#match? @o "\\bignoreTLS\\s*:\\s*true"))
+    description: >-
+      Without `secure: true` or `requireTLS: true`, nodemailer uses STARTTLS
+      only if the server's greeting offers it. An attacker on the path
+      strips the offer and receives the AUTH exchange, user name and
+      password, in plaintext.
+    remediation: "Set `requireTLS: true` for port 587 (or `secure: true` on 465) and keep `tls.rejectUnauthorized` at its default."

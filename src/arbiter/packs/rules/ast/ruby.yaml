@@ -1287,3 +1287,30 @@ rules:
       ssh and tar have options that read or write any file.
     remediation: "Put \"--\" before the first value argument (`system(\"git\", \"clone\", \"--\", url, dir)`), and validate the value (`URI.parse(url).is_a?(URI::HTTPS)`, a ref-name pattern) first."
 
+
+  # --- Defect classes found in AI-written code (ARB-083) ----------------------
+  # Each shape below is one a reviewer labelled in model-written services
+  # (fixtures/ai-corpus) that no earlier rule covered. All start advisory.
+  - id: mail-tls-verify-none
+    requirements: [ARB-083]
+    title: "SMTP certificate verification off: `{text}`"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-295]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-8]
+    tags: [tls, smtp, ai-code]
+    # The constant form (`OpenSSL::SSL::VERIFY_NONE`) is tls-verify-off;
+    # this is the string or symbol ActionMailer and the mail gem also take.
+    query: |
+      (pair key: (hash_key_symbol) @k value: [(string) (simple_symbol)] @v
+        (#eq? @k "openssl_verify_mode") (#match? @v "^(:none|['\"]none['\"])$")) @hit
+      (pair key: (simple_symbol) @k value: [(string) (simple_symbol)] @v
+        (#eq? @k ":openssl_verify_mode") (#match? @v "^(:none|['\"]none['\"])$")) @hit
+      (pair key: (string) @k value: [(string) (simple_symbol)] @v
+        (#match? @k "^['\"]openssl_verify_mode['\"]$") (#match? @v "^(:none|['\"]none['\"])$")) @hit
+    description: >-
+      `openssl_verify_mode: "none"` makes ActionMailer (and the mail gem's
+      SMTP delivery) accept any certificate. The session is encrypted to
+      whoever answers, and the SMTP user name and password go to them.
+    remediation: "Remove it (the default verifies the peer); for a private CA, set `ca_file` or `ca_path` instead."
