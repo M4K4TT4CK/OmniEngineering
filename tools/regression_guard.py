@@ -137,6 +137,16 @@ def timed_scan(path: Path) -> tuple[list[str], float]:
     return keys, round(time.perf_counter() - started, 2)
 
 
+WARM_UP_TREE = ROOT / "fixtures" / "planted"
+
+
+def warm_up() -> None:
+    """One untimed scan of a small tree in every language, so the timed scans
+    after it see loaded grammars and compiled packs, as the baselines did."""
+    if WARM_UP_TREE.is_dir():
+        finding_keys(WARM_UP_TREE)
+
+
 def calibration_workload() -> None:
     """A fixed piece of pure-Python work shaped like a scan (regex over text,
     dict and string churn, JSON round trips) and touching no Arbiter code.
@@ -230,6 +240,12 @@ def check(guards: dict, targets: list[Target], do_snap: bool, do_perf: bool,
         ref_now = ref_seconds if ref_seconds is not None else reference_seconds(guards)
         factor = machine_factor(ref_now, base.get("reference_seconds", 0), perf)
         out(f"reference {ref_now}s (baseline {base.get('reference_seconds')}s): machine factor {factor}")
+        # Baselines are the best of several scans in one process, so grammars
+        # and compiled packs are already loaded. Pay that one-time load before
+        # timing, or the first target is charged for it (planted: ~4 s cold
+        # against a 0.9 s warm baseline, on CI 2026-10-23).
+        if scan is timed_scan:
+            warm_up()
     for t in targets:
         why = available(t)
         if why:
