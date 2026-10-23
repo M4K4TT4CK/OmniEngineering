@@ -13,6 +13,7 @@ treated as passes.
 - [Machine-authored code](#machine-authored-code)
 - [Concurrency](#concurrency)
 - [Language packs](#language-packs)
+- [AI-written services](#ai-written-services)
 - [Contracts between artifacts](#contracts-between-artifacts)
 - [Assurance: is the checking switched on?](#assurance-is-the-checking-switched-on)
 - [The judgement pass](#the-judgement-pass)
@@ -37,6 +38,7 @@ treated as passes.
 | `assurance` | assurance | nothing | Whether the *checking* is switched on — see below |
 | `authored` | supply chain, security | nothing | Defects characteristic of machine-drafted code — see below |
 | `concurrency` | quality | nothing | Python: shared state changed by concurrent workers with no lock held — see below |
+| `aiapp` | security, quality | tree-sitter (for function boundaries) | App-level defects found in AI-written services: destructive routes or mail-sending endpoints in an app that authenticates nobody, and per-request stores that are never evicted — see [AI-written services](#ai-written-services) |
 | `lang_<pack>` | quality, security | tree-sitter + that language's grammar | Shipped structural rules for each IDE language: `lang_python`, `lang_typescript` (TS and JS), `lang_go`, `lang_java`, `lang_ruby` — see below |
 | `contract` | drift | nothing | Contracts declared in one artifact and implemented in another — see below |
 | `governance` | drift | a failure ledger | The ledger held against the change — see [Probe scopes](#probe-scopes). `governance.open-failure-untested`: an open or mitigated entry's affected file changed without any of its regression tests (`--changed` only). `governance.regression-test-missing`: a fixed entry whose regression test file is gone. Not applicable (`n/a`) without `.ai/failures/failure-ledger.json` |
@@ -280,6 +282,52 @@ $ arbiter scan ./app --profile connected
 Zero false criticals across the corpus.
 
 ---
+
+## AI-written services
+
+Rules added from the AI-written development corpus (`fixtures/ai-corpus`,
+ARB-083): the defect classes a reviewer labelled in model-written services
+that no rule covered. All start **advisory** (docs/precision.md). Most are
+pack rules, listed with their packs; the cross-file ones are the `aiapp`
+probe (`src/arbiter/aiapp.py`).
+
+| Class | Rules |
+|---|---|
+| Unbounded memory | `<lang>.image-decode-unbounded` (Go `image.Decode` with no `DecodeConfig`, Java `ImageIO.read` with no `ImageReader` size check), `python.image-bomb-check-disabled`, `typescript.image-pixel-limit-disabled`; `go`/`java.decompress-read-unbounded`, `python`/`ruby.decompress-unbounded`, `typescript.decompress-sync-unbounded`; `go`/`ruby.request-body-read-unbounded`, `python.request-body-unbounded` (Flask with no `MAX_CONTENT_LENGTH`, Starlette `await request.body()`), `typescript.request-body-accumulated-unbounded`, `typescript.upload-memory-storage-unbounded`; `aiapp.store-never-evicted` |
+| Missing authentication | `aiapp.unauthenticated-destructive-route`, `aiapp.open-mail-relay` |
+| Mail TLS | `python.mail-tls-unverified`, `java.mail-starttls-not-required`, `java.mail-ssl-trust-all`, `typescript.mail-starttls-not-required`, `ruby.mail-tls-verify-none` |
+| Ignored errors (Go) | `go.ignored-encode-error`, `go.ignored-exec-error` |
+| Constant-delay retries | `<lang>.retry-constant-delay` (all five), `ruby.requeue-without-delay` |
+| SSRF to stored callbacks | `<lang>.ssrf-stored-callback` (all five) |
+
+The `aiapp` probe, per repository:
+
+- **`aiapp.unauthenticated-destructive-route`** (CWE-306, CWE-862): a DELETE
+  route, or a non-GET route under `/admin`, `/purge`, `/wipe` or `/flush`,
+  with no inline guard, when either nothing in the repository authenticates
+  a caller (no `login_required`, `requireAuth`, Bearer/JWT, passport, API key,
+  `current_user`, `@PreAuthorize`, HMAC signature check...), or other routes
+  in the same Go, TypeScript/JavaScript or Python file pass an auth
+  middleware, wrapper or `Depends(...)` inline and this one does not. Java and
+  Ruby are only checked at repository level, because they usually guard
+  routes globally (a Spring filter chain, a `before` filter).
+- **`aiapp.open-mail-relay`** (CWE-306): a write route in a repository that
+  sends mail (smtplib, net/smtp, nodemailer, Jakarta/JavaMail, Net::SMTP,
+  ActionMailer) and authenticates nobody.
+- **`aiapp.store-never-evicted`** (CWE-770, CWE-401): a map held by an object
+  (`self._jobs`, `q.jobs`, `@jobs`, `this.jobs`, a Java `Map` field) filled
+  under the id of a freshly created item (`job.id`, in a file that calls
+  uuid4/randomUUID/SecureRandom/crypto/rand...), that nothing outside the
+  inserting function or constructor removes from, clears, bounds by size or
+  expires. Reported at the insert.
+
+Authentication is recognised by name, so auth applied outside the repository
+(a gateway, a mesh, a proxy) is invisible: the route findings are medium
+confidence and say so. The store check reads one file. On the 24 gold
+repositories and the real corpora the probe reported one finding
+(nodejs-goof's unauthenticated `DELETE /chat`, a true positive). The CWE-306
+Top 25 cell stays out of reach: these are application-level heuristics, not a
+per-function check.
 
 ## Contracts between artifacts
 

@@ -10,6 +10,12 @@
 # tests/test_rule_requirements.py holds this list to the rule ids the source
 # can emit, in both directions.
 rules:
+  - id: arbiter/aiapp.open-mail-relay
+    requirements: [ARB-083]
+  - id: arbiter/aiapp.store-never-evicted
+    requirements: [ARB-083]
+  - id: arbiter/aiapp.unauthenticated-destructive-route
+    requirements: [ARB-083]
   - id: arbiter/assurance.analysis-excluded
     note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
   - id: arbiter/assurance.blanket-suppression
