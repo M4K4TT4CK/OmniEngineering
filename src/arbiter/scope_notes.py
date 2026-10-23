@@ -92,7 +92,10 @@ def apply_scope_notes(findings: list[Finding], inv: Inventory) -> int:
     for f in findings:
         if f.suppressed or not f.location.path or f.scope_note:
             continue
-        notes = notes_by_repo.setdefault(f.repo_id, extract_scope_notes(inv, f.repo_id))
+        # Extracted once per repository, not once per finding (ARB-076).
+        if f.repo_id not in notes_by_repo:
+            notes_by_repo[f.repo_id] = extract_scope_notes(inv, f.repo_id)
+        notes = notes_by_repo[f.repo_id]
         for note in notes:
             if _under(f.location.path, note.path_prefix):
                 f.scope_note = (

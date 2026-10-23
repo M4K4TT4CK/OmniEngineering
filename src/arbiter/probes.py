@@ -1554,10 +1554,14 @@ def probe_doc_drift(ctx: ProbeContext) -> list[Finding]:
     # missing. Existence is a question about disk.
     roots = {r.id: Path(r.path) for r in ctx.repos if getattr(r, "path", "")}
 
-    code_blobs: dict[str, str] = {}
+    # Joined once per repository. Concatenating file by file copied the whole
+    # blob for every file -- quadratic, 37 s on keycloak `services/` (ARB-076).
+    blob_parts: dict[str, list[str]] = {}
     for f in ctx.inventory.text_files():
         if f.role in ("source", "iac", "config", "ci"):
-            code_blobs[f.repo_id] = code_blobs.get(f.repo_id, "") + "\n" + _read(f)
+            blob_parts.setdefault(f.repo_id, []).append(_read(f))
+    code_blobs: dict[str, str] = {
+        rid: "".join("\n" + t for t in parts) for rid, parts in blob_parts.items()}
 
     for f in ctx.inventory.text_files():
         if f.language != "markdown":
