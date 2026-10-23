@@ -514,8 +514,14 @@ def probe_authored(ctx: ProbeContext) -> list[Finding]:
             if not text:
                 continue
             if f.language in _eco.ECOSYSTEM_OF:
-                out.extend(_undeclared_other(f, text, facts.setdefault(
-                    (repo.id, f.language), _ecosystem_facts(ctx, repo.id, f.language))))
+                # Computed once per (repository, language). `setdefault` with
+                # the call as its argument rebuilt the facts -- every manifest
+                # and every Java file's package -- for each file, which was
+                # 88 s of keycloak `services/` alone (ARB-076).
+                key = (repo.id, f.language)
+                if key not in facts:
+                    facts[key] = _ecosystem_facts(ctx, repo.id, f.language)
+                out.extend(_undeclared_other(f, text, facts[key]))
             else:
                 out.extend(_undeclared_imports(f, text, declared, local, has_manifest,
                                                workspace, online))
