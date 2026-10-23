@@ -394,3 +394,8 @@ def test_per_rule_sample_sizes_languages_and_prefix_property():
     assert {key(f) for f in small} <= {key(f) for f in big}          # raising a size only adds
     assert Counter(f["rule"] for f in big)["r/b"] == 3                 # capped by the population
     assert lm.per_rule_sample(fs, {"r/a": 10, "*": 2}, 7) == small     # deterministic
+
+
+def test_reasons_are_masked_before_they_reach_a_label_file():
+    ans = lm.parse_answer('{"label": "fp", "reason": "uses postgres://myuser:mypass@localhost/db in a test"}')
+    assert "mypass" not in ans["reason"] and "postgres://[redacted]@localhost/db" in ans["reason"]

@@ -1452,6 +1452,30 @@
       "prevention_rules": [],
       "prevention_notes": "Every rule-id prefix the scanner can emit is enumerated from the source (literal arbiter/<head>. ids, house/, each language pack, each adapter manifest) and asserted to map to a registered probe; a real scan over every planted bad tree plus both house rule types asserts each finding's recorded probe equals _probe_of(rule_id)",
       "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-056",
+      "date": "2026-10-23",
+      "title": "Model label reasons quoted credential-shaped DB URLs from corpus code",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "omni gate (arbiter gate) failed with 2 new secrets.pg-url findings in tools/gold/labels/history/gold-model-v1.jsonl after the file was moved; labeller reasons quoted postgres://user:pass@host URLs seen in the excerpt",
+      "how_detected": "omni gate",
+      "root_cause": "label_models.parse_answer stored the model's reason verbatim; _mask_secrets masks the excerpt but does not cover inline DB-URL credentials, and a reason can quote code back",
+      "requirement": "ARB-067",
+      "affected": [
+        "tools/label_models.py",
+        "tools/gold/labels/"
+      ],
+      "fix_summary": "parse_answer passes reasons through mask_reason (_mask_secrets plus DB-URL credentials); existing label files' reasons re-masked",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_label_models.py::test_reasons_are_masked_before_they_reach_a_label_file"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [],
+      "prevention_notes": "Anything a model returns that may quote corpus code is masked before it is written to a tracked file",
+      "recurrence_of": ""
     }
   ]
 }

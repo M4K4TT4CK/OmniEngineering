@@ -209,49 +209,70 @@ labellers' copies of one sheet pair up), `--sheet-source`, and
 
 ## Current numbers
 
-As of 2026-10-23: the ledger holds ground-truth and model labels (98
-rules; 1 admitted, `java.weak-random-for-secret`). No rule is declared
-verified, so every finding is advisory. There is no verified-tier precision
-figure and no category claim.
+As of 2026-10-23 (relabel at labeller `v3`): the ledger holds ground-truth
+and `v3` model labels for 120 rules. **2 are admitted**:
+`java.weak-random-for-secret` (218/218 ground truth, lower 0.983) and
+`assurance.blanket-suppression` (125/125 `v3` model labels, lower 0.970,
+exactly at the bar). No rule is declared verified, so every finding is
+advisory. There is no verified-tier precision figure and no category
+claim. `tools/precision_guard.py check` passes.
 
 **Labeller calibration** is how far a model label can be trusted. It is
 measured blind against truth the labellers never saw, and it bounds every
-model-labelled number. The Wilson 95% lower bound applies to the labellers'
-`tp` calls (`tools/gold/results/2026-10-23-calibration.md` and
-`2026-10-23-calibration-3.md`; `calibration.jsonl`, `calibration-2.jsonl`,
-`calibration-3.jsonl`). Rounds 1 and 2 used prompt `v1` (single-function
-excerpt); round 3 uses `v2`, whose excerpt (`arbiter.context`) adds
-decorators, the class header and the repository definitions of calls on the
-taint path.
+model-labelled number. The Wilson 95% lower bound applies to the
+labellers' `tp` calls (`tools/gold/results/2026-10-23-calibration.md`,
+`-calibration-3.md`, `-calibration-4.md`; `calibration*.jsonl`). The
+excerpt differs by prompt version:
 
-| category | truth source | n | `tp` calls right | lower bound | backs a 0.99 claim |
-|---|---|---:|---:|---:|:-:|
-| injection, weak random/hash, deserialisation: round 3 alone (`v2` excerpt) | OWASP Java/Python, Juliet Java | 500 | 286/286 | 0.987 | no (close) |
-| same, rounds 1-3 pooled | OWASP Java/Python, Juliet Java, CVE fixes | 1,200 | 681/687 | 0.981 | no |
-| injection rules only, round 3 alone | | 428 | 218/218 | 0.983 | no |
-| tests | planted twins | 45 | 24/24 | 0.862 | no |
-| secrets | planted twins | 30 | 17/17 | 0.816 | no |
-| stubs | planted twins | 34 | 17/17 | 0.816 | no |
-| resilience | planted twins | 59 | 25/27 | 0.766 | no |
-| concurrency | planted twins | 43 | 16/18 | 0.672 | no |
-| supply chain (`unpinned-action`) | SHA-pin fact | 18 | 18/18 | 0.824 | no |
-| secrets in test/example paths, npm ranges with a lockfile | path / lockfile fact | 108 | `fp` side only (107/107 decided) | - | no |
-| docs drift, info exposure, error handling, suppression, IaC, numeric | none | - | - | - | no (uncalibrated) |
+- `v1`: a single function (rounds 1-2);
+- `v2`: `arbiter.context` adds decorators, the class header and the
+  repository definitions on the taint path (round 3);
+- `v3`: `v2` plus up to two same-file callers when the flagged value is a
+  parameter (rounds 4-5).
 
-**Trusted at a 0.99 lower bound: still no category.** The injection family
-is now close. With the `v2` excerpt it made no false `tp` call in 286, and
-no false `fp` call in 206 (unsure 8 of 500, all Juliet). A 0.99 lower bound
-with no error needs 363 `tp` calls, so about 80 more clean calls (some 140
-more items at this round's mix) would reach it on `v2` labels alone. Pooled
-with rounds 1-2 it is 0.981: those rounds' 6 false `tp` calls were made on
-the `v1` excerpt. Re-run with `v2`, 5 of the 6 become correct `fp` calls,
-and the sixth (a cross-file Juliet `_81` case) is now filtered out of
-calibration. That re-run covers only the known errors, so it is not
-counted as a measurement. The planted categories are too small to reach
-0.99 even with no error, and they are fixtures we wrote, so they say little
-about real code. Docs drift and the rest have no model-free truth. A
-model-labelled precision figure must therefore carry the labeller error: no
-model-labelled rule or category can be claimed at 99% yet.
+Each version is a different labeller, so the bound is reported per
+version.
+
+| category | prompt | truth source | n | `tp` calls right | lower bound | backs a 0.99 claim |
+|---|---|---|---:|---:|---:|:-:|
+| **injection, weak random/hash, deserialisation: rounds 4-5** | **v3** | OWASP Java/Python, Juliet Java | 494 | 382/382 | **0.990** (0.99004) | **yes, for this scope** |
+| same, round 4 alone | v3 | | 200 | 154/154 | 0.976 | no |
+| same, round 3 | v2 | | 500 | 286/286 | 0.987 | no |
+| same, rounds 3-5 (two versions pooled, context only) | v2+v3 | | 994 | 668/668 | 0.994 | not a single labeller |
+| same, rounds 1-5 | v1-v3 | OWASP, Juliet, CVE fixes | 1,905 | 1,162/1,172 | 0.984 | no |
+| tests | v1 | planted twins | 45 | 24/24 | 0.862 | no |
+| secrets | v1 | planted twins | 30 | 17/17 | 0.816 | no |
+| stubs | v1 | planted twins | 34 | 17/17 | 0.816 | no |
+| resilience | v1 | planted twins | 59 | 25/27 | 0.766 | no |
+| concurrency | v1 | planted twins | 43 | 16/18 | 0.672 | no |
+| supply chain (`unpinned-action`) | v1 | SHA-pin fact | 18 | 18/18 | 0.824 | no |
+| secrets in test/example paths, npm ranges with a lockfile | v1 | path / lockfile fact | 108 | `fp` side only (107/107 decided) | - | no |
+| docs drift, info exposure, error handling, suppression, IaC, numeric | - | none | - | - | - | no (uncalibrated) |
+
+**Trusted at a 0.99 lower bound: the `v3` labeller, on injection, weak
+random / weak hash and deserialisation, on benchmark code.** It made no
+false `tp` call in 382 (lower bound 0.99004) and no false `fp` call in
+112, with no unsure answers in 494. The margin is a single error: one
+false `tp` call would put it under 0.99 until about 470 calls. The rules
+measured were `java.sql-string-built`, `java.command-injection`,
+`java.xss-unescaped-html`, `java.weak-random-for-secret`, and the Python
+weak random / weak hash, code-injection and deserialisation rules.
+
+The other categories have no `v3` calibration. The planted rounds were
+`v1`, are too small to reach 0.99 even with no error, and use fixtures we
+wrote. Docs drift and the rest have no model-free truth. A model label in
+those categories (including `assurance.blanket-suppression`'s 125)
+therefore carries no measured labeller error. No model-labelled rule or
+category can be claimed at 99% yet.
+
+**Model labels in the ledger are `v3` only.** On 2026-10-23, the gold
+sample (601 findings from a fresh gold run), the AI corpus (115) and the
+CVE suspects (5) were relabelled with `v3`
+(`tools/gold/results/2026-10-23-relabel.md`). The `v1` files are kept in
+`tools/gold/labels/history/`. `tools/precision_ledger.py build
+tools/gold/labels/*.jsonl tools/gold/labels/*.jsonl.gz` drops calibration
+records and any model label from a prompt version other than the current
+`label_models.PROMPT_VERSION`.
 
 Rule requirements: 157 of the 228 shipped rules trace to at least one
 requirement (all 144 language-pack rules, 13 of the 56 rules coded in
@@ -310,6 +331,10 @@ Each finding gets its own request, built from:
     in another file**, at most 3 of 30 lines each. A call is resolved by its
     receiver's declared type or by an import, from the scan's own inventory,
     never by name alone across the repository;
+  - **same-file callers** of the enclosing function, at most 2 of 25 lines
+    each, when one of its parameters feeds the flagged statement (Juliet
+    `sink(data)`, `doGet` calling `doPost(request, response)`), so the
+    argument's origin is visible (`verify-v3`);
   - other same-file callees;
   - at most 220 lines in all, every line numbered with its own file's line
     number, the flagged line marked `>>`, masked with

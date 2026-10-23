@@ -180,7 +180,7 @@ used for tests.
 
 ### Secrets: path facts and known-public values
 
-- **Known-public example values** (AWS's `AKIAIOSFODNN7EXAMPLE` /
+- **Known-public example values** (AWS's `AKIA...EXAMPLE` access key id /
   `wJalrXUtnFEMI/K7MDENG...EXAMPLEKEY`, the jwt.io sample token, Stripe's
   documented `sk_test_` key): none of the 102 gold secret findings carries
   one, so this gives no items. GitHub secret-scanning fixtures were not

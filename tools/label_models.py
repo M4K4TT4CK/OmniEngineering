@@ -278,7 +278,18 @@ def parse_answer(text: str) -> dict | None:
     lab = str(d.get("label", "")).strip().lower()
     if lab not in g.LABELS:
         return None
-    return {"label": lab, "reason": " ".join(str(d.get("reason", "")).split())[:600]}
+    # A reason may quote the excerpt; it is masked like the excerpt was, so a
+    # label file never carries a credential-shaped string from the corpus.
+    return {"label": lab, "reason": mask_reason(" ".join(str(d.get("reason", "")).split()))[:600]}
+
+
+_DB_URL_CRED = re.compile(r"\b((?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?)://)[^\s:@/]+:[^\s@/]+@")
+
+
+def mask_reason(text: str) -> str:
+    """`_mask_secrets`, plus inline database-URL credentials (the shape
+    `secrets.pg-url` flags), which a labeller may quote from the code."""
+    return _DB_URL_CRED.sub(r"\1[redacted]@", g.mask(text))
 
 
 # ---------------------------------------------------------------------------
