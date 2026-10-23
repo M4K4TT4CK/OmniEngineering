@@ -89,7 +89,7 @@ For this workspace, prefer:
 
 ```bash
 ./omni doctor
-./omni validate
 ./omni failure check
-python3 -m unittest discover -s tests
+./omni test run --impacted
+./omni gate
 ```

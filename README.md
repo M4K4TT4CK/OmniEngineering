@@ -36,48 +36,98 @@ and completion workflows across every assistant.
 
 ## Quick Start
 
-In short: a `.ai/` folder of rules, playbooks, and checklists that every AI
-coding assistant in your repo reads from instead of its own separate config
-file, plus a small dependency-free CLI (`omni`) to keep it healthy.
+In short: a `.ai/` folder of rules, playbooks and checklists that every AI
+coding assistant in your repository reads instead of its own config file, a
+small CLI (`omni`, Python 3.10+, standard library only) that keeps it healthy,
+and a completion gate that blocks "done" until the change carries a
+requirement, a changelog entry and passing checks.
 
-**1. Get a checkout of this repo** (you'll adopt *from* it, so keep it around):
+These steps take a git repository from nothing to a first passing
+`omni gate`. They were run as written against a fresh repository.
+
+**1. Get a checkout of this repository.** You adopt *from* it, so keep it.
 
 ```bash
-git clone <this-repo-url> ../OmniEngineering
+git clone https://github.com/M4K4TT4CK/OmniEngineering.git ../OmniEngineering
 ```
 
-**2. Add it to your project** (run from inside the `OmniEngineering` checkout):
-
-```bash
-cd ../OmniEngineering
-./omni adopt --target ../your-project --dry-run       # preview first
-./omni adopt --target ../your-project --include-cli    # then actually copy
-```
-
-**3. Check it's healthy** (run from inside your project):
+**2. Prepare your project.** It must be a git repository with at least one
+commit, a `README.md` and a `CHANGELOG.md` (doctor fails without the README,
+and the gate checks the changelog):
 
 ```bash
 cd ../your-project
-./omni doctor
+test -f README.md || echo "# your-project" > README.md
+test -f CHANGELOG.md || echo "# Changelog" > CHANGELOG.md
+git add README.md CHANGELOG.md
+git diff --cached --quiet || git commit -m "Add README and changelog"
 ```
 
-**Later, pull in template improvements** (new rulepacks, new `doctor` checks,
-etc.) without losing anything you've customized:
+**3. Adopt** (from the OmniEngineering checkout). Preview first; nothing is
+overwritten without `--force`:
+
+```bash
+cd ../OmniEngineering
+./omni adopt --target ../your-project --tools all --include-cli --include-legal --dry-run
+./omni adopt --target ../your-project --tools all --include-cli --include-legal --with-arbiter
+```
+
+- `--tools all` copies every assistant shim. Doctor expects all of them
+  (`.ai/context-manifest.json` names them); if you pick fewer, run
+  `./omni sync` in the project afterwards to write the rest.
+- `--include-cli` copies `omni`, `make_ai.py`, `omni_graph.py`,
+  `omni_mcp.py` and the graph viewer. Without it the project has no `./omni`.
+- `--include-legal` copies `LICENSE`, `NOTICE`, `TRADEMARKS.md`,
+  `CONTRIBUTING.md` and `LICENSES/`. Doctor fails without the first three.
+- `--with-arbiter` installs [Arbiter](https://github.com/paukennick/arbiter)
+  with pip (add `--skip-pip` when `arbiter` is already on PATH), wires it in
+  and cuts a baseline with a full offline scan (minutes on a large repository).
+  Without `--with-arbiter`, adopt leaves the required rule
+  `completion.arbiter_gate` out of `.ai/rules/completion-workflow.json`, so
+  `omni gate` does not need Arbiter; `./omni arbiter install` adds it later.
+
+**4. Check health and commit the adoption** (from your project):
+
+```bash
+cd ../your-project
+./omni doctor          # expect 0 errors; placeholder and file-placement warnings are normal
+git add -A && git commit -m "Adopt OmniEngineering"
+```
+
+**5. Make a governed change and pass the gate.** The adopted registry is
+empty, so your first requirement is `REQ-001`; `add` prints the id it chose.
+
+```bash
+./omni requirement add --title "Say hello" --description "app.py prints hello"
+#   Added requirement REQ-001: Say hello
+echo 'print("hello")' >> app.py
+printf '\n## %s\n\n- REQ-001: app.py prints hello\n' "$(date +%F)" >> CHANGELOG.md
+./omni gate
+#   ran     completion.tests 0.2s PASS
+#   ran     completion.arbiter_gate 0.7s PASS
+#   omni gate: PASS (3 changed path(s) checked)
+```
+
+The gate failed before the requirement and the changelog line existed, and
+said which rule wanted what. Then fill in `.ai/project-configuration.md` and
+the placeholders in `.ai/rules/universal-engineering-ruleset.json` (see
+[Configure a Project](#configure-a-project)), and install a hook so the gate
+runs without anyone remembering it:
+
+```bash
+./omni hook install-git    # git pre-commit hook: any assistant, or none
+./omni hook install        # Claude Code Stop hook in .claude/settings.json
+```
+
+**Later, pull in template improvements** without losing your edits:
 
 ```bash
 ./omni update --source ../OmniEngineering --dry-run   # preview
 ./omni update --source ../OmniEngineering              # apply
 ```
 
-`omni update` never touches your `requirements.json`, `project-map.md`,
-`project-configuration.md`, or `CHANGELOG.md` -- see
-[Updating an adopted workspace](#updating-an-adopted-workspace) for exactly
-how it decides what's safe to change, and what to do if your project adopted
-OmniEngineering before this command existed.
-
-That's the whole loop: adopt once, `doctor` to check health, `update` to stay
-current. Everything below explains *why* it's built this way and covers less
-common setups (bare `.ai/` copy, symlinks, CI wiring, multi-tool projects).
+See [Updating an adopted workspace](#updating-an-adopted-workspace) for what
+`update` merges and what it never touches.
 
 ## Arbiter: the evaluator this workspace runs with
 
@@ -115,27 +165,6 @@ two level with `./omni arbiter sync` (subtree pull or pip upgrade, reinstall,
 version record, baseline refresh, doctor, stopping at the first failing step)
 and `./omni update` for the workspace template; `./omni arbiter baseline
 --refresh` alone re-cuts the baseline on a green gate.
-
-What that adds to this repository, in one list (the per-path table is in the
-release notes):
-
-- `arbiter/`: the whole Arbiter checkout as a git subtree with its full
-  history, its own `.ai/` workspace on the `ARB-###` prefix, its own
-  `LICENSE` (all rights reserved, not Apache-2.0) and `NOTICE.md`.
-- `arbiter.yaml`, `.arbiter/baseline.json`, the `arbiter` server in
-  `.mcp.json`, the required rule `completion.arbiter_gate` and the recommended
-  example `completion.tests` in the completion rulepack, `arbiter-out/` and
-  `.arbiter/cache.json` in `.gitignore`.
-- CI: the matrix job installs the vendored Arbiter and uploads the gate's
-  SARIF; two new jobs run the subtree's own suite, claim-integrity and mutation
-  checks, and prove the adopt loop end to end.
-- Commands: `omni adopt --with-arbiter`, `omni arbiter install | baseline |
-  update`, `omni doctor --json`, `omni requirement archive | renumber`,
-  `omni graph impact | findings`, `omni test run`.
-- Records: requirements REQ-031 to REQ-045 (and ARB-038 to ARB-044 inside the
-  subtree), defects FAIL-010 to FAIL-015, one `CHANGELOG.md` entry per
-  requirement, and the statement in `NOTICE` and `LICENSES/README.md` that
-  the Apache-2.0 grant stops at `arbiter/`.
 
 The full mechanics, the CI jobs and what each proves, the off switches and a
 finding-tracing walkthrough are in
@@ -202,110 +231,35 @@ without locking the team into one vendor or editor.
 ```text
 [project-root]/
 ├── .ai/
+│   ├── context-brief.md            # read first: what to load for which task
 │   ├── core-context.md
-│   ├── project-configuration.md
-│   ├── .ignore
-│   ├── context-manifest.json
-│   ├── project-map.md
-│   ├── entrypoints/
-│   │   ├── universal.md
-│   │   ├── codex.md
-│   │   ├── claude.md
-│   │   ├── cursor.md
-│   │   ├── copilot.md
-│   │   ├── kiro.md
-│   │   └── fallback-contract.md
-│   ├── adapters/
-│   │   ├── generic-llm.md
-│   │   ├── local-model.md
-│   │   ├── model-router.md
-│   │   ├── openrouter.md
-│   │   ├── deepseek.md
-│   │   └── kiro.md
-│   ├── playbooks/
-│   │   ├── planning.md
-│   │   ├── implementation.md
-│   │   ├── review.md
-│   │   ├── testing.md
-│   │   ├── debugging.md
-│   │   ├── refactoring.md
-│   │   ├── migration.md
-│   │   ├── release.md
-│   │   └── handoff.md
-│   ├── checklists/
-│   │   ├── pre-implementation.md
-│   │   ├── pre-completion.md
-│   │   ├── public-release.md
-│   │   └── security.md
-│   ├── knowledge/
-│   │   └── swebok/
-│   │       ├── software-requirements.md
-│   │       ├── software-design.md
-│   │       ├── software-construction.md
-│   │       ├── software-testing.md
-│   │       ├── software-maintenance.md
-│   │       ├── software-configuration-management.md
-│   │       ├── software-engineering-management.md
-│   │       ├── software-engineering-process.md
-│   │       ├── software-engineering-models-and-methods.md
-│   │       ├── software-quality.md
-│   │       ├── software-engineering-professional-practice.md
-│   │       ├── software-engineering-economics.md
-│   │       ├── computing-foundations.md
-│   │       ├── mathematical-foundations.md
-│   │       ├── engineering-foundations.md
-│   │       ├── requirements-quality-checklist.md
-│   │       ├── design-quality-checklist.md
-│   │       ├── construction-quality-checklist.md
-│   │       ├── testing-quality-checklist.md
-│   │       ├── maintenance-impact-checklist.md
-│   │       ├── scm-checklist.md
-│   │       ├── engineering-management-checklist.md
-│   │       ├── process-tailoring-checklist.md
-│   │       ├── model-method-selection-checklist.md
-│   │       ├── quality-attribute-checklist.md
-│   │       ├── professional-practice-checklist.md
-│   │       ├── economics-decision-checklist.md
-│   │       ├── computing-foundations-checklist.md
-│   │       ├── mathematical-reasoning-checklist.md
-│   │       ├── engineering-foundations-checklist.md
-│   │       ├── srs-template.md
-│   │       ├── design-brief-template.md
-│   │       ├── test-plan-template.md
-│   │       ├── maintenance-plan-template.md
-│   │       ├── engineering-plan-template.md
-│   │       ├── process-improvement-template.md
-│   │       ├── quality-plan-template.md
-│   │       └── tradeoff-analysis-template.md
-│   ├── requirements/
-│   │   └── requirements.json
-│   ├── rules/
-│   │   ├── universal-engineering-ruleset.json
-│   │   ├── controlled-implementation.json
-│   │   ├── completion-workflow.json
-│   │   ├── data-governance.json
-│   │   ├── fallback-llm-rules.json
-│   │   ├── hci-ui-rules.json
-│   │   └── oop-design.json
-│   └── schemas/
-│       ├── rulepack.schema.json
-│       ├── requirements.schema.json
-│       └── universal-engineering-ruleset.schema.json
-│
-├── LLM_CONTEXT.md
-├── AGENTS.md
-├── CLAUDE.md
-├── .cursorrules
-├── .kiro/
-│   └── steering/
-│       └── omnicontext.md
-├── .github/
-│   └── copilot-instructions.md
+│   ├── project-configuration.md    # yours: commands, paths, id prefix
+│   ├── project-map.md              # generated by `omni map`
+│   ├── context-manifest.json       # machine-readable loading order and profiles
+│   ├── .ignore                     # paths assistants must not read
+│   ├── entrypoints/                # full per-tool instructions (generated by `omni sync`)
+│   │   └── universal.md, codex.md, claude.md, cursor.md, copilot.md, kiro.md, fallback-contract.md
+│   ├── adapters/                   # copy-paste prompts for tools with no native entry file
+│   ├── playbooks/                  # planning, implementation, review, testing, debugging, ...
+│   ├── checklists/                 # pre-implementation, pre-completion, public-release, security
+│   ├── knowledge/swebok/           # 15 knowledge areas, 15 checklists, 8 templates
+│   ├── rules/                      # the universal ruleset and six JSON rulepacks
+│   ├── requirements/requirements.json   # managed with `omni requirement`
+│   ├── failures/failure-ledger.json     # managed with `omni failure`
+│   ├── test-suites.json                 # managed with `omni test`
+│   ├── graph-config.json           # optional; drafted by `omni graph sources --write`
+│   ├── graph-viewer/               # assets for `omni graph view`
+│   └── schemas/                    # JSON schemas for the files above
+├── LLM_CONTEXT.md, AGENTS.md, CLAUDE.md, .cursorrules, .cursorignore
+├── .github/copilot-instructions.md
+├── .kiro/steering/omnicontext.md
+├── .claude/skills/clarify/SKILL.md # Claude Code skill, copied with `--tools claude`
 ├── CHANGELOG.md
-├── omni
-├── pyproject.toml
-└── make_ai.py
+└── omni, make_ai.py, omni_graph.py, omni_mcp.py   # the CLI (`--include-cli`)
 ```
+
+Generated at run time and git-ignored: `.ai/project-graph.json`,
+`.ai/project-graph.html`, `.ai/project-graph.svg`, `arbiter-out/`.
 
 The `.ai/` directory is the master context directory. Root files are thin
 compatibility shims for tools that require fixed filenames; the full
@@ -434,64 +388,45 @@ maintenance tools for checking and synchronizing it.
 
 ## Add The Workspace To A Project
 
-Do not recreate the directory tree by hand. Bring the workspace files into the
-target repository, then configure them for that project.
+Use `omni adopt` rather than copying files by hand. It copies `.ai/` and the
+selected files, skips anything that already exists in the target (`--force`
+replaces, after you have reviewed the conflicts), and on a real run writes
+`.ai/omni-version.json` (source path and commit) so `omni update` can merge
+later template changes.
 
-Use one of these adoption paths:
+| Option | Copies |
+| --- | --- |
+| (always) | `.ai/`, with an empty requirements registry, failure ledger and suite registry, and without this repository's requirements archive, gate waivers, `graph-config.json` or generated graph output |
+| `--tools LIST` | one shim per tool: `universal` `LLM_CONTEXT.md`, `codex` `AGENTS.md`, `claude` `CLAUDE.md` and `.claude/skills/clarify/`, `cursor` `.cursorrules` and `.cursorignore`, `copilot` `.github/copilot-instructions.md`, `kiro` `.kiro/steering/omnicontext.md`; `all` or `none`. Default `codex,cursor,universal` |
+| `--include-cli` | `omni`, `make_ai.py`, `omni_graph.py`, `omni_mcp.py` and `.ai/graph-viewer/` |
+| `--include-legal` | `LICENSE`, `NOTICE`, `TRADEMARKS.md`, `CONTRIBUTING.md`, `LICENSES/` |
+| `--include-presentation` | `assets/brand/`, `assets/omni-context.svg`, `design/` |
+| `--with-arbiter [SOURCE]` | installs and wires Arbiter (next section); `--skip-pip` writes the wiring only |
+| `--dry-run` | prints what would be copied, writes nothing |
 
-| Path | Best For | What To Do |
-| --- | --- | --- |
-| Template copy | New repositories | Create the project from an OmniEngineering template or copy this repository, then replace project-specific placeholders. |
-| Drop-in copy | Existing repositories | Copy `.ai/` and only the needed tool shims into the target repo root, review conflicts, then run `./omni doctor`. |
-| Vendored source | Teams that want upstream updates | Add OmniEngineering as a tracked subtree, submodule, or vendor directory, then copy or safely sync the root shims into the project. |
-| Internal baseline | Organizations | Keep an approved internal fork and periodically merge upstream OmniEngineering improvements. |
+Worth knowing about what is adopted:
 
-For a normal existing repository, copy `.ai/` into the target repo root first:
+- `.ai/requirements/requirements.json` starts empty (`requirements: []`),
+  keeping this repository's `version` and `requirement_id_prefix`, so the
+  first `./omni requirement add` is `REQ-001`. OmniEngineering's own
+  requirements, its `requirements-archive.json` and `gate-waivers.jsonl`
+  (which cite those ids) and the generated `.ai/project-graph.{json,html,svg}`
+  are not copied.
+- `.ai/rules/completion-workflow.json` contains the required rule
+  `completion.tests`, plus `completion.arbiter_gate` (which needs `arbiter` on
+  PATH) only when you adopt with `--with-arbiter`. Without it the rule is left
+  out and `./omni arbiter install` adds it.
 
-```text
-.ai/
-```
+Doctor checks for every shim named in `.ai/context-manifest.json` and for
+`LICENSE`, `NOTICE` and `TRADEMARKS.md`, so either adopt with `--tools all
+--include-legal` or run `./omni sync` afterwards (it writes the missing
+shims). `./omni sync` skips an existing file that omni did not write;
+`--force` replaces it. Do not copy this repository's `pyproject.toml` over
+yours: the installable `omni` console script is optional, and `./omni` is
+enough.
 
-Then add only the shims for tools the team actually uses:
-
-```text
-LLM_CONTEXT.md
-AGENTS.md
-CLAUDE.md
-.cursorrules
-.cursorignore
-.github/copilot-instructions.md
-.kiro/steering/omnicontext.md
-```
-
-Add the maintenance CLI if the project wants local validation and map commands:
-
-```text
-omni
-make_ai.py
-```
-
-Do not overwrite an existing `pyproject.toml`. The installable `omni` console
-script is optional; the repo-local `./omni` command is enough for validation.
-
-If the target already has `AGENTS.md`, `CLAUDE.md`, `.cursorrules`,
-`.cursorignore`, `.github/copilot-instructions.md`, `.kiro/`, `omni`, or
-`make_ai.py`, merge manually instead of replacing the file. `./omni sync` will
-skip existing non-Omni files by default. Use `./omni sync --force` only when
-replacement is intentional.
-
-You can generate a safe adoption plan before copying:
-
-```bash
-./omni adopt --target ../target-project --dry-run
-./omni adopt --target ../target-project --tools codex,cursor,universal --include-cli
-```
-
-`adopt` copies `.ai/` and selected shims, skips existing target files by
-default, and requires `--force` before replacing anything. A successful
-(non-dry-run) adoption also writes `.ai/omni-version.json`, recording the
-source path and git commit adopted from -- this is what `omni update` (below)
-diffs against later.
+Keep the OmniEngineering license files when you distribute copied or modified
+workspace files, and keep your project's own license for its code.
 
 ### Arbiter alongside the workspace
 
@@ -507,19 +442,17 @@ Bring it in with the adoption, or add it to a repository adopted earlier:
 cd ../your-project && ./omni arbiter install --source ../arbiter               # already adopted
 ```
 
-Four things land, each skipped when already present and never overwritten:
-the `arbiter-eval[mcp]` package (editable from a checkout, or from the git
-URL), an `arbiter` entry in `.mcp.json` so assistants reach `arbiter_scan`,
-`arbiter_gate` and `arbiter_review_queue` as tools, a `completion.arbiter_gate`
-rule of type `command` in the completion rulepack so `omni gate` runs
-`arbiter gate --changed <base>` whenever source changes, and a starter
-`arbiter.yaml` (fail on critical, fail on new high), plus `arbiter-out/` in
-`.gitignore`: Arbiter reads tracked files as source, so a committed report of
-its own would be scanned and gated on the next run (FAIL-012). A workspace
-wired by hand needs that ignore entry before its first run. `--skip-pip`
-writes the wiring only; `--dry-run` shows it. `omni doctor` then starts the registered
-server for real. Arbiter is a separate, proprietary product; this command
-installs and wires it, it does not vendor it.
+It installs the `arbiter-eval[mcp]` package (editable from a checkout, or
+from the git URL) and writes the wiring, each piece skipped when it already
+exists: an `arbiter` server in `.mcp.json`, the `completion.arbiter_gate`
+command rule, a starter `arbiter.yaml` (fail on critical, fail on new high),
+`arbiter-out/` and `.arbiter/cache.json` in `.gitignore` (a committed report
+would be scanned as source, FAIL-012), and `.arbiter/baseline.json`. The table
+of what each file holds is in
+[docs/arbiter-integration.md section 3](docs/arbiter-integration.md#3-what-the-wiring-writes).
+`--skip-pip` writes the wiring only; `--dry-run` shows it. Arbiter is a
+separate, proprietary product: this installs and wires it, it does not vendor
+it.
 
 Installation also cuts the **baseline**: a full offline scan of the project
 (`arbiter scan . --profile offline`), written by `arbiter baseline` to
@@ -588,16 +521,20 @@ command rather than a manual re-copy:
 ```
 
 `update` 3-way-merges every template-managed file (rulepacks, playbooks,
-checklists, SWEBOK knowledge, schemas, entrypoints, `make_ai.py`/`omni`)
-using `git merge-file` against the ref recorded in `.ai/omni-version.json`:
+checklists, adapters, SWEBOK knowledge, schemas, the context files, and the CLI
+files `omni`, `make_ai.py`, `omni_graph.py`, `omni_mcp.py` and
+`.ai/graph-viewer/`) using `git merge-file` against the ref recorded in
+`.ai/omni-version.json`. The entrypoints in `.ai/entrypoints/` are not merged:
+they are regenerated from `make_ai.py` by `omni sync`.
 
 - Untouched-by-you files that changed upstream are updated automatically.
 - Files you customized that the template didn't touch are left alone.
 - Files both sides changed are merged; a genuine conflict is left with
   `<<<<<<<`/`>>>>>>>` markers for you to resolve by hand, same as a git merge.
 - `.ai/project-configuration.md`, `.ai/project-map.md`,
-  `.ai/requirements/requirements.json`, and `CHANGELOG.md` are never touched
-  -- those are yours, not the template's.
+  `.ai/requirements/requirements.json`, `.ai/failures/failure-ledger.json`,
+  `.ai/test-suites.json` and `CHANGELOG.md` are never touched: they are
+  yours, not the template's.
 
 `--source` must point to a git checkout of OmniEngineering (not a plain
 folder copy) since reconstructing the merge base requires its commit
@@ -647,52 +584,13 @@ unless `--force` (`--squash` asks for a squashed pull). It re-records the
 version last. Afterwards run `omni arbiter baseline --refresh` once the gate is
 green, so the baseline matches what the upgraded Arbiter reports.
 
-Optional presentation assets:
+After adopting or updating, run `./omni doctor`, and `./omni map` when the
+project's structure changed.
 
-```text
-assets/brand/
-assets/omni-context.svg
-design/
-```
-
-Keep the OmniEngineering license files when you distribute copied or modified
-OmniEngineering workspace files:
-
-```text
-LICENSE
-NOTICE
-TRADEMARKS.md
-CONTRIBUTING.md
-LICENSES/
-```
-
-Then add or keep the target project's own license for its application code,
-product code, docs, and data.
-
-After copying, run:
-
-```bash
-./omni doctor
-./omni map
-```
-
-If you edited fallback text or assistant entrypoints while adapting the
-workspace, run:
-
-```bash
-./omni sync
-./omni map
-./omni doctor
-```
-
-`./omni sync` is collision-safe by default: it skips existing non-Omni files
-instead of overwriting project-owned assistant configuration. Use
-`./omni sync --force` only when replacement is intentional.
-
-The root assistant files are already written as shims for Codex, Claude Code,
-Cursor, GitHub Copilot, Kiro-style workflows, and generic/local/model-router
-workflows. Edit `.ai/entrypoints/` for tool-specific behavior, then run
-`./omni sync`.
+The entrypoints in `.ai/entrypoints/` and the root shims are generated from
+`make_ai.py` by `./omni sync`; an edit to them is reported as drift by doctor
+and overwritten by the next sync. Put project-specific instructions in
+`.ai/core-context.md`, `.ai/project-configuration.md` or a rulepack instead.
 
 ## Configure a Project
 
@@ -723,36 +621,40 @@ Then customize:
 .ai/rules/universal-engineering-ruleset.json
 ```
 
-Replace the angle-bracket placeholders with project-specific values and add
-project requirements using the included `REQ-###` template.
+Replace the angle-bracket placeholders with project-specific values (doctor
+warns while any remain) and add project requirements with `./omni requirement
+add`. In Claude Code, the `clarify` skill turns a request into requirements:
+see [Assistant skills](#assistant-skills).
 
 ## Daily Use
 
 Once the workspace is initialized, keep the root assistant files boring. Most
 changes should happen inside `.ai/`.
 
-| Need | Edit |
+| Need | Edit or run |
 | --- | --- |
 | Low-token loading contract | `.ai/context-brief.md` |
 | Global assistant behavior | `.ai/core-context.md` |
 | Project commands and placeholders | `.ai/project-configuration.md` |
 | Portable model loading order | `.ai/context-manifest.json` |
-| Generated project structure map | `.ai/project-map.md` |
-| Tool-specific entrypoint sources | `.ai/entrypoints/` |
+| Generated project structure map | `./omni map` (writes `.ai/project-map.md`) |
+| Tool-specific entrypoint text | `make_ai.py` (`ENTRYPOINT_SOURCES`), then `./omni sync` |
 | Local, DeepSeek, or generic model prompts | `.ai/adapters/` |
 | OpenRouter or model-gateway prompts | `.ai/adapters/openrouter.md`, `.ai/adapters/model-router.md` |
 | Task execution guidance | `.ai/playbooks/` |
 | Completion gates | `.ai/checklists/` |
 | Body-of-knowledge guidance | `.ai/knowledge/` |
 | Strict operating rules | `.ai/rules/universal-engineering-ruleset.json` |
-| Requirement registry | `.ai/requirements/requirements.json` |
+| Requirement registry | `./omni requirement add / update / complete` (never by hand) |
 | Machine-readable contracts | `.ai/schemas/` |
 | Implementation workflow | `.ai/rules/controlled-implementation.json` |
 | Completion and reporting workflow | `.ai/rules/completion-workflow.json` |
 | Data contracts and transformations | `.ai/rules/data-governance.json` |
-| Fallback assistant behavior | `.ai/entrypoints/fallback-contract.md`, `.ai/rules/fallback-llm-rules.json` |
+| Fallback assistant behavior | `.ai/rules/fallback-llm-rules.json` (the contract text is generated: `FALLBACK_CONTRACT` in `make_ai.py`) |
 | Security exclusions | `.ai/.ignore` |
 | Change history | `CHANGELOG.md` |
+| Failure ledger | `./omni failure add / update` |
+| Test suites | `./omni test detect --write`, `./omni test add` |
 
 Example prompt:
 
@@ -772,81 +674,57 @@ ends with the command to run (`./omni gate`). The escape hatch is
 reason as a risk note on the requirement -- so a skipped check is visible in the
 registry, never silent.
 
-## Maintenance CLI
+## Assistant Skills
 
-`omni` is a small dependency-free maintenance helper. It is not required for
-normal day-to-day AI usage after the files are already present in a repo, but it
-is the easiest way to confirm a drop-in copy is healthy. It requires Python 3.10
-or newer.
+`.claude/skills/clarify/SKILL.md` is a Claude Code skill for the start of a
+task: it reads the code and `omni graph why` before asking anything, asks at
+most four ranked questions per round, states its assumptions, drafts
+requirements with measurable acceptance criteria, orders them into slices, and
+registers them with `./omni requirement add` once the plan is approved. It is
+written for plan mode and also covers the default, accept-edits and auto
+modes. A time-boxed form handles one-line prompts.
 
-Use it when you first bring the workspace into a project, change engineering
-workspace configuration, edit assistant entrypoints, add rulepacks, or prepare a
-public release.
+`omni adopt --tools claude` (or `--tools all`) copies it. Claude Code lists it
+as `clarify`; invoke it with `/clarify` or let it trigger on a new feature
+request. Other assistants can read the file as a playbook.
 
-Run it directly from the repository:
+## Command Reference
 
-```bash
-./omni doctor
-./omni sync
-./omni map
-./omni context implementation
-```
+`omni` needs Python 3.10 or newer and nothing outside the standard library,
+except `omni graph build` (tree-sitter, see [Code Graph](#code-graph-omni-graph))
+and `omni arbiter` (Arbiter). Run it as `./omni` from the project root, or
+install the `omni` console script once from a checkout of this repository with
+`python3 -m pip install -e .`. Every command has `--help`; this table is the
+map.
 
-`./omni sync` updates generated Omni files and skips existing non-Omni files.
-Use `./omni sync --force` only after manually deciding replacement is safe.
+| Command | What it does |
+| --- | --- |
+| `omni doctor [--json] [--probe]` | Check workspace health; ends with a `Posture:` line. `validate` is an alias. |
+| `omni sync [--force]` | Regenerate `.ai/entrypoints/`, the root shims and `.cursorignore`. |
+| `omni map` | Write `.ai/project-map.md` (`--max-depth`, `--max-entries`, `--include-ai`). |
+| `omni context [profile] [--extra FILE] [--json]` | Print the file set of a context profile: `minimum`, `implementation`, `review`, `deep_policy`. |
+| `omni adopt --target DIR` | Copy the workspace into another project (see [Add The Workspace To A Project](#add-the-workspace-to-a-project)). |
+| `omni update --source DIR` | 3-way-merge template changes (`--dry-run`, `--bootstrap`). |
+| `omni requirement add / draft / show / list / search / update / complete / archive / renumber` | The requirements registry ([Low-Friction Editing](#low-friction-editing)). |
+| `omni failure add / update / show / list / search / check` | The failure ledger ([Failure Ledger](#failure-ledger)). |
+| `omni test detect / add / remove / list / check / run` | The test-suite registry ([Using it in your own project](#using-it-in-your-own-project)). |
+| `omni gate [--no-memo]` | Run the completion rulepack against the change set; exit 1 on a failed required rule. `--hook` is the Claude Code Stop-hook mode. |
+| `omni waive RULE --reason TEXT [--requirement ID]` | Record an auditable waiver for one gate rule (appended to `.ai/gate-waivers.jsonl`). |
+| `omni hook install [--settings FILE]` | Add the Claude Code Stop hook that runs `omni gate --hook` (default `.claude/settings.json`). |
+| `omni hook install-git [--force] [--with-graph-rebuild]` | Write `.githooks/pre-commit` (runs `omni gate`) and set `core.hooksPath`; commit `.githooks/` so other clones can opt in. Optionally a post-commit graph rebuild. |
+| `omni rule add --rulepack ALIAS --statement TEXT` | Add a rule to a rulepack. |
+| `omni graph build / show / trace / why / lineage / timeline / impact / findings / sources / schema / benchmark / render / view` | The project graph ([Code Graph](#code-graph-omni-graph)). |
+| `omni mcp serve / tools` | The MCP server ([MCP server](#mcp-server-the-graph-as-tools-for-any-assistant)). |
+| `omni arbiter install / baseline / update / sync` | Install, baseline and upgrade Arbiter ([Arbiter alongside the workspace](#arbiter-alongside-the-workspace)). |
 
-`./omni context <profile>` prints the exact low-token file set for a task.
-Useful profiles are `minimum`, `implementation`, `review`, and `deep_policy`.
+`sync` checks that the required `.ai/` files exist, then rewrites only the
+generated files. It never touches `.ai/rules/`, and it skips an existing root
+file omni did not write unless `--force`.
 
-Or install the command once from the repository root:
-
-```bash
-python3 -m pip install -e .
-```
-
-After that, use:
-
-```bash
-omni doctor
-omni sync
-omni validate
-omni map
-omni context review
-omni arbiter baseline
-omni arbiter update
-omni arbiter sync
-```
-
-`arbiter baseline` cuts (or, with `--refresh`, re-cuts on a green gate) the
-`.arbiter/baseline.json` the gate rule compares against; `arbiter update`
-upgrades Arbiter, its gate rule and a vendored subtree, and re-records the
-version; `arbiter sync` runs the subtree pull (or pip upgrade), the reinstall,
-the version record, the baseline refresh and doctor in order, stopping at the
-first failing step. See [Arbiter alongside the workspace](#arbiter-alongside-the-workspace)
-and [Updating an adopted workspace](#updating-an-adopted-workspace).
-
-`sync` verifies that the required `.ai/` source-of-truth files exist, then
-refreshes `.ai/entrypoints/`, the root shim files, and synced ignore files.
-
-It does not overwrite the `.ai/` rules. The rules are the source of truth.
-
-`map` generates `.ai/project-map.md`, a compact structure map of the adopter's
-project repository. It is meant for LLM navigation: read the map first, choose a
-small relevant path set, then inspect only those files. The generated map does
-not include file contents and filters paths listed in `.ai/.ignore` plus common
-dependency, build, cache, VCS, and local-session directories.
-
-Regenerate it after substantial file moves or new top-level modules:
-
-```bash
-omni map
-```
-
-Run the doctor after copying, publishing, or adapting the workspace:
-
-```bash
-omni doctor
-```
+`map` lists the project's files and directories (no contents) for LLM
+navigation, filtering `.ai/.ignore`, `.gitignore` and common dependency,
+build, cache and VCS directories. Re-run it after moving files or adding
+top-level modules.
 
 The doctor checks:
 
@@ -886,15 +764,13 @@ The doctor checks:
   `.local` or `localhost` domain; a mismatch is a warning naming the commit,
   the email and the fix (`git commit --amend --reset-author`, or a rebase).
   Skipped when no email is configured.
-- Generated project map availability.
+- Failure ledger completeness (`omni failure check`), the test-suite registry
+  and `.ai/graph-config.json` (unknown keys and wrong types).
+- Generated project map availability, and that it covers the current
+  top-level directories.
 - README architecture references.
-- Changelog presence.
-
-`validate` is an alias for `doctor`:
-
-```bash
-omni validate
-```
+- Changelog presence, and that no commit since the last `CHANGELOG.md` update
+  is missing from it.
 
 After the `Result:` line the doctor prints one `Posture:` line, the state of the
 workspace in a glance:
@@ -945,11 +821,21 @@ from:
   sits on top of an EXTRACTED edge that justifies it; an unresolved
   reference is left EXTRACTED-only rather than guessed.
 
-Build the graph (covers Python, JavaScript, and TypeScript):
+Build the graph:
 
 ```bash
-omni graph build
+omni graph build               # every language found (--languages auto)
+omni graph build --if-stale    # only when HEAD, a registry, the ledger or an Arbiter report moved
 ```
+
+Python, JavaScript and TypeScript have dedicated extractors. Java, Go, Rust,
+C#, C, C++, Ruby, PHP, Kotlin, Swift, Scala, Bash, Lua, Dart, Elixir, Haskell,
+OCaml, Perl and Zig go through one grammar-driven extractor. A language whose
+grammar is not installed still appears as file nodes, with a note in the build
+summary naming the package to install. SQL migrations need no grammar: they
+are replayed into tables, columns and foreign keys, which `omni graph schema
+[--table T] [--format text|mermaid|json]` prints. `omni gate` runs the
+`--if-stale` check itself after every gate when a graph file exists.
 
 This needs tree-sitter and its per-language grammars, which are an optional
 extra so the workspace stays dependency-free by default. If you cloned this
@@ -976,8 +862,13 @@ interpreter, rather than `--break-system-packages`:
 python3 -m venv ~/.venvs/omni-graph
 ~/.venvs/omni-graph/bin/pip install "tree-sitter>=0.23,<1.0" "tree-sitter-python>=0.23,<1.0" \
   "tree-sitter-javascript>=0.23,<1.0" "tree-sitter-typescript>=0.23,<1.0"
+~/.venvs/omni-graph/bin/pip install tree-sitter-java tree-sitter-go   # one per further language you use
 ~/.venvs/omni-graph/bin/python ./omni graph build
 ```
+
+The per-language packages are named `tree-sitter-<language>` (`tree-sitter-c-sharp`
+for C#). If `tree-sitter-language-pack` is installed instead, its grammars are
+used for any language whose own package is missing.
 
 You do not have to remember the long form: if `omni graph build` finds tree-sitter
 missing, it re-runs itself under `~/.venvs/omni-graph/bin/python` (or the
@@ -985,9 +876,9 @@ interpreter named by `OMNI_GRAPH_PYTHON`) when that venv has the packages, so a
 plain `./omni graph build` works. If no such venv exists it prints the setup
 commands above instead of a `pip install` that would be refused.
 
-Without either, `omni graph build` fails with a clear install message
-instead of a traceback. `trace` and `show` below only read the JSON `build`
-already wrote, so they work with just the standard library.
+Without tree-sitter, `omni graph build` stops with an install message
+instead of a traceback. Every other `omni graph` command only reads the JSON
+`build` wrote, so it needs only the standard library.
 
 Ask how two symbols are connected -- this is the point of the feature. A
 plain name resolves if it's unique; use `Class::method` or the full
@@ -1048,10 +939,11 @@ This writes `.ai/project-graph.html`, one self-contained file (about 1.5 MB
 plus your graph) that works offline: nothing is fetched at view time. It
 starts with the 500 best-connected symbols (`--max-initial`, or `--all`,
 or `--focus <symbol> --depth 2` for one neighbourhood) and grows as you
-expand. The page has search (`/`), language and edge-type filters, colouring
-by language, kind or top-level directory, an INFERRED-edge toggle, an
-edge-strength slider, and a detail panel that lists each symbol's callers and callees -- click any of
-them to jump there. Nodes and edges are scaled by distance so outliers far from the core cluster
+expand. The page has search, language and edge-type filters, colouring
+by layer, kind, language, top-level directory, role, finding category or
+finding severity, an INFERRED-edge toggle, an edge-strength slider, and a
+detail panel that lists each symbol's callers and callees: click any of them
+to jump there. Nodes and edges are scaled by distance so outliers far from the core cluster
 and far-away edges stay readable; the styling follows the OmniEngineering brand
 (`#e0475c` on `#0f0f12`). It needs a WebGL-capable browser; the SVG from `omni
 graph render` and `show --all` remain for everything else. The output is
@@ -1068,11 +960,10 @@ live in `.ai/graph-viewer/THIRD_PARTY_NOTICES.md` and are embedded in every
 generated page. The assets in `.ai/graph-viewer/` are excluded from
 `.ai/.ignore` so assistants do not read the 1.3 MB minified bundle.
 
-Both `trace`/`show`/`render` for machine-readable output
-(render's is a summary, not the SVG itself), and every `omni graph`
-subcommand is a thin, scriptable wrapper (one verb in, one JSON document
-out) so it can be exposed 1:1 as tools by an MCP relay, the same way
-`omni_map` / `omni_doctor` / `omni_sync` already are.
+Every query command (`show`, `trace`, `why`, `lineage`, `timeline`, `impact`,
+`findings`, `sources`, `benchmark`) takes `--json` for one machine-readable
+document; `build --json` and `render --json` print a summary. The read-only
+ones are also MCP tools ([MCP server](#mcp-server-the-graph-as-tools-for-any-assistant)).
 
 Add `--semantic` to `build` to also run an opt-in enrichment pass tagged
 `INFERRED` via a configured API. Nothing leaves this machine unless you set:
@@ -1101,8 +992,8 @@ git log, ask the graph what is tied to the thing you are about to touch.
 | **code** | modules, classes, functions, tables | `calls`, `imports`, `defines`, `inherits`, ... | your source (tree-sitter, SQL migrations) |
 | **governance** | `requirement`, `changelog` | `touches`, `records`, `mentions` | requirement files, changelog |
 | **history** | `commit` | `delivers`, `modifies`, `logged_in`, `follows` | the git log |
-| **assurance** | test files, `suite`, `failure`, `finding` | `verifies`, `contains`, `covers`, `affects`, `arose_in`, `guards`, `fixed_by`, `recurs`, `flags`, `cites`, `recorded_as` | tests, the suite registry, the failure ledger, the newest Arbiter report |
-| **workspace** | `rulepack`, `rule`, `playbook`, `checklist`, and OmniEngineering's own code | `defines`, `prevented_by` | `.ai/rules`, `.ai/playbooks`, `.ai/checklists`, `make_ai.py`, `omni_graph.py` |
+| **assurance** | test files, `suite`, `failure`, `finding`, `arbiter_rule`, `cwe` | `verifies`, `contains`, `covers`, `affects`, `arose_in`, `guards`, `fixed_by`, `recurs`, `flags`, `cites`, `recorded_as`, `introduced_by`, `violates`, `classified_as`, `specified_by`, `mentions_rule` | tests, the suite registry, the failure ledger, the newest Arbiter reports |
+| **workspace** | `rulepack`, `rule`, `playbook`, `checklist`, and OmniEngineering's own code | `defines`, `prevented_by` | `.ai/rules`, `.ai/playbooks`, `.ai/checklists`, the `tooling_paths` files |
 
 - A requirement `touches` the files in its declared scope (EXTRACTED) and the
   files changed by commits that deliver it (INFERRED). Changelog entries `record`
@@ -1122,13 +1013,21 @@ git log, ask the graph what is tied to the thing you are about to touch.
   cause, linked to the code it affected, the requirement, the tests or suite that
   `guard` it, the rule or playbook that prevents a repeat (`prevented_by`, into the
   workspace layer), and any earlier failure it repeats.
-- Every unsuppressed finding in the newest Arbiter report (`arbiter-out/**/report.json`, the
-  `--out` of the `completion.arbiter_gate` rule) is a `finding` node named by its id (`f:17a59c37fc20`)
-  that `flags` the file it was raised on and the function, class or method whose span holds the
-  line, `cites` the requirement named by a `req:<ID>` tag, and is `recorded_as` the ledger entry
-  whose `how_detected` quotes the finding id. Only the id, location, rule, category, severity,
-  status and tags are copied -- never the evidence. Directory nodes `contain` their files and
-  subdirectories, so the hierarchy root > directory > file > symbol > finding is explicit.
+- Every unsuppressed Arbiter finding is a `finding` node named by its id
+  (`f:17a59c37fc20`). It `flags` the file and the smallest function, class or
+  method around its line, `violates` an `arbiter_rule` node, is
+  `classified_as` each `cwe` node, `cites` the requirement in its `req:<ID>`
+  tag, is `introduced_by` the commit `git blame` gives for its line, and is
+  `recorded_as` the ledger entry whose `how_detected` quotes its id. A rule is
+  `specified_by` the requirement a report, changelog bullet, rule pack or
+  registry entry names beside it, so a finding traces to an `ARB-###` or
+  `REQ-###` id even on a full scan with no `req:` tags. The rule's
+  description and fix are copied; the evidence never is. Directory nodes
+  `contain` their files, so root > directory > file > symbol > finding is a
+  path. The edge-by-edge detail is in
+  [docs/arbiter-integration.md section 5](docs/arbiter-integration.md#5-findings-in-the-graph-and-how-to-trace-one).
+- Markdown docs (README, `docs/`, skills) `mention` the project files they name
+  in backticks or link to; `omni graph why <file>` lists them under docs.
 
 Traverse across the layers:
 
@@ -1140,6 +1039,9 @@ omni graph why a1b2c3d              # a commit: requirements, changelog entry, f
 omni graph why backend-junit        # a suite: its test files, what it covers
 omni graph why f:17a59c37fc20       # an Arbiter finding: rule, severity, category, flagged code, requirement, ledger entry
 omni graph findings --tree --severity high   # findings by directory, with what each is tied to (--under, --dimension, --json, --view)
+omni graph findings --cwe CWE-89 --rule 'arbiter/python.*'   # by weakness class or rule id (glob or substring)
+omni graph why CWE-89               # every finding of one weakness class, the rules that carry it, the files
+omni graph impact src/db.py CWE-89  # start from given paths, CWE ids, rule ids or finding ids instead of the change set
 omni graph lineage REQ-021          # everything upstream and downstream of it, no second endpoint needed
 omni graph lineage a1b2c3d --up     # a commit: the requirement and previous commit that led to it
 omni graph lineage FAIL-003 --depth 3 --json   # a failure: cause above it, tests, rules and fixes below it
@@ -1187,15 +1089,16 @@ both were real results the first time this ran).
   chosen and destroyed when you switch back, so 2D never holds a GPU context. `--mode 2d|3d|auto`
   sets the start (`auto` remembers your last choice).
 - **Views, not layer switches.** Tabs across the top (Everything, Code, Requirements, History, Tests &
-  failures, Rules & playbooks, Database) each set the layers, colours and layout for one purpose. A strip
+  failures, Rules & playbooks, Database, and Findings when the graph has any) each set the layers, colours and layout for one purpose. A strip
   under them names the current view in large type, explains it in a sentence, and shows a colour key
   with counts for what is on screen. Each layer has one strong hue; kinds also have distinct shapes in 2D
   (diamond requirement, triangle commit, hexagon failure or table, page change-log entry or playbook).
 - **2D layouts.** *Network* (connected things sit together), *Layers* (one labelled band per layer, parents
   kept beside their children, so links between layers stay short), and *Tree* (files, classes and methods
   as a tree, parent to child; everything without a parent is listed below, grouped by kind).
-- **Select a node and its whole chain lights up.** Everything above it (parents) and below it (children)
-  is drawn in gold with bold links, the rest recedes, and the view zooms to that chain. The detail panel
+- **Select a node and its whole chain lights up.** Everything upstream of it (what led to it) is drawn in
+  cyan and everything downstream (what came from it) in gold, with bold links; the rest recedes, and the
+  view zooms to that chain. The panel chooses Up, Both or Down and how many links deep. The detail panel
   shows a breadcrumb (`file > class > method`) and buttons that bring in what it connects to, grouped by
   layer. A node with no parent or child highlights what it connects to instead.
 - **Trace a path between any two things.** Set a From and a To (in the *Trace a path* menu, from search
@@ -1206,6 +1109,10 @@ both were real results the first time this ran).
   Enter work; a miss suggests the closest things. With nothing typed, a kind lists everything of that kind.
 - **Comfort.** Every menu section collapses (remembered), every option has a tooltip, filter groups have
   All / None, and there is a soft-grey light theme (not pure white) as well as the dark one.
+- **Mouse and keys.** 2D: drag (or Ctrl+drag) pans, scroll or pinch zooms. 3D: drag orbits, Ctrl+drag
+  (Cmd+drag on macOS) or right-drag pans, scroll zooms. Click selects, double-click (or `E`) brings in a
+  node's neighbours, `T` sets the selected node as the trace start, `F` fits the view, `/` jumps to
+  search, `?` opens the help card, `Esc` clears the selection and the trace.
 
 - **Findings.** When the graph holds Arbiter findings, a *Findings* tab lays them out as a tree under the
   directory, file and symbol they were raised on (`root › dir › file › Class › method › finding`), with the
@@ -1227,8 +1134,8 @@ the requirement it belongs to and the ledger entry that closes it:
 
 ```bash
 omni gate                                     # runs `arbiter gate` through completion.arbiter_gate; writes arbiter-out/omni-gate/report.json
-omni graph build                              # the newest report's unsuppressed findings become `finding` nodes
-omni graph why f:17a59c37fc20                 # rule, severity, category, the flagged file and symbol, the requirement, the failure
+omni graph build --if-stale                   # the reports' unsuppressed findings become `finding` nodes (omni gate also does this)
+omni graph why f:17a59c37fc20                 # finding text and fix, rule, CWE, flagged file and symbol, introducing commit, traced-to requirement, failure
 omni graph findings --tree --severity high    # every high finding by directory, with the requirements, failures and suites it reaches
 omni graph view --focus f:17a59c37fc20 --open # the same finding in the viewer, its chain lit up: dir > file > symbol > finding
 arbiter review arbiter-out/omni-gate/report.json --rule arbiter/secrets.aws-access-key   # adjudicate it
@@ -1236,9 +1143,10 @@ omni failure add --requirement REQ-012 --title "..." --symptom "..." --detected 
 omni graph build                              # the finding is now `recorded_as` that ledger entry
 ```
 
-`omni graph sources` names the report the build would read, or says `findings: no Arbiter report
-found (run ./omni gate)`. Set `findings_report` in `.ai/graph-config.json` to read a specific report,
-or to `null` to leave the findings out.
+`omni graph sources` names the reports the build would read: by default the newest full report under
+`arbiter-out/` (from `omni arbiter baseline` or `arbiter scan`) as the base and the newest gate report
+on top of it. Set `findings_report` in `.ai/graph-config.json` to read one specific report, or to
+`null` to leave the findings out.
 
 ### Using it in your own project
 
@@ -1254,16 +1162,16 @@ Only the settings that differ from the defaults belong in `.ai/graph-config.json
 
 | Key | Default | Use it when |
 | --- | --- | --- |
-| `requirements_files` | `.ai/requirements/requirements*.json` | your requirements or issues live elsewhere (a JSON list, or an object with `requirements`, of `{id/key, title/summary, status, scope/files}`) |
+| `requirements_files` | `.ai/requirements/requirements.json`, `.ai/requirements/requirements-archive.json` | your requirements or issues live elsewhere (a JSON list, or an object with `requirements`, of `{id/key, title/summary, status, scope/files}`) |
 | `requirement_id_pattern` | derived from your ids | your ids are unusual (`#42`); by default the exact ids in your registry are matched, so `PROJ-12`, `FEAT_7` and `REQ-001` all work |
 | `changelog_files` | `CHANGELOG.md`, `HISTORY.md`, `docs/CHANGELOG.md`, ... | your changelog is named or placed differently (dated `## 2026-01-31`, versioned `## [1.2.0] - 2026-01-31` and `## v1.2.0 (2026-01-31)` headings all work, as do dated `###` sections kept under one `## [Unreleased]` heading) |
-| `test_globs` / `exclude_test_globs` | naming conventions | your tests do not follow them |
+| `test_globs` / `exclude_test_globs` | `[]` (naming conventions apply) | your tests do not follow them |
 | `exclude_code_globs` | `[]` | directories the code layer must never parse although they are tracked and readable: test corpora with planted defects, vendored examples, generated output (`fixtures/`, `examples/**`) |
 | `test_suites_file`, `failure_ledger` | `.ai/test-suites.json`, `.ai/failures/failure-ledger.json` | you keep them elsewhere |
-| `ci_files` | GitHub, GitLab, Cloud Build, Azure, Jenkins, Makefile | extra CI files hold your test commands |
+| `ci_files` | `[]` (GitHub, GitLab, Cloud Build, Azure, Jenkins and Makefile are always read) | extra CI files hold your test commands |
 | `rules_dir`, `playbook_dirs`, `checklist_dirs` | `.ai/...` | your rules and playbooks live elsewhere |
 | `max_commits` | 400 | you want more or less history |
-| `findings_report` | newest `report.json` under the `completion.arbiter_gate` rule's `--out` (default `arbiter-out`) | you want the finding nodes read from one specific Arbiter report, or `null` to leave them out |
+| `findings_report` | `"auto"`: the newest full report under `arbiter-out/` plus the newest report under the `completion.arbiter_gate` rule's `--out` | you want the finding nodes read from one specific Arbiter report, or `null` to leave them out |
 | `tooling_paths` | `make_ai.py`, `omni_graph.py`, `omni`, `.ai/*` | set to `[]` if OmniEngineering itself is your project |
 
 A project with no `.ai/`, no git, no requirements, or no tests still builds: each
@@ -1312,30 +1220,38 @@ or set its severity to `recommended` to switch it off.
 
 ### MCP server: the graph as tools for any assistant
 
-`omni graph why/lineage/trace/...` and `omni requirement/failure show/list/search`
-already print plain JSON (`--json`). `omni mcp serve` exposes the same data as MCP
-(Model Context Protocol) tools over stdio, so an assistant queries this project's
-requirements, changelog, commits, tests and failures directly, without a shell tool
-to run the CLI and parse its output -- and without that assistant being Claude. This
-is the multi-LLM half of "context management": the graph is one project fact base,
-reachable by whatever is asking.
+`omni mcp serve` exposes the graph, the registries and the gate as MCP (Model
+Context Protocol) tools over stdio, so any MCP client can query them without a
+shell tool. It is written against the wire protocol (JSON-RPC 2.0, one JSON
+object per line) with the standard library only.
 
 ```bash
 omni mcp tools          # list the tools without starting the server
-omni mcp tools --json   # ...with full input schemas, e.g. to feed a client's config
-omni mcp serve          # serve them over stdio (JSON-RPC 2.0, one JSON object per line) until stdin closes
+omni mcp tools --json   # with full input schemas
+omni mcp serve          # serve over stdio until stdin closes
 ```
 
-Point an MCP client's command at `omni mcp serve` (working directory: your project
-root). Every tool is read-only -- `graph_lineage`, `graph_why`, `graph_trace`,
-`graph_timeline`, `graph_impact`, `graph_show`, `graph_sources`, `graph_findings`, `requirement_show`,
-`requirement_list`, `requirement_search`, `failure_show`, `gate_status` -- so a
-client can call them with no confirmation step; nothing here writes a requirement,
-a changelog entry or a waiver. `omni requirement draft`, `omni requirement add` and
-`omni gate --hook` remain how anything gets written. Hand-rolled against the wire
-protocol (JSON-RPC 2.0, stdlib only) rather than an SDK dependency, in keeping with
-everything else here: this has to work with only the standard library, on whatever
-Python an assistant's environment already has.
+Register it in the project's `.mcp.json` (this repository's entry; `omni
+arbiter install` adds only the `arbiter` server, so an adopter adds this one by
+hand):
+
+```json
+{"mcpServers": {"omni": {"command": "python", "args": ["omni", "mcp", "serve"]}}}
+```
+
+The client must start it from the project root. The 14 tools:
+
+| Tool | Same as |
+| --- | --- |
+| `graph_why`, `graph_lineage`, `graph_trace`, `graph_timeline`, `graph_show`, `graph_impact`, `graph_sources`, `graph_findings` | the `omni graph` command of the same name |
+| `graph_cwe` | everything classified as one CWE or raised by one Arbiter rule id |
+| `requirement_show`, `requirement_list`, `requirement_search` | `omni requirement show / list / search` |
+| `failure_show` | `omni failure show` |
+| `gate_status` | `omni gate`, reporting only: it blocks nothing and records nothing, but it does run the gate's `command` rules |
+
+None of them writes a requirement, changelog entry, ledger entry or waiver;
+that stays with the CLI. `omni doctor` launches every stdio server in
+`.mcp.json` and fails one that does not answer.
 
 ## Failure Ledger
 
@@ -1364,8 +1280,9 @@ The rules `completion.failure_ledger`, `completion.regression_test`,
 `completion.failure_becomes_rule` and `controlled.consult_failure_history`, and
 steps in the debugging, testing, implementation, review, planning, handoff and
 release playbooks, make consulting and recording failures part of the standard
-workflow. `omni adopt` ships an empty ledger, an empty suite registry and no graph config,
-never this repository's own.
+workflow. `omni adopt` ships an empty requirements registry, an empty ledger, an empty suite registry
+and no graph config, never this repository's own (see
+[Add The Workspace To A Project](#add-the-workspace-to-a-project)).
 
 ## Low-Friction Editing
 
@@ -1384,7 +1301,8 @@ omni requirement add \
   --acceptance "Checklist exists,Doctor passes"
 ```
 
-If `--id` is omitted, the CLI assigns the next `REQ-###` ID.
+If `--id` is omitted, the CLI assigns the next `REQ-###` ID. Unless given, the
+status is `proposed`, the priority `medium` and the category `General`.
 
 Writing that by hand for every commit is exactly the manual overhead this workspace exists to cut down
 on. Draft it instead, then edit the draft rather than starting from nothing:
@@ -1438,7 +1356,7 @@ Enforce the completion rulepack instead of trusting the assistant to remember it
 
 ```bash
 omni gate            # fail if changed files lack changelog/registry updates
-omni waive completion.changelog_gate --reason "docs-only typo fix"
+omni waive completion.changelog_gate --reason "docs-only typo fix" --requirement REQ-042
 omni hook install         # Claude Code Stop hook: blocks the assistant from finishing while the gate fails
 omni hook install-git     # portable git pre-commit hook: blocks `git commit` too, any assistant, no assistant, any OS
 omni hook install-git --with-graph-rebuild   # ...and rebuild the graph in the background after every commit
@@ -1537,24 +1455,6 @@ build/
 
 This is a prompt-level guardrail, not a substitute for repository permissions,
 secret scanning, or platform security controls.
-
-## Symlink Alternative
-
-For Unix-only teams, symlinks can route assistant files directly to shared
-context. This is an advanced alternative for teams that understand symlink
-behavior across their editors and hosting platform:
-
-```bash
-ln -s .ai/entrypoints/codex.md AGENTS.md
-ln -s .ai/entrypoints/cursor.md .cursorrules
-ln -s .ai/entrypoints/claude.md CLAUDE.md
-mkdir -p .github
-ln -s ../.ai/entrypoints/copilot.md .github/copilot-instructions.md
-```
-
-Markdown routing is the default recommendation. A drop-in copy with generated
-entrypoint files works better across macOS, Linux, Windows, GitHub, package
-archives, and editor integrations.
 
 ## Why It Works
 

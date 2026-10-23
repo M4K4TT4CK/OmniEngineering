@@ -15,8 +15,8 @@ Use the smallest context profile that fits the task:
 - review for review or risk checks
 - deep_policy only when policy or workflow uncertainty requires it
 
-Treat .ai/ as the source of truth. Follow the fallback contract in
-LLM_CONTEXT.md if any source file is unavailable.
+Treat .ai/ as the source of truth. Follow .ai/entrypoints/fallback-contract.md if any source file is
+unavailable.
 
 Do not inspect secrets, environment files, logs, caches, dependency folders,
 build output, or anything listed in .ai/.ignore.

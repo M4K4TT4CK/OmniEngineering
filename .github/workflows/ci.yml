@@ -204,15 +204,19 @@ jobs:
           git config user.email ci@example.invalid
           git config user.name ci
           git add -A
-          git commit -qm "Adopt the workspace with Arbiter (REQ-001)"
-          # The adopted registry is a copy of this repository's (REQ-001 already exists there), so the seed
-          # requirement gets an id of its own. It is added in the same uncommitted change as the code, and
+          git commit -qm "Adopt the workspace with Arbiter"
+          # The adopted registry is empty (REQ-058), so the seed requirement is REQ-001. It is added in the
+          # same uncommitted change as the code, and
           # CHANGELOG.md changes alongside, so the requirements_registry and changelog_gate co_changed rules
           # are satisfied and the Arbiter rule is the only one that can fail.
-          python omni requirement add --id REQ-900 --title "Adopt loop seed" --description "Seed requirement for the adopt loop" --category Feature
+          added=$(python omni requirement add --title "Adopt loop seed" --description "Seed requirement for the adopt loop" --category Feature)
+          echo "$added"
+          if ! grep -q "Added requirement REQ-001:" <<<"$added"; then
+            echo "::error::the adopted registry was not empty: the first requirement added was not REQ-001"; exit 1
+          fi
           mkdir -p src
           printf 'import requests\n\n\ndef fetch(url):\n    return requests.get(url, verify=False)\n' > src/app.py
-          echo "- REQ-900: src/app.py fetches a url" >> CHANGELOG.md
+          echo "- REQ-001: src/app.py fetches a url" >> CHANGELOG.md
           set +e
           out=$(python omni gate 2>&1); code=$?
           set -e

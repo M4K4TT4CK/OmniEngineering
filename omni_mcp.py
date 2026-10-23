@@ -258,8 +258,8 @@ TOOLS: list[MCPTool] = [
             "under": {"type": "string", "description": "Only findings in this directory or file."},
             "dimension": {"type": "string", "description": "Only this Arbiter dimension: security, quality, drift, supply_chain, assurance, resource_policy, judgement."},
             "severity": {"type": "string", "description": "Only this severity: critical, high, medium, low, info."},
-            "cwe": {"type": "string", "description": "Only findings classified as this CWE, e.g. CWE-89 (ARB-064)."},
-            "rule": {"type": "string", "description": "Only findings whose Arbiter rule id matches this glob or substring, e.g. arbiter/concurrency.* (ARB-064)."},
+            "cwe": {"type": "string", "description": "Only findings classified as this CWE, e.g. CWE-89."},
+            "rule": {"type": "string", "description": "Only findings whose Arbiter rule id matches this glob or substring, e.g. arbiter/concurrency.*."},
             "depth": {"type": "integer", "default": 2, "description": "Hops over non-code links to collect requirements, failures and suites."},
             "graph": {"type": "string", "description": f"Graph file to read. Defaults to {ma.GRAPH_DEFAULT_OUTPUT}."},
         }},
@@ -317,7 +317,7 @@ TOOLS: list[MCPTool] = [
         "What the pending change set (working tree plus commits since the merge-base) reaches across the layers: "
         "requirements, changelog entries, failures, findings, tests, suites, rules and commits, each with the hop count and "
         "the edge it was reached by. Read-only; the same walk `omni graph impact` prints. Pass `paths` to start from given "
-        "files, CWE ids or Arbiter rule ids instead (ARB-064: a CWE or rule lists its findings and their files).",
+        "files, CWE ids or Arbiter rule ids instead (a CWE or rule lists its findings and their files).",
         {"type": "object", "properties": {
             "paths": {"type": "array", "items": {"type": "string"}, "description": "Paths, CWE ids (CWE-89), Arbiter rule ids or finding ids to start from instead of the pending change set."},
             "base": {"type": "string", "description": "Base commit for the change set. Defaults to the merge-base `omni gate` uses."},
