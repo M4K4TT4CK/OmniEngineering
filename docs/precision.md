@@ -148,7 +148,7 @@ each stratum is weighted back to the number of findings it was drawn from.
 **Strata.** A stratum is (rule, source, language): the sampler's own
 (rule, language) strata within one source run (`gold-model` is one gold
 run; each ground-truth benchmark and the AI corpus are their own). Every
-label record carries its stratum's population (`## Label format`,
+label record carries its stratum's population (see Label format below,
 `stratum_size` and the fields beside it), recorded at sampling time from
 the population the sampler drew from. For the held-out claim the
 population is the stratum's held-out part (`stratum_held_out_size`, the
