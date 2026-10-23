@@ -29,7 +29,7 @@ sys.path.insert(0, str(ROOT))
 import make_ai as ma  # noqa: E402
 
 GATE_TIMEOUT = 180  # seconds per `omni gate` call; the rule's own `arbiter gate` command runs verbatim inside it
-SEED_ID = "REQ-900"  # the adopted registry is a copy of this repository's, so REQ-001 already exists there
+SEED_ID = "REQ-001"  # REQ-058: the adopted registry is empty, so the first id the adopter adds is REQ-001
 PLANTED = "import requests\n\n\ndef fetch(url):\n    return requests.get(url, verify=False)\n"
 TESTS_RULE_RAN = r"(?m)^  ran +completion\.tests \d+\.\ds PASS$"  # the gate's per-rule line for a run, passed command rule
 
@@ -76,6 +76,114 @@ class TestAdoptShipsTheClaudeSkills(unittest.TestCase):
             self.assertTrue(text.startswith("---\nname: clarify\n"), "skill frontmatter must name the skill")
             self.assertIn("Plan mode", text)
             self.assertIn("./omni requirement add", text)
+
+
+def _adopt_quietly(*argv: str) -> tuple[int, str]:
+    args = ma.build_parser().parse_args(["adopt", *argv])
+    out = io.StringIO()
+    with redirect_stdout(out):
+        code = ma.run_adopt(args)
+    return code, out.getvalue()
+
+
+class TestAdoptShipsAnEmptyRegistry(unittest.TestCase):
+    """REQ-058: the adopter gets an empty requirements registry, not a copy of this repository's, and none of
+    this repository's archive, gate waivers or generated graph output."""
+
+    def test_adopted_registry_is_empty_and_keeps_version_and_prefix(self) -> None:
+        source = ma.load_json(ROOT / ma.REQUIREMENTS_PATH)
+        with tempfile.TemporaryDirectory() as tmp:
+            code, out = _adopt_quietly("--target", tmp, "--tools", "none")
+            self.assertEqual(code, 0, out)
+            adopted = ma.load_json(Path(tmp) / ma.REQUIREMENTS_PATH)
+            self.assertEqual(adopted, {
+                "version": source.get("version", "1.0.0"),
+                "requirement_id_prefix": source.get("requirement_id_prefix", "REQ"),
+                "requirements": [],
+            })
+
+    def test_archive_waivers_and_graph_output_are_not_adopted(self) -> None:
+        # Plant each in a copy of the source so the test does not depend on what this checkout happens to hold.
+        with tempfile.TemporaryDirectory() as src_tmp, tempfile.TemporaryDirectory() as tmp:
+            source = Path(src_tmp) / "src"
+            shutil.copytree(ROOT / ".ai", source / ".ai")
+            planted = [ma.REQUIREMENTS_ARCHIVE_PATH, ma.GATE_WAIVERS_PATH, Path(ma.GRAPH_DEFAULT_OUTPUT),
+                       Path(ma.VIEW_DEFAULT_OUTPUT), Path(ma.RENDER_DEFAULT_OUTPUT)]
+            for relative in planted:
+                (source / relative).write_text("{}\n", encoding="utf-8")
+            result = ma.copy_adoption_path(source, Path(tmp), ".ai", force=False, dry_run=False)
+            self.assertEqual(result, "copied: .ai")
+            for relative in planted:
+                self.assertFalse((Path(tmp) / relative).exists(), f"{relative} was adopted")
+            self.assertTrue((Path(tmp) / ma.REQUIREMENTS_PATH).is_file())
+
+    def test_first_requirement_added_in_the_adopter_is_req_001(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            code, out = _adopt_quietly("--target", tmp, "--tools", "none", "--include-cli")
+            self.assertEqual(code, 0, out)
+            completed = subprocess.run(
+                [sys.executable, "omni", "requirement", "add", "--title", "First", "--description", "first one"],
+                cwd=tmp, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60,
+                env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+            )
+            self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+            self.assertIn("Added requirement REQ-001: First", completed.stdout)
+            ids = [r["id"] for r in ma.load_json(Path(tmp) / ma.REQUIREMENTS_PATH)["requirements"]]
+            self.assertEqual(ids, ["REQ-001"])
+
+
+def _rule_ids(root: Path) -> list[str]:
+    rulepack = ma.load_json(root / ma.COMPLETION_RULEPACK_PATH)
+    return [str(rule.get("id")) for rule in rulepack.get("rules", []) if isinstance(rule, dict)]
+
+
+class TestAdoptWithoutArbiterLeavesTheGateRuleOut(unittest.TestCase):
+    """REQ-059: without --with-arbiter the required `completion.arbiter_gate` rule is left out, so `omni gate`
+    does not fail for want of Arbiter; with it, or after `omni arbiter install`, the rule is there."""
+
+    def test_plain_adopt_leaves_the_rule_out_and_keeps_the_others(self) -> None:
+        source_ids = _rule_ids(ROOT)
+        self.assertIn(ma.ARBITER_GATE_RULE_ID, source_ids)  # otherwise this test proves nothing
+        with tempfile.TemporaryDirectory() as tmp:
+            code, out = _adopt_quietly("--target", tmp, "--tools", "none")
+            self.assertEqual(code, 0, out)
+            self.assertIn(f"left `{ma.ARBITER_GATE_RULE_ID}` out", out)
+            self.assertEqual(_rule_ids(Path(tmp)), [rid for rid in source_ids if rid != ma.ARBITER_GATE_RULE_ID])
+
+    def test_dry_run_says_so_and_writes_nothing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "new"
+            code, out = _adopt_quietly("--target", str(target), "--tools", "none", "--dry-run")
+            self.assertEqual(code, 0, out)
+            self.assertIn(f"would leave `{ma.ARBITER_GATE_RULE_ID}` out", out)
+            self.assertFalse(target.exists())
+
+    def test_existing_rulepack_that_was_skipped_is_not_touched(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            rulepack = Path(tmp) / ma.COMPLETION_RULEPACK_PATH
+            rulepack.parent.mkdir(parents=True)
+            shutil.copy2(ROOT / ma.COMPLETION_RULEPACK_PATH, rulepack)
+            before = rulepack.read_bytes()
+            code, out = _adopt_quietly("--target", tmp, "--tools", "none")
+            self.assertEqual(code, 1, out)  # .ai exists, so it is skipped
+            self.assertNotIn("Arbiter: not requested", out)
+            self.assertEqual(rulepack.read_bytes(), before)
+
+    def test_with_arbiter_keeps_the_rule(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.object(ma, "arbiter_write_baseline", lambda *a, **k: 0):
+                code, out = _adopt_quietly("--target", tmp, "--tools", "none",
+                                           "--with-arbiter", ma.ARBITER_DEFAULT_SOURCE, "--skip-pip")
+            self.assertEqual(code, 0, out)
+            self.assertIn(ma.ARBITER_GATE_RULE_ID, _rule_ids(Path(tmp)))
+
+    def test_arbiter_install_adds_the_rule_back(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            code, out = _adopt_quietly("--target", tmp, "--tools", "none")
+            self.assertEqual(code, 0, out)
+            with redirect_stdout(io.StringIO()), mock.patch.object(ma, "arbiter_write_baseline", lambda *a, **k: 0):
+                self.assertEqual(ma.arbiter_install(Path(tmp), ma.ARBITER_DEFAULT_SOURCE, skip_pip=True), 0)
+            self.assertIn(ma.ARBITER_GATE_RULE_ID, _rule_ids(Path(tmp)))
 
 
 @unittest.skipUnless(shutil.which("arbiter") and shutil.which("git"), "needs the real `arbiter` and `git` on PATH")
@@ -143,12 +251,13 @@ class TestAdoptLoop(unittest.TestCase):
         self.run_in_repo("git", "config", "user.email", "ci@example.invalid")
         self.run_in_repo("git", "config", "user.name", "ci")
         self.run_in_repo("git", "add", "-A")
-        self.run_in_repo("git", "commit", "-q", "-m", "Adopt the workspace with Arbiter (REQ-001)")
+        self.run_in_repo("git", "commit", "-q", "-m", "Adopt the workspace with Arbiter")
 
         # The seed requirement and the changelog line ride in the same uncommitted change as the code, so
         # the requirements_registry and changelog_gate co_changed rules are satisfied and cannot mask Arbiter.
-        self.omni("requirement", "add", "--id", SEED_ID, "--title", "Adopt loop seed",
-                  "--description", "Seed requirement for the adopt loop", "--category", "Feature")
+        added = self.omni("requirement", "add", "--title", "Adopt loop seed",
+                          "--description", "Seed requirement for the adopt loop", "--category", "Feature")
+        self.assertIn(f"Added requirement {SEED_ID}:", added.stdout, self.diagnosis())
         app = self.root / "src" / "app.py"
         app.parent.mkdir()
         app.write_text(PLANTED, encoding="utf-8")

@@ -1949,6 +1949,67 @@
       "risk_notes": [
         "Verified: unit tests exit 0 (512 tests), omni gate exit 0, README Quick Start run end to end in a fresh repository."
       ]
+    },
+    {
+      "id": "REQ-058",
+      "category": "Adoption",
+      "title": "omni adopt ships an empty requirements registry",
+      "description": "omni adopt copied this repository's whole requirements registry into adopters. It ships an empty registry instead (version and requirement_id_prefix kept, requirements []), drops the requirements archive and gate waivers, and drops the generated graph output (.ai/project-graph.json, .html, .svg), so an adopter's first omni requirement add is REQ-001.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        "tests/test_adopt_loop.py",
+        "README.md"
+      ],
+      "acceptance_criteria": [
+        "The adopted .ai/requirements/requirements.json has requirements [] with this repository's version and requirement_id_prefix",
+        "No requirements-archive.json or gate-waivers.jsonl is adopted",
+        "No .ai/project-graph.json/.html/.svg is adopted",
+        "The first omni requirement add in an adopter is REQ-001"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests",
+        "omni gate",
+        "README Quick Start in a scratch clone"
+      ],
+      "documentation_required": [
+        "README.md",
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "Verified: unit tests exit 0 (520 tests, 1 skipped), omni gate exit 0 (completion.tests and completion.arbiter_gate PASS), manual adopt with and without --with-arbiter and --dry-run in scratch targets."
+      ]
+    },
+    {
+      "id": "REQ-059",
+      "category": "Adoption",
+      "title": "omni adopt without --with-arbiter leaves the Arbiter gate rule out",
+      "description": "omni adopt always copied the required completion.arbiter_gate rule, so an adopter without Arbiter on PATH failed every omni gate until they edited the rulepack by hand. Without --with-arbiter, adopt now removes that rule from the completion rulepack it just copied (a rulepack that was skipped because it already exists is not touched); omni arbiter install adds it back.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "make_ai.py",
+        "tests/test_adopt_loop.py",
+        "README.md"
+      ],
+      "acceptance_criteria": [
+        "omni adopt without --with-arbiter writes a completion rulepack with every source rule except completion.arbiter_gate, and says so",
+        "omni adopt --dry-run says it would leave the rule out and writes nothing",
+        "An existing completion rulepack that adopt skips is left byte-for-byte unchanged",
+        "omni adopt --with-arbiter keeps the rule, and omni arbiter install after a plain adopt adds it back"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests",
+        "omni gate"
+      ],
+      "documentation_required": [
+        "README.md",
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "Verified: unit tests exit 0 (520 tests, 1 skipped), omni gate exit 0 (completion.tests and completion.arbiter_gate PASS), manual adopt with and without --with-arbiter and --dry-run in scratch targets."
+      ]
     }
   ]
 }

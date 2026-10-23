@@ -82,10 +82,9 @@ cd ../OmniEngineering
 - `--with-arbiter` installs [Arbiter](https://github.com/paukennick/arbiter)
   with pip (add `--skip-pip` when `arbiter` is already on PATH), wires it in
   and cuts a baseline with a full offline scan (minutes on a large repository).
-  The adopted completion rulepack already contains the required rule
-  `completion.arbiter_gate`, so **without Arbiter on PATH every `omni gate`
-  fails**. To adopt without Arbiter, set that rule's `severity` to
-  `recommended` in `.ai/rules/completion-workflow.json`.
+  Without `--with-arbiter`, adopt leaves the required rule
+  `completion.arbiter_gate` out of `.ai/rules/completion-workflow.json`, so
+  `omni gate` does not need Arbiter; `./omni arbiter install` adds it later.
 
 **4. Check health and commit the adoption** (from your project):
 
@@ -95,15 +94,14 @@ cd ../your-project
 git add -A && git commit -m "Adopt OmniEngineering"
 ```
 
-**5. Make a governed change and pass the gate.** The adopted registry is a
-copy of this repository's, so new ids continue after the last `REQ-###`
-there; `add` prints the id it chose.
+**5. Make a governed change and pass the gate.** The adopted registry is
+empty, so your first requirement is `REQ-001`; `add` prints the id it chose.
 
 ```bash
 ./omni requirement add --title "Say hello" --description "app.py prints hello"
-#   Added requirement REQ-058: Say hello
+#   Added requirement REQ-001: Say hello
 echo 'print("hello")' >> app.py
-printf '\n## %s\n\n- REQ-058: app.py prints hello\n' "$(date +%F)" >> CHANGELOG.md
+printf '\n## %s\n\n- REQ-001: app.py prints hello\n' "$(date +%F)" >> CHANGELOG.md
 ./omni gate
 #   ran     completion.tests 0.2s PASS
 #   ran     completion.arbiter_gate 0.7s PASS
@@ -398,7 +396,7 @@ later template changes.
 
 | Option | Copies |
 | --- | --- |
-| (always) | `.ai/`, with an empty failure ledger and suite registry and without this repository's `graph-config.json` |
+| (always) | `.ai/`, with an empty requirements registry, failure ledger and suite registry, and without this repository's requirements archive, gate waivers, `graph-config.json` or generated graph output |
 | `--tools LIST` | one shim per tool: `universal` `LLM_CONTEXT.md`, `codex` `AGENTS.md`, `claude` `CLAUDE.md` and `.claude/skills/clarify/`, `cursor` `.cursorrules` and `.cursorignore`, `copilot` `.github/copilot-instructions.md`, `kiro` `.kiro/steering/omnicontext.md`; `all` or `none`. Default `codex,cursor,universal` |
 | `--include-cli` | `omni`, `make_ai.py`, `omni_graph.py`, `omni_mcp.py` and `.ai/graph-viewer/` |
 | `--include-legal` | `LICENSE`, `NOTICE`, `TRADEMARKS.md`, `CONTRIBUTING.md`, `LICENSES/` |
@@ -406,15 +404,18 @@ later template changes.
 | `--with-arbiter [SOURCE]` | installs and wires Arbiter (next section); `--skip-pip` writes the wiring only |
 | `--dry-run` | prints what would be copied, writes nothing |
 
-Two things are copied as they are in this repository and are worth knowing:
+Worth knowing about what is adopted:
 
-- `.ai/requirements/requirements.json` holds OmniEngineering's own
-  requirements, so new ids continue after them. `./omni requirement archive
-  --keep-recent 0` moves the completed ones into
-  `requirements-archive.json`, out of the live registry.
-- `.ai/rules/completion-workflow.json` contains the required rules
-  `completion.tests` and `completion.arbiter_gate`. The second needs `arbiter`
-  on PATH; see the Quick Start for how to turn it off.
+- `.ai/requirements/requirements.json` starts empty (`requirements: []`),
+  keeping this repository's `version` and `requirement_id_prefix`, so the
+  first `./omni requirement add` is `REQ-001`. OmniEngineering's own
+  requirements, its `requirements-archive.json` and `gate-waivers.jsonl`
+  (which cite those ids) and the generated `.ai/project-graph.{json,html,svg}`
+  are not copied.
+- `.ai/rules/completion-workflow.json` contains the required rule
+  `completion.tests`, plus `completion.arbiter_gate` (which needs `arbiter` on
+  PATH) only when you adopt with `--with-arbiter`. Without it the rule is left
+  out and `./omni arbiter install` adds it.
 
 Doctor checks for every shim named in `.ai/context-manifest.json` and for
 `LICENSE`, `NOTICE` and `TRADEMARKS.md`, so either adopt with `--tools all
@@ -1279,8 +1280,8 @@ The rules `completion.failure_ledger`, `completion.regression_test`,
 `completion.failure_becomes_rule` and `controlled.consult_failure_history`, and
 steps in the debugging, testing, implementation, review, planning, handoff and
 release playbooks, make consulting and recording failures part of the standard
-workflow. `omni adopt` ships an empty ledger, an empty suite registry and no graph config,
-never this repository's own (the requirements registry, by contrast, is copied as is; see
+workflow. `omni adopt` ships an empty requirements registry, an empty ledger, an empty suite registry
+and no graph config, never this repository's own (see
 [Add The Workspace To A Project](#add-the-workspace-to-a-project)).
 
 ## Low-Friction Editing

@@ -1,6 +1,25 @@
 # Changelog
 ## 2026-10-23
 ### Completed
+- `REQ-059` | Adoption | `omni adopt` without `--with-arbiter` leaves the
+Arbiter gate rule out. The required `completion.arbiter_gate` rule used to be
+copied every time, so an adopter without Arbiter on PATH failed every `omni
+gate` until they edited the rulepack by hand. Now adopt removes it from the
+completion rulepack it just copied (one it skipped is left alone) and says so;
+`--with-arbiter` keeps it and `omni arbiter install` adds it back.
+`tests/test_adopt_loop.py` covers all four cases and the dry run; README's
+adoption notes say so.
+- `REQ-058` | Adoption | `omni adopt` ships an empty requirements registry.
+It used to copy this repository's whole registry, so an adopter started with
+OmniEngineering's requirements and its first id continued after them. The
+adopted `.ai/requirements/requirements.json` now keeps only `version` and
+`requirement_id_prefix` with `requirements: []`, so the first `./omni
+requirement add` is `REQ-001`; `requirements-archive.json`, `gate-waivers.jsonl`
+(which cite this repository's ids) and the generated
+`.ai/project-graph.{json,html,svg}` are no longer copied. `tests/test_adopt_loop.py`
+checks the empty registry, the dropped files and that the first id is
+`REQ-001`; the adopt loop (test and CI job) now seeds `REQ-001` instead of an
+explicit high id. README's Quick Start and adoption table say so.
 - `REQ-057` | Documentation | Documentation checked against the CLI and code.
 Context files: `.ai/project-configuration.md` drops the OmniEngineering-specific
 "Findings In The Graph" section (it is an adopter template loaded on every
@@ -17,7 +36,7 @@ README: the Quick Start now reaches a passing `omni gate` in a fresh repository
 (it needed `--tools all --include-legal`, a README and changelog, and Arbiter
 or the `completion.arbiter_gate` rule switched to `recommended`, none of which
 it said); a Command Reference table lists every subcommand; adoption options
-and what each copies are one table, and the copied requirements registry and
+and what each copies are one table, and what is adopted and the
 required gate rules are stated; `omni update` lists the files it merges and
 the five it never touches; the graph covers all 22 parsed languages,
 `--if-stale`, `graph schema`, CWE and rule queries, the finding edges

@@ -572,6 +572,7 @@ OMNI_VERSION_FILE = ".ai/omni-version.json"
 ARBITER_DEFAULT_SOURCE = "git+https://github.com/paukennick/arbiter"
 ARBITER_PIP_EXTRAS = "mcp"
 ARBITER_GATE_RULE_ID = "completion.arbiter_gate"
+COMPLETION_RULEPACK_PATH = ".ai/rules/completion-workflow.json"
 ARBITER_STARTER_CONFIG = """# Arbiter policy for this repository. See docs/configuration.md in the
 # arbiter checkout for every key; this is the minimum `omni gate` relies on.
 version: 1
@@ -3751,8 +3752,27 @@ def copy_adoption_path(source_root: Path, target_root: Path, relative_path: str,
         ):
             if (target_root / reset_path).is_file():
                 write_json(target_root / reset_path, empty)
+        # REQ-058: the same for the requirements registry. Keep its version and id prefix so the adopter's first
+        # `omni requirement add` is REQ-001; drop the archive and any gate waivers, which cite this repository's ids.
+        registry = target_root / REQUIREMENTS_PATH
+        if registry.is_file():
+            try:
+                source_registry = load_json(registry)
+            except (OSError, ValueError):
+                source_registry = {}
+            source_registry = source_registry if isinstance(source_registry, dict) else {}
+            write_json(registry, {
+                "version": source_registry.get("version", "1.0.0"),
+                "requirement_id_prefix": source_registry.get("requirement_id_prefix", "REQ"),
+                "requirements": [],
+            })
+        (target_root / REQUIREMENTS_ARCHIVE_PATH).unlink(missing_ok=True)
+        (target_root / GATE_WAIVERS_PATH).unlink(missing_ok=True)
         # graph-config.json in this repository marks OmniEngineering itself as the project; an adopter's differs.
         (target_root / ".ai/graph-config.json").unlink(missing_ok=True)
+        # Generated, git-ignored output describing this repository, not the adopter's.
+        for generated in (GRAPH_DEFAULT_OUTPUT, VIEW_DEFAULT_OUTPUT, RENDER_DEFAULT_OUTPUT):
+            (target_root / generated).unlink(missing_ok=True)
     return f"copied: {relative_path}"
 
 
@@ -3815,6 +3835,13 @@ def run_adopt(args: argparse.Namespace) -> int:
         )
 
     with_arbiter = getattr(args, "with_arbiter", None)
+    rulepack_copied = any(
+        result.split(":", 1)[0] in {"copied", "copy", "replace"}
+        and result.split(":", 1)[1].strip().split(" ", 1)[0] in {".ai", COMPLETION_RULEPACK_PATH}
+        for result in results
+    )
+    if with_arbiter is None and rulepack_copied:
+        drop_arbiter_gate_rule(target_root, dry_run=args.dry_run)
     if with_arbiter is not None:
         print("")
         print("Arbiter alongside the workspace:")
@@ -3824,6 +3851,28 @@ def run_adopt(args: argparse.Namespace) -> int:
     if missing:
         return 1
     return 1 if skipped and not args.dry_run else 0
+
+
+def drop_arbiter_gate_rule(target_root: Path, dry_run: bool = False) -> None:
+    """REQ-059: an adoption without --with-arbiter leaves out the required `completion.arbiter_gate` rule,
+    which would otherwise fail every `omni gate` until Arbiter is on PATH. Only a rulepack this same run
+    copied is touched; `omni arbiter install` adds the rule back."""
+    rulepack_path = target_root / COMPLETION_RULEPACK_PATH
+    if not dry_run and not rulepack_path.is_file():
+        return
+    print("")
+    verb = "would leave" if dry_run else "left"
+    print(
+        f"Arbiter: not requested, so {verb} `{ARBITER_GATE_RULE_ID}` out of {COMPLETION_RULEPACK_PATH}; "
+        "`omni arbiter install` adds it."
+    )
+    if dry_run:
+        return
+    rulepack = load_json(rulepack_path)
+    rules = rulepack.get("rules")
+    if isinstance(rules, list):
+        rulepack["rules"] = [r for r in rules if not (isinstance(r, dict) and r.get("id") == ARBITER_GATE_RULE_ID)]
+        write_json(rulepack_path, rulepack)
 
 
 def _arbiter_pip_command(source: str) -> list[str]:
