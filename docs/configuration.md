@@ -79,6 +79,20 @@ gate:
 | `coverage_below` | the run fails if rubric coverage falls below this fraction |
 | `gate_on_inferred` | when false (default), findings with `provenance: inferred` never fail a build |
 | `use_calibration` | when false (default), learned confidence never changes a gate outcome |
+| `tier_mode` | `legacy` (default): `fail_on` reads every active finding. `tiered`: only findings whose precision tier is in `tiers` ([docs/precision.md](precision.md#tiers)) |
+| `tiers` | under `tier_mode: tiered`, the tiers that can fail the gate; default `[verified]` |
+
+The precision tiers are assigned in every scan, whatever the mode, and every
+report shows them. Switching a gate to `tier_mode: tiered` is a decision to
+make once the ledger admits rules: with the ledger Arbiter ships today (no
+labels yet), every finding is advisory and a tiered gate blocks nothing.
+
+```yaml
+precision:
+  ledger: null            # null = the ledger shipped with Arbiter
+  verified_rules: []      # rule ids or globs declared verified; the ledger must still admit them
+  deterministic_profiles: [offline, ci]   # profiles that cannot ask a model
+```
 
 `coverage_below` is the guard against a reassuring result from a scan that
 barely ran. Without it, uninstalling an analyzer looks identical to fixing every

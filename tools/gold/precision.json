@@ -1,0 +1,20 @@
+{
+ "_about": "Per-rule precision ledger (docs/precision.md). Built by tools/precision_ledger.py from label files; do not edit by hand. A rule is admitted when its Wilson 95% lower bound reaches bar.rule_lower on at least bar.rule_min_n TP+FP labels, with labeller kappa at least bar.kappa_min where two labellers looked. `tier` is the claim: verified-tier precision on held-out labels only, overall and per category.",
+ "version": 1,
+ "bar": {
+  "rule_lower": 0.97,
+  "rule_min_n": 30,
+  "kappa_min": 0.8,
+  "offline_lower": 0.99,
+  "tier_lower": 0.99
+ },
+ "generated": "2026-10-22",
+ "rules": {},
+ "tier": {
+  "held_out_only": true,
+  "rules": [],
+  "overall": null,
+  "claim": false,
+  "categories": {}
+ }
+}

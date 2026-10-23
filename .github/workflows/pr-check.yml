@@ -107,6 +107,15 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: python tools/integrity.py
 
+      # A rule may be gate-eligible (tier verified) only on ledger evidence:
+      # a declared-verified rule with no admitting ledger entry, a hand-edited
+      # `admitted` flag, or a labelled rule whose snapshot count jumped >20%
+      # since its labels fails here (docs/precision.md).
+      - name: Precision guard
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python tools/precision_guard.py check
+
       # The step above proves the claim invariants are enforced by breaking
       # them. This does the same for the regression tests: it puts each known
       # defect back and requires the test named after it to fail. A suite that

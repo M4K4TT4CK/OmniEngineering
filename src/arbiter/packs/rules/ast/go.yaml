@@ -18,6 +18,7 @@ rules:
   # Outbound calls with no timeout
   # ---------------------------------------------------------------------
   - id: http-default-client
+    requirements: [ARB-060]
     title: "`{text}` uses Go's default HTTP client, which never times out"
     severity: medium
     confidence: high
@@ -46,6 +47,7 @@ rules:
     remediation: "Use an http.Client{Timeout: ...}, or build the request with context.WithTimeout and http.NewRequestWithContext."
 
   - id: http-client-no-timeout
+    requirements: [ARB-061]
     title: "`{text}` sets no Timeout, so a hung upstream holds the connection forever"
     severity: medium
     confidence: medium
@@ -83,6 +85,7 @@ rules:
     remediation: "Set Timeout on the client, or pass a context with a deadline on every request."
 
   - id: db-call-no-deadline
+    requirements: [ARB-061]
     title: "`{text}` runs a database call with no deadline or cancellation"
     severity: medium
     confidence: medium
@@ -134,6 +137,7 @@ rules:
   # Races
   # ---------------------------------------------------------------------
   - id: map-write-in-goroutine
+    requirements: [ARB-061]
     title: "`{text}` writes a shared map from one of several goroutines with no lock held"
     severity: high
     confidence: medium
@@ -168,6 +172,7 @@ rules:
     remediation: "Guard the map with a sync.Mutex, use sync.Map, or send results on a channel to a single goroutine that owns the map."
 
   - id: check-then-act-map
+    requirements: [ARB-061]
     title: "`{text}` checks a shared map and then writes it with no lock held, in a file that starts goroutines"
     severity: medium
     confidence: medium
@@ -248,6 +253,7 @@ rules:
     remediation: "Hold a sync.Mutex across the check and the write, or use sync.Map.LoadOrStore."
 
   - id: unsynchronised-counter
+    requirements: [ARB-061]
     title: "`{text}` changes a shared counter from one of several goroutines with no lock or atomic"
     severity: medium
     confidence: medium
@@ -283,6 +289,7 @@ rules:
   # Loops that never stop, or never back off
   # ---------------------------------------------------------------------
   - id: worker-loop-no-stop
+    requirements: [ARB-061]
     title: "`for {` in a goroutine has no stop signal: no ctx.Done, quit channel, return or break"
     severity: medium
     confidence: medium
@@ -332,6 +339,7 @@ rules:
     remediation: "Select on ctx.Done() or a quit channel in each iteration, and return; or range over the channel so a close ends the loop."
 
   - id: retry-no-backoff
+    requirements: [ARB-061]
     title: "`for {` retries on error with no sleep, backoff or attempt cap"
     severity: medium
     confidence: medium
@@ -379,6 +387,7 @@ rules:
   # Errors that vanish
   # ---------------------------------------------------------------------
   - id: swallowed-error
+    requirements: [ARB-061]
     title: "`{text}` drops the error: nothing is logged, returned or retried"
     severity: medium
     confidence: medium
@@ -422,6 +431,7 @@ rules:
   # Injection
   # ---------------------------------------------------------------------
   - id: sql-injection
+    requirements: [ARB-061]
     title: "`{text}` builds SQL by string concatenation or Sprintf"
     severity: high
     confidence: high
@@ -457,6 +467,7 @@ rules:
     remediation: "Use placeholders ($1 / ?) and pass the values as arguments; build identifier lists from an allowlist."
 
   - id: command-injection
+    requirements: [ARB-061]
     title: "`{text}` runs a shell with a command string that is not a literal"
     severity: high
     confidence: medium
@@ -502,6 +513,7 @@ rules:
   # wrong type for the algorithm, so the classic algorithm confusion does not
   # reproduce and the rule would be noise.
   - id: jwt-parse-unverified
+    requirements: [ARB-062]
     title: "`{text}` reads a JWT without verifying its signature"
     severity: high
     confidence: medium
@@ -530,6 +542,7 @@ rules:
     remediation: "Use jwt.ParseWithClaims with a keyfunc and jwt.WithValidMethods, and read claims only after it returns no error."
 
   - id: jwt-claims-validation-disabled
+    requirements: [ARB-062]
     title: "`{text}` turns off JWT expiry and not-before checks"
     severity: high
     confidence: high
@@ -560,6 +573,7 @@ rules:
   # The secrets probe reads `name = "literal"`. A key written `[]byte("…")`
   # or a DSN literal at the call is a credential it cannot see.
   - id: hardcoded-signing-key
+    requirements: [ARB-062]
     title: "`{text}` is a signing key written in the source"
     severity: high
     confidence: high
@@ -612,6 +626,7 @@ rules:
     remediation: "Load the key at startup from the environment or a secrets manager (os.Getenv, a mounted file) and refuse to start when it is missing."
 
   - id: hardcoded-dsn-password
+    requirements: [ARB-062]
     title: "`{text}` opens a database with a password written in the DSN"
     severity: high
     confidence: high
@@ -648,6 +663,7 @@ rules:
   # Error identifiers are local ones (err, e, rerr, parseErr); package-level
   # sentinels (ErrNotFound, errNoBackend) are fixed messages.
   - id: error-text-in-response
+    requirements: [ARB-062]
     title: "`{text}` sends the internal error text to the client"
     severity: medium
     confidence: medium
@@ -700,6 +716,7 @@ rules:
     remediation: "Log err server-side (with a request id) and return a fixed message: http.Error(w, \"internal error\", http.StatusInternalServerError)."
 
   - id: pprof-on-default-mux
+    requirements: [ARB-062]
     title: "`{text}` publishes /debug/pprof on the default mux"
     severity: medium
     confidence: medium
@@ -742,6 +759,7 @@ rules:
   # passed through strconv or filepath.Base is not a path or URL any more.
 
   - id: path-traversal-request
+    requirements: [ARB-062]
     title: "`{text}` builds a file path from a request value"
     severity: high
     confidence: medium
@@ -799,6 +817,7 @@ rules:
     remediation: "Reject names that are not filepath.IsLocal (Go 1.20+), or keep filepath.Base(name), or open through os.OpenRoot/os.OpenInRoot (Go 1.24+); check the joined path still has the base as its prefix."
 
   - id: upload-client-filename
+    requirements: [ARB-062]
     title: "`{text}` stores an upload under the client's file name"
     severity: high
     confidence: medium
@@ -858,6 +877,7 @@ rules:
     remediation: "Name the file yourself (a random id), pick the extension from an allowlist of types sniffed with http.DetectContentType, cap the size with http.MaxBytesReader, and store outside the served tree."
 
   - id: ssrf-request-url
+    requirements: [ARB-062]
     title: "`{text}` fetches a URL taken from the request"
     severity: high
     confidence: medium
@@ -905,6 +925,7 @@ rules:
     remediation: "Parse the URL, require https and a host from an allowlist, resolve and refuse private, loopback and link-local addresses (in a custom Dialer.Control so redirects and DNS rebinding are covered), and don't follow redirects blindly."
 
   - id: argument-injection
+    requirements: [ARB-062]
     title: "`{text}` passes a request value to a command with no `--` before it"
     severity: high
     confidence: medium
@@ -944,6 +965,7 @@ rules:
     remediation: "Put \"--\" before the first value argument (exec.Command(\"git\", \"clone\", \"--\", url, dir)), and validate the value (url.Parse with an https scheme, a ref name pattern) before it reaches the command."
 
   - id: parsed-int-narrowed
+    requirements: [ARB-062]
     title: "`{text}` narrows a 64-bit parsed integer without a bounds check"
     severity: medium
     confidence: medium
@@ -978,6 +1000,7 @@ rules:
   # Stubs that reached a production path
   # ---------------------------------------------------------------------
   - id: stub-on-security-path
+    requirements: [ARB-061]
     title: "`{text}` is the whole body of a security check: the check is a stub"
     severity: high
     confidence: high
@@ -1001,6 +1024,7 @@ rules:
     remediation: "Implement the check before anything depends on it, or make the stub fail closed (return an error / false) and block the merge until it is real."
 
   - id: stub-not-implemented
+    requirements: [ARB-061]
     title: "`{text}` is the whole function body: a stub on a production path"
     severity: medium
     confidence: high
@@ -1018,6 +1042,7 @@ rules:
     remediation: "Implement it, or return an explicit `errors.ErrUnsupported`-style error and make callers handle it."
 
   - id: stub-returns-nil
+    requirements: [ARB-061]
     title: "`{text}` under a TODO is the whole function body: a stub that reports success"
     severity: medium
     confidence: medium
@@ -1040,6 +1065,7 @@ rules:
   # Randomness
   # ---------------------------------------------------------------------
   - id: insecure-random-token
+    requirements: [ARB-061]
     title: "`{text}` builds a secret from math/rand, which is predictable"
     severity: high
     confidence: high
@@ -1088,6 +1114,7 @@ rules:
   # Tests that cannot fail
   # ---------------------------------------------------------------------
   - id: test-skipped-unconditionally
+    requirements: [ARB-061]
     title: "`{text}` is the first statement of the test: it never runs"
     severity: low
     confidence: high

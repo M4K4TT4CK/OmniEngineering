@@ -207,7 +207,10 @@ def read_snapshot(name: str) -> dict | None:
 def write_snapshot(t: Target, keys: list[str]) -> None:
     SNAPSHOTS.mkdir(parents=True, exist_ok=True)
     by_rule = Counter(k.split("\t")[0] for k in keys)
+    # `recorded` dates the snapshot for tools/precision_guard.py, which asks
+    # whether a rule's labels predate a jump in its count here.
     data = {"target": t.name, "pinned_sha": t.pinned_sha, "arbiter_commit": _head(ROOT),
+            "recorded": time.strftime("%Y-%m-%d"),
             "count": len(keys), "by_rule": dict(sorted(by_rule.items())), "findings": keys}
     snapshot_path(t.name).write_text(json.dumps(data, indent=1) + "\n", encoding="utf-8")
 

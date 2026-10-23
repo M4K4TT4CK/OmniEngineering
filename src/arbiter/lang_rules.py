@@ -40,6 +40,8 @@ rules:
     requires_in_scope: "..." # only report a hit whose enclosing function (or file) matches this
     unless_in_file: "..."    # skip every hit when the file matches this
     requires_file: "..."     # only report in a file that matches this
+    requirements: [ARB-062]  # the requirement(s) it was built or fixed under
+    tier: advisory           # verified | advisory (rule_meta.py, docs/precision.md)
     # Python only: skip a string-building hit when every value spliced into
     # it is safe (see _splices_safe). Each is a regex, full-matched:
     safe_splice_calls: "..." # callee of a call whose result is safe (`quote_name`)
@@ -87,7 +89,9 @@ FUNCTION_TYPES: dict[str, set[str]] = {
 _KEYS = {"id", "title", "severity", "confidence", "dimension", "cwe", "controls", "tags",
          "roles", "files", "query", "unless_inside", "unless_in_scope", "unless_in_file",
          "requires_file", "requires_in_scope", "description", "remediation", "languages",
-         "safe_splice_calls", "safe_splice_names"}
+         "safe_splice_calls", "safe_splice_names",
+         # Not detection logic: traceability and precision (rule_meta.py).
+         "requirements", "tier", "precision_ref"}
 _SEVERITIES = {"info", "low", "medium", "high", "critical"}
 _CONFIDENCES = {"low", "medium", "high"}
 
@@ -116,6 +120,11 @@ def validate_pack(data: dict, name: str) -> None:
         if rule["id"] in seen:
             raise PackError(f"{where}: duplicate id")
         seen.add(rule["id"])
+        from .rule_meta import RuleMetaError, validate_meta
+        try:
+            validate_meta(rule, where)
+        except RuleMetaError as exc:
+            raise PackError(str(exc)) from exc
         if rule.get("severity", "medium") not in _SEVERITIES:
             raise PackError(f"{where}: bad severity")
         if rule.get("confidence", "medium") not in _CONFIDENCES:

@@ -13,6 +13,7 @@ languages: [ruby]
 rules:
   # --- Concurrency -----------------------------------------------------------
   - id: check-then-act-unlocked
+    requirements: [ARB-065]
     title: "Check-then-act on a shared collection with no lock: `{text}`"
     severity: medium
     confidence: medium
@@ -139,6 +140,7 @@ rules:
       return).
 
   - id: unsynchronised-counter
+    requirements: [ARB-061]
     title: "`{text}` on a shared counter with no lock in a threaded file"
     severity: medium
     confidence: medium
@@ -168,6 +170,7 @@ rules:
       Hold a Mutex around the update, or use Concurrent::AtomicFixnum#increment.
 
   - id: endless-worker-loop
+    requirements: [ARB-061]
     title: "Thread runs `{text}` with no stop signal"
     severity: medium
     confidence: medium
@@ -216,6 +219,7 @@ rules:
 
   # --- Outbound calls --------------------------------------------------------
   - id: http-no-timeout
+    requirements: [ARB-060]
     title: "`{text}` makes an outbound call with no timeout set"
     severity: medium
     confidence: medium
@@ -256,6 +260,7 @@ rules:
 
   # --- Retries ---------------------------------------------------------------
   - id: retry-unbounded
+    requirements: [ARB-061]
     title: "`retry` with no attempt counter: retries forever"
     severity: medium
     confidence: high
@@ -295,6 +300,7 @@ rules:
       return a failure the caller can see.
 
   - id: retry-without-backoff
+    requirements: [ARB-061]
     title: "`retry` with no sleep: hammers the failing dependency"
     severity: medium
     confidence: medium
@@ -329,6 +335,7 @@ rules:
 
   # --- Error handling --------------------------------------------------------
   - id: swallowed-error
+    requirements: [ARB-065]
     title: "`{text}` swallows the error: empty rescue"
     severity: medium
     confidence: high
@@ -372,6 +379,7 @@ rules:
       re-raise or return an explicit failure for anything else.
 
   - id: rescue-exception
+    requirements: [ARB-065]
     title: "`rescue Exception` catches interrupts, SystemExit and NoMemoryError"
     severity: medium
     confidence: high
@@ -430,6 +438,7 @@ rules:
 
   # --- Injection -------------------------------------------------------------
   - id: sql-injection
+    requirements: [ARB-065]
     title: "SQL built by string interpolation: `{text}`"
     severity: high
     confidence: high
@@ -471,6 +480,7 @@ rules:
       [id])`, `conn.exec_params`) for raw drivers.
 
   - id: command-injection
+    requirements: [ARB-061]
     title: "Shell command built by string interpolation: `{text}`"
     severity: high
     confidence: high
@@ -507,6 +517,7 @@ rules:
       with `Shellwords.escape` if a single string is unavoidable.
 
   - id: code-injection
+    requirements: [ARB-065]
     title: "Runtime value reaches `{text}`"
     severity: high
     confidence: high
@@ -535,6 +546,7 @@ rules:
       write yourself.
 
   - id: dynamic-eval
+    requirements: [ARB-061]
     title: "`{text}` runs a string as code"
     severity: medium
     confidence: medium
@@ -559,6 +571,7 @@ rules:
 
   # --- Deserialization -------------------------------------------------------
   - id: marshal-load
+    requirements: [ARB-060]
     title: "`Marshal.load` deserializes untrusted bytes"
     severity: high
     confidence: high
@@ -579,6 +592,7 @@ rules:
     remediation: "Use JSON.parse, or YAML.safe_load with permitted classes."
 
   - id: yaml-unsafe-load
+    requirements: [ARB-061]
     title: "`{text}` can instantiate arbitrary classes from the document"
     severity: high
     confidence: medium
@@ -605,6 +619,7 @@ rules:
 
   # --- Stubs -----------------------------------------------------------------
   - id: stub-method
+    requirements: [ARB-065]
     title: "Method body is only `{text}`"
     severity: low
     confidence: medium
@@ -667,6 +682,7 @@ rules:
 
   # --- Tests (spec/*_spec.rb) ------------------------------------------------
   - id: vacuous-spec
+    requirements: [ARB-065]
     title: "Example `{text}` has no expectation"
     severity: low
     confidence: medium
@@ -727,6 +743,7 @@ rules:
     remediation: "Assert the behaviour, or state the no-raise expectation explicitly."
 
   - id: skipped-spec
+    requirements: [ARB-061]
     title: "Example is skipped unconditionally: `{text}`"
     severity: low
     confidence: high
@@ -767,6 +784,7 @@ rules:
 
   # --- TLS -------------------------------------------------------------------
   - id: tls-verify-off
+    requirements: [ARB-061]
     title: "TLS certificate verification disabled: `{text}`"
     severity: high
     confidence: high
@@ -791,6 +809,7 @@ rules:
 
   # --- Randomness ------------------------------------------------------------
   - id: insecure-random
+    requirements: [ARB-061]
     title: "`{text}` uses the predictable Kernel#rand for a secret"
     severity: medium
     confidence: medium
@@ -823,6 +842,7 @@ rules:
 
   # --- Authentication, CSRF and error disclosure (CWE Top 25, ARB-062) ------
   - id: jwt-unverified-decode
+    requirements: [ARB-062]
     title: "JWT decoded without checking its signature: `{text}`"
     severity: high
     confidence: high
@@ -857,6 +877,7 @@ rules:
       with a fixed algorithm, and `aud`/`iss` checks where the token has them.
 
   - id: jwt-literal-signing-key
+    requirements: [ARB-062]
     title: "JWT key is a string literal in the source: `{text}`"
     severity: high
     confidence: high
@@ -892,6 +913,7 @@ rules:
     remediation: "`ENV.fetch(\"JWT_SECRET\")` or `Rails.application.credentials.jwt_secret`, read once at boot."
 
   - id: csrf-protection-disabled
+    requirements: [ARB-062]
     title: "CSRF protection switched off: `{text}`"
     severity: high
     confidence: medium
@@ -942,6 +964,7 @@ rules:
       authenticate each request with a token, not a cookie.
 
   - id: csrf-protection-off-in-production
+    requirements: [ARB-062]
     title: "CSRF protection switched off in the production environment: `{text}`"
     severity: high
     confidence: high
@@ -974,6 +997,7 @@ rules:
       than turn the check off application-wide.
 
   - id: error-backtrace-to-client
+    requirements: [ARB-062]
     title: "Exception backtrace returned to the client: `{text}`"
     severity: medium
     confidence: high
@@ -1002,6 +1026,7 @@ rules:
       is the place to do it once.
 
   - id: error-message-to-client
+    requirements: [ARB-062]
     title: "Exception message returned to the client: `{text}`"
     severity: low
     confidence: medium
@@ -1051,6 +1076,7 @@ rules:
   # is not reported.
 
   - id: path-traversal-request
+    requirements: [ARB-062]
     title: "File path built from a request parameter: `{text}`"
     severity: high
     confidence: medium
@@ -1117,6 +1143,7 @@ rules:
     remediation: "Keep `File.basename(name)` and check the result is in an allowlist or exists, or expand the joined path and require it to `start_with?` the base directory plus a separator."
 
   - id: upload-client-filename
+    requirements: [ARB-062]
     title: "Upload stored under the client's file name: `{text}`"
     severity: high
     confidence: medium
@@ -1170,6 +1197,7 @@ rules:
     remediation: "Store through ActiveStorage, or name the file yourself (`SecureRandom.uuid` plus an extension from an allowlist of `Marcel::MimeType.for` types), cap the size, and keep it outside public/."
 
   - id: ssrf-request-url
+    requirements: [ARB-062]
     title: "HTTP request to a URL taken from the request: `{text}`"
     severity: high
     confidence: medium
@@ -1219,6 +1247,7 @@ rules:
     remediation: "Parse with URI, require https and a host from an allowlist, refuse private and loopback addresses after resolving (the ssrf_filter gem does this), and don't follow redirects blindly."
 
   - id: argument-injection
+    requirements: [ARB-062]
     title: "Request value passed to a command with no `--` before it: `{text}`"
     severity: high
     confidence: medium

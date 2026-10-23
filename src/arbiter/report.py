@@ -29,6 +29,42 @@ def _remediation_text(f: Finding) -> str:
     return f.remediation or NO_REMEDIATION
 
 
+TIER_ORDER = ["verified", "advisory", "inferred"]
+
+
+def tier_counts(findings: list[Finding]) -> dict[str, int]:
+    out = {t: 0 for t in TIER_ORDER}
+    for f in findings:
+        t = f.tier or "advisory"
+        out[t] = out.get(t, 0) + 1
+    return out
+
+
+def tier_summary(report: Report) -> str:
+    """'tiers: 3 verified · 40 advisory · 0 inferred (gate: legacy)'. The
+    mode is part of the line: under legacy every tier can fail the gate."""
+    counts = tier_counts(report.active())
+    mode = (report.gate or {}).get("tier_mode", "legacy")
+    gate = ("gate reads every tier" if mode == "legacy"
+            else "gate reads " + ", ".join((report.gate or {}).get("tiers") or ["verified"]))
+    return ("tiers: " + " · ".join(f"{counts[t]} {t}" for t in TIER_ORDER)
+            + f" (tier_mode {mode}: {gate})")
+
+
+def _tiered(report: Report) -> bool:
+    return (report.gate or {}).get("tier_mode") == "tiered"
+
+
+def _sarif_level(report: Report, f: Finding) -> str:
+    """Severity's level, except that under a tiered gate a finding that
+    cannot block (advisory, inferred) is a note: an `error` the gate ignores
+    teaches people to ignore errors. Under legacy every finding can block, so
+    the level stays the severity's."""
+    if _tiered(report) and (f.tier or "advisory") != "verified":
+        return "note"
+    return SARIF_LEVEL.get(f.severity, "warning")
+
+
 def _grouped(findings: list[Finding], key) -> list[list[Finding]]:
     """Cluster findings that share `key(f)`, preserving first-seen order.
 
@@ -232,6 +268,7 @@ def write_sarif(report: Report, path: str, min_severity: str | None = None) -> N
                     "tags": f.tags + f.controls
                     + [f"external/cwe/{c.lower()}" for c in f.cwe],
                     **({"cwe": list(f.cwe)} if f.cwe else {}),
+                    **({"requirements": list(f.requirements)} if f.requirements else {}),
                 },
             }
         loc = {
@@ -244,7 +281,7 @@ def write_sarif(report: Report, path: str, min_severity: str | None = None) -> N
             loc["logicalLocations"] = [{"fullyQualifiedName": f.location.logical}]
         results.append({
             "ruleId": f.rule_id,
-            "level": SARIF_LEVEL.get(f.severity, "warning"),
+            "level": _sarif_level(report, f),
             "message": {"text": f.title},
             "locations": [loc],
             "fingerprints": {"arbiter/v1": f.id},
@@ -256,6 +293,9 @@ def write_sarif(report: Report, path: str, min_severity: str | None = None) -> N
                 "remediation": _remediation_text(f),
                 "remediation_source": f.remediation_source,
                 "scope_note": f.scope_note,
+                "tier": f.tier or "advisory",
+                "tier_reason": f.tier_reason,
+                **({"requirements": list(f.requirements)} if f.requirements else {}),
             },
         })
     doc = {
@@ -274,6 +314,8 @@ def write_sarif(report: Report, path: str, min_severity: str | None = None) -> N
                 "properties": {
                     "profile": report.profile,
                     "coverage": report.scorecard.coverage,
+                    "tier_mode": (report.gate or {}).get("tier_mode", "legacy"),
+                    "tiers": tier_counts(report.active()),
                     "bluf": _bluf_lines(report),
                     "skipped_probes": [
                         {"name": p.name, "reason": p.reason}
@@ -368,6 +410,8 @@ def render_console(report: Report, color: bool | None = None, limit: int = 40) -
     )
     L.append(head.rstrip() or _color(color, "green", "  no findings"))
 
+    if active:
+        L.append(_color(color, "dim", "  " + tier_summary(report)))
     if sc.withheld:
         L.append("  " + _color(color, "medium", f"grade withheld — {sc.withheld_reason}"))
     elif sc.overall is not None:
@@ -403,7 +447,8 @@ def render_console(report: Report, color: bool | None = None, limit: int = 40) -
             prefix = "" if (f.location.repo_id or len(report.repos) == 1) else f"{f.repo_id}:"
             where = prefix + f.location.short()
             L.append(f"  {tag} {where}  {f.title}{conf}")
-            L.append(_color(color, "dim", f"           {f.rule_id}  {f.id}"))
+            L.append(_color(color, "dim", f"           {f.rule_id}  {f.id}  [{f.tier or 'advisory'}]"
+                                          + (f" {f.tier_reason}" if f.tier_reason else "")))
         if len(active) > limit:
             L.append(_color(color, "dim", f"  … {len(active) - limit} more (see the JSON report)"))
         L.append("")
@@ -459,6 +504,9 @@ def render_markdown(report: Report) -> str:
     L.append("|" + "---|" * len(SEV_ORDER))
     L.append("| " + " | ".join(str(counts[s]) for s in SEV_ORDER) + " |")
     L.append("")
+    if active:
+        L.append(tier_summary(report).replace("tiers: ", "**Tiers:** ", 1))
+        L.append("")
     L.extend(requirement_block(active, base=(report.scan_scope or {}).get("changed_since")))
 
     if sc.dimensions:
@@ -499,7 +547,9 @@ def render_markdown(report: Report) -> str:
                 f = members[0]
                 if len(members) == 1:
                     repo = f"`{f.repo_id}` " if len(report.repos) > 1 else ""
-                    L.append(f"- {repo}**{f.title}**  \n  `{f.location.short()}` · `{f.rule_id}` · {f.id}")
+                    L.append(f"- {repo}**{f.title}**  \n  `{f.location.short()}` · `{f.rule_id}` · {f.id}"
+                             f" · {f.tier or 'advisory'}"
+                             + (f" ({f.tier_reason})" if f.tier_reason else ""))
                     if f.description:
                         L.append(f"  \n  {f.description}")
                     L.append(f"  \n  Fix: {_remediation_text(f)}")
@@ -513,9 +563,14 @@ def render_markdown(report: Report) -> str:
                 if len(locs) > GROUP_LOCATION_CAP:
                     loc_text += f", … {len(locs) - GROUP_LOCATION_CAP} more"
                 remediations = dict.fromkeys(_remediation_text(m) for m in members)
+                tiers = tier_counts(members)
+                tier_text = ", ".join(f"{tiers[t]} {t}" for t in TIER_ORDER if tiers[t])
+                reasons = list(dict.fromkeys(m.tier_reason for m in members if m.tier_reason))
                 L.append(
                     f"- **{f.title}** (×{len(members)} across {len(files)} file(s))  \n"
-                    f"  `{f.rule_id}`  \n  {loc_text}"
+                    f"  `{f.rule_id}` · {tier_text}"
+                    + (f" ({' / '.join(reasons[:3])})" if reasons else "")
+                    + f"  \n  {loc_text}"
                 )
                 L.append(f"  \n  Fix: {' / '.join(remediations)}")
                 scope_notes = dict.fromkeys(m.scope_note for m in members if m.scope_note)

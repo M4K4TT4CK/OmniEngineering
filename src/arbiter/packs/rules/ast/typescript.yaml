@@ -21,6 +21,7 @@ languages: [typescript, javascript]
 rules:
   # ---------------------------------------------------------------- injection
   - id: eval-call
+    requirements: [ARB-061]
     title: "`eval` runs a string as code"
     severity: high
     confidence: high
@@ -40,6 +41,7 @@ rules:
     remediation: "Parse data with JSON.parse; never build code from input."
 
   - id: new-function-code
+    requirements: [ARB-061]
     title: "`new Function` compiles a runtime string into code"
     severity: high
     confidence: high
@@ -60,6 +62,7 @@ rules:
     remediation: "Dispatch on data (a map of named handlers, JSON.parse); do not compile strings."
 
   - id: timer-string-code
+    requirements: [ARB-061]
     title: "`{text}` passes a string to a timer, which evaluates it as code"
     severity: medium
     confidence: high
@@ -77,6 +80,7 @@ rules:
     remediation: "Pass a function: `setTimeout(() => tick(), ms)`."
 
   - id: vm-run-code
+    requirements: [ARB-061]
     title: "`{text}` runs a runtime string through the `vm` module"
     severity: high
     confidence: medium
@@ -100,6 +104,7 @@ rules:
     remediation: "Do not run untrusted code in-process; use a real sandbox (isolated worker, container) or a data-only DSL."
 
   - id: sql-string-built
+    requirements: [ARB-061]
     title: "SQL built from a string: `{text}`"
     severity: high
     confidence: high
@@ -127,6 +132,7 @@ rules:
     remediation: "Use placeholders: `query(\"... WHERE id = $1\", [id])`, or the driver's parameter binding."
 
   - id: shell-command-built
+    requirements: [ARB-061]
     title: "Shell command built from a value: `{text}`"
     severity: high
     confidence: high
@@ -161,6 +167,7 @@ rules:
     remediation: "Use `execFile(\"prog\", [arg1, arg2])` or `spawn` without `shell: true`; pass arguments as an array."
 
   - id: shell-spawn-built
+    requirements: [ARB-061]
     title: "`spawn` with `shell: true` and a built command"
     severity: high
     confidence: high
@@ -185,6 +192,7 @@ rules:
     remediation: "Drop `shell: true` and pass the program and its arguments separately."
 
   - id: html-from-request
+    requirements: [ARB-061, ARB-065]
     title: "Response body built from request data: `{text}`"
     severity: high
     confidence: high
@@ -208,6 +216,7 @@ rules:
     remediation: "Render through a template engine that escapes by default, or escape the value (`escape-html`) before splicing."
 
   - id: inner-html-assigned
+    requirements: [ARB-061]
     title: "`innerHTML` assigned a non-literal value"
     severity: medium
     confidence: medium
@@ -232,6 +241,7 @@ rules:
     remediation: "Use `textContent`, build nodes with `createElement`, or sanitise with DOMPurify first."
 
   - id: dangerously-set-inner-html
+    requirements: [ARB-061]
     title: "`dangerouslySetInnerHTML` with a non-literal value"
     severity: medium
     confidence: medium
@@ -253,6 +263,7 @@ rules:
     remediation: "Render the value as text, or pass it through DOMPurify (`sanitize(value)`) first."
 
   - id: request-keyed-assignment
+    requirements: [ARB-061]
     title: "Object key taken from the request: `{text}`"
     severity: medium
     confidence: medium
@@ -271,6 +282,7 @@ rules:
     remediation: "Allow-list the keys you accept, or store in a `Map` (`map.set(key, value)`)."
 
   - id: insecure-random-secret
+    requirements: [ARB-061]
     title: "`Math.random()` used for a secret or token"
     severity: medium
     confidence: medium
@@ -311,6 +323,7 @@ rules:
   # `decode(t, { complete: true })` (the header-for-key-lookup form) is not
   # reported. Bare `decode(...)` is not matched: too many libraries export one.
   - id: jwt-decode-unverified
+    requirements: [ARB-061, ARB-062, ARB-065]
     title: "JWT read without verifying its signature: `{text}`"
     severity: high
     confidence: medium
@@ -345,6 +358,7 @@ rules:
     remediation: "Use `jwt.verify(token, key, { algorithms: [\"RS256\"] })` (jsonwebtoken) or `await jwtVerify(token, key)` (jose), and read the claims from its result."
 
   - id: jwt-verify-insecure-options
+    requirements: [ARB-061, ARB-062]
     title: "JWT verification switched off by an option: `{text}`"
     severity: high
     confidence: high
@@ -377,6 +391,7 @@ rules:
 
   # ------------------------------------------- hard-coded credentials (CWE-798)
   - id: jwt-hardcoded-secret
+    requirements: [ARB-061, ARB-062]
     title: "JWT signed or verified with a literal secret: `{text}`"
     severity: high
     confidence: high
@@ -406,6 +421,7 @@ rules:
   # Fastify's `reply.send(err)` hands the error to Fastify's own error
   # serializer, which does not send the stack, so `reply` is not matched.
   - id: error-stack-in-response
+    requirements: [ARB-061, ARB-062]
     title: "Stack trace sent to the client: `{text}`"
     severity: medium
     confidence: high
@@ -454,6 +470,7 @@ rules:
     remediation: "Log the error server-side with a request or incident id and return only that id and a generic message."
 
   - id: error-object-in-response
+    requirements: [ARB-061, ARB-062, ARB-065]
     title: "Raw error object sent to the client: `{text}`"
     severity: medium
     confidence: medium
@@ -502,6 +519,7 @@ rules:
   # value spliced in after a fixed origin (`${API}/users/${id}`) picks a
   # path on a host the code chose, which is not this rule.
   - id: ssrf-request-url
+    requirements: [ARB-061, ARB-062]
     title: "Outbound request to a URL taken from the request: `{text}`"
     severity: high
     confidence: medium
@@ -556,6 +574,7 @@ rules:
   # `tar --checkpoint-action=exec=...` from the request runs or writes what
   # the caller chose. A `"--"` element ends option parsing and is the fix.
   - id: argument-injection
+    requirements: [ARB-061, ARB-062]
     title: "Request value passed as an argument with no `--`: `{text}`"
     severity: high
     confidence: medium
@@ -618,6 +637,7 @@ rules:
   # the upload directory runs in the site's origin, and a duplicate name
   # overwrites another user's file.
   - id: upload-client-filename
+    requirements: [ARB-061, ARB-062]
     title: "Upload stored under the client's filename: `{text}`"
     severity: high
     confidence: medium
@@ -671,6 +691,7 @@ rules:
   # session cookie set to `SameSite=None`, which browsers send on
   # cross-site requests, in a file that mentions no CSRF token at all.
   - id: csrf-unsafe-methods-ignored
+    requirements: [ARB-061, ARB-062]
     title: "CSRF check skipped for a state-changing method: `{text}`"
     severity: high
     confidence: high
@@ -694,6 +715,7 @@ rules:
     remediation: "Leave `ignoreMethods` at its default (`GET`, `HEAD`, `OPTIONS`) and send the token from the client (a hidden field, or a header for fetch)."
 
   - id: session-cookie-cross-site
+    requirements: [ARB-061, ARB-062]
     title: "Session cookie sent cross-site with no CSRF token in the file: `{text}`"
     severity: medium
     confidence: medium
@@ -721,6 +743,7 @@ rules:
 
   # ----------------------------------------------------------- availability
   - id: fetch-no-timeout
+    requirements: [ARB-061]
     title: "`fetch` with no timeout: `{text}`"
     severity: medium
     confidence: medium
@@ -754,6 +777,7 @@ rules:
     remediation: "Pass `signal: AbortSignal.timeout(ms)` (Node 17.3+), or an AbortController you abort from a timer."
 
   - id: axios-no-timeout
+    requirements: [ARB-061]
     title: "axios call with no timeout: `{text}`"
     severity: medium
     confidence: medium
@@ -794,6 +818,7 @@ rules:
     remediation: "Pass `{ timeout: ms }`, or create one instance with `axios.create({ timeout })` and use it everywhere."
 
   - id: http-request-no-timeout
+    requirements: [ARB-061]
     title: "`{text}` with no timeout"
     severity: medium
     confidence: medium
@@ -820,6 +845,7 @@ rules:
     remediation: "Pass `{ timeout: ms }` and handle `req.on(\"timeout\", () => req.destroy())`, or use `fetch` with `AbortSignal.timeout`."
 
   - id: retry-no-backoff
+    requirements: [ARB-061]
     title: "Retry loop with no backoff or cap"
     severity: medium
     confidence: medium
@@ -850,6 +876,7 @@ rules:
     remediation: "Cap the attempts, await an exponential backoff with jitter between them, and rethrow after the last."
 
   - id: worker-loop-no-stop
+    requirements: [ARB-061]
     title: "Worker loop with no way to stop"
     severity: medium
     confidence: medium
@@ -874,6 +901,7 @@ rules:
 
   # ------------------------------------------------------------ concurrency
   - id: async-check-then-act
+    requirements: [ARB-061]
     title: "Check, await, then act on shared state"
     severity: medium
     confidence: medium
@@ -920,6 +948,7 @@ rules:
 
   # ---------------------------------------------------------- error handling
   - id: empty-catch
+    requirements: [ARB-061]
     title: "Error swallowed by an empty `catch`"
     severity: low
     confidence: medium
@@ -955,6 +984,7 @@ rules:
     remediation: "Log it with context, rethrow, or return a documented fallback; if ignoring is right, say why in the block."
 
   - id: empty-catch-in-loop
+    requirements: [ARB-061]
     title: "Error swallowed by an empty `catch` inside a loop"
     severity: medium
     confidence: high
@@ -981,6 +1011,7 @@ rules:
     remediation: "Log each failure with the item it was processing, count them, and fail or alert past a threshold."
 
   - id: promise-catch-noop
+    requirements: [ARB-061]
     title: "Promise rejection swallowed: `{text}`"
     severity: low
     confidence: medium
@@ -1011,6 +1042,7 @@ rules:
 
   # ------------------------------------------------------------------ stubs
   - id: stub-throws-not-implemented
+    requirements: [ARB-061]
     title: "Function body is only `{text}`"
     severity: medium
     confidence: medium
@@ -1032,6 +1064,7 @@ rules:
     remediation: "Implement it, or remove the call path until it exists; do not ship a placeholder behind a real route."
 
   - id: stub-returns-constant
+    requirements: [ARB-061]
     title: "Function returns a constant marked TODO"
     severity: medium
     confidence: medium
@@ -1052,6 +1085,7 @@ rules:
 
   # ------------------------------------------------------------------ tests
   - id: test-without-assertion
+    requirements: [ARB-061, ARB-065, ARB-080]
     title: "Test `{text}` contains no assertion"
     severity: low
     confidence: medium
@@ -1097,6 +1131,7 @@ rules:
     remediation: "Assert the behaviour, or say in a comment that not throwing is the assertion."
 
   - id: skipped-test
+    requirements: [ARB-061]
     title: "Test skipped unconditionally: `{text}`"
     severity: low
     confidence: high
