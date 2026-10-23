@@ -1411,3 +1411,37 @@ rules:
       for some other host. Either way the connection is encrypted to
       whoever answers, and the SMTP credentials go to them.
     remediation: "Remove the property; for a private CA, add it to the trust store or name the exact host in `mail.smtp.ssl.trust`."
+
+  - id: retry-constant-delay
+    requirements: [ARB-083]
+    title: "`{text}` retries after the same fixed delay every time"
+    severity: low
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [retry, backoff, reliability, ai-code]
+    # Retry scheduling with a constant: the wait is a value named as the
+    # retry delay (`retryDelayMs`) used as is, in a file that caps attempts,
+    # with no growth or jitter on it. retry-without-backoff is the no-delay case.
+    query: |
+      ((method_invocation object: (_) @o name: (identifier) @m
+         arguments: (argument_list . [(identifier) (field_access)] @d .))
+        (#match? @o "^(Thread|TimeUnit\\.\\w+)$") (#eq? @m "sleep")
+        (#match? @d "(?i)(^|\\.)retry_?(delay|interval|wait|pause|sleep|backoff)(_?(ms|millis|seconds|secs))?$")) @hit
+      ((method_invocation name: (identifier) @m
+         arguments: (argument_list . (_) . [(identifier) (field_access)] @d . (_) .))
+        (#match? @m "^(schedule|delayedExecutor)$")
+        (#match? @d "(?i)(^|\\.)retry_?(delay|interval|wait|pause|backoff)(_?(ms|millis|seconds|secs))?$")) @hit
+    requires_file: |
+      ((identifier) @r (#match? @r "(?i)^_?max_?(retries|retry|attempts?|tries)$|^_?retry_?(count|limit)$|^MAX_(RETRIES|ATTEMPTS|TRIES)$"))
+    unless_in_file: |
+      ((identifier) @b (#match? @b "(?i)backoff|jitter"))
+      ((binary_expression operator: ["*" "<<"]) @b (#match? @b "(?i)retry_?(delay|interval)"))
+      ((assignment_expression left: (_) @l operator: ["*=" "<<="]) (#match? @l "(?i)retry_?(delay|interval)"))
+    description: >-
+      Every retry waits the same interval. When a dependency fails, every
+      caller retries in lock-step on that interval, so the recovering
+      service is hit by the whole backlog at once and each retry is as
+      likely to fail as the last.
+    remediation: "Grow the delay with the attempt (`base << attempt`, capped) and add jitter, or use a retry library (resilience4j, Failsafe) with exponential backoff."

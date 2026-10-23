@@ -1314,3 +1314,64 @@ rules:
       SMTP delivery) accept any certificate. The session is encrypted to
       whoever answers, and the SMTP user name and password go to them.
     remediation: "Remove it (the default verifies the peer); for a private CA, set `ca_file` or `ca_path` instead."
+
+  - id: retry-constant-delay
+    requirements: [ARB-083]
+    title: "`{text}` retries after the same fixed delay every time"
+    severity: low
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [retry, backoff, reliability, ai-code]
+    # Retry scheduling with a constant: the wait is a value named as the
+    # retry delay (`@retry_delay`, RETRY_DELAY) used as is, in a file that
+    # caps attempts, with no growth or jitter on it.
+    query: |
+      ((call method: (identifier) @m
+         arguments: (argument_list . [(identifier) (instance_variable) (constant) (call)] @d .))
+        (#eq? @m "sleep")
+        (#match? @d "(?i)(^|[.@:])retry_?(delay|interval|wait|pause|backoff)(_?(ms|millis|seconds|secs))?$")) @hit
+    requires_file: |
+      ([(identifier) (instance_variable) (constant)] @r (#match? @r "(?i)^@?_?max_?(retries|retry|attempts?|tries)$|^@?_?retry_?(count|limit)$"))
+    unless_in_file: |
+      ([(identifier) (instance_variable) (constant)] @b (#match? @b "(?i)backoff|jitter"))
+      ((binary operator: ["*" "**" "<<"]) @b (#match? @b "(?i)retry_?(delay|interval)"))
+    description: >-
+      Every retry waits the same interval. When a dependency fails, every
+      caller retries in lock-step on that interval, so the recovering
+      service is hit by the whole backlog at once and each retry is as
+      likely to fail as the last.
+    remediation: "Grow the delay with the attempt (`base * 2**attempt`, capped) and add jitter (`rand`)."
+
+  - id: requeue-without-delay
+    requirements: [ARB-083]
+    title: "`{text}` puts the failed job straight back on the queue"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [retry, backoff, reliability, ai-code]
+    # In a rescue: a branch guarded by an attempt count pushes the job back
+    # onto a queue (`@pending << job.id`, `queue.push(job)`) with nothing
+    # that waits. The worker pops it again at once, so every retry of a
+    # failing dependency happens within milliseconds.
+    query: |
+      (rescue body: (then (if condition: (_) @c consequence: (then
+        (binary left: [(instance_variable) (identifier) (call)] @q operator: "<<") @hit))
+        (#match? @c "(?i)attempt|retr|tries")
+        (#match? @q "(?i)(queue|pending|jobs|work|inbox|backlog)$")))
+      (rescue body: (then (if condition: (_) @c consequence: (then
+        (call receiver: [(instance_variable) (identifier) (call)] @q method: (identifier) @m) @hit))
+        (#match? @c "(?i)attempt|retr|tries")
+        (#match? @q "(?i)(queue|pending|jobs|work|inbox|backlog)$")
+        (#match? @m "^(push|enq|enqueue|unshift)$")))
+    unless_in_scope: |
+      (call method: (identifier) @m (#match? @m "(?i)^(sleep|wait|backoff|perform_in|perform_at|set|schedule|in|at)$|delay|backoff|jitter")) @x
+    description: >-
+      The job is retried by enqueueing it again with no delay. The next
+      free worker takes it immediately, so a transient outage in the
+      dependency is retried at full speed, all attempts are used up in
+      milliseconds, and the job fails anyway.
+    remediation: "Schedule the retry after a growing delay (a timer, `perform_in`, or a delayed queue keyed by next-attempt time) with jitter."

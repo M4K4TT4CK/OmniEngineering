@@ -1192,3 +1192,38 @@ rules:
       strips the offer and receives the AUTH exchange, user name and
       password, in plaintext.
     remediation: "Set `requireTLS: true` for port 587 (or `secure: true` on 465) and keep `tls.rejectUnauthorized` at its default."
+
+  - id: retry-constant-delay
+    requirements: [ARB-083]
+    title: "`{text}` retries after the same fixed delay every time"
+    severity: low
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [retry, backoff, reliability, ai-code]
+    # Retry scheduling with a constant: the wait is a value named as the
+    # retry delay (`this.retryDelayMs`) used as is, in a file that caps
+    # attempts, with no growth or jitter on it. retry-no-backoff is the
+    # no-delay case.
+    query: |
+      ((call_expression function: (identifier) @fn
+         arguments: (arguments . (_) . [(identifier) (member_expression)] @d .))
+        (#eq? @fn "setTimeout")
+        (#match? @d "(?i)(^|\\.)retry_?(delay|interval|wait|pause|backoff)(_?(ms|millis|seconds|secs))?$")) @hit
+      ((call_expression function: [(identifier) (member_expression)] @fn
+         arguments: (arguments . [(identifier) (member_expression)] @d .))
+        (#match? @fn "(?i)(^|\\.)(sleep|delay|wait|setTimeout)$")
+        (#match? @d "(?i)(^|\\.)retry_?(delay|interval|wait|pause|backoff)(_?(ms|millis|seconds|secs))?$")) @hit
+    requires_file: |
+      ([(identifier) (property_identifier)] @r (#match? @r "(?i)^_?max_?(retries|retry|attempts?|tries)$|^_?retry_?(count|limit)$"))
+    unless_in_file: |
+      ([(identifier) (property_identifier)] @b (#match? @b "(?i)backoff|jitter"))
+      ((binary_expression operator: ["*" "**" "<<"]) @b (#match? @b "(?i)retry_?(delay|interval)"))
+      ((augmented_assignment_expression left: (_) @l) (#match? @l "(?i)retry_?(delay|interval)"))
+    description: >-
+      Every retry waits the same interval. When a dependency fails, every
+      caller retries in lock-step on that interval, so the recovering
+      service is hit by the whole backlog at once and each retry is as
+      likely to fail as the last.
+    remediation: "Grow the delay with the attempt (`base * 2 ** attempt`, capped) and add jitter."

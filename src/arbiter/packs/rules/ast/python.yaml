@@ -864,3 +864,45 @@ rules:
       certificate. Anyone on the path can present their own, read the mail,
       and capture the password sent by `login()` straight after.
     remediation: "Pass `context=ssl.create_default_context()` to `starttls()` / `SMTP_SSL(...)` (`ssl_context=` for IMAP4_SSL)."
+
+  - id: retry-constant-delay
+    requirements: [ARB-083]
+    title: "`{text}` retries after the same fixed delay every time"
+    severity: low
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [retry, backoff, reliability, ai-code]
+    # A retry path (the function names a retry or an attempt) that waits a
+    # configured delay used as is: no multiplication by the attempt, no
+    # exponent, no jitter. retry-loop-no-backoff is the no-delay case.
+    query: |
+      ((call function: (attribute) @fn
+         arguments: (argument_list . [(identifier) (attribute)] @d .))
+        (#match? @fn "^(time|asyncio)\\.sleep$")
+        (#match? @d "(?i)(^|\\.)_?retry_?(delay|interval|wait|pause|sleep)(_?(ms|millis|s|secs|seconds))?$")) @hit
+      ((call function: (attribute) @fn
+         arguments: (argument_list . [(integer) (float)] .))
+        (#match? @fn "^(time|asyncio)\\.sleep$")) @hit
+      ((call function: [(attribute) (identifier)] @fn
+         arguments: (argument_list . [(identifier) (attribute)] @d))
+        (#match? @fn "^(threading\\.)?Timer$")
+        (#match? @d "(?i)(^|\\.)_?retry_?(delay|interval|wait|pause|sleep)(_?(ms|millis|s|secs|seconds))?$")) @hit
+    requires_in_scope: |
+      ((identifier) @r (#match? @r "(?i)retr|attempt"))
+    requires_file: |
+      ([(identifier) (attribute)] @r (#match? @r "(?i)(^|\\.)_?max_?(retries|retry|attempts?|tries)$|(^|\\.)_?retry_?(count|limit)$"))
+    unless_in_scope: |
+      ((binary_operator operator: ["*" "**" "<<"]) @b (#match? @b "(?i)delay|interval|wait|backoff|pause|attempt|retr|tries"))
+      ((augmented_assignment operator: ["*=" "**=" "<<="]) @b)
+      ((call function: [(attribute) (identifier)] @f) (#match? @f "(?i)random|jitter|uniform|backoff|expovariate|pow$"))
+    # A file that has backoff somewhere is taken to apply it on the outer loop.
+    unless_in_file: |
+      ([(identifier) (attribute)] @b (#match? @b "(?i)backoff|jitter"))
+    description: >-
+      Every retry waits the same interval. When a dependency fails, every
+      caller retries in lock-step on that interval, so the recovering
+      service is hit by the whole backlog at once and each retry is as
+      likely to fail as the last.
+    remediation: "Grow the delay with the attempt (`base * 2 ** attempt`, capped) and add jitter, or use tenacity/backoff."

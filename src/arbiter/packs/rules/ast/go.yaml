@@ -1204,3 +1204,36 @@ rules:
       changed, and nothing records why: an expired-token purge that keeps
       failing lets the table grow with no sign anywhere.
     remediation: "Handle the error (`if _, err := db.Exec(...); err != nil { ... }`) or log it; write `_, _ =` only where ignoring it is a documented decision."
+
+  - id: retry-constant-delay
+    requirements: [ARB-083]
+    title: "`{text}` retries after the same fixed delay every time"
+    severity: low
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [retry, backoff, reliability, ai-code]
+    # Retry scheduling with a constant: the wait is a value named as the
+    # retry delay (`q.retryDelay`, `retryInterval`) used as is, in a file
+    # that caps attempts (`MaxRetries`), with no growth or jitter on it.
+    # A bare `time.Sleep(100 * time.Millisecond)` is not reported: on gold
+    # code those are local polls (a busy device, a socket coming up), where
+    # a fixed short wait is the idiom. retry-no-backoff is the no-delay case.
+    query: |
+      ((call_expression function: (selector_expression) @fn
+         arguments: (argument_list . [(identifier) (selector_expression)] @d .))
+        (#match? @fn "^time\\.(Sleep|After|NewTimer|AfterFunc)$")
+        (#match? @d "(?i)(^|\\.)retry_?(delay|interval|wait|pause|sleep)(_?(ms|millis|seconds|secs))?$")) @hit
+    requires_file: |
+      ([(identifier) (field_identifier)] @r (#match? @r "(?i)^_?max_?(retries|retry|attempts?|tries)$|^_?retry_?(count|limit)$"))
+    unless_in_file: |
+      ([(identifier) (field_identifier)] @b (#match? @b "(?i)backoff|jitter"))
+      ((binary_expression operator: ["*" "<<"]) @b (#match? @b "(?i)retry_?(delay|interval)"))
+      ((assignment_statement left: (_) @l operator: ["*=" "<<="]) (#match? @l "(?i)retry_?(delay|interval)"))
+    description: >-
+      Every retry waits the same interval. When a dependency fails, every
+      caller retries in lock-step on that interval, so the recovering
+      service is hit by the whole backlog at once and each retry is as
+      likely to fail as the last.
+    remediation: "Grow the delay with the attempt (`base << attempt`, capped) and add jitter, or use a backoff package (cenkalti/backoff, k8s wait.Backoff)."
