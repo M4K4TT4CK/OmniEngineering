@@ -5,6 +5,9 @@ under `[Unreleased]` (there are no release tags yet) and reference the
 `REQ-###` they serve. Rationale belongs in `.ai/project-context.md`.
 
 ## [Unreleased]
+### 2026-10-22 (round 1 decisions)
+- ARB-065 | Gold budgets gain `accepted_breaches`: a rule over budget by a recorded decision stays in the report and in `rules_over_budget`, and the run fails again only if its rate passes a ceiling set about 10% above the rate at the decision (`failing_breaches`, tested). Recorded on 2026-10-22 by the user: `java.test-without-assertion` is a known breach (0.066/KLOC; its remaining findings are tests that only call the code), and `assurance.permanently-skipped-test` (0.0315) and `typescript.test-without-assertion` (0.034) are accepted overages. The run on the 1047341 report has 9 over budget, 3 of them accepted, and 6 failing.
+- ARB-065 | Decisions recorded by the user on 2026-10-22: the test-file exclusions in 1047341 and c4d8bfe stand (TLS off for a test's own local server, `override_settings(DEBUG=True)`, empty skipped tests, Java `@Override` tests). The three Django applications stay a separate corpus, not gold, so Python denominators don't move. Checking `assurance.test-asserts-nothing` for the same conditional-skip blind spot is round 2 work.
 ### 2026-10-21 (licence)
 - ARB-005 | Relicensed under the Apache License, Version 2.0, by decision of
 the copyright holder (Nicholas J Pauken); the repository stays public. `LICENSE`
@@ -38,6 +41,80 @@ and is a synthetic test value. The published history alone
 (`--log-opts="--remotes=origin"`, 226 commits) gives 48 hits: 47 in `tests/`,
 1 in `fixtures/legacy-platform`. The `training/` redistribution check named
 in the same gap is not recorded here.
+### 2026-10-21 (round 1 follow-ups)
+- ARB-065 | `test-d/` (tsd type-level tests, jose) and `integration-tests/` (opentelemetry-js) are test roles in the inventory, whole directory names only. Gold, ts-jose and ts-otel-js at `d67566e` against `3984b05`: `typescript.jwt-decode-unverified` 2 to 0 (both in jose's `test-d/`), `typescript.error-object-in-response` 1 to 0 (otel `integration-tests/`); no other rule moved; 476 jose and 55 otel TypeScript lines move from production to test.
+- ARB-062 | `ruby.csrf-protection-off-in-production` (CWE-352, high): `config.action_controller.allow_forgery_protection = false` in `config/environments/production.rb`, at the root or under any directory; Rails generates the same line in `test.rb`, which is not read. The pack schema's `files:` key (an fnmatch glob, until now undocumented) also takes a list of globs, validated at load; documented in `lang_rules.py` and `docs/probes.md`. Planted bad `production.rb`; good twins `production.rb` with the check on and `test.rb` with it off. No gold file sets it.
+- ARB-062 | Three Django applications pinned in `tools/fetch_corpus.sh` (`DJANGO_APPS_ONLY=1`, `get_pinned_app`, so the gold benchmark does not budget them): zulip `4bae1c54`, healthchecks `47415f03`, django-cms `827b4598` (252k production Python lines). Their 49 `@csrf_exempt` views give `python.csrf-protection-disabled` no finding, and none should: the only one reading `request.user` is zulip's `rest_dispatch`, exempt so it can re-apply `csrf_protect()` to its session branch, which is now an explicit exclusion (it was silent only because the word `Authorization` appears in it). No `jwt-*` or `error-*` finding on the three either. Not added to the gold set.
+- ARB-065 | `java.test-without-assertion` skips an `@Override` test, a body comment saying not throwing is the check, names saying the call completes (`NoneExceptionIsThrown`, `NoAssertError`, `DoNotCause...`, `...NotRequired`, `CanBeInstanced`, `IsSerializable`, `Compiles`, and `Created`/`Granted`/`GrantsAccess`/`Success`/`Wires`/`Autowires`/`Allow(s|ed)` outcome words, spring-security's authorization tests), `ensure*` helpers and performance-harness classes (`*Performance`, `*Benchmark(s)`), each anchored on the `@Test` method so an anonymous class inside it does not count. Gold 276 to 199 (0.092 to 0.066 per KLOC raw, budget 0.03): still over. Each of the 77 removed was reviewed by name and category; the rest, triaged by category with samples, only call the code (netty boundary tests, tomcat `MessageBytes`, keycloak admin-client flows, empty `// FIXME` tests), so the budget is not reachable without dropping real findings.
+- ARB-065 | Per-site counting (ARB-080) kept; precision fixes for the two rules it pushed over budget. `authored.security-check-disabled`: in a test file, a TLS check off for the test's own local server (`localhost`, `127.0.0.1`, `server.address()`, `httptest`) and Django's `override_settings(DEBUG=True)` are the fixture and are not reported; other test-path hits stay reported at low. 328 to 86 (0.054 to 0.014, within budget). `assurance.permanently-skipped-test`: a `t.Skip()`/`it.skip(`/`describe.skip(` under a branch or after code on its line is conditional, `xfail(<expr>, ...)` has a positional condition, and a skip on an empty test (Java `{}`, Python `pass`) switches an inherited test off in a subclass it does not apply to; a skipped test with a body stays reported. 311 to 192 (0.051 to 0.0315, budget 0.03): just over, and the rest are real tests switched off. `typescript.test-without-assertion` unchanged at 22: 16 only call the code, 6 are otel compile-time type checks with no generic signal.
+- ARB-065 | Gold benchmark, all 24 repositories, native checks, `--jobs 4`, at `1047341` against `3984b05`: 8,170 to 7,729 findings, 10 to 9 rules over budget (`authored.security-check-disabled` leaves). Scan seconds summed 2,259.8 to 2,229.7; java-keycloak 1,196.3.
+### 2026-10-21 (Milestone 1: trustworthy numbers)
+- ARB-076 | Each tree-sitter query is compiled once per process: `run_query` used to build `Query(lang, src)` on every call (files × rules compilations). Compiled queries are cached by grammar and query text (tsx and typescript separately); a failed compile is never cached; the on-disk compiled-pack stamp is unchanged. `tests/test_query_cache.py` counts real compilations during a 1- and 8-file Ruby scan. Scan seconds per repository, same machine, `tools/gold_benchmark.py --only java-keycloak,ruby-rails,go-grpc,ts-nest --jobs 4 --no-fail`, before (`de35f15`) → after (`d693074`): ts-nest 252.5 → 26.2, ruby-rails 720.1 → 203.3, go-grpc 59.1 → 45.9, java-keycloak 2,124.1 → 1,499.8; wall clock 35:24 → 25:00; per-rule finding counts identical (2,200 both). Keycloak's remaining time is outside the packs: on `services/` (1,751 Java files) `authored` takes 28.4 s and `doc_drift` 14.9 s against `lang_java` 6.2 s.
+- ARB-078 | `import arbiter.lang_rules` works before `arbiter.probes`: lang_rules no longer imports probes at load time (it imported `PACKS` and `ProbeContext`, while probes imports lang_rules to register the packs). Two tests' import-order workaround lines removed. `tests/test_import_order.py` imports every module first in a fresh interpreter. FAIL-052.
+- ARB-062 | `controls._probe_of("arbiter/<lang>.x")` returns `lang_<lang>` (it returned `<lang>`, a probe that does not exist, so a control backed by a language-pack rule always read as not assessed). Tested for all five languages, including a real scan per language with a one-control pack. No shipped control pack references a language-pack rule yet, so shipped controls output is unchanged. FAIL-053.
+- ARB-080 | Same-evidence findings in one file each count: the distinct sites of one fingerprint get an occurrence ordinal in line order (occurrence 0 keeps its old id, occurrence k gets a derived one). Reports and new baselines say `fingerprint: occurrence-v1` (baseline schema 1.1). A 1.0 baseline still matches every repeat it collapsed, as do suppressions by id and `arbiter diff` from an older report, so upgrading leaves the gate green on unchanged code; `arbiter baseline REPORT --migrate OLD --out OLD` rewrites a 1.0 baseline without accepting anything new and keeps `created`, `commit` and `config_hash`. On this repository's committed 1.0 baseline (native, offline): 86 active (66 existing, 20 new) before, 100 (80 existing, 20 new) after. FAIL-054.
+- ARB-065 | `java.test-without-assertion` lowered to confidence low (reviewer-approved, instead of raising its budget). The gate reads severity only, so it is unaffected (the rule is severity low). The gold harness now records confidence and reports a confidence-weighted rate beside the raw one (low counts 0.5, the scorecard's low/medium factor); budgets stay on the raw rate, because weighting them moved three other rules under budget through their existing low-confidence findings while this one stayed over (276 findings, 0.092 raw, 0.046 weighted, budget 0.03).
+- ARB-065 / ARB-080 | Gold benchmark, all 24 repositories, native checks, `--jobs 4`: at `bd6bf16` (before ARB-080) 7,457 findings, 7 rules over budget, per-repository counts identical to `2026-10-21-gold-report-after.json` on its 23 repositories; at `7dd990c` 8,162 findings, 10 over budget (`authored.security-check-disabled`, `assurance.permanently-skipped-test` and `typescript.test-without-assertion` join, all from counting each same-evidence site). Scan seconds summed 2,308.9 (6,454.9 in the first run), keycloak 1,239.9. (The `7dd990c` run used the same scan code under an earlier, unpublished budget rule; its over-budget count was re-evaluated from the run's JSON with `evaluate` as committed.)
+### 2026-10-21 (CWE Top 25, TypeScript and Go round 1)
+- ARB-062 | Native rules for ranked gaps 1, 2 and 4 in TypeScript and Go.
+TypeScript: `jwt-decode-unverified` (CWE-287/347, medium: `jwt.decode` or
+jose `decodeJwt` in a function that never verifies; `decode(t, {complete:
+true})` is the key-lookup form and is not reported), `jwt-verify-insecure-options`
+(`algorithms: ["none"]`, `ignoreExpiration: true`; high), `jwt-hardcoded-secret`
+(CWE-798, literal secret to `jwt.sign`/`verify`; high), `error-stack-in-response`
+(CWE-200/209, `err.stack` in an Express/Koa response unless the function checks
+`NODE_ENV`; high) and `error-object-in-response` (`res.json(err)`; medium).
+Go: `jwt-parse-unverified` (medium, silent when the function also verifies),
+`jwt-claims-validation-disabled` (high), `hardcoded-signing-key` (`[]byte("…")`
+to `SignedString`, `hmac.New`, a keyfunc, or a key-named variable; high),
+`hardcoded-dsn-password` (mysql `user:pass@` and key=value DSNs; trivial
+passwords skipped as in `pg-url`; high), `error-text-in-response` (err text
+to `http.Error`/gin/echo with a 5xx, or `fmt.Fprint*`/`Write` to the writer
+in a handler; medium) and `pprof-on-default-mux` (medium; silent when the
+server listens on loopback). The pack schema gains `requires_in_scope`. The
+matrix moves TypeScript 287 and 200 and Go 287, 200 and 798 to N: TypeScript
+native 6 to 8 cells, Go 4 (798 part) to 6.
+### 2026-10-21 (CWE Top 25 round 1: Python and Ruby)
+- ARB-062 | Native rules for the ranked CWE Top 25 gaps in Python and Ruby.
+`python.jwt-unverified-decode` / `ruby.jwt-unverified-decode` (CWE-287):
+PyJWT and python-jose with `verify_signature: False`, `verify=False`, a
+"none" algorithm or `get_unverified_claims`; `JWT.decode(t, k, false)`. A
+function that also verifies with a fixed algorithm list (peek, then verify) is
+not reported. `python.jwt-literal-signing-key` / `ruby.jwt-literal-signing-key`
+(CWE-798): a string literal, or a `*_KEY`/`*_SECRET` constant tied to the call,
+as the key of jwt encode/decode; the secrets probe missed both.
+`python.csrf-protection-disabled` / `ruby.csrf-protection-disabled` (CWE-352):
+`@csrf_exempt` on a session-authenticated Django view, `WTF_CSRF_ENABLED =
+False` outside a test config; `skip_before_action :verify_authenticity_token`
+and `skip_forgery_protection` in a controller with a state-changing action that
+is not an API, webhook or self-authenticating controller. `null_session` is not
+reported. `python.error-traceback-to-client` / `ruby.error-backtrace-to-client`
+(CWE-209/200, high) and `python.error-message-to-client` /
+`ruby.error-message-to-client` (medium): a traceback, backtrace or catch-all
+exception message in a response in the same statement. Cells in
+`docs/cwe-top25.md`: Python 352, 287 and 200 and Ruby 352, 287 and 200 are
+now native; Python native 6 to 9, Ruby native 6 to 9 and caught 8 to 10.
+### 2026-10-21 (CWE Top 25, Java round 1)
+- ARB-062 | Java native rules for gap-list ranks 1-4 (`docs/cwe-top25.md`).
+CWE-287: `java.jwt-unsigned-accepted` (jjwt `parseClaimsJwt`,
+`parseUnsecuredClaims`, `.unsecured()`; high confidence) and
+`java.jwt-decode-without-verify` (auth0 `JWT.decode`, Nimbus `JWTParser.parse`
+with no `verify`/`require`/JWT processor in the file, an issuer or key-id peek
+excepted; medium). CWE-798: `java.hardcoded-signing-key` (`Algorithm.HMAC256`,
+`Keys.hmacShaKeyFor`, `signWith`/`setSigningKey`, `new SecretKeySpec` given a
+literal) and `java.hardcoded-db-password` (`DriverManager.getConnection` with a
+literal password or `password=` in the URL, `setPassword` on a data source);
+placeholders and empty passwords skipped, test code skipped, the literal never
+in the finding. CWE-352: `java.csrf-disabled` (all three Spring Security forms;
+high severity, medium confidence) and `java.csrf-disabled-stateless` (low/low
+where the file declares `SessionCreationPolicy.STATELESS`). CWE-200/209:
+`java.stack-trace-to-client` (high confidence) and
+`java.exception-message-to-client` (medium; broad or library exceptions only,
+tied to their own catch clause or `@ExceptionHandler`). Java Top 25 coverage:
+native 4 to 8 cells, caught by anything 8 to 11 of 15; gaps left 79, 77, 918,
+190. Gold Java repositories (httpclient, netty, spring-security, tomcat; keycloak
+skipped): 0 findings from the new rules. OWASP Benchmark Java unchanged
+(in-scope recall 1.0, FPR 0.565).
 ### 2026-10-21 (gold re-run)
 - ARB-065 | Gold benchmark re-run after the precision fixes (Arbiter 8cf1ee7, 23 repositories without keycloak, native checks): 6,477 findings, 1.32 per KLOC, 7 rules over budget. The first run (d57e479, 24 repositories) had 12,468 findings, 2.05 per KLOC, 16 over budget. Results in `tools/gold/results/2026-10-21-gold-*-after.*`.
 ### 2026-10-21 (roadmap)

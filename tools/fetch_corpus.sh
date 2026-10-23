@@ -92,6 +92,23 @@ get_pinned() {
   fi
 }
 
+# Django applications, pinned like the gold group but not part of it: they
+# are where `csrf_exempt`, sessions and JWTs are used, which the gold
+# libraries (Django itself included) only define. Field-tested evidence for
+# the Python CWE rules (ARB-062), triaged by hand; `tools/gold_benchmark.py`
+# reads only `get_pinned` lines, so these are never budgeted.
+# DJANGO_APPS_ONLY=1 fetches this group alone, into its own directory.
+get_pinned_app() { get_pinned "$@"; }
+if [ "${DJANGO_APPS_ONLY:-0}" = "1" ]; then
+echo "Django applications (sessions, csrf_exempt) — pinned, not gold:"
+get_pinned_app py-zulip           https://github.com/zulip/zulip.git 4bae1c54f50c6ef523d69f084b47aed1fcc57c4e python
+get_pinned_app py-healthchecks    https://github.com/healthchecks/healthchecks.git 47415f03c8c6da20b1a7a57cdb86260ab23b47a6 python
+get_pinned_app py-django-cms      https://github.com/django-cms/django-cms.git 827b45987cd14aab4b0ac3f4bd20dcf553eabadb python
+echo
+echo "Downloaded to $DEST ($(du -sh "$DEST" 2>/dev/null | cut -f1))"
+exit 0
+fi
+
 # GOLD_ONLY=1 fetches the gold group alone, into its own directory.
 if [ "${GOLD_ONLY:-0}" != "1" ]; then
 

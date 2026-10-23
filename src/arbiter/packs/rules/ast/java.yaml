@@ -561,7 +561,10 @@ rules:
   - id: test-without-assertion
     title: "`@Test {text}` asserts nothing"
     severity: low
-    confidence: medium
+    # low, not medium: on the gold set most hits are deliberate "does not
+    # throw" tests (2026-10-21 triage), so the rule is a prompt to look, not a
+    # claim. Chosen over raising its gold budget (tools/gold/budgets.json).
+    confidence: low
     dimension: assurance
     cwe: [CWE-1164]
     controls: [NIST-800-218:PW.8]
@@ -572,7 +575,7 @@ rules:
         name: (identifier) @hit)
     unless_in_scope: |
       (method_invocation name: (identifier) @n
-        (#match? @n "^(assert\\w*|verify\\w*|fail|expect\\w*|andExpect\\w*|should\\w*|then\\w*|check\\w*|validate\\w*|assume\\w*|is[A-Z]\\w*|has[A-Z]\\w*|contains\\w*|doesNotContain\\w*|isEqualTo|isNotEqualTo|matches|satisfies|inOrder|andDo|expectStatus|exchange)$"))
+        (#match? @n "^(assert\\w*|verify\\w*|ensure\\w*|fail|expect\\w*|andExpect\\w*|should\\w*|then\\w*|check\\w*|validate\\w*|assume\\w*|is[A-Z]\\w*|has[A-Z]\\w*|contains\\w*|doesNotContain\\w*|isEqualTo|isNotEqualTo|matches|satisfies|inOrder|andDo|expectStatus|exchange)$"))
       (method_invocation object: (identifier) @o
         (#match? @o "^(Assertions|Assert|Mockito|BDDMockito|MatcherAssert|Truth|StepVerifier|Verify|Awaitility|SoftAssertions)$"))
       ; delegates to a helper of this class (`checkRoundTrip(x)`) or a
@@ -590,27 +593,48 @@ rules:
       (method_declaration body: (block (if_statement consequence: (throw_statement)) @t))
       (method_declaration body: (block (if_statement consequence: (block (throw_statement))) @t))
       ; switched off: `@Disabled`/`@Ignore` is assurance.permanently-skipped-test's
-      ; finding, and an empty `@Override` switches off an inherited test
-      ; (netty AbstractAdaptiveByteBufTest)
+      ; finding. An `@Override` test replaces an inherited one: empty, it
+      ; switches the parent's test off (netty AbstractAdaptiveByteBufTest);
+      ; otherwise it narrows the parent's check to what this subclass
+      ; supports (tomcat's `testNoArgConstructor` overrides). The parent
+      ; owns the assertion, so neither is reported.
       ((method_declaration (modifiers) @m) @d (#match? @m "@(Disabled|Ignore)\\b"))
-      ((method_declaration (modifiers) @m body: (block) @b) @d
-        (#match? @m "@Override\\b") (#match? @b "(?s)^\\{(\\s|//[^\\n]*|/\\*.*?\\*/)*\\}$"))
+      ; (anchored on the @Test method: an anonymous class's `@Override`
+      ; inside the test body is not one)
+      ((method_declaration (modifiers (marker_annotation name: (identifier) @t (#eq? @t "Test"))) @m) @d (#match? @m "@Override\\b"))
+      ; a comment in the body says that not throwing is the check:
+      ; `// no exception` (spring-security Issue50Tests)
+      ((method_declaration (modifiers (marker_annotation name: (identifier) @t (#eq? @t "Test"))) body: (block (line_comment) @c)) @d
+        (#match? @c "(?i)//\\s*(no exception|does(n't| not) throw|should(n't| not) (throw|fail))"))
       ; the name or @DisplayName says that not throwing is the check, the
       ; same as a "does not throw" title in the TypeScript rule
       ; (`buildWhenScopesIsNullThenDoesNotThrowAnyException`, `contextLoads`,
       ; spring-security's `...WhenRoleAdminThenPasses`)
-      ((method_declaration name: (identifier) @n) @d
-        (#match? @n "(?i:(doesnt|dont|didnt|wont|cant|not|never|no)_?(throw|crash|fail|blow)|no_?(exception|error)s?(_?thrown)?$|exception_?not_?thrown|without_?(exception|error|throwing)|starts_?cleanly)|(Succeeds|Passes|Loads)$"))
+      ; Also the outcome words for "the call completes": spring-security's
+      ; `...ThenCreated`, `...AccessGranted`, `...ShouldAllow...` (an
+      ; authorization test passes when AccessDeniedException is not thrown),
+      ; `...ThenScopeNotRequired`, `...DoesNotCauseCircularReference`.
+      ((method_declaration (modifiers (marker_annotation name: (identifier) @t (#eq? @t "Test"))) name: (identifier) @n) @d
+        (#match? @n "(?i:(doesnt|dont|didnt|wont|cant|not|never|no)_?(throw|crash|fail|blow)|no_?(exception|error)s?(_?thrown)?$|none_?exception|no_?assert(ion)?_?error|exception_?not_?thrown|without_?(exception|error|throwing)|starts_?cleanly|(does|do)_?not_?cause|not_?required$|can_?(both_?)?be_?(instanced|instantiated|loaded|created)|is_?serializable$|compiles)|(Succeeds|Passes|Loads|Success|Successful|SuccessFul|Created|Granted|GrantsAccess|Wires|Autowires)$|(^allow|Allow)(s|ed)?([A-Z_]|$)"))
       ((method_declaration (modifiers (annotation name: (identifier) @a arguments: (annotation_argument_list) @s))) @d
         (#eq? @a "DisplayName")
         (#match? @s "(?i)(\\bnot|\\bnever|n't|\\bwithout|\\bno) (throw|exception|error|fail|crash|hang)"))
+    # A performance harness measures time, not results: tomcat's
+    # `Tester*Performance` classes (not run by its default test target) and
+    # `Benchmarks`, JMH-style `*Benchmark` classes.
+    unless_in_file: |
+      (class_declaration name: (identifier) @c
+        (#match? @c "(Performance|Benchmarks?|PerformanceTest|PerfTest)$")) @x
     description: >
       The test passes as long as nothing throws, which is not what it looks
       like it checks. A method that only calls the code under test proves
       the call does not crash on this input and nothing else. A test whose
-      name or `@DisplayName` says it checks that nothing throws, one that
-      throws on a condition itself, and one switched off with `@Disabled`,
-      `@Ignore` or an empty `@Override` are not reported.
+      name, `@DisplayName` or a body comment says it checks that nothing
+      throws (or that the call is allowed, created or completes), one that
+      throws on a condition itself, one that delegates to an
+      `assert*`/`verify*`/`check*`/`expect*`/`ensure*` helper, an
+      `@Override` of an inherited test, one switched off with `@Disabled` or
+      `@Ignore`, and a performance harness class are not reported.
     remediation: >
       Assert the outcome (`assertEquals`, `assertThat`, `verify(...)`), or
       name it `...DoesNotThrow` and wrap it in `assertDoesNotThrow`.
@@ -711,3 +735,349 @@ rules:
       outputs reveal its state and every future value. For a token, key,
       password or session id that means the next one can be predicted.
     remediation: "Use `SecureRandom` (and `UUID.randomUUID()` for ids)."
+
+  # ------------------------------------------------- CWE Top 25, round 1 --
+  # ARB-062: the Java rows of the ranked gap list in docs/cwe-top25.md.
+
+  - id: jwt-unsigned-accepted
+    title: "`{text}` accepts a JWT that carries no signature"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-287, CWE-347]
+    controls: [NIST-800-218:PW.5]
+    tags: [auth, jwt]
+    query: |
+      ; jjwt: parseClaimsJwt/parsePlaintextJwt (0.9-0.11) and
+      ; parseUnsecuredClaims/parseUnsecuredContent (0.12) are the UNSIGNED
+      ; variants; the signed ones end in Jws. `.unsecured()` on the parser
+      ; builder lets `parse()` accept `alg: none`.
+      (method_invocation name: (identifier) @hit
+        (#match? @hit "^(parseClaimsJwt|parsePlaintextJwt|parseContentJwt|parseUnsecuredClaims|parseUnsecuredContent)$"))
+      (method_invocation object: (_) @o name: (identifier) @hit arguments: (argument_list) @a
+        (#eq? @hit "unsecured") (#match? @a "^\\(\\s*\\)$") (#match? @o "(?i)parser"))
+    requires_file: |
+      ((program) @p (#match? @p "\\bio\\.jsonwebtoken\\b"))
+    unless_in_file: *test_support
+    description: >
+      These jjwt calls exist to read a token with no signature. Whoever sends
+      the token chooses its claims, so `sub`, `roles` and `exp` read from it
+      prove nothing about who the caller is.
+    remediation: >
+      Parse with a verifying parser: `Jwts.parser().verifyWith(key).build()
+      .parseSignedClaims(token)` (0.12) or `parseClaimsJws` (0.11), and drop
+      `.unsecured()`.
+
+  - id: jwt-decode-without-verify
+    title: "`{text}` reads a JWT and nothing in this file verifies its signature"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-287, CWE-347]
+    controls: [NIST-800-218:PW.5]
+    tags: [auth, jwt]
+    query: |
+      ; auth0 java-jwt `JWT.decode(token)`; Nimbus `JWTParser.parse(token)`,
+      ; `SignedJWT.parse(token)`, `PlainJWT.parse(token)`
+      (method_invocation object: (identifier) @o name: (identifier) @n
+        (#eq? @o "JWT") (#eq? @n "decode")) @hit
+      (method_invocation object: (identifier) @o name: (identifier) @n
+        (#match? @o "^(JWTParser|SignedJWT|PlainJWT|EncryptedJWT)$") (#eq? @n "parse")) @hit
+    requires_file: |
+      ((program) @p (#match? @p "\\bcom\\.auth0\\.jwt\\b|\\bcom\\.nimbusds\\.jwt\\b"))
+    # Decoding first to read `kid`, `iss` or `alg` and choose the key is the
+    # normal way to verify; so is decoding a token this file verifies
+    # elsewhere. Either way a verifier is in the file.
+    unless_in_file: |
+      (method_invocation name: (identifier) @n (#match? @n "^(verify|require)$"))
+      (method_invocation object: (_) @o name: (identifier) @n
+        (#eq? @n "process") (#match? @o "(?i)processor"))
+      ((import_declaration) @i
+        (#match? @i "\\b(org\\.junit|junit\\.framework|org\\.testng|org\\.assertj|org\\.hamcrest|org\\.mockito|com\\.google\\.common\\.truth|com\\.google\\.common\\.testing|org\\.openjdk\\.jmh|com\\.code_intelligence\\.jazzer)\\."))
+    # A peek at the issuer or key id to route the token to the right
+    # verifier (spring-security's JwtIssuerAuthenticationManagerResolver and
+    # its reactive twin, `JWTParser.parse(token.getToken()).getJWTClaimsSet()
+    # .getIssuer()`).
+    unless_inside: |
+      ((method_invocation) @m
+        (#match? @m "^(JWT\\.decode|JWTParser\\.parse|SignedJWT\\.parse)\\((?:[^()]|\\([^()]*\\))*\\)(\\.get(JWTClaimsSet|Header)\\(\\))?\\.get(Issuer|KeyId|KeyID|Algorithm|Type|ContentType)\\(\\)$"))
+    description: >
+      `JWT.decode` and Nimbus' `parse` split the token and base64-decode it;
+      they do not check the signature, the expiry or the issuer. A caller
+      can write any subject or role into a token and it is believed.
+    remediation: >
+      Verify before reading claims: `JWT.require(Algorithm.HMAC256(secret))
+      .withIssuer(...).build().verify(token)` (auth0), or a
+      `DefaultJWTProcessor` / `SignedJWT.verify(JWSVerifier)` (Nimbus).
+
+  - id: hardcoded-signing-key
+    title: "`{text}` is given a key written in the source"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-798, CWE-321]
+    controls: [NIST-800-218:PW.5]
+    tags: [secret, crypto, jwt]
+    # @hit is the API name, never the literal, so the key itself does not
+    # end up in the report or its fingerprint.
+    query: |
+      ; Algorithm.HMAC256("s3cret")  Algorithm.HMAC512("k".getBytes())
+      ((method_invocation object: (identifier) @o name: (identifier) @hit
+        arguments: (argument_list . [
+          (string_literal) @lit
+          (method_invocation object: (string_literal) @lit name: (identifier) @gb (#match? @gb "^(getBytes|toCharArray)$"))
+          (method_invocation name: (identifier) @d arguments: (argument_list . (string_literal) @lit .) (#match? @d "^(decode|parseBase64Binary|decodeBase64)$"))
+        ] .))
+        (#eq? @o "Algorithm") (#match? @hit "^HMAC(256|384|512)$")
+        (#not-match? @lit "(?i)^\"(|\\s*|x{3,}|\\*{3,}|\\.{3,}|change[-_ ]?me|todo|none|null|dummy|your[-_\\w]*|<[^>]*>|\\$\\{[^}]*\\}|[-_\\w]*(here|placeholder|example|redacted|notreal)[-_\\w]*)\"$"))
+      ; Keys.hmacShaKeyFor("…".getBytes())  Keys.hmacShaKeyFor(Decoders.BASE64.decode("…"))
+      ((method_invocation object: (identifier) @o name: (identifier) @hit
+        arguments: (argument_list . [
+          (method_invocation object: (string_literal) @lit name: (identifier) @gb (#match? @gb "^getBytes$"))
+          (method_invocation name: (identifier) @d arguments: (argument_list . (string_literal) @lit .) (#match? @d "^(decode|parseBase64Binary|decodeBase64)$"))
+        ] .))
+        (#eq? @o "Keys") (#eq? @hit "hmacShaKeyFor")
+        (#not-match? @lit "(?i)^\"(|\\s*|x{3,}|\\*{3,}|\\.{3,}|change[-_ ]?me|todo|none|null|dummy|your[-_\\w]*|<[^>]*>|\\$\\{[^}]*\\}|[-_\\w]*(here|placeholder|example|redacted|notreal)[-_\\w]*)\"$"))
+      ; jjwt 0.9-0.11: .signWith(SignatureAlgorithm.HS256, "secret"), .setSigningKey("secret")
+      ((method_invocation name: (identifier) @hit
+        arguments: (argument_list [
+          (string_literal) @lit
+          (method_invocation object: (string_literal) @lit name: (identifier) @gb (#match? @gb "^getBytes$"))
+        ]))
+        (#match? @hit "^(signWith|setSigningKey)$")
+        (#not-match? @lit "(?i)^\"(|\\s*|x{3,}|\\*{3,}|\\.{3,}|change[-_ ]?me|todo|none|null|dummy|your[-_\\w]*|<[^>]*>|\\$\\{[^}]*\\}|[-_\\w]*(here|placeholder|example|redacted|notreal)[-_\\w]*)\"$"))
+      ; new SecretKeySpec("…".getBytes(), "HmacSHA256")
+      ((object_creation_expression type: (type_identifier) @hit
+        arguments: (argument_list . [
+          (method_invocation object: (string_literal) @lit name: (identifier) @gb (#match? @gb "^getBytes$"))
+          (method_invocation name: (identifier) @d arguments: (argument_list . (string_literal) @lit .) (#match? @d "^(decode|parseBase64Binary|decodeBase64)$"))
+        ]))
+        (#eq? @hit "SecretKeySpec")
+        (#not-match? @lit "(?i)^\"(|\\s*|x{3,}|\\*{3,}|\\.{3,}|change[-_ ]?me|todo|none|null|dummy|your[-_\\w]*|<[^>]*>|\\$\\{[^}]*\\}|[-_\\w]*(here|placeholder|example|redacted|notreal)[-_\\w]*)\"$"))
+    # Test code is skipped, as the secrets probe skips a test credential that
+    # does not look generated: `roles` defaults to source, and test support
+    # outside src/test is recognised by its imports.
+    unless_in_file: *test_support
+    description: >
+      The key that signs tokens or MACs is in the source, so everyone with
+      the repository, a build artifact or a decompiler can mint a token any
+      service that trusts this key will accept. Rotating it means a release.
+    remediation: >
+      Load the key at runtime from a secret manager or the environment
+      (`System.getenv("JWT_SECRET")`, a Spring `@Value` bound to a vault),
+      and rotate the one that was committed.
+
+  - id: hardcoded-db-password
+    title: "`{text}` is given a database password written in the source"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-798, CWE-259]
+    controls: [NIST-800-218:PW.5]
+    tags: [secret, database]
+    query: |
+      ; DriverManager.getConnection(url, "user", "pw")
+      ((method_invocation object: (identifier) @o name: (identifier) @hit
+        arguments: (argument_list . (_) . (_) . (string_literal) @lit .))
+        (#eq? @o "DriverManager") (#eq? @hit "getConnection")
+        (#not-match? @lit "(?i)^\"(|\\s*|x{3,}|\\*{3,}|\\.{3,}|change[-_ ]?me|todo|none|null|dummy|your[-_\\w]*|<[^>]*>|\\$\\{[^}]*\\}|[-_\\w]*(here|placeholder|example|redacted|notreal)[-_\\w]*)\"$"))
+      ; DriverManager.getConnection("jdbc:...?user=app&password=pw")
+      ((method_invocation object: (identifier) @o name: (identifier) @hit
+        arguments: (argument_list . (string_literal) @lit))
+        (#eq? @o "DriverManager") (#eq? @hit "getConnection")
+        (#match? @lit "(?i)[?&;:]password=[^&;\"$<{]+"))
+      ; dataSource.setPassword("pw"), hikariConfig.setPassword("pw"),
+      ; DataSourceBuilder.create()...password("pw")
+      ((method_invocation object: (_) @o name: (identifier) @hit
+        arguments: (argument_list . (string_literal) @lit .))
+        (#match? @hit "^(setPassword|password)$")
+        (#match? @o "(?i)(data_?source|hikari|\\bds\\b|pool|DataSourceBuilder)")
+        (#not-match? @lit "(?i)^\"(|\\s*|x{3,}|\\*{3,}|\\.{3,}|change[-_ ]?me|todo|none|null|dummy|your[-_\\w]*|<[^>]*>|\\$\\{[^}]*\\}|[-_\\w]*(here|placeholder|example|redacted|notreal)[-_\\w]*)\"$"))
+    unless_in_file: *test_support
+    description: >
+      The database password is in the source and in every build of it. It
+      cannot be rotated without a release, and it is the same in every
+      environment the build runs in.
+    remediation: >
+      Read the URL, user and password from the environment or a secret
+      manager (`System.getenv("DB_PASSWORD")`, Spring's
+      `spring.datasource.password` bound from a vault), and rotate the
+      committed one.
+
+  # -------------------------------------------------------------- CSRF ----
+  # Spring Security's CSRF protection only matters when the browser sends
+  # the credential by itself: a session cookie. A stateless API that reads a
+  # bearer token from the Authorization header is not CSRF-able, and
+  # switching the filter off there is the documented set-up. So the same
+  # call is two findings: high severity, medium confidence where nothing in
+  # the file says the app is stateless, and low/low where the file declares
+  # SessionCreationPolicy.STATELESS (the token could still sit in a cookie).
+  - id: csrf-disabled
+    title: "CSRF protection switched off: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-352]
+    controls: [NIST-800-218:PW.5]
+    tags: [csrf, spring]
+    query: &csrf_disabled |
+      ; @hit is the part that says "off", so two forms in one file stay two
+      ; findings (the fingerprint is the hit text, not the line).
+      ; http.csrf().disable()
+      ((method_invocation object: (method_invocation name: (identifier) @c arguments: (argument_list) @a)
+        name: (identifier) @hit)
+        (#eq? @c "csrf") (#match? @a "^\\(\\s*\\)$") (#eq? @hit "disable"))
+      ; http.csrf(c -> c.disable())   http.csrf(c -> { c.disable(); })
+      (method_invocation name: (identifier) @c
+        arguments: (argument_list . (lambda_expression body: (method_invocation name: (identifier) @n)) .) @hit
+        (#eq? @c "csrf") (#eq? @n "disable"))
+      (method_invocation name: (identifier) @c
+        arguments: (argument_list . (lambda_expression body: (block . (expression_statement (method_invocation name: (identifier) @n)) .)) .) @hit
+        (#eq? @c "csrf") (#eq? @n "disable"))
+      ; http.csrf(AbstractHttpConfigurer::disable)  csrf(CsrfConfigurer::disable)
+      (method_invocation name: (identifier) @c
+        arguments: (argument_list . (method_reference) @hit .)
+        (#eq? @c "csrf") (#match? @hit "::\\s*disable$"))
+    requires_file: &spring_security |
+      ((program) @p (#match? @p "\\borg\\.springframework\\.security\\b|\\bHttpSecurity\\b|\\bServerHttpSecurity\\b"))
+    unless_in_file: &stateless |
+      ((identifier) @s (#eq? @s "STATELESS"))
+      ((import_declaration) @i
+        (#match? @i "\\b(org\\.junit|junit\\.framework|org\\.testng|org\\.assertj|org\\.hamcrest|org\\.mockito|com\\.google\\.common\\.truth|com\\.google\\.common\\.testing|org\\.openjdk\\.jmh|com\\.code_intelligence\\.jazzer)\\."))
+    description: >
+      With the CSRF filter off, any page the user visits can submit a form or
+      `fetch` to this app, and the browser attaches the session cookie: the
+      transfer, password change or delete runs as the user. Turning it off is
+      the usual quick fix for a 403 on POST.
+    remediation: >
+      Keep CSRF on. For a JavaScript client use
+      `csrf(c -> c.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse()))`;
+      exempt only machine-to-machine paths with `ignoringRequestMatchers`.
+      If the API really is stateless (bearer token in a header, no session
+      cookie), declare `SessionCreationPolicy.STATELESS`.
+
+  - id: csrf-disabled-stateless
+    title: "CSRF protection switched off in a stateless config: `{text}`"
+    severity: low
+    confidence: low
+    dimension: security
+    cwe: [CWE-352]
+    controls: [NIST-800-218:PW.5]
+    tags: [csrf, spring]
+    query: *csrf_disabled
+    requires_file: |
+      ((program) @p
+        (#match? @p "\\borg\\.springframework\\.security\\b|\\bHttpSecurity\\b|\\bServerHttpSecurity\\b")
+        (#match? @p "\\bSTATELESS\\b"))
+    unless_in_file: *test_support
+    description: >
+      The file declares `SessionCreationPolicy.STATELESS`, which is how an
+      API that authenticates every request with a bearer header is set up,
+      and CSRF does not apply to it. It does apply if the token is kept in a
+      cookie, which browsers send cross-site like a session.
+    remediation: >
+      Confirm the token arrives only in the `Authorization` header. If it is
+      in a cookie, keep CSRF on or make the cookie `SameSite=Strict`.
+
+  # ------------------------------------------------ error detail (CWE-200) --
+  - id: stack-trace-to-client
+    title: "Stack trace sent to the client: `{text}`"
+    severity: medium
+    confidence: high
+    dimension: security
+    cwe: [CWE-209, CWE-200]
+    controls: [NIST-800-218:PW.5]
+    tags: [error-handling, information-exposure]
+    query: |
+      ; e.printStackTrace(response.getWriter())
+      ((method_invocation name: (identifier) @n arguments: (argument_list . (_) @a .)) @hit
+        (#eq? @n "printStackTrace") (#match? @a "\\b(getWriter|getOutputStream)\\s*\\(\\s*\\)"))
+      ; a response sink holding a trace: getStackTrace(), a StringWriter the
+      ; trace was printed into, ExceptionUtils/Throwables helpers
+      ((method_invocation name: (identifier) @n) @hit
+        (#match? @n "^(body|bodyValue|ok|sendError|forStatusAndDetail|setDetail)$")
+        (#match? @hit "(?s)\\((.*)(getStackTrace|StackTraceAsString|\\b\\w+\\.toString\\s*\\(\\s*\\))"))
+      ((method_invocation object: (method_invocation name: (identifier) @w) name: (identifier) @n) @hit
+        (#match? @w "^(getWriter|getOutputStream)$") (#match? @n "^(print|println|write|append|printf|format)$")
+        (#match? @hit "(?s)(getStackTrace|StackTraceAsString|\\b\\w+\\.toString\\s*\\(\\s*\\))"))
+      ((object_creation_expression type: (_) @t) @hit
+        (#match? @t "^ResponseEntity\\b")
+        (#match? @hit "(?s)(getStackTrace|StackTraceAsString|\\b\\w+\\.toString\\s*\\(\\s*\\))"))
+    # The method must actually hold a trace: printed into the response, read
+    # with getStackTrace(), or printed into a StringWriter whose text is used.
+    # Hits in a lambda are skipped (the lambda is their scope): the
+    # exception there is a parameter this rule cannot see.
+    unless_in_scope: |
+      ((method_declaration) @m
+        (#not-match? @m "(?s)printStackTrace\\s*\\([^;]*\\b(getWriter|getOutputStream)\\s*\\(|getStackTrace\\s*\\(|getStackTraceAsString\\s*\\(|getFullStackTrace\\s*\\(|printStackTrace\\s*\\(\\s*new\\s+PrintWriter\\s*\\(\\s*(?P<sw>\\w+)\\s*[,)].*\\b(?P=sw)\\.toString\\s*\\("))
+      ((constructor_declaration) @m)
+      ((lambda_expression) @m)
+    unless_in_file: *test_support
+    description: >
+      A stack trace names the classes, libraries and versions behind the
+      endpoint, file paths, and often the SQL or the value that failed. It is
+      the reconnaissance an attacker would otherwise have to guess.
+    remediation: >
+      Log the exception server-side with an incident id and return a fixed
+      message and that id. In Spring, one `@RestControllerAdvice` that
+      returns a `ProblemDetail` without the trace.
+
+  - id: exception-message-to-client
+    title: "Exception text sent to the client: `{text}`"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-209, CWE-200]
+    controls: [NIST-800-218:PW.5]
+    tags: [error-handling, information-exposure]
+    # Only a broad or library exception counts: its text was written for a
+    # developer (`ERROR: column "ssn" does not exist`, a path, a host). The
+    # message of a domain exception (`OrderNotFoundException`, an
+    # `IllegalArgumentException` from validation) is usually meant for the
+    # caller and is not reported.
+    # The sink is a statement of the catch block (or of an `if` in it) whose
+    # parameter is a broad or library exception, and that clause reads the
+    # parameter's message; or a statement of an @ExceptionHandler for one.
+    # A message passed into a bundle template the developer wrote
+    # (`sm.getString("coyoteAdapter.invalidURIWithMessage", ioe.getMessage())`)
+    # was chosen for the caller and is not reported.
+    query: |
+      ((catch_clause (catch_formal_parameter (catch_type) @t)
+         body: (block [(expression_statement [(method_invocation) (object_creation_expression)] @hit)
+                     (return_statement [(method_invocation) (object_creation_expression)] @hit)])) @c
+        (#match? @t "(^|\\|)\\s*(java\\.lang\\.)?(Exception|RuntimeException|Throwable|Error|IOException|SQLException|\\w*SQL\\w*Exception|\\w*DataAccessException|NullPointerException|PersistenceException|HibernateException|NamingException|ReflectiveOperationException)\\s*($|\\|)")
+        (#match? @c "(?s)^catch\\s*\\([^)]*?(\\w+)\\s*\\)\\s*\\{.*\\b\\1\\.(getMessage|getLocalizedMessage|toString)\\s*\\(")
+        (#match? @hit "(?s)^(new\\s+ResponseEntity\\b|.*\\b(body|bodyValue|ok|sendError|forStatusAndDetail|setDetail)\\s*\\(|.*\\b(getWriter|getOutputStream)\\s*\\(\\s*\\)\\s*\\.\\s*(print|println|write|append|printf|format)\\s*\\()")
+        (#match? @hit "\\b\\w+\\.(getMessage|getLocalizedMessage|toString)\\s*\\(\\s*\\)")
+        (#not-match? @hit "\\b(getString|getMessage)\\s*\\(\\s*\""))
+      ((catch_clause (catch_formal_parameter (catch_type) @t)
+         body: (block (if_statement consequence: (block [(expression_statement [(method_invocation) (object_creation_expression)] @hit)
+                     (return_statement [(method_invocation) (object_creation_expression)] @hit)])))) @c
+        (#match? @t "(^|\\|)\\s*(java\\.lang\\.)?(Exception|RuntimeException|Throwable|Error|IOException|SQLException|\\w*SQL\\w*Exception|\\w*DataAccessException|NullPointerException|PersistenceException|HibernateException|NamingException|ReflectiveOperationException)\\s*($|\\|)")
+        (#match? @c "(?s)^catch\\s*\\([^)]*?(\\w+)\\s*\\)\\s*\\{.*\\b\\1\\.(getMessage|getLocalizedMessage|toString)\\s*\\(")
+        (#match? @hit "(?s)^(new\\s+ResponseEntity\\b|.*\\b(body|bodyValue|ok|sendError|forStatusAndDetail|setDetail)\\s*\\(|.*\\b(getWriter|getOutputStream)\\s*\\(\\s*\\)\\s*\\.\\s*(print|println|write|append|printf|format)\\s*\\()")
+        (#match? @hit "\\b\\w+\\.(getMessage|getLocalizedMessage|toString)\\s*\\(\\s*\\)")
+        (#not-match? @hit "\\b(getString|getMessage)\\s*\\(\\s*\""))
+      ; @ExceptionHandler(Exception.class) ... return ex.getMessage();  or a
+      ; ResponseEntity built from it
+      ((method_declaration (modifiers [(annotation name: (identifier) @a) (marker_annotation name: (identifier) @a)])
+         parameters: (formal_parameters . (formal_parameter type: (_) @t))
+         body: (block [(return_statement) @hit
+                       (expression_statement [(method_invocation) (object_creation_expression)] @hit)]))
+        (#eq? @a "ExceptionHandler")
+        (#match? @t "^(java\\.lang\\.)?(Exception|RuntimeException|Throwable|Error|IOException|SQLException|\\w*SQL\\w*Exception|\\w*DataAccessException|NullPointerException|PersistenceException|HibernateException|NamingException|ReflectiveOperationException)$")
+        (#match? @hit "\\b\\w+\\.(getMessage|getLocalizedMessage|toString)\\s*\\(\\s*\\)")
+        (#not-match? @hit "\\b(getString|getMessage)\\s*\\(\\s*\""))
+    unless_in_scope: |
+      ; stack-trace-to-client owns a method that also sends the trace
+      ((method_declaration) @m
+        (#match? @m "(?s)printStackTrace\\s*\\([^;]*\\b(getWriter|getOutputStream)\\s*\\(|getStackTrace\\s*\\(|printStackTrace\\s*\\(\\s*new\\s+PrintWriter\\s*\\("))
+    unless_in_file: *test_support
+    description: >
+      The text of a generic or library exception was written for the
+      developer: a SQL error quotes the table and column, an IOException
+      the file path, a connection error the internal host. Sent to the
+      client, it maps the system behind the endpoint.
+    remediation: >
+      Log the exception with an incident id and return a fixed message. Put
+      caller-facing text in your own exception types and return only those.

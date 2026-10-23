@@ -65,6 +65,8 @@ file is excluded from the inventory and is git-ignored; CI never uses it.
 
 ```bash
 arbiter baseline arbiter-out/report.json        # snapshot current state
+arbiter baseline arbiter-out/report.json --migrate .arbiter/baseline.json \
+    --out .arbiter/baseline.json                # carry a pre-ARB-080 baseline into occurrence ids
 arbiter diff before.json after.json             # new / fixed / unchanged
 arbiter ab --spec examples/ab-native-vs-checkov.yaml --out ab-out
 ```
@@ -73,7 +75,10 @@ arbiter ab --spec examples/ab-native-vs-checkov.yaml --out ab-out
 
 A baseline is what makes "fail on new findings only" usable: findings are
 matched by fingerprint, which deliberately excludes the line number, so
-reformatting a file does not invalidate it. See
+reformatting a file does not invalidate it. Repeats of the same evidence in
+one file each get their own ID (an occurrence ordinal); a baseline cut before
+that keeps matching every repeat it collapsed, and `--migrate` rewrites it in
+the new format without accepting anything new. See
 [architecture.md](architecture.md#fingerprinting).
 
 The A/B harness is documented in [ab-testing.md](ab-testing.md).

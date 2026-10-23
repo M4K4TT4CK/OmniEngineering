@@ -465,3 +465,190 @@ rules:
       password: a GPU tries billions a second, and both have public
       collision attacks. A salt does not change the speed.
     remediation: "Use a password hash: `hashlib.scrypt`, `bcrypt.hashpw`, argon2, or `hashlib.pbkdf2_hmac` with a high iteration count."
+
+  # --------------------------------------------------------------------------
+  # Authentication, CSRF and error disclosure (CWE Top 25, ARB-062)
+  # --------------------------------------------------------------------------
+  - id: jwt-unverified-decode
+    title: "JWT decoded without checking its signature: `{text}`"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-287, CWE-347]
+    controls: [NIST-800-53r5:IA-2, OWASP-ASVS:3.5.3]
+    tags: [auth, jwt, security-check-disabled]
+    # PyJWT and python-jose: `options={"verify_signature": False}` (inline or
+    # built into a variable first), PyJWT 1.x `verify=False`, an algorithm
+    # list that admits "none", and python-jose's `get_unverified_claims`.
+    # `get_unverified_header` is not reported: reading `kid` before verifying
+    # is how a key is chosen.
+    query: |
+      (call function: (_) @f (#match? @f "(^|\\.)decode(_complete)?$")
+        arguments: (argument_list (keyword_argument name: (identifier) @o (#eq? @o "options")
+          value: (dictionary (pair key: (string (string_content) @k (#eq? @k "verify_signature")) value: (false)))))) @hit
+      (call function: (_) @f (#match? @f "(^|\\.)decode(_complete)?$")
+        arguments: (argument_list (keyword_argument name: (identifier) @o (#eq? @o "options")
+          value: (call function: (identifier) @d (#eq? @d "dict")
+            arguments: (argument_list (keyword_argument name: (identifier) @k (#eq? @k "verify_signature") value: (false))))))) @hit
+      (assignment right: (dictionary (pair key: (string (string_content) @k (#eq? @k "verify_signature")) value: (false)))) @hit
+      (call function: (attribute) @f (#match? @f "(?i)\\bjwt\\.decode(_complete)?$")
+        arguments: (argument_list (keyword_argument name: (identifier) @k (#eq? @k "verify") value: (false)))) @hit
+      (call function: (_) @f (#match? @f "(^|\\.)decode(_complete)?$")
+        arguments: (argument_list (keyword_argument name: (identifier) @k (#match? @k "^algorithms?$")
+          value: (_) @v (#match? @v "(?i)[\"']none[\"']")))) @hit
+      (call function: (_) @f (#match? @f "(^|\\.)get_unverified_claims$")) @hit
+    # Peek, then verify: a function that also decodes with an algorithm list
+    # and no switch-off has read an unverified claim (`iss`, `kid`) to pick
+    # the key, not to trust it.
+    unless_in_scope: |
+      ((call function: (_) @f (#match? @f "(^|\\.)decode(_complete)?$")
+         arguments: (argument_list (keyword_argument name: (identifier) @k (#eq? @k "algorithms")))) @x
+        (#not-match? @x "verify_signature|verify\\s*=\\s*False|(?i:[\"']none[\"'])"))
+    description: >-
+      The token's claims are read without checking that the issuer signed
+      them. Anyone can write `{"sub": "admin"}`, base64 it and be that user.
+      Model-drafted code reaches for this to "just read the user id" from a
+      bearer token.
+    remediation: "Decode with the key and a fixed algorithm list: `jwt.decode(token, key, algorithms=[\"HS256\"], audience=...)`."
+
+  - id: jwt-literal-signing-key
+    title: "JWT key is a string literal in the source: `{text}`"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-798, CWE-321]
+    controls: [NIST-800-53r5:IA-5, OWASP-ASVS:2.10.4]
+    tags: [secrets, jwt, crypto]
+    # The literal is the key argument of `jwt.encode`/`jwt.decode`
+    # (positional or `key=`), or a module constant passed there. The secrets
+    # probe misses both: the literal sits in an argument, and `SIGNING_KEY`
+    # is not a credential-shaped name. Placeholders (`changeme`,
+    # `your-secret-here`), PEM text and short strings are left alone. The hit
+    # is the call's name or the constant's name, never the literal, so the
+    # key does not end up in the report's evidence.
+    query: |
+      (call function: (attribute) @hit (#match? @hit "(?i)\\bjwt\\.(encode|decode)$")
+        arguments: (argument_list . (_) . (string (string_content) @s)
+          (#not-match? @s "^(.{0,7}|(?i:.*(changeme|change[-_]me|your[-_]|placeholder|example|dummy|xxx|replace[-_]?me|not[-_]?(a[-_])?secret).*)|-----BEGIN.*|\\$\\{.*|\\{\\{.*)$")))
+      (call function: (attribute) @hit (#match? @hit "(?i)\\bjwt\\.(encode|decode)$")
+        arguments: (argument_list (keyword_argument name: (identifier) @k (#eq? @k "key")
+          value: (string (string_content) @s)
+          (#not-match? @s "^(.{0,7}|(?i:.*(changeme|change[-_]me|your[-_]|placeholder|example|dummy|xxx|replace[-_]?me|not[-_]?(a[-_])?secret).*)|-----BEGIN.*|\\$\\{.*|\\{\\{.*)$"))))
+      ; `SIGNING_KEY = "..."` at module level, passed as the key of a jwt
+      ; call in the same module (the regex's backreference ties the two).
+      ((module (assignment left: (identifier) @hit (#match? @hit "^[A-Z][A-Z0-9_]*(KEY|SECRET)$")
+          right: (string (string_content) @s)
+          (#not-match? @s "^(.{0,7}|(?i:.*(changeme|change[-_]me|your[-_]|placeholder|example|dummy|xxx|replace[-_]?me|not[-_]?(a[-_])?secret).*)|-----BEGIN.*|\\$\\{.*|\\{\\{.*)$"))) @mod
+        (#match? @mod "(?ms)^([A-Z][A-Z0-9_]*(KEY|SECRET))\\s*=\\s*[rbu]?[\"'](?!(?i:[^\"'\\n]*(changeme|change[-_]me|your[-_]|placeholder|example|dummy|xxx|replace[-_]?me|not[-_]?(a[-_])?secret)))[^\"'\\n]{8,}[\"'].*\\bjwt\\.(encode|decode)\\((?:[^()]|\\([^()]*\\))*?,\\s*(key\\s*=\\s*)?\\1\\b"))
+    description: >-
+      Whoever can read the repository can mint a valid token for any user,
+      and rotating the key means a code change and a deploy. A placeholder
+      secret like this is the classic generated default that ships.
+    remediation: "Read the key from the environment or a secret store (`os.environ[\"JWT_SECRET\"]`) and fail at start-up if it is missing."
+
+  - id: error-traceback-to-client
+    title: "Traceback returned to the client: `{text}`"
+    severity: medium
+    confidence: high
+    dimension: security
+    cwe: [CWE-209, CWE-200]
+    controls: [NIST-800-53r5:SI-11, OWASP-ASVS:7.4.1]
+    tags: [error-handling, information-exposure]
+    # `traceback.format_exc()` (or format_exception/format_tb) in the same
+    # statement as a response: a response constructor or `abort()`
+    # (Flask, Django, FastAPI/Starlette, aiohttp), or a `return body,
+    # status` tuple. A traceback shown only under a debug flag
+    # (`traceback.format_exc() if settings.DEBUG else ...`, Django's ASGI
+    # handler) is not reported.
+    query: |
+      ((call function: [(identifier) (attribute)] @f (#match? @f "^((\\w+\\.)*(jsonify|make_response|JsonResponse|HttpResponse|HttpResponseServerError|HttpResponseBadRequest|Response|JSONResponse|PlainTextResponse|HTMLResponse|HTTPException|json_response|abort))$")
+         arguments: (argument_list) @a) @hit
+        (#match? @a "\\btraceback\\.(format_exc|format_exception|format_tb|format_stack)\\(") (#not-match? @a "(?i)\\bdebug\\b"))
+      ((return_statement (expression_list . (_) @b . (integer) .)) @hit
+        (#match? @b "\\btraceback\\.(format_exc|format_exception|format_tb|format_stack)\\(") (#not-match? @b "(?i)\\bdebug\\b"))
+    description: >-
+      The client receives the stack: module paths, library versions, the
+      line that failed and often the values involved. It is a map of the
+      service for whoever triggers the error. Flask and Django hide it
+      outside debug mode for that reason; this code puts it back.
+    remediation: "Log it (`log.exception(...)`) with an incident id and return a generic message carrying only that id."
+
+  - id: error-message-to-client
+    title: "Exception message returned to the client: `{text}`"
+    severity: low
+    confidence: medium
+    dimension: security
+    cwe: [CWE-209, CWE-200]
+    controls: [NIST-800-53r5:SI-11, OWASP-ASVS:7.4.1]
+    tags: [error-handling, information-exposure]
+    # `str(e)`, `repr(e)` or `f"{e}"` in a response built directly in a
+    # catch-all handler: `except Exception as e:` (or BaseException, or a
+    # tuple naming one) whose block returns a response constructor or a
+    # `body, status` tuple, or raises `HTTPException(detail=str(e))`; and a
+    # Flask/FastAPI handler registered for Exception or 500. A regex
+    # backreference ties the formatted name to the handler's variable. An
+    # `except ValueError as e:` that returns its message with a 400 is a
+    # validation error written for the user, and is not reported.
+    query: |
+      ((except_clause (as_pattern (_) @t (#match? @t "\\b(Exception|BaseException)\\b"))
+          (block [(return_statement (call function: [(identifier) (attribute)] @f (#match? @f "^((\\w+\\.)*(jsonify|make_response|JsonResponse|HttpResponse|HttpResponseServerError|HttpResponseBadRequest|Response|JSONResponse|PlainTextResponse|HTMLResponse|HTTPException|json_response|abort))$")))
+                  (return_statement (expression_list . (_) . (integer) .))
+                  (raise_statement (call function: [(identifier) (attribute)] @f (#match? @f "^(\\w+\\.)*HTTPException$")))] @hit)) @ex
+        (#match? @hit "\\b(str|repr)\\(\\s*\\w+\\s*\\)|\\{\\w+(![rs])?\\}")
+        (#match? @ex "(?s)^except[^:]*\\bas\\s+(?P<v>\\w+)\\s*:.*(\\b(str|repr)\\(\\s*(?P=v)\\s*\\)|\\{(?P=v)(![rs])?\\})")
+        (#not-match? @hit "\\btraceback\\.(format_exc|format_exception|format_tb|format_stack)\\(|(?i:\\bdebug\\b)"))
+      ((decorated_definition (decorator) @d
+          (#match? @d "\\.(errorhandler|exception_handler)\\(\\s*(Exception|BaseException|500|HTTPStatus\\.INTERNAL_SERVER_ERROR)\\s*\\)")
+          definition: (function_definition body: (block (return_statement) @hit))) @def
+        (#match? @hit "\\b(str|repr)\\(\\s*\\w+\\s*\\)|\\{\\w+(![rs])?\\}")
+        (#match? @def "(?s)\\bdef\\s+\\w+\\([^)]*?\\b(?P<v>\\w+)\\s*(:\\s*[\\w.]+\\s*)?\\)[^:]*:.*(\\b(str|repr)\\(\\s*(?P=v)\\s*\\)|\\{(?P=v)(![rs])?\\})")
+        (#not-match? @hit "\\btraceback\\.(format_exc|format_exception|format_tb|format_stack)\\(|(?i:\\bdebug\\b)"))
+    description: >-
+      A catch-all handler hands whatever exception it caught back to the
+      client. For a database, file or network error that text carries table
+      and column names, paths, host names and sometimes the offending input,
+      none of which was meant to leave the server.
+    remediation: >-
+      Return a fixed message with an incident id you log alongside the
+      exception; keep `str(e)` for errors raised for the user, and catch
+      those by their own class.
+
+  - id: csrf-protection-disabled
+    title: "CSRF protection switched off: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-352]
+    controls: [NIST-800-53r5:SC-23, OWASP-ASVS:4.2.2]
+    tags: [csrf, django, flask, security-check-disabled]
+    # Django's `@csrf_exempt` (and Flask-WTF's `@csrf.exempt`) on a view that
+    # acts as the logged-in user: it reads `request.user`/`current_user`/the
+    # session or is `@login_required`. A view that authenticates the request
+    # itself (an HMAC signature, `compare_digest`, a bearer token in the
+    # Authorization header) has no ambient cookie authority to forge, and
+    # webhook-named views are left alone: that is what the decorator is for.
+    # A dispatcher that is exempt only to re-apply `csrf_protect(...)` to the
+    # session-authenticated branch itself (zulip's `rest_dispatch`) is not
+    # reported either.
+    # Flask-WTF's `WTF_CSRF_ENABLED = False` is reported outside a test or
+    # development config class.
+    query: |
+      ((decorated_definition (decorator) @hit (#match? @hit "^@\\s*((\\w+\\.)*csrf_exempt|(\\w+\\.)*csrf\\.exempt)\\s*(#.*)?$")
+          definition: (function_definition name: (identifier) @n (#not-match? @n "(?i)webhook|callback|hook|ingest|inbound|notify|notification"))) @def
+        (#match? @def "\\brequest\\.(user|session)\\b|\\bcurrent_user\\b|\\bsession\\[|@\\s*(\\w+\\.)*login_required\\b|\\bflask_login\\b")
+        (#not-match? @def "(?i)\\bhmac\\b|compare_digest|signature|\\bAuthorization\\b|HTTP_AUTHORIZATION|bearer|\\bcsrf_protect\\("))
+      ((module (assignment left: (identifier) @k (#eq? @k "WTF_CSRF_ENABLED") right: (false)) @hit))
+      ((class_definition name: (identifier) @c (#not-match? @c "(?i)test|dev|local")
+         body: (block (assignment left: (identifier) @k (#eq? @k "WTF_CSRF_ENABLED") right: (false)) @hit)))
+      ((assignment left: (subscript value: (attribute attribute: (identifier) @cfg (#eq? @cfg "config"))
+                                   subscript: (string (string_content) @k (#eq? @k "WTF_CSRF_ENABLED")))
+                   right: (false)) @hit)
+    description: >-
+      The framework checks a per-session token on every POST so that a page
+      on another site cannot submit a form as the logged-in user. Switching
+      the check off is the usual generated "fix" for a 403 on a form or a
+      fetch; this view now does whatever any website the user visits asks.
+    remediation: >-
+      Keep the check and send the token (`{% csrf_token %}`, or the
+      `csrftoken` cookie in an `X-CSRFToken` header for fetch). An API view
+      should authenticate each request with a token, not the session cookie.

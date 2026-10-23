@@ -27,12 +27,17 @@ rules:
     controls: [NIST-800-218:PW.5]
     tags: [timeout]
     roles: [source]          # inventory roles to read; default [source]
+    files: "*.[jt]sx"        # only files whose repo-relative path matches this
+                             # fnmatch glob (`*` also crosses `/`), or any glob
+                             # of a list: [config/environments/production.rb,
+                             # "*/config/environments/production.rb"]
     query: |                 # tree-sitter query; @hit marks the finding
       (call_expression function: (selector_expression) @fn
         (#match? @fn "^http\\.(Get|Post|Head)$")) @hit
     # Optional context conditions, each a tree-sitter query:
     unless_inside: "..."     # skip a hit enclosed by any capture of this query
     unless_in_scope: "..."   # skip a hit whose enclosing function (or file) matches this
+    requires_in_scope: "..." # only report a hit whose enclosing function (or file) matches this
     unless_in_file: "..."    # skip every hit when the file matches this
     requires_file: "..."     # only report in a file that matches this
     description: "..."
@@ -48,11 +53,19 @@ from __future__ import annotations
 import fnmatch
 from functools import cache
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .core import Finding, Location
-from .probes import PACKS, ProbeContext
 
-AST_PACKS = PACKS / "rules" / "ast"
+if TYPE_CHECKING:  # annotation only: probes imports this module to register the packs
+    from .probes import ProbeContext
+
+# The same directory as `probes.PACKS / "rules" / "ast"`, spelled out here so
+# this module never imports `probes` at load time. `probes` imports this module
+# at its end to register the packs, so a top-level import back made
+# `import arbiter.lang_rules` (before `arbiter.probes`) a circular ImportError
+# (ARB-078). `register_lang_rules` imports `probes` lazily, when it runs.
+AST_PACKS = Path(__file__).parent / "packs" / "rules" / "ast"
 
 # Node types that bound a function body, for `unless_in_scope`.
 FUNCTION_TYPES: dict[str, set[str]] = {
@@ -68,7 +81,7 @@ FUNCTION_TYPES: dict[str, set[str]] = {
 
 _KEYS = {"id", "title", "severity", "confidence", "dimension", "cwe", "controls", "tags",
          "roles", "files", "query", "unless_inside", "unless_in_scope", "unless_in_file",
-         "requires_file", "description", "remediation", "languages"}
+         "requires_file", "requires_in_scope", "description", "remediation", "languages"}
 _SEVERITIES = {"info", "low", "medium", "high", "critical"}
 _CONFIDENCES = {"low", "medium", "high"}
 
@@ -104,11 +117,18 @@ def validate_pack(data: dict, name: str) -> None:
         for cwe in rule.get("cwe") or []:
             if not str(cwe).startswith("CWE-"):
                 raise PackError(f"{where}: cwe entries look like CWE-89, got {cwe!r}")
+        files = rule.get("files")
+        if files is not None and not (
+                (isinstance(files, str) and files)
+                or (isinstance(files, list) and files
+                    and all(isinstance(g, str) and g for g in files))):
+            raise PackError(f"{where}: `files` is a glob or a non-empty list of globs")
         if "@hit" not in rule["query"]:
             raise PackError(f"{where}: query must capture @hit")
 
 
-QUERY_KEYS = ("query", "unless_inside", "unless_in_scope", "unless_in_file", "requires_file")
+QUERY_KEYS = ("query", "unless_inside", "unless_in_scope", "unless_in_file", "requires_file",
+              "requires_in_scope")
 
 
 # File names standing in for each grammar a language can be parsed with, so a
@@ -130,7 +150,7 @@ def _grammars(rule: dict, languages) -> set[str]:
                 out.add(ts.ts_name(lang))
             continue
         for sample in samples:
-            if rule.get("files") and not fnmatch.fnmatch(sample, rule["files"]):
+            if not _path_selected(rule, sample):
                 continue
             g = ts.grammar_for(sample, lang)
             if g:
@@ -219,6 +239,19 @@ def _encloses(outer, inner) -> bool:
     return outer.start_byte <= inner.start_byte and inner.end_byte <= outer.end_byte
 
 
+def _file_globs(rule: dict) -> list[str]:
+    files = rule.get("files")
+    if not files:
+        return []
+    return [files] if isinstance(files, str) else list(files)
+
+
+def _path_selected(rule: dict, path: str) -> bool:
+    """True when the rule has no `files:` or `path` matches one of its globs."""
+    globs = _file_globs(rule)
+    return not globs or any(fnmatch.fnmatch(path, g) for g in globs)
+
+
 def _enclosing_function(node, language: str):
     types = FUNCTION_TYPES.get(language, set())
     cur = node.parent
@@ -253,7 +286,7 @@ def run_pack(pack: str, ctx: ProbeContext) -> list[Finding]:
                 continue
             if rule.get("languages") and f.language not in rule["languages"]:
                 continue
-            if rule.get("files") and not fnmatch.fnmatch(f.path, rule["files"]):
+            if not _path_selected(rule, f.path):
                 continue
             if parsed is None:
                 parsed = ts.parse_file(f.abspath, f.language)
@@ -276,6 +309,8 @@ def _run_rule(pack: str, rule: dict, f, parsed) -> list[Finding]:
             return []
         inside = _matches(lang, rule["unless_inside"], parsed) if rule.get("unless_inside") else []
         scoped = _matches(lang, rule["unless_in_scope"], parsed) if rule.get("unless_in_scope") else []
+        needed = (_matches(lang, rule["requires_in_scope"], parsed)
+                  if rule.get("requires_in_scope") else None)
     except ValueError as exc:
         raise RuntimeError(f"rule arbiter/{pack}.{rule['id']}: {exc}") from exc
 
@@ -288,10 +323,12 @@ def _run_rule(pack: str, rule: dict, f, parsed) -> list[Finding]:
         seen.add(node.start_byte)
         if any(_encloses(o, node) for o in inside):
             continue
-        if scoped:
+        if scoped or needed is not None:
             # Outside any function, the file is the scope.
             scope = _enclosing_function(node, lang) or parsed[0].root_node
             if any(_encloses(scope, s) for s in scoped):
+                continue
+            if needed is not None and not any(_encloses(scope, s) for s in needed):
                 continue
         text = _snippet(hit["text"], 60)
         out.append(Finding(

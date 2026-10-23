@@ -364,6 +364,41 @@ def test_a_disabled_check_under_a_test_path_is_downgraded_not_hidden(tmp_path):
     assert hits and hits[0].severity == "low" and hits[0].confidence == "low"
 
 
+def test_a_test_fixture_setting_in_a_test_file_is_not_a_disabled_check(tmp_path):
+    # undici: a client for the test's own self-signed localhost server;
+    # Django: `override_settings(DEBUG=True)` exercising the debug pages.
+    # A test turning verification off against a real host is still reported.
+    (tmp_path / "test").mkdir()
+    (tmp_path / "test" / "client.test.js").write_text(
+        "server.listen(0, () => {\n"
+        "  const client = new Client(`https://localhost:${server.address().port}`, {\n"
+        "    connect: { rejectUnauthorized: false }\n  })\n})\n"
+        + "\n" * 30
+        + "const api = new Client('https://api.example.com', {\n"
+        "  connect: { rejectUnauthorized: false }\n})\n")
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_debug.py").write_text(
+        "from django.test import override_settings\n\n\n"
+        "@override_settings(\n    DEBUG=True,\n    INTERNAL_IPS=['127.0.0.1'],\n)\n"
+        "def test_debug_page(client):\n"
+        "    with self.settings(DEBUG=True, SECRET='x'):\n        client.get('/raises500/')\n")
+    rep = run_scan([str(tmp_path)], load_config(None), only=["authored"], use_adapters=False)
+    hits = sorted((str(f.location.path), f.location.start_line) for f in rep.active()
+                  if "security-check-disabled" in f.rule_id)
+    assert hits == [("test/client.test.js", 37)], hits
+
+
+def test_a_local_server_setting_outside_a_test_file_is_still_reported(tmp_path):
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "client.js").write_text(
+        "const c = new Client(`https://localhost:${port}`, {\n"
+        "  connect: { rejectUnauthorized: false }\n})\n")
+    (tmp_path / "src" / "settings.py").write_text("settings.configure(DEBUG=True)\n")
+    rep = run_scan([str(tmp_path)], load_config(None), only=["authored"], use_adapters=False)
+    hits = sorted(f.location.path for f in rep.active() if "security-check-disabled" in f.rule_id)
+    assert hits == ["src/client.js", "src/settings.py"]
+
+
 # ---------------------------------------------------------------------------
 # Disabled-check false positives, found by the corpus run.
 #

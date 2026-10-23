@@ -167,6 +167,93 @@ def test_a_skip_annotation_inside_a_comment_is_not_a_skipped_test(tmp_path):
     assert lines == [8]
 
 
+def _skipped_lines(tmp_path, rel: str, code: str) -> list[int]:
+    path = tmp_path / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(code)
+    found = _scan_text(tmp_path, "z.txt", "", ["assurance"])
+    return sorted(f.location.start_line for f in found if "permanently-skipped-test" in f.rule_id)
+
+
+def test_a_skip_call_under_a_condition_is_not_permanent(tmp_path):
+    # Go `if testing.Short() { t.Skip() }` (caddy, containerd) and otel's
+    # `if (isBrowser) { return describe.skip(title, fn) }` helpers. Each
+    # unconditional skip in the same file is still its own finding (ARB-080).
+    go = ("package x\n\nfunc TestA(t *testing.T) {\n\tif testing.Short() {\n\t\tt.Skip()\n\t}\n}\n\n"
+          "func TestB(t *testing.T) {\n\tt.Skip()\n}\n\n"
+          "func TestC(t *testing.T) {\n\tswitch runtime.GOOS {\n\tcase \"windows\":\n\t\tt.Skip()\n\t}\n}\n\n"
+          "func TestD(t *testing.T) {\n\tt.Skip()\n}\n")
+    assert _skipped_lines(tmp_path / "go", "pkg/a_test.go", go) == [10, 21]
+    js = ("function describeNode(title, fn) {\n  if (isBrowser()) {\n    return describe.skip(title, fn);\n  }\n"
+          "  return describe(title, fn);\n}\n"
+          "const maybe = flaky ? it.skip('x', () => {}) : null;\n"
+          "describe('Headers', () => {\n  it.skip('wraps headers', () => {});\n"
+          "  it.skip('uses a custom inspect', () => {});\n});\n")
+    assert _skipped_lines(tmp_path / "js", "test/headers.test.js", js) == [9, 10]
+
+
+def test_disabling_an_inherited_test_with_an_empty_override_is_not_a_skip(tmp_path):
+    # netty `@Disabled("Not applicable for unpooled allocators") @Override
+    # public void testX() { }`: the parent's test runs wherever it applies.
+    java = """public class UnpooledTest extends AbstractAllocatorTest {
+    @Disabled("Not applicable for unpooled allocators")
+    @Test
+    @Override
+    public void testUsedHeapMemory() {
+        // Not applicable
+    }
+
+    @Disabled("Disabled due a conscrypt bug")
+    @Override
+    public void testInvalidSNI(Param p) throws Exception {
+        super.testInvalidSNI(p);
+    }
+
+    @Disabled("flaky")
+    @Test
+    public void testOwn() { run(); }
+
+    @Ignore
+    @Override public void testSearch() {}
+}
+@Ignore
+public class PerfTest extends Base {
+    @Override public void setUp() { }
+}
+"""
+    assert _skipped_lines(tmp_path, "src/test/java/x/UnpooledTest.java", java) == [9, 15, 22]
+
+
+def test_a_skip_on_an_empty_test_without_override_or_in_python_is_a_switch_off(tmp_path):
+    # keycloak overrides without `@Override` (`@Disabled("Only for PUT/POST")
+    # public void x(String protocol) { }`); Django's CookieSession tests.
+    java = """public class NoImportTest extends ImportTest {
+    @Disabled("Only for PUT/POST - client needs to exist")
+    public void clientWithBlankClientIdFails(String protocol) { }
+
+    @Ignore
+    @Test
+    public void testOwn() { login(); }
+}
+"""
+    assert _skipped_lines(tmp_path / "j", "src/test/java/x/NoImportTest.java", java) == [5]
+    py = ("import unittest, pytest\n\nclass CookieSessionTests(SessionTestsMixin):\n"
+          "    @unittest.skip(\n        \"Cookie backend doesn't have an external store.\"\n    )\n"
+          "    def test_session_load_does_not_create_record(self):\n        pass\n\n"
+          "    @unittest.skip(\"no way to query it\")\n    async def test_async(self):\n"
+          "        \"\"\"Not applicable.\"\"\"\n        pass\n\n"
+          "    @pytest.mark.skip(reason=\"Broken test\")\n    def test_producer(self, manager):\n"
+          "        manager.run()\n\n"
+          "    @pytest.mark.xfail(TEST_BACKEND.startswith('redis://'), reason='Issue #6437')\n"
+          "    def test_chord(self):\n        run()\n\n"
+          "    @pytest.mark.xfail(reason='Issue #5269')\n    def test_done(self):\n        run()\n\n"
+          "    @pytest.mark.xfail(\n        raises=TimeoutError, reason='timeout')\n    def test_t(self):\n        run()\n\n"
+          "    @pytest.mark.xfail(reason='timeout')\n    def test_c(self, m):  # Fails with Redis 5.x\n"
+          "        \"\"\"Doc.\"\"\"\n        m.run()\n\n"
+          "    @unittest.skip('runner fixture')\n    def skipped_test(self): pass\n")
+    assert _skipped_lines(tmp_path / "p", "tests/test_sessions.py", py) == [15, 23, 27, 32]
+
+
 def test_a_test_that_asserts_nothing_is_reported(tmp_path):
     (tmp_path / "tests").mkdir()
     (tmp_path / "tests" / "test_x.py").write_text(

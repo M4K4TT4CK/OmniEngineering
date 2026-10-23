@@ -16,4 +16,16 @@ public class Cwe352Csrf {
             .formLogin(form -> form.permitAll());
         return http.build();
     }
+
+    @Bean
+    public SecurityFilterChain adminChain(HttpSecurity http) throws Exception {
+        http.securityMatcher("/admin/**")
+            .csrf(csrf -> csrf.ignoringRequestMatchers("/admin/webhook"))
+            .formLogin(form -> form.permitAll());
+        return http.build();
+    }
+
+    public void legacy(HttpSecurity http) throws Exception {
+        http.csrf().and().formLogin();
+    }
 }

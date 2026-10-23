@@ -153,6 +153,10 @@ def _add_report_commands(sub) -> None:
     bl = sub.add_parser("baseline", help="write a baseline from a report")
     bl.add_argument("report", help="path to report.json")
     bl.add_argument("--out", default=".arbiter/baseline.json")
+    bl.add_argument("--migrate", metavar="OLD_BASELINE",
+                    help="carry an earlier baseline (e.g. one cut before occurrence ids, "
+                         "ARB-080) into the current id format instead of re-cutting it: "
+                         "only findings it accepted are kept; may equal --out")
 
     df = sub.add_parser("diff", help="compare two reports")
     df.add_argument("before", help="earlier report.json")
@@ -600,8 +604,14 @@ def cmd_probes(args) -> int:
 
 def cmd_baseline(args) -> int:
     report = Report.from_dict(json.loads(Path(args.report).read_text(encoding="utf-8")))
-    n = write_baseline(report, args.out)
-    print(f"  baseline written: {args.out} ({n} finding ids)")
+    migrate = getattr(args, "migrate", None)
+    try:
+        n = write_baseline(report, args.out, migrate_from=migrate)
+    except ValueError as exc:
+        print(f"  baseline not written: {exc}", file=sys.stderr)
+        return EXIT_ERROR
+    verb = f"migrated from {migrate}" if migrate else "written"
+    print(f"  baseline {verb}: {args.out} ({n} finding ids)")
     return EXIT_OK
 
 

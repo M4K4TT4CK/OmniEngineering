@@ -28,5 +28,23 @@
       "reason": "One informational census row per repository by design."
     }
   },
-  "rules": {}
+  "rules": {},
+  "accepted_breaches": {
+    "_about": "Rules over budget by a recorded decision (user, 2026-10-22). Each stays in the report and in rules_over_budget; the benchmark fails again only if its rate passes ceiling_per_kloc, which is set about 10% above the rate measured at the decision.",
+    "arbiter/java.test-without-assertion": {
+      "ceiling_per_kloc": 0.073,
+      "decided": "2026-10-22",
+      "reason": "Known breach: 199 findings (0.066/KLOC) after the by-design exclusions in c4d8bfe; the rest are tests that only call the code, which is what the rule exists to report. Narrowing further would drop true findings."
+    },
+    "arbiter/assurance.permanently-skipped-test": {
+      "ceiling_per_kloc": 0.035,
+      "decided": "2026-10-22",
+      "reason": "Accepted overage: 192 findings (0.0315/KLOC) after 1047341; the remainder are real tests with bodies that are switched off."
+    },
+    "arbiter/typescript.test-without-assertion": {
+      "ceiling_per_kloc": 0.038,
+      "decided": "2026-10-22",
+      "reason": "Accepted overage: 22 findings (0.034/KLOC), all read: 16 only call the code, 6 are compile-time type checks with no generic signal."
+    }
+  }
 }

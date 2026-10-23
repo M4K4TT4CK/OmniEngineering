@@ -43,7 +43,7 @@ per CWE. Cells marked † are measured on pairs that were already in the corpus.
 | 1 | 79 XSS | S | N+S † | S | **gap** | S |
 | 2 | 787 OOB write | n/a | n/a | n/a | n/a | n/a |
 | 3 | 89 SQL injection | N+S+B † | N+S † | N+S † | N+S † | N+S † |
-| 4 | 352 CSRF | S | **gap** | OOR | **gap** | **gap** |
+| 4 | 352 CSRF | N+S | **gap** | OOR | N+S | N |
 | 5 | 22 Path traversal | S | S | **gap** | S | **gap** |
 | 6 | 125 OOB read | n/a | n/a | n/a | n/a | n/a |
 | 7 | 78 OS command injection | N+S+B † | N+S † | N+S † | N+S † | N+S † |
@@ -53,15 +53,15 @@ per CWE. Cells marked † are measured on pairs that were already in the corpus.
 | 11 | 94 Code injection | N+S+B † | N+S † | n/a | S | N+S † |
 | 12 | 20 Input validation | OOR | OOR | OOR | OOR | OOR |
 | 13 | 77 Command injection (argument) | **gap** | **gap** | **gap** | **gap** | **gap** |
-| 14 | 287 Improper authentication | S | **gap** | **gap** | S | S |
+| 14 | 287 Improper authentication | N+S | N | N | N+S | N+S |
 | 15 | 269 Privilege management | OOR | OOR | OOR | OOR | OOR |
 | 16 | 502 Deserialization | N+S+B † | S | n/a | N+S † | N † |
-| 17 | 200 Information exposure | *part* S+B | **gap** | **gap** | **gap** | **gap** |
+| 17 | 200 Information exposure | N+S+B | N | N | N | N |
 | 18 | 863 Incorrect authorization | OOR | OOR | OOR | OOR | OOR |
 | 19 | 918 SSRF | S | **gap** | **gap** | **gap** | **gap** |
 | 20 | 119 Buffer bounds | n/a | n/a | n/a | n/a | n/a |
 | 21 | 476 NULL dereference | n/a | n/a | OOR | OOR | n/a |
-| 22 | 798 Hard-coded credentials | N+S+B | N+S | *part* N | **gap** | N+S |
+| 22 | 798 Hard-coded credentials | N+S+B | N+S | N | N | N+S |
 | 23 | 190 Integer overflow | n/a | n/a | **gap** | **gap** | n/a |
 | 24 | 400 Resource consumption | N+S+B † | N † | N † | N † | N † |
 | 25 | 306 Missing auth for critical function | OOR | OOR | OOR | OOR | OOR |
@@ -74,11 +74,11 @@ the total. "Native only" means no external analyzer is needed.
 
 | Language | Applicable cells | Native | Semgrep | Bandit | Caught by anything | Gaps |
 |---|---|---|---|---|---|---|
-| Python | 14 | 6 | 12 | 7 | 12 | 2 (434, 77), plus 200 part |
-| TypeScript | 14 | 6 | 7 | n/a | 8 | 6 (352, 434, 77, 287, 200, 918) |
-| Go | 12 | 4 (798 part) | 3 | n/a | 5 | 7 (22, 434, 77, 287, 200, 918, 190), plus 798 part |
-| Java | 15 | 4 | 7 | n/a | 8 | 7 (79, 352, 77, 200, 918, 798, 190) |
-| Ruby | 14 | 6 | 6 | n/a | 8 | 6 (352, 22, 434, 77, 200, 918) |
+| Python | 14 | 9 | 12 | 7 | 12 | 2 (434, 77) |
+| TypeScript | 14 | 8 | 7 | n/a | 10 | 4 (352, 434, 77, 918) |
+| Go | 12 | 6 | 3 | n/a | 7 | 5 (22, 434, 77, 918, 190) |
+| Java | 15 | 8 | 8 | n/a | 11 | 4 (79, 77, 918, 190) |
+| Ruby | 14 | 9 | 6 | n/a | 10 | 4 (22, 434, 77, 918) |
 
 gitleaks ran on every language and reported none of the planted credentials:
 they are generic passwords and signing keys, not provider-shaped tokens.
@@ -89,7 +89,23 @@ semgrep's bundled `generic.secrets.gitleaks.*` rules did report two of them.
 - **Python 77**: bandit's B603/B607 fire on the bad *and* the good twin
   (`subprocess` with a list), so they do not separate the defect from the fix.
 - **Python 200**: `app.run(debug=True)` is caught (semgrep `debug-enabled`,
-  bandit B201). Returning `traceback.format_exc()` to the client is not.
+  bandit B201). Returning `traceback.format_exc()` to the client is caught by
+  `python.error-traceback-to-client`, and `str(e)` from a catch-all handler by
+  `python.error-message-to-client` (medium confidence).
+- **Python 352 and 287**: native since round 1 (`python.csrf-protection-disabled`,
+  `python.jwt-unverified-decode`). The CSRF rule reports `@csrf_exempt` only on
+  a view that acts as the session user (`request.user`, `@login_required`) and
+  does not authenticate the request itself (HMAC, bearer token); semgrep's
+  `no-csrf-exempt` reports every use.
+  Real-code check, 2026-10-21: the three pinned Django applications in
+  `tools/fetch_corpus.sh` (`DJANGO_APPS_ONLY=1`: zulip, healthchecks,
+  django-cms; 252k production lines) have 49 `@csrf_exempt` views and
+  `python.csrf-protection-disabled` reports none. Only one reads
+  `request.user`: zulip's `rest_dispatch`, which re-applies `csrf_protect` to
+  its session branch (now an explicit exclusion). The rest are API-key or
+  remote-server APIs, webhook, bot and ping endpoints, signed-link
+  unsubscribes, development-only logins and a test view. No `jwt-*` or
+  `error-*` finding either (the one `jwt.decode` verifies).
 - **Python 918**: semgrep's Flask SSRF rule also fires on the fixed twin, which
   validates the host against an allowlist. The Django-labelled taint rule
   (`ssrf-injection-requests`) is the one that discriminates, and it is the one
@@ -104,6 +120,17 @@ semgrep's bundled `generic.secrets.gitleaks.*` rules did report two of them.
   params…)`, but it also fires on three correct twins already in the corpus.
   Those are array-form `system` calls whose interpolations are validated or
   `.to_i`. It does not separate defect from fix, so the cell is a gap.
+- **Ruby 352** is native since round 1 (`ruby.csrf-protection-disabled`):
+  `skip_before_action :verify_authenticity_token` or `skip_forgery_protection`
+  in a controller with a state-changing action, not an `ActionController::API`
+  one, not a webhook, not one that authenticates the request itself.
+  `protect_from_forgery with: :null_session` is not reported (it is a
+  protection strategy). `ruby.csrf-protection-off-in-production` reports
+  `config.action_controller.allow_forgery_protection = false` in
+  `config/environments/production.rb` only (Rails generates that line in
+  `test.rb`). Ruby 287 and 200 are native too
+  (`ruby.jwt-unverified-decode`, `ruby.error-backtrace-to-client`,
+  `ruby.error-message-to-client`).
 - **Ruby 352 and Ruby 22**: semgrep fires, but on both twins:
   `missing-csrf-protection` on any `ActionController::Base` subclass without
   `protect_from_forgery` (the default since Rails 5.2), and `check-send-file`
@@ -112,9 +139,35 @@ semgrep's bundled `generic.secrets.gitleaks.*` rules did report two of them.
 - **Ruby 287**: semgrep's `ruby-jwt-hardcoded-secret` also reports
   `JWT.decode(token, nil, false)`, where the "secret" is `nil`. Its marker
   lists both rules because both report the line.
+- **Java 287, 798, 352, 200 (round 1)**: native rules `java.jwt-unsigned-accepted`,
+  `java.jwt-decode-without-verify`, `java.hardcoded-signing-key`,
+  `java.hardcoded-db-password`, `java.csrf-disabled`, `java.stack-trace-to-client`
+  and `java.exception-message-to-client`. semgrep's `spring-csrf-disabled`
+  reports only the `http.csrf().disable()` form, not the lambda or
+  `AbstractHttpConfigurer::disable` forms, so 352 counts for semgrep on that
+  one line. A file that declares `SessionCreationPolicy.STATELESS` gets
+  `java.csrf-disabled-stateless` (low severity, low confidence) instead: a
+  bearer-header API is not CSRF-able, but one that keeps the token in a
+  cookie is. `exception-message-to-client` is medium confidence and counts
+  only a broad or library exception (`Exception`, `SQLException`, ...): the
+  message of a validation or domain exception is usually meant for the caller.
 - **TypeScript 352**: Express has no CSRF protection to switch off, so the
   defect is an *absent* middleware. semgrep's `express-check-csurf-middleware-usage`
   did not fire on the planted app.
+- **TypeScript 287, 200 and Go 287, 200, 798** (native rules, ARB-062 round
+  1): `typescript.jwt-decode-unverified` and `go.jwt-parse-unverified` are
+  medium confidence, because reading `kid` or `iss` before verifying is
+  legitimate; a function that also verifies is not reported.
+  `jwt-verify-insecure-options` (`algorithms: ["none"]`, `ignoreExpiration:
+  true`) and `go.jwt-claims-validation-disabled` are high. CWE-200 is
+  `error-stack-in-response` (high), `error-object-in-response` and
+  `go.error-text-in-response` (medium: proxies and cluster-internal APIs
+  return error text on purpose; Go and gin/echo are reported only with a 5xx
+  status) and `go.pprof-on-default-mux`. Go 798 is `go.hardcoded-signing-key`
+  (`[]byte("…")` keys) and `go.hardcoded-dsn-password`; TypeScript also gains
+  a native `jwt-hardcoded-secret`. A golang-jwt keyfunc that does not check
+  `t.Method` is not a rule: the library already refuses `none` and a key of
+  the wrong type, so it would be noise.
 
 ## Why a cell does not apply, or is out of reach
 
@@ -144,10 +197,10 @@ not part of this change.
 
 | Rank | Gap | Languages | Why it ranks here |
 |---|---|---|---|
-| 1 | CWE-287 JWT decoded without verification (`jwt.decode`, `ParseUnverified`) | TS, Go (semgrep-only in Py/Java/Ruby) | Assistants reach for `decode` to "read the user id". The call names are unambiguous, so a rule would be near-zero noise. |
-| 2 | CWE-798 literal signing key or DB password passed to a known API (`Algorithm.HMAC256("…")`, `[]byte("…")` signing key, `DriverManager.getConnection(…, "pw")`) | Java, Go (part) | Placeholder secrets are the classic AI output. The secrets probe misses them because the literal sits in an argument, not a credential-named assignment. |
-| 3 | CWE-352 CSRF switched off (`csrf.disable()`, `csrf(c -> c.disable())`, `skip_before_action :verify_authenticity_token`) | Java, Ruby | The standard AI "fix" for a 403 on POST. It is an exact call pattern, and semgrep's Ruby rule cannot tell it from a correct controller. |
-| 4 | CWE-200 error detail returned to the client (`err.stack`, `traceback.format_exc()`, `e.backtrace`, `printStackTrace` into the body, `http.Error(w, err.Error(), 500)`) | all five | Very common in generated handlers. A response sink containing the error in the same statement is practical. The Go `err.Error()` form needs a medium-confidence level. |
+| 1 | CWE-287 JWT decoded without verification (`jwt.decode`, `ParseUnverified`) | native in all five languages since round 1 | Assistants reach for `decode` to "read the user id". The call names are unambiguous, so a rule would be near-zero noise. |
+| 2 | CWE-798 literal signing key or DB password passed to a known API (`Algorithm.HMAC256("…")`, `[]byte("…")` signing key, `DriverManager.getConnection(…, "pw")`) | native in Java and Go, and the Python and Ruby JWT-key form, since round 1 | Placeholder secrets are the classic AI output. The secrets probe misses them because the literal sits in an argument, not a credential-named assignment. |
+| 3 | CWE-352 CSRF switched off (`csrf.disable()`, `csrf(c -> c.disable())`, `skip_before_action :verify_authenticity_token`) | native in Java, Python and Ruby since round 1; TypeScript still a gap | The standard AI "fix" for a 403 on POST. It is an exact call pattern, and semgrep's Ruby rule cannot tell it from a correct controller. |
+| 4 | CWE-200 error detail returned to the client (`err.stack`, `traceback.format_exc()`, `e.backtrace`, `printStackTrace` into the body, `http.Error(w, err.Error(), 500)`) | native in all five languages since round 1 | Very common in generated handlers. A response sink containing the error in the same statement is practical. The Go `err.Error()` form needs a medium-confidence level. |
 | 5 | CWE-434 upload stored under the client's filename (`f.filename`, `file.originalname`, `header.Filename`, `getOriginalFilename()`, `original_filename` in a save or write path) | all five (Java via path rule only) | The names are framework-specific and stable. A same-function absence of an extension or MIME allowlist could raise the confidence. |
 | 6 | CWE-918 request value passed straight to an HTTP client (`fetch(req.query…)`, `client.Get(r.URL.Query()…)`, `URI.create(param)`, `Faraday#get(params…)`) | TS, Go, Java, Ruby | Link previews, webhooks and image proxies are common asks. The same-statement or same-function source-to-sink form is the existing `sql-injection` rules' shape. |
 | 7 | CWE-22 request value joined into a path (`filepath.Join(dir, r.URL.Query()…)`, `File.join(…, params[…])`) with no `IsLocal`/`basename`/prefix check in scope | Go, Ruby | Common. The "unless_in_scope" guard condition fits the pack schema. |

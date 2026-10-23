@@ -182,10 +182,15 @@ a grammar this machine lacks shows that one language as **not assessed**
 rather than as a clean pass. `tools/install_tools.sh` caches every grammar the
 packs need; scans never download one.
 
-Rules are tree-sitter queries, with four optional context conditions for the
+Rules are tree-sitter queries, with five optional context conditions for the
 things a bare pattern cannot say ("no lock held", "no timeout set"):
-`unless_inside`, `unless_in_scope` (the enclosing function, or the file),
-`unless_in_file` and `requires_file`. The schema is documented at the top of
+`unless_inside`, `unless_in_scope` and `requires_in_scope` (the enclosing
+function, or the file), `unless_in_file` and `requires_file`. `files:`
+restricts a rule to paths matching an fnmatch glob, or any glob of a list
+(`*` also crosses `/`): the JSX rules read `*.[jt]sx`, the RSpec rules
+`*_spec.rb`, and `ruby.csrf-protection-off-in-production` reads
+`config/environments/production.rb` at the root or under any directory,
+because the same line is Rails' generated default in `test.rb`. The schema is documented at the top of
 `src/arbiter/lang_rules.py`, and a pack that breaks it fails at import.
 Rule ids are `arbiter/<pack>.<id>`; each carries its CWE.
 
@@ -219,9 +224,9 @@ named language. A scan that finds none of them says nothing about them.
 | Language | Not assessed: does not apply | Not assessed: out of reach for single-file checks | Applies, but no check yet (gap) |
 |---|---|---|---|
 | Python | 787, 125, 416, 119 (memory-safe); 476 (`None` access raises); 190 (arbitrary-precision ints) | 862, 863, 306, 269, 20; 918 beyond one function | 434, 77; 200 except `debug=True` |
-| TypeScript / JavaScript | 787, 125, 416, 119; 476 (`undefined` access raises); 190 (`number` is a double) | 862, 863, 306, 269, 20; 918 beyond one function | 352, 434, 77, 287, 200, 918 |
-| Go | 787, 125, 416, 119 (outside `unsafe`); 94 (no runtime eval); 502 (stdlib decoders fill declared types) | 862, 863, 306, 269, 20, 476 (nil-flow analysis), 352 (absent middleware); 918 beyond one function | 22, 434, 77, 287, 200, 918, 190; 798 signing-key literals |
-| Java | 787, 125, 416, 119 (outside JNI) | 862, 863, 306, 269, 20, 476 (nullness analysis); 918 beyond one function | 79, 352, 77, 200, 918, 798, 190 |
+| TypeScript / JavaScript | 787, 125, 416, 119; 476 (`undefined` access raises); 190 (`number` is a double) | 862, 863, 306, 269, 20; 918 beyond one function | 352, 434, 77, 918 |
+| Go | 787, 125, 416, 119 (outside `unsafe`); 94 (no runtime eval); 502 (stdlib decoders fill declared types) | 862, 863, 306, 269, 20, 476 (nil-flow analysis), 352 (absent middleware); 918 beyond one function | 22, 434, 77, 918, 190 |
+| Java | 787, 125, 416, 119 (outside JNI) | 862, 863, 306, 269, 20, 476 (nullness analysis); 918 beyond one function | 79, 77, 918, 190 |
 | Ruby | 787, 125, 416, 119 (outside C extensions); 476 (`nil` access raises); 190 (arbitrary-precision ints) | 862, 863, 306, 269, 20; 918 beyond one function | 352, 22, 434, 77, 200, 918 |
 
 Gap cells that semgrep or bandit cover only when installed are listed as
@@ -247,7 +252,7 @@ of the judgement pass:
 |---|---|
 | `undeclared-import` / `import-of-nonexistent-package` | A module nothing declares. See the two modes below. |
 | `stub-on-production-path` | `return True  # TODO`, `raise NotImplementedError`, a `pass` body. Severity keyed to whether the function name says it decides something: a stub in `verify_signature` is not an unfinished feature, it is an always-yes. |
-| `security-check-disabled` | `verify=False`, `InsecureSkipVerify: true`, `StrictHostKeyChecking=no`. Written to make an example work, then never removed. |
+| `security-check-disabled` | `verify=False`, `InsecureSkipVerify: true`, `StrictHostKeyChecking=no`. Written to make an example work, then never removed. Under a test or local-development path it is reported low; in a test file, a TLS check off for the test's own local server (`localhost`, `server.address()`, `httptest`) and Django's `override_settings(DEBUG=True)` are the fixture and are not reported. |
 | `docstring-promises-absent-behaviour` | A docstring saying the function validates or retries, in a body that does neither. |
 
 The import check ships in **two modes**, and the split is the honest part:

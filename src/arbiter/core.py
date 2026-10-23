@@ -130,10 +130,25 @@ class Finding:
     suppressed: bool = False
     suppression_reason: str = ""
     id: str = ""
+    # Same-evidence repeats in one file (ARB-080). The fingerprint excludes
+    # line numbers so a baseline survives reformatting, which made six
+    # identical `catch {}` in one file one id, and `_dedupe` kept one of them.
+    # `assign_occurrences` numbers the distinct sites of one fingerprint in
+    # line order: occurrence 0 keeps the fingerprint unchanged (so existing
+    # baselines, verdicts and suppressions still match it) and occurrence k
+    # gets `occurrence_id(base_id, k)`. `base_id` is that shared fingerprint,
+    # empty on occurrence 0 where it equals `id`.
+    occurrence: int = 0
+    base_id: str = ""
 
     def __post_init__(self) -> None:
         if not self.id:
             self.id = self.fingerprint()
+
+    @property
+    def fingerprint_base(self) -> str:
+        """The line-free fingerprint every occurrence of this evidence shares."""
+        return self.base_id or self.id
 
     def fingerprint(self) -> str:
         """Stable identity that survives line shifts.
@@ -162,7 +177,7 @@ class Finding:
         return d
 
     @staticmethod
-    def from_dict(d: dict) -> "Finding":
+    def from_dict(d: dict) -> Finding:
         loc = d.get("location") or {}
         related = [Location(**r) for r in (d.get("related") or [])]
         known = {
@@ -173,6 +188,50 @@ class Finding:
         known["location"] = Location(**{k: v for k, v in loc.items() if k in Location.__dataclass_fields__})
         known["related"] = related
         return Finding(**known)
+
+
+FINGERPRINT_SCHEME = "occurrence-v1"
+
+
+def occurrence_id(base_id: str, occurrence: int) -> str:
+    """The id of the `occurrence`-th same-evidence site of `base_id` (ARB-080).
+
+    Occurrence 0 is `base_id` itself: a finding that occurs once keeps the
+    fingerprint it has always had.
+    """
+    if occurrence <= 0:
+        return base_id
+    digest = hashlib.sha256(f"{base_id}\u241f#{occurrence}".encode()).hexdigest()
+    return "f:" + digest[:12]
+
+
+def _site(f: Finding) -> tuple:
+    loc = f.location
+    return (loc.start_line, loc.start_col, loc.end_line, loc.end_col)
+
+
+def assign_occurrences(findings: list[Finding]) -> None:
+    """Give each distinct site of one fingerprint its own id (ARB-080).
+
+    Findings that share an id but sit at different places in the file are
+    separate defects; they are numbered in line order. Findings at the very
+    same site keep sharing an id, so a rule reported twice for one place still
+    collapses in `engine._dedupe`. Only findings not yet numbered take part:
+    a report read back from JSON keeps the ids it was written with.
+    """
+    groups: dict[str, list[Finding]] = {}
+    for f in findings:
+        if f.occurrence == 0 and not f.base_id:
+            groups.setdefault(f.id, []).append(f)
+    for base, group in groups.items():
+        sites = sorted({_site(f) for f in group})
+        if len(sites) < 2:
+            continue
+        ordinal = {site: i for i, site in enumerate(sites)}
+        for f in group:
+            k = ordinal[_site(f)]
+            if k:
+                f.occurrence, f.base_id, f.id = k, base, occurrence_id(base, k)
 
 
 @dataclass
@@ -283,6 +342,10 @@ class Report:
     # Which knowledge version this run used, and what it changed. Determinism
     # is (commit, config, knowledge_version) -> identical bytes.
     learning: dict = field(default_factory=dict)
+    # How finding ids were made: "occurrence-v1" when same-evidence repeats
+    # carry an ordinal (ARB-080); empty in a report from before that, whose
+    # ids a baseline must then treat as legacy.
+    fingerprint: str = ""
 
     def active(self) -> list[Finding]:
         return [f for f in self.findings if not f.suppressed]
@@ -307,11 +370,12 @@ class Report:
             "claims": self.claims,
             "integrity": self.integrity,
             "learning": self.learning,
+            "fingerprint": self.fingerprint,
             "findings": [f.to_dict() for f in self.findings],
         }
 
     @staticmethod
-    def from_dict(d: dict) -> "Report":
+    def from_dict(d: dict) -> Report:
         r = Report()
         r.schema_version = d.get("schema_version", SCHEMA_VERSION)
         r.arbiter_version = d.get("arbiter_version", "")
@@ -328,6 +392,7 @@ class Report:
         r.claims = d.get("claims", [])
         r.integrity = d.get("integrity", {})
         r.learning = d.get("learning", {})
+        r.fingerprint = d.get("fingerprint", "")
         sc = d.get("scorecard") or {}
         card = Scorecard(
             overall=sc.get("overall"),

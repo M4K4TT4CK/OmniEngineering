@@ -120,7 +120,11 @@ def apply_suppressions(findings: list[Finding], config: dict) -> int:
             if pat and not fnmatch.fnmatch(f.location.path, pat):
                 continue
             fid = rule.get("id")
-            if fid and f.id != fid:
+            # An id names one finding, or the base fingerprint every
+            # same-evidence repeat in a file shares (ARB-080): before
+            # occurrence ordinals those repeats were one finding, and a
+            # suppression written then must keep covering all of them.
+            if fid and fid not in (f.id, f.fingerprint_base):
                 continue
             expires = rule.get("expires")
             if expires:

@@ -15,6 +15,6 @@ public class Cwe200ErrorLeak {
     public ResponseEntity<Map<String, String>> handle(Exception ex) {
         StringWriter trace = new StringWriter();
         ex.printStackTrace(new PrintWriter(trace));
-        return ResponseEntity.status(500).body(Map.of("error", ex.toString(), "trace", trace.toString())); // gap: CWE-200 - nothing in this build reports it (docs/cwe-top25.md)
+        return ResponseEntity.status(500).body(Map.of("error", ex.toString(), "trace", trace.toString())); // expect: arbiter/java.stack-trace-to-client
     }
 }
