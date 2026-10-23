@@ -195,3 +195,17 @@ jobs:
         env:
           PYTHONIOENCODING: utf-8
         run: python -m pytest -q -rs -m slow
+
+      # Regression guards (docs/testing-harness.md): the findings on four
+      # small gold repositories, each fetched at its pinned commit and only
+      # read, must match tools/gold/snapshots/, and each scan must stay inside
+      # its time budget (scaled by a pure-Python calibration workload, so a
+      # runner is not held to a laptop's seconds). The in-tree corpora are
+      # snapshot-checked in the fast tier already
+      # (tests/test_regression_guard.py); this adds real code and timings.
+      - name: Regression guards
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python tools/regression_guard.py fetch --corpus /tmp/corpus-guard
+          python tools/regression_guard.py check --corpus /tmp/corpus-guard
