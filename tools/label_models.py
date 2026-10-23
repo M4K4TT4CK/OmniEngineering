@@ -20,8 +20,9 @@ human reading the findings, and the Phase 2 verifier is also a model. Labels
 are only evidence if they are independent of Arbiter and of the verifier:
 
 * A labeller sees the code excerpt (`arbiter.context`, shared with the
-  verifier: the enclosing function with its decorators, imports, callees and
-  the repository definitions of calls on the taint path, bounded, secrets
+  verifier: the enclosing function with its decorators, imports, callees,
+  same-file callers when the flagged value is a parameter, and the
+  repository definitions of calls on the taint path, bounded, secrets
   masked by `arbiter.judgement._mask_secrets`), the file path and a
   neutral claim from `CLAIMS` -- never Arbiter's title, description,
   remediation, confidence or the verifier's verdict.
@@ -72,7 +73,9 @@ _spec.loader.exec_module(ls)
 # v2 (2026-10-23): the excerpt comes from `arbiter.context` -- decorators,
 # class header, route registration and the repository definitions of calls
 # on the taint path -- and the system prompt says so.
-PROMPT_VERSION = "v2"
+# v3 (2026-10-23): when the value at the marked line arrives as a parameter,
+# the excerpt also shows up to two same-file callers of the function.
+PROMPT_VERSION = "v3"
 MODEL = "opus"
 HELDOUT = ROOT / "tools" / "gold" / "heldout.json"
 EXCLUDE = ls.DEFAULT_EXCLUDE
@@ -215,7 +218,8 @@ SYSTEM = (
     "excerpt, its file path, and one claim about the line marked >>. Decide whether the claim "
     "is true of that line, as written, in this code.\n"
     "The excerpt shows the enclosing function with its decorators or annotations, the file's "
-    "imports, and functions it calls; a section headed '--- <path>: definition of ...' is the "
+    "imports, functions it calls and, when the value at the marked line is one of the function's "
+    "parameters, the functions in the same file that call it; a section headed '--- <path>: definition of ...' is the "
     "definition, in another file of the same repository, of a function called on the way to the "
     "marked line. Line numbers are each file's own.\n"
     "- tp: the claim holds for the marked line.\n"
@@ -596,13 +600,46 @@ def make_item(f: dict, root: Path, source: str, held_out: bool, blind_kind: str 
     return it
 
 
-def items_from_report(report: Path, corpus: Path, n: int, seed: int) -> tuple[list[dict], dict]:
+def per_rule_sample(findings: list[dict], want: dict[str, int], seed: int) -> list[dict]:
+    """`want[rule]` findings of each rule (all of them when it has fewer),
+    spread over the rule's languages by `ls.allocate`; a rule not named gets
+    `want.get("*", 0)`. Each row keeps `stratum_size`, the size of its
+    (rule, language) stratum, for population weighting. Deterministic, and
+    each stratum is a prefix of its own seeded shuffle, so raising a rule's
+    size later only adds findings (a resumed run keeps what it labelled)."""
+    import random
+    strata: dict[tuple, list[dict]] = defaultdict(list)
+    for f in findings:
+        strata[(f["rule"], f["language"])].append(f)
+    by_rule: dict[str, dict] = defaultdict(dict)
+    for (rule, lang), v in strata.items():
+        by_rule[rule][(rule, lang)] = len(v)
+    out = []
+    for rule in sorted(by_rule):
+        sizes = by_rule[rule]
+        n = min(sum(sizes.values()), int(want.get(rule, want.get("*", 0))))
+        if n <= 0:
+            continue
+        alloc = ls.allocate(sizes, n, floor=0) if n < sum(sizes.values()) else dict(sizes)
+        for k in sorted(sizes):
+            pool = sorted(strata[k], key=lambda f: (f["repo"], f["path"], f["line"], f["rule"]))
+            random.Random(f"{seed}|{k[0]}|{k[1]}").shuffle(pool)
+            out += [{**f, "stratum_size": sizes[k]} for f in pool[: alloc.get(k, 0)]]
+    random.Random(seed).shuffle(out)
+    return out
+
+
+def items_from_report(report: Path, corpus: Path, n: int, seed: int,
+                      per_rule: dict[str, int] | None = None) -> tuple[list[dict], dict]:
     data = json.loads(report.read_text(encoding="utf-8"))
     findings = [f for f in ls.findings_from_report(data)
                 if not f["rule"].startswith(EXCLUDE) and claim_for(f["rule"])]
     held = heldout_repos()
-    rows = ls.stratified_sample(findings, n, seed,
-                                key=lambda f: (f["rule"], f["language"], category(f["rule"])))
+    if per_rule is not None:
+        rows = per_rule_sample(findings, per_rule, seed)
+    else:
+        rows = ls.stratified_sample(findings, n, seed,
+                                    key=lambda f: (f["rule"], f["language"], category(f["rule"])))
     items = []
     for f in rows:
         it = make_item(f, corpus / f["repo"], "gold-model", f["repo"] in held)
@@ -979,6 +1016,9 @@ def main(argv: list[str] | None = None) -> int:
     lab.add_argument("--planted-cap", type=int, help="at most this many bad-side findings per category and language")
     lab.add_argument("--suspects", type=Path, help="cve-suspects.json from cve_pairs.py")
     lab.add_argument("--n", type=int, default=600, help="sample size (report and ground truth)")
+    lab.add_argument("--per-rule", type=Path,
+                     help="report: a JSON object rule -> sample size ('*' for the rest) instead of "
+                          "the square-root allocation of --n")
     lab.add_argument("--max", type=int, help="label at most this many items")
     lab.add_argument("--seed", type=int, default=20261022)
     lab.add_argument("--budget-usd", type=float, default=25.0)
@@ -1019,7 +1059,8 @@ def main(argv: list[str] | None = None) -> int:
     items: list[dict] = []
     meta = {}
     if args.report:
-        its, meta = items_from_report(args.report, args.corpus.expanduser(), args.n, args.seed)
+        per_rule = json.loads(args.per_rule.read_text(encoding="utf-8")) if args.per_rule else None
+        its, meta = items_from_report(args.report, args.corpus.expanduser(), args.n, args.seed, per_rule)
         items += its
     if args.ai_corpus:
         items += items_from_ai_corpus()

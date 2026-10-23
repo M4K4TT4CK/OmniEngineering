@@ -2,8 +2,8 @@
 
 * `excerpt()`: what a labeller is shown, built by `arbiter.context` (the
   same builder verify.py uses): the enclosing function with its decorators,
-  imports, same-file callees and the repository definitions of calls on the
-  taint path, bounded, line-numbered, the flagged line marked, secrets
+  imports, same-file callees, same-file callers when the flagged value is a
+  parameter, and the repository definitions of calls on the taint path, bounded, line-numbered, the flagged line marked, secrets
   masked with `arbiter.judgement._mask_secrets`.
 * `blind()`: for items whose truth is known (OWASP Benchmark, Juliet), the
   text with comments blanked and test-case names replaced, so a model being
@@ -34,6 +34,8 @@ MAX_HELPERS = 3          # same-file functions the enclosing one calls
 MAX_HELPER_LINES = 40    # each
 MAX_DEFS = 3             # definitions from other files of the repository
 MAX_DEF_LINES = 30       # each
+MAX_CALLERS = 2          # same-file callers, when the flagged value is a parameter
+MAX_CALLER_LINES = 25    # each
 MAX_EXCERPT_LINES = 220  # everything shown
 WINDOW = 30  # lines each side when no enclosing function is found
 
@@ -88,7 +90,8 @@ def limits():
     from arbiter import context
     return context.Limits(function_lines=MAX_FUNCTION_LINES, import_lines=MAX_IMPORT_LINES,
                           helpers=MAX_HELPERS, helper_lines=MAX_HELPER_LINES, defs=MAX_DEFS,
-                          def_lines=MAX_DEF_LINES, total=MAX_EXCERPT_LINES, window=WINDOW)
+                          def_lines=MAX_DEF_LINES, total=MAX_EXCERPT_LINES, window=WINDOW,
+                          callers=MAX_CALLERS, caller_lines=MAX_CALLER_LINES)
 
 
 def repo_view(root: Path, kind: str | None = None):

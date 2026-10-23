@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+from collections import Counter
 import sys
 
 import pytest
@@ -378,3 +379,18 @@ def test_blinded_item_shows_cross_file_definition_without_its_comments(tmp_path)
     it = lm.make_item(f, tmp_path, "calibration:owasp-java", True, "owasp", truth="fp")
     assert 'return "bar";' in it["excerpt"] and "definition of `getTheValue`" in it["excerpt"]
     assert "safe" not in it["excerpt"] and "BenchmarkTest" not in it["excerpt"]
+
+
+def test_per_rule_sample_sizes_languages_and_prefix_property():
+    fs = ([{"rule": "r/a", "language": "go", "repo": "x", "path": f"a{i}.go", "line": i} for i in range(40)]
+          + [{"rule": "r/a", "language": "java", "repo": "x", "path": f"A{i}.java", "line": i} for i in range(10)]
+          + [{"rule": "r/b", "language": "go", "repo": "x", "path": f"b{i}.go", "line": i} for i in range(3)])
+    small = lm.per_rule_sample(fs, {"r/a": 10, "*": 2}, 7)
+    assert Counter(f["rule"] for f in small) == {"r/a": 10, "r/b": 2}
+    assert {f["language"] for f in small if f["rule"] == "r/a"} == {"go", "java"}
+    assert all(f["stratum_size"] == (40 if f["language"] == "go" else 10) for f in small if f["rule"] == "r/a")
+    big = lm.per_rule_sample(fs, {"r/a": 30, "r/b": 99}, 7)
+    key = lambda f: (f["path"], f["line"])
+    assert {key(f) for f in small} <= {key(f) for f in big}          # raising a size only adds
+    assert Counter(f["rule"] for f in big)["r/b"] == 3                 # capped by the population
+    assert lm.per_rule_sample(fs, {"r/a": 10, "*": 2}, 7) == small     # deterministic

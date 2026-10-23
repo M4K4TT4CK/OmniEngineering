@@ -170,3 +170,94 @@ def test_verify_excerpt_uses_the_inventory_for_cross_file_definitions(tmp_path):
     assert ex.definitions == [("src/org/example/helpers/SafeRequest.java", "getTheValue")]
     assert 'return "bar";' in ex.text and "@Override" in ex.text
     assert 4 not in ex.lines or "SafeRequest" in JAVA_MAIN.splitlines()[3]
+
+
+# ---------------------------------------------------------------------------
+# Same-file callers when the flagged value is a parameter (labeller v3,
+# verify-v3). Calibration round 3's unsure items were Juliet sinks whose
+# `data` is a parameter set by a caller the excerpt did not show.
+# ---------------------------------------------------------------------------
+
+JAVA_SINK = '''package testcases;
+
+public class Case extends AbstractTestCase {
+    private void sink(String data) throws Throwable {
+        String osCommand = "/bin/ls ";
+        Process process = Runtime.getRuntime().exec(osCommand + data);
+        process.waitFor();
+    }
+
+    private void goodSource() throws Throwable {
+        String data;
+        data = "foo";
+        sink(data);
+    }
+
+    private void badSource(HttpServletRequest request) throws Throwable {
+        String data = request.getParameter("name");
+        this.sink(data);
+    }
+
+    private void third() throws Throwable {
+        sink(System.getenv("X"));
+    }
+
+    private void local() throws Throwable {
+        String cmd = System.getenv("CMD");
+        Runtime.getRuntime().exec(cmd);
+    }
+
+    private void callsLocal() throws Throwable {
+        local();
+    }
+}
+'''
+
+
+def test_callers_shown_when_the_tainted_value_is_a_parameter():
+    ctx = context.build(JAVA_SINK, "Case.java", 6)
+    assert ctx.callers == [13, 18]                      # at most two, in file order
+    assert {11, 12, 13, 16, 17, 18} <= ctx.lines         # each caller's body
+    assert 22 not in ctx.lines                           # the third caller is past the cap
+    assert '>>    6' in ctx.text and 'data = "foo";' in ctx.text
+
+
+def test_no_callers_when_the_value_is_not_a_parameter():
+    ctx = context.build(JAVA_SINK, "Case.java", 28)
+    assert ctx.callers == []
+    assert 32 not in ctx.lines
+
+
+def test_caller_limit_and_long_callers_are_windowed():
+    body = "\n".join(f"    x{i} = {i}" for i in range(60))
+    src = ("def sink(arg):\n    os.system('ls ' + arg)\n\n\n"
+           f"def long_caller(req):\n{body}\n    v = req.args['q']\n    sink(v)\n    return 1\n")
+    lim = context.Limits(callers=1, caller_lines=10)
+    ctx = context.build(src, "m.py", 2, "python", limits=lim)
+    call_line = src.splitlines().index("    sink(v)") + 1
+    assert ctx.callers == [call_line]
+    assert call_line - 1 in ctx.lines and 5 in ctx.lines       # the window and the def line
+    assert len(ctx.lines - {1, 2}) <= 10
+    off = context.build(src, "m.py", 2, "python", limits=context.Limits(callers=0))
+    assert off.callers == [] and call_line not in off.lines
+
+
+def test_parameter_names_across_languages():
+    cases = {
+        ("a.py", "python"): ("class C:\n    def f(self, a, b: int = 2, *rest, **kw):\n        return a\n", 3),
+        ("a.go", "go"): ("package m\n\nfunc (s *S) f(a, b string, c int) error {\n\treturn nil\n}\n", 4),
+        ("a.ts", "typescript"): ("function f(a: string, b = 1, { c }: Opts) {\n  return a;\n}\n", 2),
+        ("A.java", "java"): ("class A {\n  void f(final String a, int[] b) {\n    return;\n  }\n}\n", 3),
+        ("a.rb", "ruby"): ("def f(a, b = 1, *c)\n  a\nend\n", 2),
+    }
+    want = {"python": ["a", "b", "rest", "kw"], "go": ["a", "b", "c"], "typescript": ["a", "b", "c"],
+            "java": ["a", "b"], "ruby": ["a", "b", "c"]}
+    for (path, lang), (src, line) in cases.items():
+        fn = context.enclosing_function(context.parse(src, path, lang), src, lang, line)
+        assert context.parameter_names(fn, src) == want[lang], lang
+
+
+def test_excerpt_with_callers_is_deterministic():
+    a = context.build(JAVA_SINK, "Case.java", 6)
+    b = context.build(JAVA_SINK, "Case.java", 6)
+    assert a.text == b.text and a.lines == b.lines

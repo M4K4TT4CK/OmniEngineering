@@ -283,3 +283,22 @@ def test_labeller_calibration_records_never_reach_the_ledger():
             {"finding_id": "c", "source": "calibration:planted-tests"}]
     keep, skipped = PL.drop_calibration(recs)
     assert [r["finding_id"] for r in keep] == ["a"] and skipped == 2
+
+
+def test_model_labels_from_a_superseded_prompt_are_left_out():
+    recs = [{"finding_id": "a", "labeller": "claude-opus-5-5:prosecutor+defender/v1"},
+            {"finding_id": "b", "labeller": "claude-opus-5-5:prosecutor+defender+adjudicator/v3"},
+            {"finding_id": "c", "labeller": "ground-truth"},
+            {"finding_id": "d", "labeller": "alice"}]
+    keep, dropped = PL.drop_superseded_model_labels(recs, "v3")
+    assert [r["finding_id"] for r in keep] == ["b", "c", "d"] and dropped == 1
+    assert PL.drop_superseded_model_labels(recs, "")[1] == 0
+    assert PL.current_model_prompt() == _load("label_models").PROMPT_VERSION
+
+
+def test_a_new_labeller_with_the_same_counts_is_a_relabel():
+    first = PL.build(_pairs(10, 1), None, "2026-10-01", set(), {"planted": {RULE: 4}})
+    relabel = [{**r, "labeller": r["labeller"] + "-v3"} for r in _pairs(10, 1)]
+    again = PL.build(relabel, first, "2026-10-22", set(), {"planted": {RULE: 9}})
+    assert again["rules"][RULE]["updated"] == "2026-10-22"
+    assert again["rules"][RULE]["snapshot_counts"] == {"planted": 9}

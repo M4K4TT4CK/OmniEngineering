@@ -20,7 +20,12 @@ Juliet case split across files. So the excerpt is, in order of priority:
 6. the **repository definition** of functions and methods called on that
    path when they live in another file of the same repository, resolved by
    name plus receiver type or import (never by name alone across the repo);
-7. other same-file functions the enclosing one calls.
+7. when the value at the flagged line arrives as a **parameter** of the
+   enclosing function, up to two **same-file callers** of that function
+   (each caller's function, or its head and a window around the call), so
+   the argument's origin is visible (Juliet `badSink(data)`, a handler's
+   `doPost(request, response)` from `doGet`);
+8. other same-file functions the enclosing one calls.
 
 Everything is bounded (`Limits`), the whole text is passed through
 `judgement._mask_secrets`, and the output depends only on the files' bytes,
@@ -54,6 +59,8 @@ class Limits:
     def_lines: int = 30        # each
     total: int = 220           # every line shown, all sections together
     window: int = 30           # each side of the line when no function encloses it
+    callers: int = 2           # same-file callers, when the tainted value is a parameter
+    caller_lines: int = 25     # each
 
 
 LIMITS = Limits()
@@ -340,14 +347,14 @@ def _sink_receiver(stmt: str) -> set[str]:
     return {name} if len(re.findall(rf"(?<![\w$]){re.escape(name)}(?![\w$])", stmt)) == 1 else set()
 
 
-def path_calls(rows: list[str], span: tuple[int, int], line: int, language: str) -> list[tuple[str, str, int]]:
-    """(receiver, name, line) for calls on the taint path to `line`, the
-    flagged statement first, then each feeding assignment going upward."""
+def _slice(rows: list[str], span: tuple[int, int], line: int, language: str):
+    """(statements, indexes on the taint path -- the flagged statement first --,
+    identifiers tracked) for the backward textual slice to `line`."""
     lo, hi = span
     stmts = _statements(rows, lo, hi, language)
     idx = next((k for k, (a, b, _t) in enumerate(stmts) if a <= line <= b), None)
     if idx is None:
-        return []
+        return stmts, [], set()
     tracked = _idents(stmts[idx][2]) - _sink_receiver(stmts[idx][2])
     order = [idx]
     for k in range(idx - 1, -1, -1):
@@ -358,6 +365,13 @@ def path_calls(rows: list[str], span: tuple[int, int], line: int, language: str)
         if _idents(lhs) & tracked:
             tracked |= _idents(rhs)
             order.append(k)
+    return stmts, order, tracked
+
+
+def path_calls(rows: list[str], span: tuple[int, int], line: int, language: str) -> list[tuple[str, str, int]]:
+    """(receiver, name, line) for calls on the taint path to `line`, the
+    flagged statement first, then each feeding assignment going upward."""
+    stmts, order, _tracked = _slice(rows, span, line, language)
     out, seen = [], set()
     for k in order:
         a, _b, t = stmts[k]
@@ -371,6 +385,131 @@ def path_calls(rows: list[str], span: tuple[int, int], line: int, language: str)
                 continue                     # a constructor: rarely decides taint, costs lines
             seen.add((recv, name))
             out.append((recv, name, a))
+    return out
+
+
+_PARAM_SKIP = {"type_identifier", "primitive_type", "generic_type", "scoped_type_identifier",
+               "array_type", "type_annotation", "pointer_type", "qualified_type", "slice_type",
+               "map_type", "modifiers", "annotation", "marker_annotation", "dimensions"}
+
+
+def parameter_names(fn, text: str) -> list[str]:
+    """Names of the parameters a function node declares, in order (Python
+    `self`/`cls` and Go receivers left out)."""
+    if fn is None:
+        return []
+    params = fn.child_by_field_name("parameters")
+    if params is None:
+        return []
+    data = text.encode("utf-8")
+    out: list[str] = []
+
+    def first_ident(n):
+        stack = [n]
+        while stack:
+            c = stack.pop(0)
+            if c.type in ("identifier", "shorthand_property_identifier_pattern") and c.parent is not None \
+                    and c.parent.type not in _PARAM_SKIP:
+                return c
+            if c.type in _PARAM_SKIP or c.type in ("default_value",):
+                continue
+            stack[0:0] = [x for x in c.named_children if x.type not in _PARAM_SKIP]
+        return None
+
+    for p in params.named_children:
+        if p.type in ("comment", "line_comment", "block_comment"):
+            continue
+        names = list(p.children_by_field_name("name")) if p.type == "parameter_declaration" else []
+        if not names:
+            n = p if p.type == "identifier" else (p.child_by_field_name("name")
+                                                  or p.child_by_field_name("pattern") or first_ident(p))
+            names = [n] if n is not None else []
+        flat = []
+        for n in names:
+            if n is not None and n.type in ("object_pattern", "array_pattern"):
+                stack = [n]                      # destructured: every name it binds
+                while stack:
+                    c = stack.pop(0)
+                    if c.type in ("identifier", "shorthand_property_identifier_pattern"):
+                        flat.append(c)
+                    elif c.type != "property_identifier":
+                        stack[0:0] = list(c.named_children)
+            else:
+                flat.append(n)
+        for n in flat:
+            if n is not None and n.type in ("identifier", "shorthand_property_identifier_pattern"):
+                key = data[n.start_byte:n.end_byte].decode("utf-8", "replace")
+                if key not in ("self", "cls") and key not in out:
+                    out.append(key)
+    return out
+
+
+def tainted_parameters(rows: list[str], span: tuple[int, int], line: int, language: str,
+                       params: list[str]) -> list[str]:
+    """The enclosing function's parameters that feed the flagged statement
+    through the taint slice."""
+    if not params:
+        return []
+    _stmts, _order, tracked = _slice(rows, span, line, language)
+    return [p for p in params if p in tracked]
+
+
+def _function_name_rows(tree, text: str, language: str, name: str) -> set[int]:
+    """1-based rows where a function named `name` is declared."""
+    types = _function_types(language)
+    data = text.encode("utf-8")
+    out: set[int] = set()
+    stack = [tree.root_node]
+    while stack:
+        n = stack.pop()
+        if n.type in types:
+            nm = n.child_by_field_name("name")
+            if nm is not None and data[nm.start_byte:nm.end_byte].decode("utf-8", "replace") == name:
+                out.add(nm.start_point[0] + 1)
+        stack.extend(n.children)
+    return out
+
+
+def callers(tree, text: str, rows: list[str], language: str, name: str, span: tuple[int, int],
+            limits: Limits = LIMITS) -> list[tuple[int, list[int]]]:
+    """Up to `limits.callers` same-file call sites of function `name` outside
+    its own body, as (call line, lines to show): the calling function when
+    it fits in `limits.caller_lines`, else its first lines and a window that
+    ends just after the call (the argument's history is above it). One per
+    calling function, in file order."""
+    if not name or tree is None or limits.callers <= 0:
+        return []
+    call = re.compile(rf"(?<![\w$]){re.escape(name)}\s*\(")
+    decl_rows = _function_name_rows(tree, text, language, name)
+    out: list[tuple[int, list[int]]] = []
+    seen_spans: set = set()
+    cap = max(6, limits.caller_lines)
+    for i, ln in enumerate(rows, 1):
+        if span[0] <= i <= span[1] or i in decl_rows:
+            continue
+        flat = re.sub(r"(\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*')", "''", ln)
+        if not call.search(flat) or re.match(r"^\s*(def|function|func)\b", ln):
+            continue
+        fn = enclosing_function(tree, text, language, i)
+        if fn is not None:
+            lo, hi = _decorated_start(fn) + 1, fn.end_point[0] + 1
+        else:
+            lo, hi = i, i
+        if (lo, hi) in seen_spans:
+            continue
+        seen_spans.add((lo, hi))
+        if hi - lo + 1 <= cap:
+            lines = list(range(lo, hi + 1))
+        else:
+            def_row = fn.start_point[0] + 1 if fn is not None else lo
+            head = list(range(lo, min(def_row + 1, lo + 3) + 1)) if fn is not None else []
+            room = cap - len(head)
+            w_hi = min(hi, i + 2)
+            w_lo = max(lo, w_hi - room + 1)
+            lines = sorted(set(head) | set(range(w_lo, w_hi + 1)))
+        out.append((i, lines))
+        if len(out) >= limits.callers:
+            break
     return out
 
 
@@ -618,6 +757,7 @@ class Context:
     end: int
     path: str
     definitions: list = field(default_factory=list)   # [(repo path, name)] from other files
+    callers: list = field(default_factory=list)       # [call line] of same-file callers shown
 
 
 def _imports(rows: list[str], language: str, stop: int, cap: int) -> list[int]:
@@ -720,6 +860,7 @@ def build(text: str, path: str, line: int, language: str | None = None, *,
         take(_route_lines(rows, fname, span, limits.route_lines))
 
     defs: list[Definition] = []
+    caller_at: list[int] = []
     if in_fn:
         funcs = named_functions(text, path, language, tree)
         enclosing = {n for n, s in funcs.items() if s[0] <= span[0] <= s[1] or s[0] <= line <= s[1]}
@@ -755,7 +896,14 @@ def build(text: str, path: str, line: int, language: str | None = None, *,
                     break
                 defs.append(d)
                 room -= len(d.lines) + 1
-        # 7. other same-file helpers
+        # 7. same-file callers, when the value at the line arrives as a parameter
+        if fname and tainted_parameters(rows, span, line, language, parameter_names(fn, text)):
+            for at, lines in callers(tree, text, rows, language, fname, span, limits):
+                if room <= 0:
+                    break
+                take(lines)
+                caller_at.append(at)
+        # 8. other same-file helpers
         for n in helpers[n_path:]:
             take(helper_lines(n))
 
@@ -782,7 +930,7 @@ def build(text: str, path: str, line: int, language: str | None = None, *,
         from .judgement import _mask_secrets
         body = _mask_secrets(body)
     return Context(text=body, lines=set(shown), start=keep[0], end=keep[-1], path=path,
-                   definitions=[(d.path, d.name) for d in defs])
+                   definitions=[(d.path, d.name) for d in defs], callers=caller_at)
 
 
 def _local_classes(text: str) -> tuple[str, ...]:

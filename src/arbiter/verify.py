@@ -10,8 +10,9 @@ description and remediation, the known false-positive patterns recorded for
 the rule, and a bounded excerpt built by `context.build` -- the same
 builder the model labellers use: the enclosing function with its decorators
 and annotations, the class header, the file's imports, same-file callees,
-and the repository definitions of functions called on the taint path when
-they live in another file -- and asks for a verdict:
+the repository definitions of functions called on the taint path when
+they live in another file, and, when the flagged value is a parameter, the
+same-file functions that call the enclosing one -- and asks for a verdict:
 
     {"verdict": "confirmed" | "rejected" | "unsure", "reason": str, "line": int | null}
 
@@ -78,7 +79,9 @@ from .judgement import (
 
 # verify-v2 (2026-10-23): excerpts from `context.build` (decorators,
 # cross-file definitions on the taint path); every cached verdict refreshes.
-PROMPT_VERSION = "verify-v2"
+# verify-v3 (2026-10-23): the excerpt also shows up to two same-file callers
+# when the value at the flagged line arrives as a parameter.
+PROMPT_VERSION = "verify-v3"
 CACHE_BUCKET = "verify"
 CACHE_RELATIVE_PATH = Path(".arbiter") / "verify-cache.json"
 VERDICTS = ("confirmed", "rejected", "unsure")
@@ -123,7 +126,8 @@ You are given the rule (its id, title, description and remediation), notes on \
 patterns where the rule is known to fire wrongly, and an excerpt of the file \
 the finding is in: the enclosing function (with its decorators or \
 annotations) or a window around the flagged line, the class header, the \
-file's imports and functions it calls. The flagged line is marked >>. A \
+file's imports, functions it calls and, when the value at the flagged line is \
+one of the function's parameters, the functions in the same file that call it. The flagged line is marked >>. A \
 section headed "--- <path>: definition of ..." is the definition, in another \
 file of the same repository, of a function called on the way to the flagged \
 line. Every excerpt line starts with its real line number in its own file.

@@ -10,6 +10,10 @@
     python tools/precision_ledger.py build --sheet-batch gold-2026-10 \\
         --sheet-source gold --sheet-held-out alice.csv bob.csv
 
+    # What the shipped ledger is built from (current-version model labels;
+    # superseded ones live under labels/history/ and are dropped anyway):
+    python tools/precision_ledger.py build tools/gold/labels/*.jsonl tools/gold/labels/*.jsonl.gz
+
     python tools/precision_ledger.py show            # the ledger as a table
     python tools/precision_ledger.py check           # written ledger == rebuilt counts
 
@@ -29,6 +33,7 @@ import argparse
 import csv
 import datetime as _dt
 import json
+import re
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -99,6 +104,35 @@ def drop_calibration(records: list[dict]) -> tuple[list[dict], int]:
     on. Counted in the ledger they would double-count ground truth or invent
     findings, so `labels/*.jsonl` is safe to pass whole."""
     keep = [r for r in records if not str(r.get("source", "")).startswith("calibration:")]
+    return keep, len(records) - len(keep)
+
+
+_MODEL_LABELLER = re.compile(r":prosecutor\+defender(?:\+adjudicator)?/(v\d+)$")
+
+
+def current_model_prompt() -> str:
+    """The model labellers' prompt version (`tools/label_models.py`)."""
+    m = re.search(r'^PROMPT_VERSION = "([^"]+)"', (ROOT / "tools" / "label_models.py").read_text(encoding="utf-8"),
+                  re.M)
+    return m.group(1) if m else ""
+
+
+def drop_superseded_model_labels(records: list[dict], current: str) -> tuple[list[dict], int]:
+    """Model labels (`tools/label_models.py`, labeller `<model>:prosecutor+
+    defender[+adjudicator]/<version>`) made with an older prompt than
+    `current`. Each prompt version is a different labeller with its own
+    calibration, and a finding labelled by two versions would be counted
+    under whichever came last, so the ledger reads one version only. The
+    superseded files are kept under `tools/gold/labels/history/`. Ground
+    truth, sheets and other labellers pass through."""
+    if not current:
+        return records, 0
+    keep = []
+    for r in records:
+        m = _MODEL_LABELLER.search(str(r.get("labeller", "")))
+        if m and m.group(1) != current:
+            continue
+        keep.append(r)
     return keep, len(records) - len(keep)
 
 
@@ -263,7 +297,11 @@ def snapshot_counts() -> dict[str, dict[str, int]]:
 
 
 def _counts(e: dict) -> tuple:
-    return (e["tp"], e["fp"], e["unsure"], tuple(sorted(e["held_out"].items())))
+    """What makes a rebuild a re-label: the counts, and who labelled (a new
+    labeller prompt version is a re-label even when the counts come out the
+    same)."""
+    return (e["tp"], e["fp"], e["unsure"], tuple(sorted(e["held_out"].items())),
+            tuple(sorted(e.get("labellers") or [])))
 
 
 def build(records: list[dict], previous: dict | None, today: str, verified: set[str],
@@ -333,6 +371,9 @@ def main(argv: list[str] | None = None) -> int:
     b.add_argument("--sheet-held-out", action="store_true", help="sheets: the sample is held out")
     b.add_argument("--date", default=_dt.date.today().isoformat())
     b.add_argument("--out", type=Path, help="write here only (default: the ledger and its packaged copy)")
+    b.add_argument("--model-prompt", default=None,
+                   help="model labels to keep, by labeller prompt version (default: the current "
+                        "tools/label_models.py PROMPT_VERSION; 'any' keeps every version)")
     sub.add_parser("show")
     sub.add_parser("check", help="fail when the written ledger differs from its packaged copy")
     args = ap.parse_args(argv)
@@ -351,6 +392,12 @@ def main(argv: list[str] | None = None) -> int:
     records, skipped = drop_calibration(records)
     if skipped:
         print(f"left out {skipped} labeller-calibration records (they measure the labellers, not the rules)",
+              file=sys.stderr)
+    version = current_model_prompt() if args.model_prompt is None else \
+        ("" if args.model_prompt == "any" else args.model_prompt)
+    records, stale = drop_superseded_model_labels(records, version)
+    if stale:
+        print(f"left out {stale} model labels made with a labeller prompt other than {version}",
               file=sys.stderr)
     previous = P.load_ledger(LEDGER) if LEDGER.is_file() else None
     ledger = build(records, previous, args.date, declared_verified(), snapshot_counts())
