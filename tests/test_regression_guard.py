@@ -12,6 +12,12 @@ import time
 import pytest
 from helpers import ROOT
 
+
+# These tests need tree-sitter grammars; the fast CI tier installs none.
+_needs_ts = pytest.mark.skipif(
+    not __import__("arbiter.ast", fromlist=["available"]).available(),
+    reason="tree-sitter not installed")
+
 _spec = importlib.util.spec_from_file_location("regression_guard", ROOT / "tools" / "regression_guard.py")
 rg = importlib.util.module_from_spec(_spec)
 sys.modules["regression_guard"] = rg
@@ -156,3 +162,49 @@ def test_perf_guard_is_not_fooled_by_a_slowdown_that_also_hits_the_reference(sna
     assert time.perf_counter() - started < 5, "the calibration workload must not call into Arbiter"
     lines: list[str] = []
     assert _check(t, lines, live_reference=True, do_snap=False, do_perf=True) == 1, lines
+
+
+# --- aggregate-only target (the held-out AI corpus) --------------------------
+
+def test_aggregate_target_fails_on_a_change_but_prints_only_numbers(snapdir):
+    t = rg.Target("held", ROOT / "fixtures" / "ai-corpus-heldout", aggregate=True)
+    keys = ["arbiter/go.secret-rule\tgo/app/main.go\t12", "arbiter/python.y\tpython/x/app/a.py\t3"]
+    score = {"detected": 4, "true_positives": 5}
+    rg.write_snapshot(t, keys, score)
+    saved = json.loads((snapdir / "held.json").read_text())
+    assert "findings" not in saved and "by_rule" not in saved
+    assert "secret-rule" not in json.dumps(saved) and saved["count"] == 2
+
+    def scan(keys_now, score_now):
+        return lambda path: (keys_now, 0.1, score_now)
+
+    lines: list[str] = []
+    assert rg.check(GUARDS, [t], do_snap=True, do_perf=False, out=lines.append,
+                    agg_scan=scan(keys, score)) == 0, lines
+    lines = []
+    assert rg.check(GUARDS, [t], do_snap=True, do_perf=False, out=lines.append,
+                    agg_scan=scan(keys[:1], {"detected": 3, "true_positives": 5})) == 1
+    text = "\n".join(lines)
+    assert "2 -> 1 findings" in text and "detected: 4 -> 3" in text
+    assert "secret-rule" not in text and "main.go" not in text and "a.py" not in text
+
+
+def test_the_heldout_guard_target_is_aggregate_only():
+    guards = rg.load_guards()
+    spec = guards["targets"]["ai-corpus-heldout"]
+    assert spec == {"path": "fixtures/ai-corpus-heldout", "aggregate": True}
+    snap = json.loads((ROOT / "tools" / "gold" / "snapshots" / "ai-corpus-heldout.json").read_text())
+    assert snap["aggregate"] is True and "findings" not in snap and "by_rule" not in snap
+    assert set(snap) == {"target", "aggregate", "arbiter_commit", "_about", "count", "digest", "score"}
+
+
+@_needs_ts
+def test_heldout_aggregate_snapshot_matches(capsys):
+    """The held-out score has not moved. A failure says only that it moved;
+    if the change is intended, run `python tools/regression_guard.py update
+    --targets ai-corpus-heldout --no-perf` and commit the new counts. Do not
+    go looking for which findings changed: that is what held out means."""
+    guards = rg.load_guards()
+    targets = rg.resolve_targets(guards, None, ["ai-corpus-heldout"])
+    lines: list[str] = []
+    assert rg.check(guards, targets, do_snap=True, do_perf=False, out=lines.append) == 0, "\n".join(lines)

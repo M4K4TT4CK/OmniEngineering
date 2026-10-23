@@ -1,0 +1,33 @@
+# Example configuration for backup_uploader.py.
+# Copy to config.toml and edit. Credentials come from the standard boto3
+# chain (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY, ~/.aws/credentials, or an IAM role).
+
+[schedule]
+# Standard 5-field cron expression, evaluated in UTC.
+cron = "0 2 * * *"
+
+[archive]
+# Directories to archive. Each must exist when the program starts.
+directories = ["/var/lib/myapp/data", "/etc/myapp"]
+# Archives are named <name_prefix>-<UTC timestamp>.tar.gz
+name_prefix = "myapp"
+# Local scratch space for the tarball while it is built and uploaded.
+work_dir = "/var/tmp/backup-uploader"
+
+[storage]
+bucket = "my-backups"
+# Object key prefix. A trailing slash is added if missing.
+prefix = "nightly/"
+# Leave endpoint_url out for AWS S3; set it for MinIO, Ceph, Backblaze B2, etc.
+endpoint_url = "https://s3.example.com"
+region = "us-east-1"
+# Archives whose timestamp is older than this are deleted after each upload.
+retention_days = 30
+
+[status]
+host = "127.0.0.1"
+port = 8080
+
+[logging]
+# Optional. Log lines are always written to stderr as well.
+file = "/var/log/backup-uploader.log"

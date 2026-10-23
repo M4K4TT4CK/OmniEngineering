@@ -17,6 +17,7 @@ languages: [java]
 rules:
   # ---------------------------------------------------------------- races --
   - id: check-then-act-unsynchronized
+    requirements: [ARB-061]
     title: "Check-then-act on a shared collection with no lock held: `{text}`"
     severity: high
     confidence: medium
@@ -76,6 +77,7 @@ rules:
       `ReentrantLock`) around both the check and the act.
 
   - id: unsynchronized-counter
+    requirements: [ARB-061]
     title: "`{text}` on a shared field from worker code with no lock or atomic"
     severity: medium
     confidence: medium
@@ -130,6 +132,7 @@ rules:
 
   # ------------------------------------------------------------- timeouts --
   - id: http-client-no-timeout
+    requirements: [ARB-061]
     title: "`{text}` builds an HttpClient with no connect timeout"
     severity: medium
     confidence: medium
@@ -155,6 +158,7 @@ rules:
       `.timeout(...)` on each `HttpRequest`.
 
   - id: http-request-no-timeout
+    requirements: [ARB-061]
     title: "`HttpRequest.newBuilder` with no `.timeout(...)`"
     severity: medium
     confidence: medium
@@ -174,6 +178,7 @@ rules:
     remediation: "Add `.timeout(Duration.ofSeconds(n))` to the request builder."
 
   - id: url-connection-no-timeout
+    requirements: [ARB-061]
     title: "`openConnection()` with neither connect nor read timeout set"
     severity: medium
     confidence: medium
@@ -194,6 +199,7 @@ rules:
       before reading from it.
 
   - id: rest-template-no-timeout
+    requirements: [ARB-061]
     title: "`new RestTemplate()` uses a request factory with no timeouts"
     severity: medium
     confidence: medium
@@ -216,6 +222,7 @@ rules:
 
   # ------------------------------------------------------ retries & loops --
   - id: retry-without-backoff
+    requirements: [ARB-061]
     title: "Retry loop with no backoff and no attempt cap"
     severity: medium
     confidence: medium
@@ -246,6 +253,7 @@ rules:
       jitter, then fail with the last error.
 
   - id: worker-loop-no-stop
+    requirements: [ARB-061]
     title: "`while (true)` worker loop with no stop signal"
     severity: medium
     confidence: medium
@@ -288,6 +296,7 @@ rules:
 
   # ----------------------------------------------------------- exceptions --
   - id: swallowed-exception
+    requirements: [ARB-061]
     title: "Empty `catch` swallows the error: `{text}`"
     severity: medium
     confidence: high
@@ -337,6 +346,7 @@ rules:
 
   # ------------------------------------------------------------ injection --
   - id: sql-string-built
+    requirements: [ARB-061]
     title: "SQL built from a string expression reaches `{text}`"
     severity: high
     confidence: medium
@@ -405,8 +415,37 @@ rules:
     remediation: >
       Use a `PreparedStatement` (or JPA `setParameter`) with `?`/`:name`
       placeholders, and keep identifiers (table, column) to an allow-list.
+    # One-hop data flow (Milestone 3). The built SQL (same test as the first
+    # pattern above) reaches the call through a local or a same-file helper;
+    # a hit whose spliced values are provably constant, or derived only from
+    # constants in a method that reads request input (OWASP Benchmark's
+    # tricks), is dropped.
+    taint:
+      sources: |
+        ((binary_expression) @val
+        (#match? @val "^String\\.format\\s*\\(|\\+\\s*[a-z_][\\w.]*\\s*(\\(|\\[|\\+|$)|^\\s*[a-z_][\\w.]*\\s*\\+") (#match? @val "(?i)\\b(select|insert|update|delete|from|where|into|values|call|drop|create|alter|truncate|merge|join|order\\s+by|set|grant|revoke|schema|table)\\b") (#not-match? @val "^(?:\\s|\\+|\"(?:[^\"\\\\]|\\\\.)*\"|\\b(?:[A-Z]\\w*\\.)*[A-Z][A-Z0-9_]*\\b|(?:this\\.)?(?:[\\w.]*?[a-z0-9](?:Table|Column|Col|Schema|Catalog|Index|Identifier|Sequence)s?(?:Name|Names)?|(?:table|column|schema|catalog|sequence)(?:Name|Names))\\b|(?:[\\w.]*\\.)?(?:get|quote|escape)\\w*?(?:Table|Column|Schema|Identifier|Index)\\w*\\x28[^\\x28\\x29]*\\x29)+$")) @source
+        ((method_invocation object: (identifier) @so name: (identifier) @sf arguments: (argument_list) @fa)
+         (#eq? @so "String") (#eq? @sf "format")
+        (#match? @fa "(?i)\\b(select|insert|update|delete|from|where|into|values|call|drop|create|alter|truncate|merge|join|order\\s+by|set|grant|revoke|schema|table)\\b") (#not-match? @fa "^\\x28(?:\\s|,|\\+|\"(?:[^\"\\\\]|\\\\.)*\"|\\b(?:[A-Z]\\w*\\.)*[A-Z][A-Z0-9_]*\\b|(?:this\\.)?(?:[\\w.]*?[a-z0-9](?:Table|Column|Col|Schema|Catalog|Index|Identifier|Sequence)s?(?:Name|Names)?|(?:table|column|schema|catalog|sequence)(?:Name|Names))\\b|(?:[\\w.]*\\.)?(?:get|quote|escape)\\w*?(?:Table|Column|Schema|Identifier|Index)\\w*\\x28[^\\x28\\x29]*\\x29)+\\x29$")) @source
+      # the identifier helpers the query above already trusts
+      sanitizers: |
+        ((method_invocation name: (identifier) @n) @sanitizer
+         (#match? @n "^(get|quote|escape)\\w*?(Table|Column|Schema|Identifier|Index)\\w*$"))
+      inputs: &java_request_inputs |
+        ((method_invocation object: (identifier) @rq name: (identifier) @m) @input
+         (#match? @m "^(getParameter|getParameterValues|getParameterMap|getParameterNames|getHeader|getHeaders|getHeaderNames|getQueryString|getCookies|getPathInfo|getRequestURI|getRequestURL|getInputStream|getReader|getPart|getParts)$"))
+        ((formal_parameter (modifiers [(annotation name: (identifier) @a) (marker_annotation name: (identifier) @a)]) name: (identifier) @input)
+         (#match? @a "^(RequestParam|PathVariable|RequestHeader|CookieValue|RequestBody|RequestPart|MatrixVariable|QueryParam|PathParam|FormParam|HeaderParam|CookieParam)$"))
+      sinks: |
+        ((method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (_) @sink)) @hit
+         (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|query|queryForObject|queryForList|queryForMap|queryForRowSet|queryForLong|queryForInt|queryForStream|batchUpdate|update|nativeQuery)$"))
+      types: &java_request_types
+        rq: "^(javax\\.servlet\\.http\\.|jakarta\\.servlet\\.http\\.)?(Http)?Servlet(Request|RequestWrapper)$|^(HttpServletRequest|ServletRequest|ServerHttpRequest|WebRequest|NativeWebRequest|Request)$"
+      value: [val, fa]
+      kill: derived
 
   - id: command-injection
+    requirements: [ARB-061]
     title: "Shell command built from a run-time value: `{text}`"
     severity: high
     confidence: medium
@@ -454,9 +493,20 @@ rules:
       Pass the program and each argument as separate array elements with no
       shell, validate against an allow-list, and prefer a library call over
       a child process.
+    # One-hop data flow (Milestone 3): a command whose every part is
+    # provably constant, or derived only from constants (a helper given a
+    # literal) in a method that reads request input, is dropped: OWASP
+    # Benchmark's constant tricks.
+    taint:
+      inputs: *java_request_inputs
+      types: *java_request_types
+      value: [a]
+      kill: derived
 
   # ------------------------------------------------------ deserialization --
+
   - id: object-input-stream
+    requirements: [ARB-060]
     title: "`ObjectInputStream.readObject` deserializes untrusted bytes"
     severity: high
     confidence: medium
@@ -475,6 +525,7 @@ rules:
     remediation: "Use a data format (JSON) with an explicit schema, or an ObjectInputFilter allow-list."
 
   - id: xml-decoder
+    requirements: [ARB-061]
     title: "`XMLDecoder.readObject` instantiates whatever classes the XML names"
     severity: high
     confidence: medium
@@ -494,6 +545,7 @@ rules:
     remediation: "Parse the XML with a schema-bound binder (JAXB, Jackson XML) into known types."
 
   - id: jackson-default-typing
+    requirements: [ARB-061]
     title: "Jackson default typing lets the JSON choose the class to instantiate"
     severity: high
     confidence: high
@@ -516,6 +568,7 @@ rules:
 
   # ---------------------------------------------------------------- stubs --
   - id: stub-method
+    requirements: [ARB-061]
     title: "Method body is a placeholder: `{text}`"
     severity: medium
     confidence: medium
@@ -559,6 +612,7 @@ rules:
 
   # ---------------------------------------------------------------- tests --
   - id: test-without-assertion
+    requirements: [ARB-062, ARB-065]
     title: "`@Test {text}` asserts nothing"
     severity: low
     # low, not medium: on the gold set most hits are deliberate "does not
@@ -641,6 +695,7 @@ rules:
 
   # ------------------------------------------------------------------ TLS --
   - id: trust-all-certificates
+    requirements: [ARB-061]
     title: "`checkServerTrusted` is empty: every certificate is accepted"
     severity: high
     confidence: high
@@ -663,6 +718,7 @@ rules:
       from that.
 
   - id: hostname-verifier-disabled
+    requirements: [ARB-061]
     title: "HostnameVerifier that always returns true"
     severity: high
     confidence: high
@@ -691,6 +747,7 @@ rules:
 
   # ----------------------------------------------------------- randomness --
   - id: weak-random-for-secret
+    requirements: [ARB-061]
     title: "`{text}` is not a cryptographic source, but this value is a secret"
     severity: medium
     confidence: medium
@@ -740,6 +797,7 @@ rules:
   # ARB-062: the Java rows of the ranked gap list in docs/cwe-top25.md.
 
   - id: jwt-unsigned-accepted
+    requirements: [ARB-062]
     title: "`{text}` accepts a JWT that carries no signature"
     severity: high
     confidence: high
@@ -769,6 +827,7 @@ rules:
       `.unsecured()`.
 
   - id: jwt-decode-without-verify
+    requirements: [ARB-062]
     title: "`{text}` reads a JWT and nothing in this file verifies its signature"
     severity: high
     confidence: medium
@@ -811,6 +870,7 @@ rules:
       `DefaultJWTProcessor` / `SignedJWT.verify(JWSVerifier)` (Nimbus).
 
   - id: hardcoded-signing-key
+    requirements: [ARB-062]
     title: "`{text}` is given a key written in the source"
     severity: high
     confidence: high
@@ -868,6 +928,7 @@ rules:
       and rotate the one that was committed.
 
   - id: hardcoded-db-password
+    requirements: [ARB-062]
     title: "`{text}` is given a database password written in the source"
     severity: high
     confidence: high
@@ -913,6 +974,7 @@ rules:
   # the file says the app is stateless, and low/low where the file declares
   # SessionCreationPolicy.STATELESS (the token could still sit in a cookie).
   - id: csrf-disabled
+    requirements: [ARB-062]
     title: "CSRF protection switched off: `{text}`"
     severity: high
     confidence: medium
@@ -957,6 +1019,7 @@ rules:
       cookie), declare `SessionCreationPolicy.STATELESS`.
 
   - id: csrf-disabled-stateless
+    requirements: [ARB-062]
     title: "CSRF protection switched off in a stateless config: `{text}`"
     severity: low
     confidence: low
@@ -981,6 +1044,7 @@ rules:
 
   # ------------------------------------------------ error detail (CWE-200) --
   - id: stack-trace-to-client
+    requirements: [ARB-062]
     title: "Stack trace sent to the client: `{text}`"
     severity: medium
     confidence: high
@@ -1023,6 +1087,7 @@ rules:
       returns a `ProblemDetail` without the trace.
 
   - id: exception-message-to-client
+    requirements: [ARB-062]
     title: "Exception text sent to the client: `{text}`"
     severity: medium
     confidence: medium
@@ -1081,6 +1146,27 @@ rules:
     remediation: >
       Log the exception with an incident id and return a fixed message. Put
       caller-facing text in your own exception types and return only those.
+    # One-hop data flow (Milestone 3): a broad exception's message reaches
+    # the response through a local or a helper.
+    taint:
+      inputs: |
+        ((method_invocation object: (identifier) @e name: (identifier) @m arguments: (argument_list) @none) @input
+         (#match? @m "^(getMessage|getLocalizedMessage|toString)$") (#eq? @none "()"))
+      sinks: |
+        ((method_invocation name: (identifier) @n arguments: (argument_list . (_) @sink .)) @hit
+         (#match? @n "^(body|bodyValue|ok|setDetail)$"))
+        ((method_invocation name: (identifier) @n arguments: (argument_list . (_) . (_) @sink)) @hit
+         (#match? @n "^(sendError|forStatusAndDetail)$"))
+        ((method_invocation object: (method_invocation name: (identifier) @w)
+            name: (identifier) @n arguments: (argument_list (_) @sink)) @hit
+         (#match? @w "^(getWriter|getOutputStream)$") (#match? @n "^(print|println|write|append|printf|format)$"))
+        ((object_creation_expression type: (_) @t arguments: (argument_list . (_) @sink)) @hit
+         (#match? @t "^ResponseEntity\\b"))
+      sanitizers: |
+        ((method_invocation name: (identifier) @n) @sanitizer
+         (#match? @n "^(encodeForHTML|htmlEscape|escapeHtml\\w*|getString)$"))
+      types:
+        e: "(^|\\|)\\s*(java\\.lang\\.)?(Exception|RuntimeException|Throwable|Error|IOException|SQLException|\\w*SQL\\w*Exception|\\w*DataAccessException|NullPointerException|PersistenceException|HibernateException|NamingException|ReflectiveOperationException)\\s*($|\\|)"
 
   # ------------------------------------------------- CWE Top 25, round 2 --
   # ARB-062: the Java gaps left after round 1 (docs/cwe-top25.md): 79, 918,
@@ -1092,6 +1178,7 @@ rules:
   # its use at any nesting depth; a back-reference (\1 / \2) does the tying.
 
   - id: xss-unescaped-html
+    requirements: [ARB-062]
     title: "Request value written into HTML without encoding: `{text}`"
     severity: high
     confidence: medium
@@ -1139,8 +1226,27 @@ rules:
       `th:text`, JSP `<c:out>`), or encode every value with
       `HtmlUtils.htmlEscape` / OWASP `Encode.forHtml` before writing it.
       Return JSON from APIs instead of hand-built HTML.
+    # One-hop data flow (Milestone 3): request input reaches the response
+    # through a local or a same-file helper as a built string; a hit whose
+    # values are provably constant (or derived only from constants in a
+    # method that reads request input) is dropped.
+    taint:
+      inputs: *java_request_inputs
+      sinks: |
+        ((method_invocation name: (identifier) @n arguments: (argument_list . (_) @sink .)) @hit
+         (#match? @n "^(ok|body|bodyValue|send)$"))
+        ((method_invocation object: (method_invocation name: (identifier) @w)
+            name: (identifier) @n arguments: (argument_list (_) @sink)) @hit
+         (#eq? @w "getWriter") (#match? @n "^(print|println|write|append|printf|format)$"))
+        ((return_statement (_) @sink) @hit)
+      types: *java_request_types
+      value: [v, args]
+      kill: derived
+      built: true
+      requires: true
 
   - id: ssrf-request-url
+    requirements: [ARB-062]
     title: "Server-side request to a URL taken from the request: `{text}`"
     severity: high
     confidence: medium
@@ -1178,8 +1284,30 @@ rules:
       Do not take a URL from the caller. Take an id and look the URL up, or
       parse it, require https and check the host against an allowlist
       (resolve it and refuse private ranges), and turn redirects off.
+    # One-hop data flow (Milestone 3): request input reaches the URL through
+    # a local or a helper. A URL with a fixed scheme and host is the
+    # sanitizer.
+    taint:
+      inputs: *java_request_inputs
+      sinks: |
+        ((object_creation_expression type: (_) @t arguments: (argument_list . (_) @sink)) @hit
+         (#match? @t "^((java\\.net\\.)?URL|Http(Get|Post|Put|Delete|Head|Patch|Options))$"))
+        ((method_invocation object: (identifier) @o name: (identifier) @n arguments: (argument_list . (_) @sink)) @hit
+         (#match? @o "^(Jsoup|HttpRequest)$") (#match? @n "^(connect|newBuilder)$"))
+        ((method_invocation name: (identifier) @n arguments: (argument_list . (_) @sink)) @hit
+         (#match? @n "^(getForObject|getForEntity|postForObject|postForEntity|postForLocation|patchForObject|headForHeaders|exchange|uri|url)$"))
+      # A bare `URI.create(u)` / `new URI(u)` only parses; the request is the
+      # sink it reaches. A fixed origin (a literal "https://host/" or an
+      # ALL_CAPS constant first) is the sanitizer.
+      sanitizers: |
+        ((binary_expression) @sanitizer (#match? @sanitizer "^(\"https?://[^/\"%]+/|(\\w+\\.)?[A-Z][A-Z0-9_]*\\s*\\+)"))
+        ((method_invocation object: (identifier) @so name: (identifier) @sf arguments: (argument_list . (string_literal) @fm)) @sanitizer
+         (#eq? @so "String") (#eq? @sf "format") (#match? @fm "^\"https?://[^/\"%]+/"))
+        ((method_invocation name: (identifier) @n) @sanitizer (#match? @n "^(encode|parseInt|parseLong|valueOf)$"))
+      types: *java_request_types
 
   - id: argument-injection
+    requirements: [ARB-062]
     title: "Request value passed to a program before `--` ends its options: `{text}`"
     severity: high
     confidence: medium
@@ -1207,8 +1335,22 @@ rules:
       Put `"--"` before the first value the caller controls, and reject
       values that start with `-` (validate a URL's scheme, a name against an
       allowlist).
+    # One-hop data flow (Milestone 3): request input reaches a ProcessBuilder
+    # argument through a local or a helper; the tool name may be hoisted.
+    taint:
+      inputs: *java_request_inputs
+      sinks: |
+        ((object_creation_expression type: (_) @t arguments: (argument_list . (_) @tool) @sink) @hit
+         (#match? @t "(^|\\.)ProcessBuilder$"))
+        ((method_invocation name: (identifier) @n arguments: (argument_list . (_) @tool) @sink) @hit
+         (#eq? @n "command"))
+      where:
+        tool: "^\"(/usr/bin/|/bin/)?(git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|find|xargs|grep|sed|docker|kubectl|helm|ffmpeg|convert|magick|gs|psql|mysql|mysqldump|pg_dump|openssl|gpg|sendmail|mail|tcpdump|nmap|ping|wkhtmltopdf)\"$"
+      types: *java_request_types
+      unless_element: "^--$"
 
   - id: parsed-number-narrowed
+    requirements: [ARB-062]
     title: "Parsed number cast to a narrower type keeps only its low bits: `{text}`"
     severity: medium
     confidence: medium
@@ -1244,6 +1386,7 @@ rules:
       `Math.toIntExact`, so an out-of-range value throws.
 
   - id: parsed-count-overflow
+    requirements: [ARB-062]
     title: "Allocation size multiplies a parsed count with no range check: `{text}`"
     severity: medium
     confidence: medium
@@ -1274,6 +1417,7 @@ rules:
       compute the size with `Math.multiplyExact`.
 
   - id: upload-client-filename
+    requirements: [ARB-062]
     title: "Upload stored under the client's file name: `{text}`"
     severity: high
     confidence: medium
@@ -1317,3 +1461,193 @@ rules:
       Generate the stored name (`UUID.randomUUID()`), choose the extension
       from an allowlist of content types you checked, store outside the web
       root, and keep the client's name only as data.
+    # One-hop data flow (Milestone 3): the client's file name reaches the
+    # write through a local or a same-file helper.
+    taint:
+      inputs: |
+        ((method_invocation name: (identifier) @m arguments: (argument_list) @none) @input
+         (#match? @m "^(getOriginalFilename|getSubmittedFileName)$") (#eq? @none "()"))
+      sinks: |
+        ((method_invocation name: (identifier) @n arguments: (argument_list (_) @sink)) @hit
+         (#match? @n "^(transferTo|resolve)$"))
+        ((method_invocation object: (_) @o name: (identifier) @n arguments: (argument_list (_) @sink)) @hit
+         (#match? @o "^((java\\.nio\\.file\\.)?(Files|Paths|Path)|(org\\.apache\\.commons\\.io\\.)?FileUtils|FileCopyUtils)$")
+         (#match? @n "^(copy|write|move|newOutputStream|createFile|get|of|copyInputStreamToFile|writeByteArrayToFile|copyToFile)$"))
+        ((object_creation_expression type: (_) @t arguments: (argument_list (_) @sink)) @hit
+         (#match? @t "^((java\\.io\\.)?(File|FileOutputStream|FileWriter))$"))
+
+  # ---------------------------------------------------------------------
+  # Defect classes found in AI-written code (ARB-083)
+  # ---------------------------------------------------------------------
+  # Each shape below is one a reviewer labelled in model-written services
+  # (fixtures/ai-corpus) that no earlier rule covered. All start advisory.
+  - id: mail-starttls-not-required
+    requirements: [ARB-083]
+    title: "`{text}` lets Jakarta Mail fall back to plaintext"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-319]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-8]
+    tags: [tls, smtp, ai-code]
+    # `starttls.enable` alone is opportunistic: STARTTLS is used only when
+    # the server advertises it, so a MITM that strips the capability gets
+    # the AUTH exchange in clear. `starttls.required` (anywhere in the
+    # file) or implicit TLS (`mail.smtp.ssl.enable`) makes it mandatory.
+    query: |
+      (method_invocation
+        name: (identifier) @m (#match? @m "^(put|setProperty)$")
+        arguments: (argument_list . (string_literal) @k (#match? @k "^\"mail\\.smtps?\\.starttls\\.enable\"$"))) @hit
+    unless_in_file: |
+      ((string_literal) @k (#match? @k "^\"mail\\.smtps?\\.(starttls\\.required|ssl\\.enable)\"$"))
+    description: >-
+      With only `mail.smtp.starttls.enable`, Jakarta Mail upgrades to TLS
+      when the server offers it and carries on in plaintext when it does
+      not. An attacker on the path removes STARTTLS from the server's
+      greeting and reads SMTP_USER and SMTP_PASSWORD from the AUTH command.
+    remediation: "Also set `mail.smtp.starttls.required=true` (or use implicit TLS with `mail.smtp.ssl.enable=true` on port 465)."
+
+  - id: mail-ssl-trust-all
+    requirements: [ARB-083]
+    title: "`{text}` trusts every mail server certificate"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-295]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-8]
+    tags: [tls, smtp, ai-code]
+    query: |
+      (method_invocation
+        name: (identifier) @m (#match? @m "^(put|setProperty)$")
+        arguments: (argument_list . (string_literal) @k (#match? @k "^\"mail\\.(smtps?|imaps?|pop3s?)\\.ssl\\.trust\"$")
+                   . (string_literal) @v (#eq? @v "\"*\""))) @hit
+      (method_invocation
+        name: (identifier) @m (#match? @m "^(put|setProperty)$")
+        arguments: (argument_list . (string_literal) @k (#match? @k "^\"mail\\.(smtps?|imaps?|pop3s?)\\.ssl\\.checkserveridentity\"$")
+                   . (string_literal) @v (#eq? @v "\"false\""))) @hit
+    # JavaMail reads `ssl.trust` only when no socket factory is given: with
+    # `ssl.socketFactory` set in the same method (Keycloak's truststore
+    # configurator) the factory's own trust store decides.
+    unless_in_scope: |
+      ((string_literal) @k (#match? @k "^\"mail\\.(smtps?|imaps?|pop3s?)\\.ssl\\.socketFactory\"$"))
+    description: >-
+      `mail.smtp.ssl.trust=*` accepts any certificate from any host, and
+      `ssl.checkserveridentity=false` accepts a valid certificate issued
+      for some other host. Either way the connection is encrypted to
+      whoever answers, and the SMTP credentials go to them.
+    remediation: "Remove the property; for a private CA, add it to the trust store or name the exact host in `mail.smtp.ssl.trust`."
+
+  - id: retry-constant-delay
+    requirements: [ARB-083]
+    title: "`{text}` retries after the same fixed delay every time"
+    severity: low
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [retry, backoff, reliability, ai-code]
+    # Retry scheduling with a constant: the wait is a value named as the
+    # retry delay (`retryDelayMs`) used as is, in a file that caps attempts,
+    # with no growth or jitter on it. retry-without-backoff is the no-delay case.
+    query: |
+      ((method_invocation object: (_) @o name: (identifier) @m
+         arguments: (argument_list . [(identifier) (field_access)] @d .))
+        (#match? @o "^(Thread|TimeUnit\\.\\w+)$") (#eq? @m "sleep")
+        (#match? @d "(?i)(^|\\.)retry_?(delay|interval|wait|pause|sleep|backoff)(_?(ms|millis|seconds|secs))?$")) @hit
+      ((method_invocation name: (identifier) @m
+         arguments: (argument_list . (_) . [(identifier) (field_access)] @d . (_) .))
+        (#match? @m "^(schedule|delayedExecutor)$")
+        (#match? @d "(?i)(^|\\.)retry_?(delay|interval|wait|pause|backoff)(_?(ms|millis|seconds|secs))?$")) @hit
+    requires_file: |
+      ((identifier) @r (#match? @r "(?i)^_?max_?(retries|retry|attempts?|tries)$|^_?retry_?(count|limit)$|^MAX_(RETRIES|ATTEMPTS|TRIES)$"))
+    unless_in_file: |
+      ((identifier) @b (#match? @b "(?i)backoff|jitter"))
+      ((binary_expression operator: ["*" "<<"]) @b (#match? @b "(?i)retry_?(delay|interval)"))
+      ((assignment_expression left: (_) @l operator: ["*=" "<<="]) (#match? @l "(?i)retry_?(delay|interval)"))
+    description: >-
+      Every retry waits the same interval. When a dependency fails, every
+      caller retries in lock-step on that interval, so the recovering
+      service is hit by the whole backlog at once and each retry is as
+      likely to fail as the last.
+    remediation: "Grow the delay with the attempt (`base << attempt`, capped) and add jitter, or use a retry library (resilience4j, Failsafe) with exponential backoff."
+
+  - id: ssrf-stored-callback
+    requirements: [ARB-083]
+    title: "`{text}` delivers to a stored callback URL with no internal-address block"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-918]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-7]
+    tags: [ssrf, webhook, ai-code]
+    query: |
+      ((method_invocation object: (_) @c name: (identifier) @m
+         arguments: (argument_list . (identifier) . (_)))
+        (#match? @m "^(send|sendAsync)$") (#match? @c "(?i)client$")) @hit
+      ((method_invocation object: (_) @c name: (identifier) @m
+         arguments: (argument_list . (_) . (_) .))
+        (#match? @m "^(postForEntity|postForObject|exchange)$") (#match? @c "(?i)(rest)?template$")) @hit
+    requires_file: |
+      ((string_literal) @s (#match? @s "(?i)callback_?url|webhook_?url|notify_?url|hook_?url|callback_?uri|redirect_?hook"))
+    unless_in_file: |
+      ((identifier) @m (#match? @m "^(isSiteLocalAddress|isLoopbackAddress|isLinkLocalAddress|isAnyLocalAddress|isMulticastAddress)$"))
+      ((identifier) @m (#match? @m "(?i)ssrf|private_?(ip|addr|net|range)|is_?internal|is_?public_?(host|addr|ip)|blocked_?(ip|addr|host)|allowed_?(host|ip)"))
+    description: >-
+      The URL was stored by a client (a merchant, a subscriber) and the server
+      later sends a request to it. Nothing in the file refuses loopback,
+      private, link-local or cloud-metadata addresses, so whoever can set
+      the URL can make the server reach internal services
+      (169.254.169.254, localhost admin ports) and learn from the delivery
+      status whether they answered.
+    remediation: "Resolve the host, refuse loopback, site-local, link-local and any-local addresses, and connect to the address you checked; or keep an allowlist of callback hosts."
+
+  - id: image-decode-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` decodes an image without checking its dimensions first"
+    severity: high
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-409, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, decompression-bomb, ai-code]
+    # ImageIO.read allocates the full raster from the header. Reading the
+    # size through an ImageReader (getWidth(0)/getHeight(0) before read)
+    # anywhere in the file is taken as the check.
+    query: |
+      ((method_invocation object: (identifier) @o name: (identifier) @m)
+        (#eq? @o "ImageIO") (#eq? @m "read")) @hit
+    unless_in_file: |
+      ((identifier) @i (#match? @i "^(ImageReader|getImageReaders|getImageReadersByFormatName|getImageReadersBySuffix)$"))
+    description: >-
+      A small PNG can declare 50000 x 50000 pixels; `ImageIO.read` then
+      allocates a raster of gigabytes before anything checks the size, and
+      one upload throws OutOfMemoryError for the whole JVM. An upload size
+      limit does not help: the file is small, the image it declares is not.
+    remediation: "Open an `ImageReader` on an `ImageInputStream`, check `getWidth(0)` and `getHeight(0)` against a limit, then `reader.read(0)`."
+
+  - id: decompress-read-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` reads a decompressed stream with no size limit"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-409, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, decompression-bomb, ai-code]
+    query: |
+      ((method_invocation name: (identifier) @m arguments: (argument_list))
+        (#match? @m "^(readAllBytes)$")) @hit
+      ((method_invocation object: (identifier) @o name: (identifier) @m)
+        (#match? @o "^(IOUtils|ByteStreams)$") (#match? @m "^(toByteArray|toString)$")) @hit
+    requires_in_scope: |
+      ((object_creation_expression type: (type_identifier) @t)
+        (#match? @t "^(GZIPInputStream|InflaterInputStream|ZipInputStream|GzipCompressorInputStream|BZip2CompressorInputStream|XZCompressorInputStream|ZstdInputStream|BrotliInputStream|DeflateCompressorInputStream)$"))
+    unless_in_scope: |
+      ((identifier) @i (#match? @i "^(readNBytes|BoundedInputStream|LimitedInputStream|getSize|getCompressedSize)$"))
+      ((identifier) @i (#match? @i "(?i)^max_?(size|bytes|len|length|uncompressed)|_?limit$"))
+    description: >-
+      Compressed input expands by up to ~1000x (deflate) or far more
+      (nested archives). Reading the decompressing stream to the end keeps
+      going until the output ends, so a 1 MB upload can become gigabytes of
+      heap.
+    remediation: "Read at most `max + 1` bytes (`in.readNBytes(max + 1)`) and refuse output longer than `max`; for zip entries check the running total, not the declared size."

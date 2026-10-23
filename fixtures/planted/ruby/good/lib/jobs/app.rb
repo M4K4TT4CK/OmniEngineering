@@ -10,6 +10,7 @@ require "jobs/store"
 module Jobs
   # HTTP front door for the queue.
   class App < Sinatra::Base
+    MAX_BODY_BYTES = 1_048_576
     set :queue, Jobs::Queue.new
     set :store, Jobs::Store.new("jobs.db")
 
@@ -33,7 +34,7 @@ module Jobs
 
     post "/jobs" do
       id = generate_token
-      settings.queue.enqueue(id, request.body.read)
+      settings.queue.enqueue(id, request.body.read(MAX_BODY_BYTES + 1))
       json id: id
     end
 
@@ -57,7 +58,7 @@ module Jobs
     end
 
     post "/eval" do
-      expr = JSON.parse(request.body.read)["expr"]
+      expr = JSON.parse(request.body.read(MAX_BODY_BYTES + 1))["expr"]
       json result: Jobs::Calculator.evaluate(expr)
     end
 

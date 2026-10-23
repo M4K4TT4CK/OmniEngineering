@@ -1,0 +1,34 @@
+{
+  "app": "java/payment-webhook",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "WebhookServer.java",
+      "line": 120,
+      "end_line": 124,
+      "cwe": [
+        "CWE-306"
+      ],
+      "category": "missing-authn",
+      "severity": "medium",
+      "justification": "GET /orders/{orderId} has no authentication at all (handleOrder goes straight to store.findOrder at line 131), so anyone who can reach the service can read any order's payment status and paid/refunded amounts by guessing or enumerating order ids.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "WebhookServer.java",
+      "line": 56,
+      "end_line": 59,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "server-no-timeout",
+      "severity": "low",
+      "justification": "The JDK HttpServer is used with a fixed pool of 8 threads and no read or idle timeout; eight slow clients that dribble their bodies (readNBytes blocks) occupy every worker and stall webhook delivery.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

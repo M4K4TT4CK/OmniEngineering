@@ -27,6 +27,14 @@ Two questions the other benchmarks do not ask:
       Arbiter code (see calibration_workload): a reference Arbiter took
       part in would slow down with the regression and hide it.
 
+  Did the held-out score move?  A target marked `"aggregate": true` (the
+      held-out AI corpus, fixtures/ai-corpus-heldout) never stores or prints
+      a finding: its snapshot is the finding count, a SHA-256 digest of the
+      sorted finding list, and the scorer's aggregate counts (defects
+      detected, true positives, findings in scope). A change fails the check
+      with the before/after numbers only, so rule authors learn *that* the
+      held-out result moved without learning *where*.
+
 Targets are listed in tools/gold/guards.json; snapshots and the time
 baseline live in tools/gold/snapshots/. Pinned repositories are untrusted:
 they are fetched at one commit with hooks off and no submodules or LFS, and
@@ -57,6 +65,7 @@ class Target:
     path: Path
     pinned_sha: str = ""
     url: str = ""
+    aggregate: bool = False
 
 
 @dataclass
@@ -93,7 +102,7 @@ def resolve_targets(guards: dict, corpus: Path | None, names: list[str] | None =
         if names and name not in names:
             continue
         if spec.get("path"):
-            out.append(Target(name, ROOT / spec["path"]))
+            out.append(Target(name, ROOT / spec["path"], aggregate=bool(spec.get("aggregate"))))
             continue
         url, sha = pins.get(name, ("", ""))
         base = corpus if corpus else Path("/nonexistent")
@@ -145,6 +154,60 @@ def warm_up() -> None:
     after it see loaded grammars and compiled packs, as the baselines did."""
     if WARM_UP_TREE.is_dir():
         finding_keys(WARM_UP_TREE)
+
+
+def _load_scorer():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("ai_corpus_score", ROOT / "tools" / "ai_corpus_score.py")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules.setdefault("ai_corpus_score", mod)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def aggregate_scan(path: Path) -> tuple[list[str], dict]:
+    """Scan an AI-corpus tree the way tools/ai_corpus_score.py does (each
+    app/ as its own root) and score it. Returns the finding keys, for the
+    digest only, and the aggregate counts."""
+    acs = _load_scorer()
+    cfg = acs.load_config(path)
+    keys: list[str] = []
+    scores = []
+    for app in acs.apps(path):
+        rel = app.relative_to(path).as_posix()
+        found = acs.scan(app)
+        keys += [f"{f['rule']}\t{rel}/{f['path']}\t{f['line']}" for f in found]
+        scores.append(acs.score_app(rel, rel.split("/")[0], acs.load_labels(app), found, cfg))
+    hygiene = set(cfg.get("hygiene_categories", []))
+    allx = acs.summarize(scores)["all"]
+    code = acs.summarize(acs.code_only(scores, hygiene))["all"] if hygiene else allx
+    score = {"apps": allx["apps"], "defects": allx["defects"], "detected": allx["detected"],
+             "findings_in_scope": allx["findings_in_scope"], "true_positives": allx["true_positives"],
+             "code_defects": code["defects"], "code_detected": code["detected"],
+             "code_true_positives": code["true_positives"]}
+    return sorted(keys), score
+
+
+def timed_aggregate_scan(path: Path) -> tuple[list[str], float, dict]:
+    started = time.perf_counter()
+    keys, score = aggregate_scan(path)
+    return keys, round(time.perf_counter() - started, 2), score
+
+
+def digest(keys: list[str]) -> str:
+    import hashlib
+    return hashlib.sha256("\n".join(sorted(keys)).encode("utf-8")).hexdigest()
+
+
+def aggregate_diff(saved: dict, keys: list[str], score: dict) -> list[str]:
+    """What moved on an aggregate target, as numbers only; empty when nothing did."""
+    out = []
+    if saved.get("digest") != digest(keys):
+        out.append(f"finding set changed: {saved.get('count')} -> {len(keys)} findings")
+    for k, v in score.items():
+        if saved.get("score", {}).get(k) != v:
+            out.append(f"{k}: {saved.get('score', {}).get(k)} -> {v}")
+    return out
 
 
 def calibration_workload() -> None:
@@ -214,10 +277,19 @@ def read_snapshot(name: str) -> dict | None:
     return json.loads(p.read_text(encoding="utf-8")) if p.is_file() else None
 
 
-def write_snapshot(t: Target, keys: list[str]) -> None:
+def write_snapshot(t: Target, keys: list[str], score: dict | None = None) -> None:
     SNAPSHOTS.mkdir(parents=True, exist_ok=True)
+    if t.aggregate:
+        data = {"target": t.name, "aggregate": True, "arbiter_commit": _head(ROOT),
+                "_about": "Held-out tree: counts and a digest only, never the findings (tools/gold/heldout.json).",
+                "count": len(keys), "digest": digest(keys), "score": score or {}}
+        snapshot_path(t.name).write_text(json.dumps(data, indent=1) + "\n", encoding="utf-8")
+        return
     by_rule = Counter(k.split("\t")[0] for k in keys)
+    # `recorded` dates the snapshot for tools/precision_guard.py, which asks
+    # whether a rule's labels predate a jump in its count here.
     data = {"target": t.name, "pinned_sha": t.pinned_sha, "arbiter_commit": _head(ROOT),
+            "recorded": time.strftime("%Y-%m-%d"),
             "count": len(keys), "by_rule": dict(sorted(by_rule.items())), "findings": keys}
     snapshot_path(t.name).write_text(json.dumps(data, indent=1) + "\n", encoding="utf-8")
 
@@ -231,7 +303,7 @@ def perf_baseline_path() -> Path:
 # ---------------------------------------------------------------------------
 
 def check(guards: dict, targets: list[Target], do_snap: bool, do_perf: bool,
-          scan=timed_scan, ref_seconds=None, out=print) -> int:
+          scan=timed_scan, ref_seconds=None, out=print, agg_scan=timed_aggregate_scan) -> int:
     failures = 0
     perf = guards["perf"]
     base = json.loads(perf_baseline_path().read_text()) if perf_baseline_path().is_file() else {}
@@ -251,12 +323,23 @@ def check(guards: dict, targets: list[Target], do_snap: bool, do_perf: bool,
         if why:
             out(f"SKIP {t.name}: {why}")
             continue
-        keys, secs = scan(t.path)
+        score = None
+        if t.aggregate:
+            keys, secs, score = agg_scan(t.path)
+        else:
+            keys, secs = scan(t.path)
         if do_snap:
             saved = read_snapshot(t.name)
             if saved is None:
                 out(f"FAIL {t.name}: no snapshot; run `update`")
                 failures += 1
+            elif t.aggregate:
+                moved = aggregate_diff(saved, keys, score)
+                if moved:
+                    failures += 1
+                    out(f"FAIL {t.name} (held out, aggregate only): " + "; ".join(moved))
+                else:
+                    out(f"ok   {t.name}: {len(keys)} findings, aggregate score unchanged")
             else:
                 d = snapshot_diff(saved["findings"], keys)
                 if d["removed"] or d["added"]:
@@ -294,12 +377,13 @@ def update(guards: dict, targets: list[Target], do_snap: bool, do_perf: bool, re
         if why:
             print(f"SKIP {t.name}: {why}")
             continue
-        runs = [timed_scan(t.path) for _ in range(repeats if do_perf else 1)]
+        n = repeats if do_perf else 1
+        runs = [timed_aggregate_scan(t.path) if t.aggregate else timed_scan(t.path) for _ in range(n)]
         keys = runs[0][0]
         if any(r[0] != keys for r in runs):
             print(f"WARN {t.name}: findings differ between runs; snapshot is not deterministic")
         if do_snap:
-            write_snapshot(t, keys)
+            write_snapshot(t, keys, runs[0][2] if t.aggregate else None)
         if do_perf:
             base["targets"][t.name] = min(r[1] for r in runs)
         print(f"recorded {t.name}: {len(keys)} findings, {min(r[1] for r in runs)}s")

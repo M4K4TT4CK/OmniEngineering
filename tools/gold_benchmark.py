@@ -138,7 +138,7 @@ def scan(repo: Path, use_adapters: bool = False) -> list[dict]:
     from arbiter.policy import load_config
     report = run_scan([str(repo)], load_config(None), use_adapters=use_adapters,
                       use_cache=False)
-    return [{"rule": f.rule_id, "path": f.location.path, "line": f.location.start_line,
+    return [{"id": f.id, "rule": f.rule_id, "path": f.location.path, "line": f.location.start_line,
              "cwe": list(f.cwe), "probe": f.probe, "severity": f.severity,
              "confidence": f.confidence, "title": f.title}
             for f in report.active()]

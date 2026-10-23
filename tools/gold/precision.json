@@ -1,0 +1,4502 @@
+{
+ "_about": "Per-rule precision ledger (docs/precision.md). Built by tools/precision_ledger.py from label files; do not edit by hand. A rule is admitted when its Wilson 95% lower bound reaches bar.rule_lower on at least bar.rule_min_n TP+FP labels, with labeller kappa at least bar.kappa_min where two labellers looked. `tier` is the claim: verified-tier precision on held-out labels only, overall and per category.",
+ "version": 1,
+ "bar": {
+  "rule_lower": 0.97,
+  "rule_min_n": 30,
+  "kappa_min": 0.8,
+  "offline_lower": 0.99,
+  "tier_lower": 0.99
+ },
+ "generated": "2026-10-23",
+ "rules": {
+  "arbiter/assurance.analysis-excluded": {
+   "tp": 1,
+   "fp": 1,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.5,
+   "wilson_lower": 0.0945,
+   "wilson_upper": 0.9055,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/assurance.blanket-suppression": {
+   "tp": 125,
+   "fp": 0,
+   "unsure": 0,
+   "n": 125,
+   "held_out": {
+    "tp": 18,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.9702,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 125,
+   "dimension": "",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": true,
+   "admitted_reason": "lower bound 0.970 on 125 labels",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/assurance.permanently-skipped-test": {
+   "tp": 5,
+   "fp": 0,
+   "unsure": 0,
+   "n": 5,
+   "held_out": {
+    "tp": 1,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.5655,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 5,
+   "dimension": "",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "5 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 4,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/assurance.test-asserts-nothing": {
+   "tp": 4,
+   "fp": 4,
+   "unsure": 0,
+   "n": 8,
+   "held_out": {
+    "tp": 2,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.5,
+   "wilson_lower": 0.2152,
+   "wilson_upper": 0.7848,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender+adjudicator/v3",
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model",
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 8,
+   "dimension": "",
+   "cwe": [
+    "CWE-1164"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "8 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 5,
+    "ai-corpus": 1
+   }
+  },
+  "arbiter/authored.docstring-promises-absent-behaviour": {
+   "tp": 0,
+   "fp": 4,
+   "unsure": 0,
+   "n": 4,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.4899,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 4,
+   "dimension": "",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "4 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/authored.security-check-disabled": {
+   "tp": 0,
+   "fp": 6,
+   "unsure": 0,
+   "n": 6,
+   "held_out": {
+    "tp": 0,
+    "fp": 2,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.3903,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 6,
+   "dimension": "",
+   "cwe": [
+    "CWE-295"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "6 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/authored.stub-on-production-path": {
+   "tp": 0,
+   "fp": 5,
+   "unsure": 0,
+   "n": 5,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.4345,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 5,
+   "dimension": "",
+   "cwe": [
+    "CWE-1164"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "5 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/authored.undeclared-import": {
+   "tp": 0,
+   "fp": 2,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.6576,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "",
+   "cwe": [
+    "CWE-1357"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/concurrency.check-then-act-unlocked": {
+   "tp": 0,
+   "fp": 2,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.6576,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "",
+   "cwe": [
+    "CWE-362"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/contract.documented-route-not-registered": {
+   "tp": 0,
+   "fp": 1,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 1,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.7935,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender+adjudicator/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "dimension": "",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/contract.dropped-column-still-referenced": {
+   "tp": 0,
+   "fp": 1,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.7935,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "dimension": "",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/drift.broken-doc-link": {
+   "tp": 3,
+   "fp": 3,
+   "unsure": 0,
+   "n": 6,
+   "held_out": {
+    "tp": 2,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.5,
+   "wilson_lower": 0.1876,
+   "wilson_upper": 0.8124,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender+adjudicator/v3",
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 6,
+   "dimension": "",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "6 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/drift.doc-references-missing-file": {
+   "tp": 0,
+   "fp": 6,
+   "unsure": 0,
+   "n": 6,
+   "held_out": {
+    "tp": 0,
+    "fp": 1,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.3903,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 6,
+   "dimension": "",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "6 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/drift.documented-env-var-absent": {
+   "tp": 1,
+   "fp": 3,
+   "unsure": 0,
+   "n": 4,
+   "held_out": {
+    "tp": 0,
+    "fp": 2,
+    "unsure": 0
+   },
+   "precision": 0.25,
+   "wilson_lower": 0.0456,
+   "wilson_upper": 0.6994,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model",
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 4,
+   "dimension": "",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "4 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/go.check-then-act-map": {
+   "tp": 0,
+   "fp": 2,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 2,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.6576,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-362",
+    "CWE-367"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/go.command-injection": {
+   "tp": 1,
+   "fp": 1,
+   "unsure": 1,
+   "n": 2,
+   "held_out": {
+    "tp": 1,
+    "fp": 1,
+    "unsure": 0
+   },
+   "precision": 0.5,
+   "wilson_lower": 0.0945,
+   "wilson_upper": 0.9055,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "security",
+   "cwe": [
+    "CWE-78"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/go.db-call-no-deadline": {
+   "tp": 12,
+   "fp": 0,
+   "unsure": 0,
+   "n": 12,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.7575,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 12,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "12 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 12
+   }
+  },
+  "arbiter/go.error-text-in-response": {
+   "tp": 5,
+   "fp": 1,
+   "unsure": 0,
+   "n": 6,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.8333,
+   "wilson_lower": 0.4365,
+   "wilson_upper": 0.9699,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 6,
+   "dimension": "security",
+   "cwe": [
+    "CWE-200",
+    "CWE-209"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "6 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 6,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/go.http-client-no-timeout": {
+   "tp": 2,
+   "fp": 1,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 1,
+    "unsure": 0
+   },
+   "precision": 0.6667,
+   "wilson_lower": 0.2077,
+   "wilson_upper": 0.9385,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 3,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/go.http-default-client": {
+   "tp": 7,
+   "fp": 0,
+   "unsure": 0,
+   "n": 7,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.6457,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 7,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "7 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/go.ignored-encode-error": {
+   "tp": 2,
+   "fp": 0,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.3424,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-252"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 5
+   }
+  },
+  "arbiter/go.ignored-exec-error": {
+   "tp": 2,
+   "fp": 0,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.3424,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-252"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 2
+   }
+  },
+  "arbiter/go.image-decode-unbounded": {
+   "tp": 2,
+   "fp": 0,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.3424,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400",
+    "CWE-409"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 2
+   }
+  },
+  "arbiter/go.pprof-on-default-mux": {
+   "tp": 1,
+   "fp": 0,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 1,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.2065,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "dimension": "security",
+   "cwe": [
+    "CWE-200",
+    "CWE-489"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/go.request-body-read-unbounded": {
+   "tp": 2,
+   "fp": 0,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.3424,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400",
+    "CWE-770"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/go.retry-constant-delay": {
+   "tp": 2,
+   "fp": 0,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 1,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.3424,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model",
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 1
+   }
+  },
+  "arbiter/go.retry-no-backoff": {
+   "tp": 1,
+   "fp": 1,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.5,
+   "wilson_lower": 0.0945,
+   "wilson_upper": 0.9055,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400",
+    "CWE-834"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/go.sql-injection": {
+   "tp": 0,
+   "fp": 3,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.5615,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 3,
+   "dimension": "security",
+   "cwe": [
+    "CWE-89"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 5,
+    "ai-corpus": 3
+   }
+  },
+  "arbiter/go.ssrf-stored-callback": {
+   "tp": 0,
+   "fp": 0,
+   "unsure": 1,
+   "n": 0,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": null,
+   "wilson_lower": null,
+   "wilson_upper": null,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 0,
+   "dimension": "security",
+   "cwe": [
+    "CWE-918"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "0 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 1
+   }
+  },
+  "arbiter/go.stub-not-implemented": {
+   "tp": 0,
+   "fp": 2,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 2,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.6576,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-1164"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/go.stub-returns-nil": {
+   "tp": 0,
+   "fp": 3,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 3,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.5615,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 3,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-1164"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/go.test-skipped-unconditionally": {
+   "tp": 2,
+   "fp": 0,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.3424,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "assurance",
+   "cwe": [
+    "CWE-1164"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/go.worker-loop-no-stop": {
+   "tp": 2,
+   "fp": 1,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 1,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.6667,
+   "wilson_lower": 0.2077,
+   "wilson_upper": 0.9385,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 3,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-835"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.check-then-act-unsynchronized": {
+   "tp": 0,
+   "fp": 2,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.6576,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-362",
+    "CWE-366"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.command-injection": {
+   "tp": 571,
+   "fp": 303,
+   "unsure": 0,
+   "n": 874,
+   "held_out": {
+    "tp": 571,
+    "fp": 302,
+    "unsure": 0
+   },
+   "precision": 0.6533,
+   "wilson_lower": 0.6212,
+   "wilson_upper": 0.6841,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender+adjudicator/v3",
+    "claude-opus-5-5:prosecutor+defender/v3",
+    "ground-truth"
+   ],
+   "sources": [
+    "gold-model",
+    "juliet-java",
+    "owasp-java"
+   ],
+   "dates": {},
+   "population": 874,
+   "dimension": "security",
+   "cwe": [
+    "CWE-78"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "lower bound 0.621 on 874 labels, below 0.97",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 7,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.decompress-read-unbounded": {
+   "tp": 0,
+   "fp": 1,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 1,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.7935,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400",
+    "CWE-409"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.hostname-verifier-disabled": {
+   "tp": 0,
+   "fp": 1,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 1,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.7935,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "dimension": "security",
+   "cwe": [
+    "CWE-295"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.image-decode-unbounded": {
+   "tp": 2,
+   "fp": 0,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.3424,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400",
+    "CWE-409"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 2
+   }
+  },
+  "arbiter/java.jackson-default-typing": {
+   "tp": 0,
+   "fp": 3,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.5615,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 3,
+   "dimension": "security",
+   "cwe": [
+    "CWE-502"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.mail-starttls-not-required": {
+   "tp": 1,
+   "fp": 0,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.2065,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "dimension": "security",
+   "cwe": [
+    "CWE-319"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 1
+   }
+  },
+  "arbiter/java.object-input-stream": {
+   "tp": 2,
+   "fp": 2,
+   "unsure": 0,
+   "n": 4,
+   "held_out": {
+    "tp": 1,
+    "fp": 1,
+    "unsure": 0
+   },
+   "precision": 0.5,
+   "wilson_lower": 0.15,
+   "wilson_upper": 0.85,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender+adjudicator/v3",
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 4,
+   "dimension": "security",
+   "cwe": [
+    "CWE-502"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "4 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.rest-template-no-timeout": {
+   "tp": 4,
+   "fp": 0,
+   "unsure": 0,
+   "n": 4,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.5101,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 4,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "4 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.retry-constant-delay": {
+   "tp": 1,
+   "fp": 0,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.2065,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 1
+   }
+  },
+  "arbiter/java.retry-without-backoff": {
+   "tp": 0,
+   "fp": 1,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.7935,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400",
+    "CWE-834"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.sql-string-built": {
+   "tp": 2492,
+   "fp": 1140,
+   "unsure": 0,
+   "n": 3632,
+   "held_out": {
+    "tp": 2492,
+    "fp": 1140,
+    "unsure": 0
+   },
+   "precision": 0.6861,
+   "wilson_lower": 0.6708,
+   "wilson_upper": 0.701,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3",
+    "ground-truth"
+   ],
+   "sources": [
+    "gold-model",
+    "juliet-java",
+    "owasp-java"
+   ],
+   "dates": {},
+   "population": 3632,
+   "dimension": "security",
+   "cwe": [
+    "CWE-89"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "lower bound 0.671 on 3632 labels, below 0.97",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 9,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.ssrf-stored-callback": {
+   "tp": 0,
+   "fp": 0,
+   "unsure": 1,
+   "n": 0,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": null,
+   "wilson_lower": null,
+   "wilson_upper": null,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 0,
+   "dimension": "security",
+   "cwe": [
+    "CWE-918"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "0 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 1
+   }
+  },
+  "arbiter/java.stub-method": {
+   "tp": 0,
+   "fp": 7,
+   "unsure": 0,
+   "n": 7,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.3543,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 7,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-1164"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "7 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.swallowed-exception": {
+   "tp": 3,
+   "fp": 1,
+   "unsure": 0,
+   "n": 4,
+   "held_out": {
+    "tp": 1,
+    "fp": 1,
+    "unsure": 0
+   },
+   "precision": 0.75,
+   "wilson_lower": 0.3006,
+   "wilson_upper": 0.9544,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 4,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-391",
+    "CWE-703"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "4 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.test-without-assertion": {
+   "tp": 2,
+   "fp": 4,
+   "unsure": 0,
+   "n": 6,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.3333,
+   "wilson_lower": 0.0968,
+   "wilson_upper": 0.7,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender+adjudicator/v3",
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 6,
+   "dimension": "assurance",
+   "cwe": [
+    "CWE-1164"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "6 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 7,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.trust-all-certificates": {
+   "tp": 0,
+   "fp": 2,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 2,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.6576,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "security",
+   "cwe": [
+    "CWE-295"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.unsynchronized-counter": {
+   "tp": 0,
+   "fp": 2,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.6576,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-362",
+    "CWE-366"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.upload-client-filename": {
+   "tp": 1,
+   "fp": 0,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.2065,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "dimension": "security",
+   "cwe": [
+    "CWE-434"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 1
+   }
+  },
+  "arbiter/java.url-connection-no-timeout": {
+   "tp": 0,
+   "fp": 3,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.5615,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 3,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.weak-random-for-secret": {
+   "tp": 218,
+   "fp": 0,
+   "unsure": 0,
+   "n": 218,
+   "held_out": {
+    "tp": 218,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.9827,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "ground-truth"
+   ],
+   "sources": [
+    "owasp-java"
+   ],
+   "dates": {},
+   "population": 218,
+   "dimension": "security",
+   "cwe": [
+    "CWE-330",
+    "CWE-338"
+   ],
+   "fp_notes": [],
+   "admitted": true,
+   "admitted_reason": "lower bound 0.983 on 218 labels",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 7,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.xss-unescaped-html": {
+   "tp": 382,
+   "fp": 53,
+   "unsure": 0,
+   "n": 435,
+   "held_out": {
+    "tp": 382,
+    "fp": 53,
+    "unsure": 0
+   },
+   "precision": 0.8782,
+   "wilson_lower": 0.8441,
+   "wilson_upper": 0.9056,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "ground-truth"
+   ],
+   "sources": [
+    "juliet-java",
+    "owasp-java"
+   ],
+   "dates": {},
+   "population": 435,
+   "dimension": "security",
+   "cwe": [
+    "CWE-79"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "lower bound 0.844 on 435 labels, below 0.97",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/python.code-injection": {
+   "tp": 22,
+   "fp": 12,
+   "unsure": 0,
+   "n": 34,
+   "held_out": {
+    "tp": 20,
+    "fp": 11,
+    "unsure": 0
+   },
+   "precision": 0.6471,
+   "wilson_lower": 0.4791,
+   "wilson_upper": 0.7851,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3",
+    "ground-truth"
+   ],
+   "sources": [
+    "gold-model",
+    "owasp-python"
+   ],
+   "dates": {},
+   "population": 34,
+   "dimension": "security",
+   "cwe": [
+    "CWE-95"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "lower bound 0.479 on 34 labels, below 0.97",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/python.command-injection": {
+   "tp": 7,
+   "fp": 6,
+   "unsure": 0,
+   "n": 13,
+   "held_out": {
+    "tp": 7,
+    "fp": 6,
+    "unsure": 0
+   },
+   "precision": 0.5385,
+   "wilson_lower": 0.2914,
+   "wilson_upper": 0.7679,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "ground-truth"
+   ],
+   "sources": [
+    "owasp-python"
+   ],
+   "dates": {},
+   "population": 13,
+   "dimension": "security",
+   "cwe": [
+    "CWE-78"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "13 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 5,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/python.http-no-timeout": {
+   "tp": 2,
+   "fp": 1,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.6667,
+   "wilson_lower": 0.2077,
+   "wilson_upper": 0.9385,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 3,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/python.insecure-random-for-secret": {
+   "tp": 99,
+   "fp": 0,
+   "unsure": 0,
+   "n": 99,
+   "held_out": {
+    "tp": 99,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.9626,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "ground-truth"
+   ],
+   "sources": [
+    "owasp-python"
+   ],
+   "dates": {},
+   "population": 99,
+   "dimension": "security",
+   "cwe": [
+    "CWE-338"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "lower bound 0.963 on 99 labels, below 0.97",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/python.mail-tls-unverified": {
+   "tp": 2,
+   "fp": 0,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.3424,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "security",
+   "cwe": [
+    "CWE-295"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 2
+   }
+  },
+  "arbiter/python.request-body-unbounded": {
+   "tp": 2,
+   "fp": 0,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.3424,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400",
+    "CWE-770"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 2
+   }
+  },
+  "arbiter/python.retry-constant-delay": {
+   "tp": 1,
+   "fp": 0,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.2065,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 1
+   }
+  },
+  "arbiter/python.sql-injection": {
+   "tp": 17,
+   "fp": 5,
+   "unsure": 0,
+   "n": 22,
+   "held_out": {
+    "tp": 17,
+    "fp": 1,
+    "unsure": 0
+   },
+   "precision": 0.7727,
+   "wilson_lower": 0.5656,
+   "wilson_upper": 0.8988,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3",
+    "ground-truth"
+   ],
+   "sources": [
+    "cve-fix",
+    "cve-fix-persists",
+    "gold-model",
+    "owasp-python"
+   ],
+   "dates": {},
+   "population": 22,
+   "dimension": "security",
+   "cwe": [
+    "CWE-89"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "22 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 8,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/python.swallowed-error-in-worker-loop": {
+   "tp": 0,
+   "fp": 2,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.6576,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-391",
+    "CWE-703"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/python.thread-not-daemon-never-joined": {
+   "tp": 0,
+   "fp": 1,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.7935,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-835"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/python.unsafe-deserialization": {
+   "tp": 18,
+   "fp": 15,
+   "unsure": 0,
+   "n": 33,
+   "held_out": {
+    "tp": 18,
+    "fp": 12,
+    "unsure": 0
+   },
+   "precision": 0.5455,
+   "wilson_lower": 0.3799,
+   "wilson_upper": 0.7016,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3",
+    "ground-truth"
+   ],
+   "sources": [
+    "gold-model",
+    "owasp-python"
+   ],
+   "dates": {},
+   "population": 33,
+   "dimension": "security",
+   "cwe": [
+    "CWE-502"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "lower bound 0.380 on 33 labels, below 0.97",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 4,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/python.weak-password-hash": {
+   "tp": 72,
+   "fp": 0,
+   "unsure": 0,
+   "n": 72,
+   "held_out": {
+    "tp": 71,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.9493,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3",
+    "ground-truth"
+   ],
+   "sources": [
+    "gold-model",
+    "owasp-python"
+   ],
+   "dates": {},
+   "population": 72,
+   "dimension": "security",
+   "cwe": [
+    "CWE-327",
+    "CWE-916"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "lower bound 0.949 on 72 labels, below 0.97",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/resource.k8s-capabilities-not-dropped": {
+   "tp": 8,
+   "fp": 0,
+   "unsure": 0,
+   "n": 8,
+   "held_out": {
+    "tp": 2,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.6756,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 8,
+   "dimension": "security",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "8 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/resource.k8s-mutable-image-tag": {
+   "tp": 6,
+   "fp": 0,
+   "unsure": 0,
+   "n": 6,
+   "held_out": {
+    "tp": 2,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.6097,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 6,
+   "dimension": "supply_chain",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "6 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/resource.k8s-no-resource-limits": {
+   "tp": 7,
+   "fp": 0,
+   "unsure": 1,
+   "n": 7,
+   "held_out": {
+    "tp": 2,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.6457,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender+adjudicator/v3",
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 7,
+   "dimension": "quality",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "7 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/resource.k8s-no-security-context": {
+   "tp": 8,
+   "fp": 0,
+   "unsure": 0,
+   "n": 8,
+   "held_out": {
+    "tp": 2,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.6756,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 8,
+   "dimension": "security",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "8 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/resource.k8s-not-run-as-non-root": {
+   "tp": 7,
+   "fp": 0,
+   "unsure": 0,
+   "n": 7,
+   "held_out": {
+    "tp": 2,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.6457,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 7,
+   "dimension": "security",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "7 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/resource.k8s-privilege-escalation-not-disabled": {
+   "tp": 8,
+   "fp": 0,
+   "unsure": 0,
+   "n": 8,
+   "held_out": {
+    "tp": 2,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.6756,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 8,
+   "dimension": "security",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "8 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/resource.k8s-writable-root-filesystem": {
+   "tp": 8,
+   "fp": 0,
+   "unsure": 0,
+   "n": 8,
+   "held_out": {
+    "tp": 2,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.6756,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 8,
+   "dimension": "security",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "8 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.check-then-act-unlocked": {
+   "tp": 0,
+   "fp": 3,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.5615,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender+adjudicator/v3",
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 3,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-362",
+    "CWE-366"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 6,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.code-injection": {
+   "tp": 0,
+   "fp": 2,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.6576,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "security",
+   "cwe": [
+    "CWE-470",
+    "CWE-95"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.command-injection": {
+   "tp": 1,
+   "fp": 2,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.3333,
+   "wilson_lower": 0.0615,
+   "wilson_upper": 0.7923,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 3,
+   "dimension": "security",
+   "cwe": [
+    "CWE-78"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.dynamic-eval": {
+   "tp": 1,
+   "fp": 2,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 1,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.3333,
+   "wilson_lower": 0.0615,
+   "wilson_upper": 0.7923,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 3,
+   "dimension": "security",
+   "cwe": [
+    "CWE-95"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.http-no-timeout": {
+   "tp": 2,
+   "fp": 0,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.3424,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 5,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.marshal-load": {
+   "tp": 5,
+   "fp": 1,
+   "unsure": 0,
+   "n": 6,
+   "held_out": {
+    "tp": 4,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.8333,
+   "wilson_lower": 0.4365,
+   "wilson_upper": 0.9699,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3",
+    "ground-truth"
+   ],
+   "sources": [
+    "cve-fix",
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 6,
+   "dimension": "security",
+   "cwe": [
+    "CWE-502"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "6 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.request-body-read-unbounded": {
+   "tp": 2,
+   "fp": 0,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.3424,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model",
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400",
+    "CWE-770"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 2
+   }
+  },
+  "arbiter/ruby.requeue-without-delay": {
+   "tp": 0,
+   "fp": 1,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.7935,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 1
+   }
+  },
+  "arbiter/ruby.rescue-exception": {
+   "tp": 9,
+   "fp": 0,
+   "unsure": 0,
+   "n": 9,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.7009,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 9,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-396"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "9 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.retry-unbounded": {
+   "tp": 1,
+   "fp": 3,
+   "unsure": 0,
+   "n": 4,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.25,
+   "wilson_lower": 0.0456,
+   "wilson_upper": 0.6994,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender+adjudicator/v3",
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 4,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400",
+    "CWE-834"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "4 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.retry-without-backoff": {
+   "tp": 0,
+   "fp": 1,
+   "unsure": 1,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.7935,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.skipped-spec": {
+   "tp": 6,
+   "fp": 1,
+   "unsure": 0,
+   "n": 7,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.8571,
+   "wilson_lower": 0.4869,
+   "wilson_upper": 0.9743,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 7,
+   "dimension": "assurance",
+   "cwe": [
+    "CWE-1164"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "7 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 4,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.sql-injection": {
+   "tp": 0,
+   "fp": 19,
+   "unsure": 0,
+   "n": 19,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.1682,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model",
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 19,
+   "dimension": "security",
+   "cwe": [
+    "CWE-89"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "19 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 5,
+    "ai-corpus": 1
+   }
+  },
+  "arbiter/ruby.ssrf-stored-callback": {
+   "tp": 1,
+   "fp": 0,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.2065,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "dimension": "security",
+   "cwe": [
+    "CWE-918"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 1
+   }
+  },
+  "arbiter/ruby.stub-method": {
+   "tp": 0,
+   "fp": 3,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.5615,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 3,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-1164"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.swallowed-error": {
+   "tp": 3,
+   "fp": 1,
+   "unsure": 0,
+   "n": 4,
+   "held_out": {
+    "tp": 1,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.75,
+   "wilson_lower": 0.3006,
+   "wilson_upper": 0.9544,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model",
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 4,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-391",
+    "CWE-703"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "4 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 4,
+    "ai-corpus": 1
+   }
+  },
+  "arbiter/ruby.tls-verify-off": {
+   "tp": 0,
+   "fp": 2,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.6576,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "security",
+   "cwe": [
+    "CWE-295"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.unsynchronised-counter": {
+   "tp": 1,
+   "fp": 1,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.5,
+   "wilson_lower": 0.0945,
+   "wilson_upper": 0.9055,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-362",
+    "CWE-366"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.vacuous-spec": {
+   "tp": 0,
+   "fp": 2,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.6576,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "assurance",
+   "cwe": [
+    "CWE-1164"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.yaml-unsafe-load": {
+   "tp": 0,
+   "fp": 2,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.6576,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "security",
+   "cwe": [
+    "CWE-502"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/secrets.assigned-credential": {
+   "tp": 0,
+   "fp": 6,
+   "unsure": 0,
+   "n": 6,
+   "held_out": {
+    "tp": 0,
+    "fp": 3,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.3903,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 6,
+   "dimension": "",
+   "cwe": [
+    "CWE-798"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "6 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/secrets.jwt": {
+   "tp": 0,
+   "fp": 5,
+   "unsure": 0,
+   "n": 5,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.4345,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 5,
+   "dimension": "",
+   "cwe": [
+    "CWE-798"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "5 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/secrets.pg-url": {
+   "tp": 0,
+   "fp": 2,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.6576,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "",
+   "cwe": [
+    "CWE-798"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/secrets.private-key": {
+   "tp": 0,
+   "fp": 6,
+   "unsure": 0,
+   "n": 6,
+   "held_out": {
+    "tp": 0,
+    "fp": 1,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.3903,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 6,
+   "dimension": "",
+   "cwe": [
+    "CWE-798"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "6 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/supply.pull-request-target": {
+   "tp": 0,
+   "fp": 3,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.5615,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 3,
+   "dimension": "",
+   "cwe": [
+    "CWE-829"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/supply.unpinned-action": {
+   "tp": 113,
+   "fp": 3,
+   "unsure": 0,
+   "n": 116,
+   "held_out": {
+    "tp": 17,
+    "fp": 1,
+    "unsure": 0
+   },
+   "precision": 0.9741,
+   "wilson_lower": 0.9267,
+   "wilson_upper": 0.9912,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender+adjudicator/v3",
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 116,
+   "dimension": "",
+   "cwe": [
+    "CWE-1357",
+    "CWE-494"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "lower bound 0.927 on 116 labels, below 0.97",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/supply.unpinned-npm-dep": {
+   "tp": 21,
+   "fp": 6,
+   "unsure": 1,
+   "n": 27,
+   "held_out": {
+    "tp": 0,
+    "fp": 1,
+    "unsure": 0
+   },
+   "precision": 0.7778,
+   "wilson_lower": 0.5924,
+   "wilson_upper": 0.8939,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender+adjudicator/v3",
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model",
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 27,
+   "dimension": "",
+   "cwe": [
+    "CWE-1357",
+    "CWE-494"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "27 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 47
+   }
+  },
+  "arbiter/supply.unpinned-python-dep": {
+   "tp": 16,
+   "fp": 0,
+   "unsure": 0,
+   "n": 16,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.8064,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model",
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 16,
+   "dimension": "",
+   "cwe": [
+    "CWE-1357",
+    "CWE-494"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "16 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 18
+   }
+  },
+  "arbiter/typescript.axios-no-timeout": {
+   "tp": 4,
+   "fp": 0,
+   "unsure": 0,
+   "n": 4,
+   "held_out": {
+    "tp": 2,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.5101,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender+adjudicator/v3",
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 4,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "4 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/typescript.empty-catch": {
+   "tp": 1,
+   "fp": 2,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.3333,
+   "wilson_lower": 0.0615,
+   "wilson_upper": 0.7923,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender+adjudicator/v3",
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 3,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-391",
+    "CWE-703"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/typescript.empty-catch-in-loop": {
+   "tp": 3,
+   "fp": 0,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.4385,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender+adjudicator/v3",
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 3,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-391",
+    "CWE-703"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/typescript.fetch-no-timeout": {
+   "tp": 6,
+   "fp": 0,
+   "unsure": 0,
+   "n": 6,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.6097,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 6,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "6 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/typescript.http-request-no-timeout": {
+   "tp": 7,
+   "fp": 0,
+   "unsure": 0,
+   "n": 7,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.6457,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 7,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "7 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/typescript.inner-html-assigned": {
+   "tp": 0,
+   "fp": 2,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.6576,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "dimension": "security",
+   "cwe": [
+    "CWE-79"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/typescript.mail-starttls-not-required": {
+   "tp": 1,
+   "fp": 0,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.2065,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "dimension": "security",
+   "cwe": [
+    "CWE-319"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 1
+   }
+  },
+  "arbiter/typescript.promise-catch-noop": {
+   "tp": 2,
+   "fp": 4,
+   "unsure": 0,
+   "n": 6,
+   "held_out": {
+    "tp": 1,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.3333,
+   "wilson_lower": 0.0968,
+   "wilson_upper": 0.7,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model",
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 6,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-391",
+    "CWE-703"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "6 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 3
+   }
+  },
+  "arbiter/typescript.request-body-accumulated-unbounded": {
+   "tp": 4,
+   "fp": 0,
+   "unsure": 0,
+   "n": 4,
+   "held_out": {
+    "tp": 3,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.5101,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 4,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400",
+    "CWE-770"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "4 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/typescript.retry-no-backoff": {
+   "tp": 0,
+   "fp": 1,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.7935,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400",
+    "CWE-834"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/typescript.shell-command-built": {
+   "tp": 1,
+   "fp": 4,
+   "unsure": 0,
+   "n": 5,
+   "held_out": {
+    "tp": 1,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.2,
+   "wilson_lower": 0.0362,
+   "wilson_upper": 0.6245,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3",
+    "ground-truth"
+   ],
+   "sources": [
+    "cve-fix",
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 5,
+   "dimension": "security",
+   "cwe": [
+    "CWE-78"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "5 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/typescript.shell-spawn-built": {
+   "tp": 1,
+   "fp": 0,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 1,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.2065,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "dimension": "security",
+   "cwe": [
+    "CWE-78"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/typescript.skipped-test": {
+   "tp": 1,
+   "fp": 2,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 2,
+    "unsure": 0
+   },
+   "precision": 0.3333,
+   "wilson_lower": 0.0615,
+   "wilson_upper": 0.7923,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 3,
+   "dimension": "assurance",
+   "cwe": [
+    "CWE-1164"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/typescript.sql-string-built": {
+   "tp": 0,
+   "fp": 1,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.7935,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "dimension": "security",
+   "cwe": [
+    "CWE-89"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/typescript.ssrf-stored-callback": {
+   "tp": 0,
+   "fp": 0,
+   "unsure": 1,
+   "n": 0,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": null,
+   "wilson_lower": null,
+   "wilson_upper": null,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 0,
+   "dimension": "security",
+   "cwe": [
+    "CWE-918"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "0 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 1
+   }
+  },
+  "arbiter/typescript.stub-returns-constant": {
+   "tp": 3,
+   "fp": 0,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.4385,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 3,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-1164"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/typescript.stub-throws-not-implemented": {
+   "tp": 0,
+   "fp": 3,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.5615,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 3,
+   "dimension": "quality",
+   "cwe": [
+    "CWE-1164"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/typescript.test-without-assertion": {
+   "tp": 0,
+   "fp": 4,
+   "unsure": 0,
+   "n": 4,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.4899,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 4,
+   "dimension": "assurance",
+   "cwe": [
+    "CWE-1164"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "4 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 6,
+    "ai-corpus": 0
+   }
+  }
+ },
+ "tier": {
+  "held_out_only": true,
+  "rules": [],
+  "overall": null,
+  "claim": false,
+  "categories": {}
+ }
+}

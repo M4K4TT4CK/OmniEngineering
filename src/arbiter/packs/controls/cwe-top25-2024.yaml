@@ -314,7 +314,7 @@ controls:
     cwe: [CWE-918]
     satisfied_by: []
     languages:
-      python: {status: applies, measured: "S"}
+      python: {status: applies, measured: "N+S"}
       typescript: {status: applies, measured: "N"}
       go: {status: applies, measured: "N"}
       java: {status: applies, measured: "N"}

@@ -140,6 +140,20 @@ class Finding:
     # empty on occurrence 0 where it equals `id`.
     occurrence: int = 0
     base_id: str = ""
+    # Precision tier (precision.py): "verified" (gate-eligible), "advisory"
+    # (shown, never blocks a tiered gate) or "inferred" (model-found), and a
+    # one-line reason. Empty until the scan assigns it; a report from before
+    # tiers loads as advisory (or inferred), never as verified.
+    tier: str = ""
+    tier_reason: str = ""
+    # The requirement ids (ARB-xxx) the rule was built or fixed under, from
+    # rule metadata (rule_meta.py). Distinct from `req:` tags, which name the
+    # requirements the commits touching this file cite.
+    requirements: list[str] = field(default_factory=list)
+    # The model verification pass (verify.py): {verdict, reason, model,
+    # prompt_version, cached, line}. Empty when the pass did not run. It never
+    # changes severity, status or suppression; the tier mapping reads it.
+    verification: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not self.id:
@@ -187,6 +201,9 @@ class Finding:
         }
         known["location"] = Location(**{k: v for k, v in loc.items() if k in Location.__dataclass_fields__})
         known["related"] = related
+        if not known.get("tier"):
+            from .precision import default_tier
+            known["tier"], known["tier_reason"] = default_tier(d)
         return Finding(**known)
 
 
@@ -346,6 +363,9 @@ class Report:
     # carry an ordinal (ARB-080); empty in a report from before that, whose
     # ids a baseline must then treat as legacy.
     fingerprint: str = ""
+    # One row per rule that fired: {id, requirements, tier}. The OmniGraph
+    # reads it to trace a rule to its requirements without loading packs.
+    rules: list[dict] = field(default_factory=list)
 
     def active(self) -> list[Finding]:
         return [f for f in self.findings if not f.suppressed]
@@ -371,6 +391,7 @@ class Report:
             "integrity": self.integrity,
             "learning": self.learning,
             "fingerprint": self.fingerprint,
+            "rules": self.rules,
             "findings": [f.to_dict() for f in self.findings],
         }
 
@@ -393,6 +414,7 @@ class Report:
         r.integrity = d.get("integrity", {})
         r.learning = d.get("learning", {})
         r.fingerprint = d.get("fingerprint", "")
+        r.rules = d.get("rules", [])
         sc = d.get("scorecard") or {}
         card = Scorecard(
             overall=sc.get("overall"),

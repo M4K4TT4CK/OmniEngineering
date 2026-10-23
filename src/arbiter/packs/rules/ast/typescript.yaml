@@ -21,6 +21,7 @@ languages: [typescript, javascript]
 rules:
   # ---------------------------------------------------------------- injection
   - id: eval-call
+    requirements: [ARB-061]
     title: "`eval` runs a string as code"
     severity: high
     confidence: high
@@ -40,6 +41,7 @@ rules:
     remediation: "Parse data with JSON.parse; never build code from input."
 
   - id: new-function-code
+    requirements: [ARB-061]
     title: "`new Function` compiles a runtime string into code"
     severity: high
     confidence: high
@@ -60,6 +62,7 @@ rules:
     remediation: "Dispatch on data (a map of named handlers, JSON.parse); do not compile strings."
 
   - id: timer-string-code
+    requirements: [ARB-061]
     title: "`{text}` passes a string to a timer, which evaluates it as code"
     severity: medium
     confidence: high
@@ -77,6 +80,7 @@ rules:
     remediation: "Pass a function: `setTimeout(() => tick(), ms)`."
 
   - id: vm-run-code
+    requirements: [ARB-061]
     title: "`{text}` runs a runtime string through the `vm` module"
     severity: high
     confidence: medium
@@ -100,6 +104,7 @@ rules:
     remediation: "Do not run untrusted code in-process; use a real sandbox (isolated worker, container) or a data-only DSL."
 
   - id: sql-string-built
+    requirements: [ARB-061]
     title: "SQL built from a string: `{text}`"
     severity: high
     confidence: high
@@ -125,8 +130,25 @@ rules:
       `client.escapeIdentifier(x)`) is not reported: DDL identifiers cannot
       be bound as parameters.
     remediation: "Use placeholders: `query(\"... WHERE id = $1\", [id])`, or the driver's parameter binding."
+    # One-hop data flow (Milestone 3): the built SQL reaches `.query` through
+    # a local or a same-file helper. The source is the built string itself,
+    # with the same exclusions as `query`.
+    taint:
+      sources: |
+        ([(template_string (template_substitution))
+          (binary_expression operator: "+")] @source
+         (#match? @source "(?i)^[`\"']\\s*(select|insert|update|delete|with|merge|create|drop|alter)\\b")
+         (#match? @source "\\$\\{(?!\\s*([A-Z][A-Z0-9_]*|(quoted|escaped)[A-Z_][\\w]*|[\\w]*(Quoted|Escaped|Ident)|[\\w.]*escape(Identifier|Literal)\\([^}]*\\))\\s*\\})|\\+\\s*[A-Za-z_$(]"))
+      sinks: |
+        ((call_expression
+          function: (member_expression
+            property: (property_identifier) @m
+              (#match? @m "^(query|execute|raw|unsafe|\\$queryRawUnsafe|\\$executeRawUnsafe)$"))
+          arguments: (arguments . (_) @sink)) @hit)
+      value: [sql]
 
   - id: shell-command-built
+    requirements: [ARB-061]
     title: "Shell command built from a value: `{text}`"
     severity: high
     confidence: high
@@ -141,7 +163,7 @@ rules:
         function: (identifier) @fn
         arguments: (arguments
           . [(template_string (template_substitution)) (binary_expression) (identifier) @arg
-             (member_expression) (subscript_expression) (call_expression)])) @hit
+             (member_expression) (subscript_expression) (call_expression)] @cmd)) @hit
        (#match? @fn "^(exec|execSync)$")
        (#not-match? @arg "^[A-Z][A-Z0-9_]*$"))
       ((call_expression
@@ -150,7 +172,7 @@ rules:
           property: (property_identifier) @fn)
         arguments: (arguments
           . [(template_string (template_substitution)) (binary_expression) (identifier) @arg
-             (member_expression) (subscript_expression) (call_expression)])) @hit
+             (member_expression) (subscript_expression) (call_expression)] @cmd)) @hit
        (#match? @o "^(child_process|childProcess|cp)$")
        (#match? @fn "^(exec|execSync)$")
        (#not-match? @arg "^[A-Z][A-Z0-9_]*$"))
@@ -159,8 +181,25 @@ rules:
       substitution, a `+`, a variable) that contains `;`, `|` or `$(...)` runs
       as its own command.
     remediation: "Use `execFile(\"prog\", [arg1, arg2])` or `spawn` without `shell: true`; pass arguments as an array."
+    # One-hop data flow (Milestone 3): the command reaches `exec` through a
+    # local or a helper, or is wrapped in parentheses / String(...).
+    taint:
+      mode: nonconst
+      sinks: |
+        ((call_expression
+          function: [(identifier) @fn
+                     (member_expression object: (identifier) @o property: (property_identifier) @fn)]
+          arguments: (arguments . (_) @sink)) @hit
+         (#match? @fn "^(exec|execSync)$"))
+      sanitizers: |
+        ((identifier) @sanitizer (#match? @sanitizer "^[A-Z][A-Z0-9_]*$"))
+      where: {o: "^(child_process|childProcess|cp)$"}
+      value: [cmd]
+      built: true
+      requires: true
 
   - id: shell-spawn-built
+    requirements: [ARB-061]
     title: "`spawn` with `shell: true` and a built command"
     severity: high
     confidence: high
@@ -183,8 +222,21 @@ rules:
       argument array no longer protects it: a value in the command runs as
       shell syntax.
     remediation: "Drop `shell: true` and pass the program and its arguments separately."
+    taint:
+      mode: nonconst
+      sinks: |
+        ((call_expression
+          function: [(identifier) @fn
+                     (member_expression property: (property_identifier) @fn)]
+          arguments: (arguments . (_) @sink (object) @opts)) @hit
+         (#match? @fn "^(spawn|spawnSync)$")
+         (#match? @opts "\\bshell\\s*:\\s*true"))
+      sanitizers: |
+        ((identifier) @sanitizer (#match? @sanitizer "^[A-Z][A-Z0-9_]*$"))
+      built: true
 
   - id: html-from-request
+    requirements: [ARB-061, ARB-065]
     title: "Response body built from request data: `{text}`"
     severity: high
     confidence: high
@@ -206,8 +258,41 @@ rules:
       `<script>` in the query string runs in every visitor's browser who
       follows the link.
     remediation: "Render through a template engine that escapes by default, or escape the value (`escape-html`) before splicing."
+    # One-hop data flow (Milestone 3): the body reaches the response through
+    # a local, a destructured field or a same-file helper. `query` above is
+    # kept as the fallback; this adds what it cannot see.
+    taint:
+      sources: &ts_request_sources |
+        ((member_expression
+          object: [(identifier) (member_expression)] @o
+          property: (property_identifier) @p) @source
+         (#match? @o "^(req|request|ctx)(\\.request)?$")
+         (#match? @p "^(query|params|body|cookies|headers)$"))
+        ((member_expression
+          object: (identifier) @rq
+          property: (property_identifier) @p) @source
+         (#match? @p "^(query|params|body|cookies|headers)$"))
+      sinks: |
+        ((call_expression
+          function: (member_expression
+            object: (identifier) @o (#match? @o "^(res|response|reply)$")
+            property: (property_identifier) @m (#match? @m "^(send|write|end)$"))
+          arguments: (arguments . (_) @sink)) @hit)
+        ((call_expression
+          function: (member_expression
+            object: (identifier) @rs
+            property: (property_identifier) @m (#match? @m "^(send|write|end)$"))
+          arguments: (arguments . (_) @sink)) @hit)
+      # a handler's parameters typed as express's Request / Response
+      types: &ts_request_types {rq: "^(express\\.)?Request\\b", rs: "^(express\\.)?Response\\b"}
+      sanitizers: |
+        ((call_expression function: [(identifier) @f (member_expression property: (property_identifier) @f)]) @sanitizer
+         (#match? @f "(?i)(escape|sanitiz|encode|purify|^parseInt$|^parseFloat$|^Number$)"))
+      value: [body]
+      built: true
 
   - id: inner-html-assigned
+    requirements: [ARB-061]
     title: "`innerHTML` assigned a non-literal value"
     severity: medium
     confidence: medium
@@ -232,6 +317,7 @@ rules:
     remediation: "Use `textContent`, build nodes with `createElement`, or sanitise with DOMPurify first."
 
   - id: dangerously-set-inner-html
+    requirements: [ARB-061]
     title: "`dangerouslySetInnerHTML` with a non-literal value"
     severity: medium
     confidence: medium
@@ -253,6 +339,7 @@ rules:
     remediation: "Render the value as text, or pass it through DOMPurify (`sanitize(value)`) first."
 
   - id: request-keyed-assignment
+    requirements: [ARB-061]
     title: "Object key taken from the request: `{text}`"
     severity: medium
     confidence: medium
@@ -271,6 +358,7 @@ rules:
     remediation: "Allow-list the keys you accept, or store in a `Map` (`map.set(key, value)`)."
 
   - id: insecure-random-secret
+    requirements: [ARB-061]
     title: "`Math.random()` used for a secret or token"
     severity: medium
     confidence: medium
@@ -311,6 +399,7 @@ rules:
   # `decode(t, { complete: true })` (the header-for-key-lookup form) is not
   # reported. Bare `decode(...)` is not matched: too many libraries export one.
   - id: jwt-decode-unverified
+    requirements: [ARB-061, ARB-062, ARB-065]
     title: "JWT read without verifying its signature: `{text}`"
     severity: high
     confidence: medium
@@ -345,6 +434,7 @@ rules:
     remediation: "Use `jwt.verify(token, key, { algorithms: [\"RS256\"] })` (jsonwebtoken) or `await jwtVerify(token, key)` (jose), and read the claims from its result."
 
   - id: jwt-verify-insecure-options
+    requirements: [ARB-061, ARB-062]
     title: "JWT verification switched off by an option: `{text}`"
     severity: high
     confidence: high
@@ -377,6 +467,7 @@ rules:
 
   # ------------------------------------------- hard-coded credentials (CWE-798)
   - id: jwt-hardcoded-secret
+    requirements: [ARB-061, ARB-062]
     title: "JWT signed or verified with a literal secret: `{text}`"
     severity: high
     confidence: high
@@ -406,6 +497,7 @@ rules:
   # Fastify's `reply.send(err)` hands the error to Fastify's own error
   # serializer, which does not send the stack, so `reply` is not matched.
   - id: error-stack-in-response
+    requirements: [ARB-061, ARB-062]
     title: "Stack trace sent to the client: `{text}`"
     severity: medium
     confidence: high
@@ -454,6 +546,7 @@ rules:
     remediation: "Log the error server-side with a request or incident id and return only that id and a generic message."
 
   - id: error-object-in-response
+    requirements: [ARB-061, ARB-062, ARB-065]
     title: "Raw error object sent to the client: `{text}`"
     severity: medium
     confidence: medium
@@ -502,6 +595,7 @@ rules:
   # value spliced in after a fixed origin (`${API}/users/${id}`) picks a
   # path on a host the code chose, which is not this rule.
   - id: ssrf-request-url
+    requirements: [ARB-061, ARB-062]
     title: "Outbound request to a URL taken from the request: `{text}`"
     severity: high
     confidence: medium
@@ -549,6 +643,29 @@ rules:
       answer back. Only the same-function form is checked: the request
       value is the URL or its start, directly or through one local.
     remediation: "Parse the URL with `new URL()`, allow only `https:` and an allowlist of hosts, refuse redirects (`redirect: \"error\"`), and resolve and reject private addresses if the host list is open."
+    # One-hop data flow (Milestone 3). A URL that starts with a fixed origin
+    # or path (`https://api.example/...`, `/v1/...`, `${BASE}/...`,
+    # `new URL(path, base)`) is the sanitizer: the code chose the host.
+    taint:
+      sources: *ts_request_sources
+      sinks: |
+        ((call_expression
+          function: (identifier) @fn
+          arguments: (arguments . (_) @sink)) @hit
+         (#match? @fn "^(fetch|axios|got|ky|needle|superagent)$"))
+        ((call_expression
+          function: (member_expression
+            object: (identifier) @o
+            property: (property_identifier) @fn)
+          arguments: (arguments . (_) @sink)) @hit
+         (#match? @o "^(axios|got|ky|needle|superagent|https?|undici)$")
+         (#match? @fn "^(get|post|put|patch|delete|head|options|request|stream|fetch)$"))
+      sanitizers: |
+        ((template_string) @sanitizer (#match? @sanitizer "^`(https?://[^/`$]+/|/|\\$\\{\\s*[A-Z][A-Z0-9_]*\\s*\\}|\\$\\{\\s*[\\w.]*(base|Base|BASE|origin|Origin|host|Host)\\w*\\s*\\})"))
+        ((binary_expression) @sanitizer (#match? @sanitizer "^([\"'](https?://[^/\"']+/|/)|[A-Z][A-Z0-9_]*\\s*\\+|[\\w.]*(base|Base|origin|Origin)\\w*\\s*\\+)"))
+        ((new_expression constructor: (identifier) @u arguments: (arguments (_) (_))) @sanitizer (#eq? @u "URL"))
+        ((call_expression function: [(identifier) @f (member_expression property: (property_identifier) @f)]) @sanitizer
+         (#match? @f "^(encodeURIComponent|parseInt|Number)$"))
 
   # Argument injection (CWE-88, ranked under CWE-77): `execFile`/`spawn`
   # with an argv array does not go through a shell, but the program still
@@ -556,6 +673,7 @@ rules:
   # `tar --checkpoint-action=exec=...` from the request runs or writes what
   # the caller chose. A `"--"` element ends option parsing and is the fix.
   - id: argument-injection
+    requirements: [ARB-061, ARB-062]
     title: "Request value passed as an argument with no `--`: `{text}`"
     severity: high
     confidence: medium
@@ -609,6 +727,25 @@ rules:
       value in the same function, directly or through one local, is
       checked.
     remediation: "Put `\"--\"` before the first value argument (`[\"clone\", \"--\", url, dir]`), and validate the value (`new URL(v)` with an `https:` check, or reject a leading `-`)."
+    # One-hop data flow (Milestone 3): the request value reaches the argv
+    # through a local or a helper; the program name may be hoisted too.
+    taint:
+      sources: *ts_request_sources
+      sinks: |
+        ((call_expression
+          function: [(identifier) @fn
+                     (member_expression object: (identifier) @o property: (property_identifier) @fn)]
+          arguments: (arguments . (_) @tool . (_) @sink)) @hit
+         (#match? @fn "^(execFile|execFileSync|spawn|spawnSync|execa|execaSync)$"))
+      where:
+        tool: "^[\"'`](.*/)?(git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|find|sendmail|ffmpeg|ffprobe|convert|magick|docker|kubectl|npm|npx|yarn|pip|openssl|gpg)[\"'`]$"
+        o: "^(child_process|childProcess|cp)$"
+      # an element bound to its option (`--depth=${n}`), or a number
+      sanitizers: |
+        ((template_string) @sanitizer (#match? @sanitizer "^`-"))
+        ((binary_expression) @sanitizer (#match? @sanitizer "^[\"']-"))
+        ((call_expression function: (identifier) @f) @sanitizer (#match? @f "^(Number|parseInt|parseFloat)$"))
+      unless_element: "^--$"
 
   # Dangerous upload (CWE-434): the stored file is named by the client.
   # multer's `diskStorage({ filename })` returning `file.originalname`,
@@ -618,6 +755,7 @@ rules:
   # the upload directory runs in the site's origin, and a duplicate name
   # overwrites another user's file.
   - id: upload-client-filename
+    requirements: [ARB-061, ARB-062]
     title: "Upload stored under the client's filename: `{text}`"
     severity: high
     confidence: medium
@@ -671,6 +809,7 @@ rules:
   # session cookie set to `SameSite=None`, which browsers send on
   # cross-site requests, in a file that mentions no CSRF token at all.
   - id: csrf-unsafe-methods-ignored
+    requirements: [ARB-061, ARB-062]
     title: "CSRF check skipped for a state-changing method: `{text}`"
     severity: high
     confidence: high
@@ -694,6 +833,7 @@ rules:
     remediation: "Leave `ignoreMethods` at its default (`GET`, `HEAD`, `OPTIONS`) and send the token from the client (a hidden field, or a header for fetch)."
 
   - id: session-cookie-cross-site
+    requirements: [ARB-061, ARB-062]
     title: "Session cookie sent cross-site with no CSRF token in the file: `{text}`"
     severity: medium
     confidence: medium
@@ -721,6 +861,7 @@ rules:
 
   # ----------------------------------------------------------- availability
   - id: fetch-no-timeout
+    requirements: [ARB-061]
     title: "`fetch` with no timeout: `{text}`"
     severity: medium
     confidence: medium
@@ -746,14 +887,17 @@ rules:
     unless_in_file: |
       ((member_expression object: (identifier) @o) (#match? @o "^(document|window)$"))
     description: >
-      `fetch` has no default timeout. A peer that accepts the connection and
-      never answers holds this request, and the caller waiting on it, forever;
-      under load that is every worker. Only a literal options object without
+      This `fetch` sets no timeout of its own. Node's built-in fetch (undici)
+      gives up only after its 300-second header and body defaults, and other
+      runtimes may never give up; until then a peer that accepts the
+      connection and stalls holds this request and the caller waiting on it,
+      and under load that is every worker. Only a literal options object without
       `signal` is reported; one passed by name is left alone, and so is a
       file that touches `document` or `window`, which runs in a browser.
     remediation: "Pass `signal: AbortSignal.timeout(ms)` (Node 17.3+), or an AbortController you abort from a timer."
 
   - id: axios-no-timeout
+    requirements: [ARB-061]
     title: "axios call with no timeout: `{text}`"
     severity: medium
     confidence: medium
@@ -794,6 +938,7 @@ rules:
     remediation: "Pass `{ timeout: ms }`, or create one instance with `axios.create({ timeout })` and use it everywhere."
 
   - id: http-request-no-timeout
+    requirements: [ARB-061]
     title: "`{text}` with no timeout"
     severity: medium
     confidence: medium
@@ -820,6 +965,7 @@ rules:
     remediation: "Pass `{ timeout: ms }` and handle `req.on(\"timeout\", () => req.destroy())`, or use `fetch` with `AbortSignal.timeout`."
 
   - id: retry-no-backoff
+    requirements: [ARB-061]
     title: "Retry loop with no backoff or cap"
     severity: medium
     confidence: medium
@@ -850,6 +996,7 @@ rules:
     remediation: "Cap the attempts, await an exponential backoff with jitter between them, and rethrow after the last."
 
   - id: worker-loop-no-stop
+    requirements: [ARB-061]
     title: "Worker loop with no way to stop"
     severity: medium
     confidence: medium
@@ -874,6 +1021,7 @@ rules:
 
   # ------------------------------------------------------------ concurrency
   - id: async-check-then-act
+    requirements: [ARB-061]
     title: "Check, await, then act on shared state"
     severity: medium
     confidence: medium
@@ -920,6 +1068,7 @@ rules:
 
   # ---------------------------------------------------------- error handling
   - id: empty-catch
+    requirements: [ARB-061]
     title: "Error swallowed by an empty `catch`"
     severity: low
     confidence: medium
@@ -955,6 +1104,7 @@ rules:
     remediation: "Log it with context, rethrow, or return a documented fallback; if ignoring is right, say why in the block."
 
   - id: empty-catch-in-loop
+    requirements: [ARB-061]
     title: "Error swallowed by an empty `catch` inside a loop"
     severity: medium
     confidence: high
@@ -981,6 +1131,7 @@ rules:
     remediation: "Log each failure with the item it was processing, count them, and fail or alert past a threshold."
 
   - id: promise-catch-noop
+    requirements: [ARB-061]
     title: "Promise rejection swallowed: `{text}`"
     severity: low
     confidence: medium
@@ -1011,6 +1162,7 @@ rules:
 
   # ------------------------------------------------------------------ stubs
   - id: stub-throws-not-implemented
+    requirements: [ARB-061]
     title: "Function body is only `{text}`"
     severity: medium
     confidence: medium
@@ -1032,6 +1184,7 @@ rules:
     remediation: "Implement it, or remove the call path until it exists; do not ship a placeholder behind a real route."
 
   - id: stub-returns-constant
+    requirements: [ARB-061]
     title: "Function returns a constant marked TODO"
     severity: medium
     confidence: medium
@@ -1052,6 +1205,7 @@ rules:
 
   # ------------------------------------------------------------------ tests
   - id: test-without-assertion
+    requirements: [ARB-061, ARB-065, ARB-080]
     title: "Test `{text}` contains no assertion"
     severity: low
     confidence: medium
@@ -1097,6 +1251,7 @@ rules:
     remediation: "Assert the behaviour, or say in a comment that not throwing is the assertion."
 
   - id: skipped-test
+    requirements: [ARB-061]
     title: "Test skipped unconditionally: `{text}`"
     severity: low
     confidence: high
@@ -1123,3 +1278,197 @@ rules:
       (`it.skip`, `describe.skip`, `xit` and `xdescribe` are reported by
       `assurance.permanently-skipped-test`.)
     remediation: "Fix it, delete it, or skip with a condition and a reason."
+
+  # ------------------------------------- defect classes in AI-written code (ARB-083)
+  # Each shape below is one a reviewer labelled in model-written services
+  # (fixtures/ai-corpus) that no earlier rule covered. All start advisory.
+  - id: mail-starttls-not-required
+    requirements: [ARB-083]
+    title: "nodemailer transport sends credentials without requiring TLS"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-319]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-8]
+    tags: [tls, smtp, ai-code]
+    # An SMTP transport that logs in (`auth:`) but is neither implicit TLS
+    # (`secure: true`) nor `requireTLS: true` upgrades only when the server
+    # advertises STARTTLS. `ignoreTLS: true` turns even that off.
+    query: |
+      ((call_expression
+        function: [(identifier) (member_expression)] @fn
+        arguments: (arguments . (object) @o)) @hit
+        (#match? @fn "(^|\\.)createTransport$")
+        (#match? @o "\\bauth\\s*:")
+        (#not-match? @o "\\brequireTLS\\s*:\\s*true|\\bsecure\\s*:\\s*true\\b|\\bservice\\s*:|\\b(sendmail|streamTransport|jsonTransport|SES)\\s*:"))
+      ((call_expression
+        function: [(identifier) (member_expression)] @fn
+        arguments: (arguments . (object) @o)) @hit
+        (#match? @fn "(^|\\.)createTransport$")
+        (#match? @o "\\bignoreTLS\\s*:\\s*true"))
+    description: >-
+      Without `secure: true` or `requireTLS: true`, nodemailer uses STARTTLS
+      only if the server's greeting offers it. An attacker on the path
+      strips the offer and receives the AUTH exchange, user name and
+      password, in plaintext.
+    remediation: "Set `requireTLS: true` for port 587 (or `secure: true` on 465) and keep `tls.rejectUnauthorized` at its default."
+
+  - id: retry-constant-delay
+    requirements: [ARB-083]
+    title: "`{text}` retries after the same fixed delay every time"
+    severity: low
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [retry, backoff, reliability, ai-code]
+    # Retry scheduling with a constant: the wait is a value named as the
+    # retry delay (`this.retryDelayMs`) used as is, in a file that caps
+    # attempts, with no growth or jitter on it. retry-no-backoff is the
+    # no-delay case.
+    query: |
+      ((call_expression function: (identifier) @fn
+         arguments: (arguments . (_) . [(identifier) (member_expression)] @d .))
+        (#eq? @fn "setTimeout")
+        (#match? @d "(?i)(^|\\.)retry_?(delay|interval|wait|pause|backoff)(_?(ms|millis|seconds|secs))?$")) @hit
+      ((call_expression function: [(identifier) (member_expression)] @fn
+         arguments: (arguments . [(identifier) (member_expression)] @d .))
+        (#match? @fn "(?i)(^|\\.)(sleep|delay|wait|setTimeout)$")
+        (#match? @d "(?i)(^|\\.)retry_?(delay|interval|wait|pause|backoff)(_?(ms|millis|seconds|secs))?$")) @hit
+    requires_file: |
+      ([(identifier) (property_identifier)] @r (#match? @r "(?i)^_?max_?(retries|retry|attempts?|tries)$|^_?retry_?(count|limit)$"))
+    unless_in_file: |
+      ([(identifier) (property_identifier)] @b (#match? @b "(?i)backoff|jitter"))
+      ((binary_expression operator: ["*" "**" "<<"]) @b (#match? @b "(?i)retry_?(delay|interval)"))
+      ((augmented_assignment_expression left: (_) @l) (#match? @l "(?i)retry_?(delay|interval)"))
+    description: >-
+      Every retry waits the same interval. When a dependency fails, every
+      caller retries in lock-step on that interval, so the recovering
+      service is hit by the whole backlog at once and each retry is as
+      likely to fail as the last.
+    remediation: "Grow the delay with the attempt (`base * 2 ** attempt`, capped) and add jitter."
+
+  - id: ssrf-stored-callback
+    requirements: [ARB-083]
+    title: "`{text}` delivers to a stored callback URL with no internal-address block"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-918]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-7]
+    tags: [ssrf, webhook, ai-code]
+    # File level: the file stores or accepts a callback URL (a key or SQL
+    # column named callback_url), POSTs to a non-literal URL, and never
+    # checks an address. ssrf-request-url is the same-function case.
+    query: |
+      ((call_expression function: (identifier) @f
+         arguments: (arguments . [(identifier) (member_expression)] . (object) @o))
+        (#match? @f "(?i)fetch") (#match? @o "(?i)method\\s*:\\s*['\"]post['\"]")) @hit
+      ((call_expression function: (member_expression) @f
+         arguments: (arguments . [(identifier) (member_expression)]))
+        (#match? @f "^(axios|got|ky|superagent|needle)\\.post$")) @hit
+    requires_file: |
+      ([(string_fragment) (template_string)] @s (#match? @s "(?i)callback_?url|webhook_?url|notify_?url|hook_?url|callback_?uri|redirect_?hook"))
+      ([(property_identifier) (identifier)] @s (#match? @s "(?i)callback_?url|webhook_?url|notify_?url|hook_?url|callback_?uri|redirect_?hook"))
+    unless_in_file: |
+      ([(identifier) (property_identifier)] @m (#match? @m "(?i)private|loopback|link_?local|ssrf|is_?internal|blocked_?(ip|addr|host)|allowed_?(host|ip)|ipaddr"))
+      ((string_fragment) @m (#match? @m "^(169\\.254|127\\.|10\\.|::1|fc00|fe80|localhost)"))
+    # A URL read from this request in the same function is
+    # ssrf-request-url's finding; this rule is the stored case.
+    unless_in_scope: |
+      ((member_expression) @x (#match? @x "^(req|request|ctx\\.request)\\.(body|query|params)"))
+    description: >-
+      The URL was stored by a client (a merchant, a subscriber) and the server
+      later sends a request to it. Nothing in the file refuses loopback,
+      private, link-local or cloud-metadata addresses, so whoever can set
+      the URL can make the server reach internal services
+      (169.254.169.254, localhost admin ports) and learn from the delivery
+      status whether they answered.
+    remediation: "Resolve the host, refuse non-public addresses (and pin the connection to the checked address, e.g. an undici Agent with a lookup that rejects them), or keep an allowlist of callback hosts."
+
+  - id: image-pixel-limit-disabled
+    requirements: [ARB-083]
+    title: "`{text}` switches off sharp's pixel limit"
+    severity: high
+    confidence: high
+    dimension: quality
+    cwe: [CWE-409, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, decompression-bomb, ai-code]
+    query: |
+      ((pair key: (property_identifier) @k value: [(false) (number)] @v) @hit
+        (#eq? @k "limitInputPixels") (#match? @v "^(false|0)$"))
+    description: >-
+      sharp refuses images above ~268 million pixels because a small file
+      can declare a huge canvas. `limitInputPixels: false` (or 0) removes
+      that, so a few-kilobyte upload makes libvips allocate gigabytes.
+    remediation: "Keep the default, or set `limitInputPixels` to the largest image the service accepts."
+
+  - id: decompress-sync-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` decompresses with no limit on the output"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-409, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, decompression-bomb, ai-code]
+    query: |
+      ((call_expression function: [(identifier) (member_expression)] @fn
+         arguments: (arguments . [(identifier) (member_expression) (call_expression)] .))
+        (#match? @fn "(^|\\.)(gunzipSync|inflateSync|inflateRawSync|unzipSync|brotliDecompressSync)$")) @hit
+    requires_in_scope: |
+      ((identifier) @i (#match? @i "^(req|request|ctx|body|upload|file|files|payload)$"))
+    unless_in_scope: |
+      ((property_identifier) @p (#eq? @p "maxOutputLength"))
+    description: >-
+      Compressed data expands by ~1000x or more. zlib's sync calls build
+      the whole output in memory, so a 1 MB request body can become
+      gigabytes, blocking the event loop until the process dies.
+    remediation: "Pass `{ maxOutputLength: limit }` (Node >= 14.5) and answer 413 on the RangeError, or stream through a counting Transform."
+
+  - id: upload-memory-storage-unbounded
+    requirements: [ARB-083]
+    title: "multer buffers whole uploads in memory with no file-size limit"
+    severity: medium
+    confidence: high
+    dimension: quality
+    cwe: [CWE-770, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, upload, ai-code]
+    query: |
+      ((call_expression function: (identifier) @fn arguments: (arguments . (object) @o)) @hit
+        (#eq? @fn "multer")
+        (#match? @o "memoryStorage")
+        (#not-match? @o "fileSize"))
+    description: >-
+      memoryStorage keeps each uploaded file as a Buffer, and multer sets no
+      size limit by default. One client streaming a multi-gigabyte upload,
+      or a handful in parallel, exhausts the process.
+    remediation: "Set `limits: { fileSize, files }`, or use disk storage (or a streaming upload to object storage) for anything large."
+
+  - id: request-body-accumulated-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` accumulates the request body with no size limit"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-770, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, unbounded-input, ai-code]
+    # A raw `req.on("data", ...)` handler that appends chunks and never
+    # compares a running length with a limit or destroys the stream.
+    query: |
+      ((call_expression
+         function: (member_expression object: (identifier) @o property: (property_identifier) @m)
+         arguments: (arguments . (string (string_fragment) @ev) . [(arrow_function) (function_expression)] @h))
+        (#match? @o "^(req|request|incoming)$") (#eq? @m "on") (#eq? @ev "data")
+        (#match? @h "(push|concat|\\+=)")
+        (#not-match? @h "(length|size|byteLength|limit|destroy|LIMIT|MAX)")) @hit
+    unless_in_scope: |
+      ((member_expression property: (property_identifier) @p) (#match? @p "^(length|byteLength)$"))
+    description: >-
+      Node's http server has no body limit. Collecting every `data` chunk
+      until `end` holds the whole body in memory, however large the client
+      makes it.
+    remediation: "Count bytes in the handler and `req.destroy()` with 413 past a limit, or use a body parser with `limit` (express.json, raw-body)."

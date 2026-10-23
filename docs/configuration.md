@@ -21,7 +21,7 @@ implicit user-level defaults.
 
 ```yaml
 version: 1
-profile: offline          # offline | ci | connected | audit
+profile: offline          # offline | ci | assisted | connected | audit
 
 gate:
   fail_on:
@@ -53,12 +53,32 @@ A profile is a capability budget, not a severity setting.
 | `ci` | no | no | fast, deterministic gating |
 | `connected` | yes | yes | full depth |
 | `audit` | yes | yes | everything, no time budget |
+| `assisted` | no | verification only | `ci` plus the model verification pass ([precision.md](precision.md#model-verification)) |
 
 A probe that needs a capability the profile forbids is skipped with that reason
 recorded, so the report says what the profile cost you. Coverage falls by
 exactly the amount that was not checked — the grade never quietly absorbs it.
 
 Override per run with `arbiter scan . --profile connected`.
+
+The `verify:` block configures the model verification pass (defaults shown;
+`enabled: null` lets the profile decide, and `offline`/`ci` never call a
+model whatever it says). `--model-verify` / `--no-model-verify` override it
+per run.
+
+```yaml
+verify:
+  enabled: null
+  model: claude-opus-5-5
+  effort: medium
+  min_severity: medium
+  max_findings: 150        # model calls per scan
+  max_tokens: 400000       # input + output tokens per scan
+  max_output_tokens: 4000  # per call
+  excerpt_lines: 120
+  cache: true              # .arbiter/verify-cache.json; cache_path overrides
+  skip_rules: ["arbiter/ast.*", "arbiter/quality.*", "arbiter/assurance.suppression-census"]
+```
 
 ## Gating
 
@@ -79,6 +99,20 @@ gate:
 | `coverage_below` | the run fails if rubric coverage falls below this fraction |
 | `gate_on_inferred` | when false (default), findings with `provenance: inferred` never fail a build |
 | `use_calibration` | when false (default), learned confidence never changes a gate outcome |
+| `tier_mode` | `legacy` (default): `fail_on` reads every active finding. `tiered`: only findings whose precision tier is in `tiers` ([docs/precision.md](precision.md#tiers)) |
+| `tiers` | under `tier_mode: tiered`, the tiers that can fail the gate; default `[verified]` |
+
+The precision tiers are assigned in every scan, whatever the mode, and every
+report shows them. Switching a gate to `tier_mode: tiered` is a decision to
+make once the ledger admits rules: with the ledger Arbiter ships today (no
+labels yet), every finding is advisory and a tiered gate blocks nothing.
+
+```yaml
+precision:
+  ledger: null            # null = the ledger shipped with Arbiter
+  verified_rules: []      # rule ids or globs declared verified; the ledger must still admit them
+  deterministic_profiles: [offline, ci]   # profiles that cannot ask a model
+```
 
 `coverage_below` is the guard against a reassuring result from a scan that
 barely ran. Without it, uninstalling an analyzer looks identical to fixing every

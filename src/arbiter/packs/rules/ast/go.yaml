@@ -18,6 +18,7 @@ rules:
   # Outbound calls with no timeout
   # ---------------------------------------------------------------------
   - id: http-default-client
+    requirements: [ARB-060]
     title: "`{text}` uses Go's default HTTP client, which never times out"
     severity: medium
     confidence: high
@@ -46,6 +47,7 @@ rules:
     remediation: "Use an http.Client{Timeout: ...}, or build the request with context.WithTimeout and http.NewRequestWithContext."
 
   - id: http-client-no-timeout
+    requirements: [ARB-061]
     title: "`{text}` sets no Timeout, so a hung upstream holds the connection forever"
     severity: medium
     confidence: medium
@@ -83,6 +85,7 @@ rules:
     remediation: "Set Timeout on the client, or pass a context with a deadline on every request."
 
   - id: db-call-no-deadline
+    requirements: [ARB-061]
     title: "`{text}` runs a database call with no deadline or cancellation"
     severity: medium
     confidence: medium
@@ -134,6 +137,7 @@ rules:
   # Races
   # ---------------------------------------------------------------------
   - id: map-write-in-goroutine
+    requirements: [ARB-061]
     title: "`{text}` writes a shared map from one of several goroutines with no lock held"
     severity: high
     confidence: medium
@@ -168,6 +172,7 @@ rules:
     remediation: "Guard the map with a sync.Mutex, use sync.Map, or send results on a channel to a single goroutine that owns the map."
 
   - id: check-then-act-map
+    requirements: [ARB-061]
     title: "`{text}` checks a shared map and then writes it with no lock held, in a file that starts goroutines"
     severity: medium
     confidence: medium
@@ -248,6 +253,7 @@ rules:
     remediation: "Hold a sync.Mutex across the check and the write, or use sync.Map.LoadOrStore."
 
   - id: unsynchronised-counter
+    requirements: [ARB-061]
     title: "`{text}` changes a shared counter from one of several goroutines with no lock or atomic"
     severity: medium
     confidence: medium
@@ -283,6 +289,7 @@ rules:
   # Loops that never stop, or never back off
   # ---------------------------------------------------------------------
   - id: worker-loop-no-stop
+    requirements: [ARB-061]
     title: "`for {` in a goroutine has no stop signal: no ctx.Done, quit channel, return or break"
     severity: medium
     confidence: medium
@@ -332,6 +339,7 @@ rules:
     remediation: "Select on ctx.Done() or a quit channel in each iteration, and return; or range over the channel so a close ends the loop."
 
   - id: retry-no-backoff
+    requirements: [ARB-061]
     title: "`for {` retries on error with no sleep, backoff or attempt cap"
     severity: medium
     confidence: medium
@@ -379,6 +387,7 @@ rules:
   # Errors that vanish
   # ---------------------------------------------------------------------
   - id: swallowed-error
+    requirements: [ARB-061]
     title: "`{text}` drops the error: nothing is logged, returned or retried"
     severity: medium
     confidence: medium
@@ -422,6 +431,7 @@ rules:
   # Injection
   # ---------------------------------------------------------------------
   - id: sql-injection
+    requirements: [ARB-061]
     title: "`{text}` builds SQL by string concatenation or Sprintf"
     severity: high
     confidence: high
@@ -455,8 +465,28 @@ rules:
       placeholders exist precisely so that the driver, not string handling,
       keeps data and query apart.
     remediation: "Use placeholders ($1 / ?) and pass the values as arguments; build identifier lists from an allowlist."
+    # One-hop data flow (Milestone 3): the built SQL (a format string may be
+    # hoisted too) reaches the call through a local or a same-file helper.
+    taint:
+      sources: |
+        ((call_expression function: (selector_expression) @sp arguments: (argument_list . (_) @fmt)) @source
+         (#eq? @sp "fmt.Sprintf")
+         (#not-match? @source "strings\\.(Join|Repeat)\\("))
+        ((binary_expression operator: "+") @source
+         (#match? @source "(?is)^[\"`]\\s*(select|insert|update|delete|create|drop|alter|truncate|merge|with|where|and|or|order|group|having|from|set|values|join)\\b")
+         (#not-match? @source "strings\\.(Join|Repeat)\\("))
+      sinks: |
+        ((call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (_) @sink)) @hit
+         (#match? @m "^(Query|QueryRow|Exec|Prepare|Queryx|QueryRowx|MustExec|NamedQuery|NamedExec|Raw|Where|Having|Order|Group|Joins)$"))
+        ((call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (_) . (_) @sink)) @hit
+         (#match? @m "^(QueryContext|QueryRowContext|ExecContext|PrepareContext|QueryxContext|QueryRowxContext|Select|Get)$"))
+        ((call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (_) . (_) . (_) @sink)) @hit
+         (#match? @m "^(SelectContext|GetContext)$"))
+      at: source
+      where: {fmt: "(?is)^[\"`]\\s*(select|insert|update|delete|create|drop|alter|truncate|merge|with|where|and|or|order|group|having|from|set|values|join)\\b"}
 
   - id: command-injection
+    requirements: [ARB-061]
     title: "`{text}` runs a shell with a command string that is not a literal"
     severity: high
     confidence: medium
@@ -490,6 +520,22 @@ rules:
       a file name, a tenant id -- can end the intended command and start
       another.
     remediation: "Call the program directly with exec.Command(name, args...) so each argument is passed as-is; never route values through a shell string."
+    # One-hop data flow (Milestone 3): the shell and its flag may be hoisted
+    # into locals or passed through a helper; the command is anything not
+    # provably constant.
+    taint:
+      mode: nonconst
+      sinks: |
+        ((call_expression function: (selector_expression) @f
+          arguments: (argument_list . (_) @sh . (_) @c . (_) @sink)) @hit
+         (#eq? @f "exec.Command"))
+        ((call_expression function: (selector_expression) @f
+          arguments: (argument_list . (_) . (_) @sh . (_) @c . (_) @sink)) @hit
+         (#eq? @f "exec.CommandContext"))
+      where:
+        sh: "^\"(/bin/|/usr/bin/|/usr/local/bin/)?(sh|bash|zsh|dash|ash|ksh|fish)\"$|^\"(cmd|cmd\\.exe|powershell|pwsh)\"$"
+        c: "^\"(-c|-lc|/[Cc]|-Command)\"$"
+      value: [cmd]
 
   # ---------------------------------------------------------------------
   # Authentication (CWE-287)
@@ -501,7 +547,9 @@ rules:
   # "none" without UnsafeAllowNoneSignatureType and rejects a key of the
   # wrong type for the algorithm, so the classic algorithm confusion does not
   # reproduce and the rule would be noise.
+
   - id: jwt-parse-unverified
+    requirements: [ARB-062]
     title: "`{text}` reads a JWT without verifying its signature"
     severity: high
     confidence: medium
@@ -530,6 +578,7 @@ rules:
     remediation: "Use jwt.ParseWithClaims with a keyfunc and jwt.WithValidMethods, and read claims only after it returns no error."
 
   - id: jwt-claims-validation-disabled
+    requirements: [ARB-062]
     title: "`{text}` turns off JWT expiry and not-before checks"
     severity: high
     confidence: high
@@ -560,6 +609,7 @@ rules:
   # The secrets probe reads `name = "literal"`. A key written `[]byte("…")`
   # or a DSN literal at the call is a credential it cannot see.
   - id: hardcoded-signing-key
+    requirements: [ARB-062]
     title: "`{text}` is a signing key written in the source"
     severity: high
     confidence: high
@@ -612,6 +662,7 @@ rules:
     remediation: "Load the key at startup from the environment or a secrets manager (os.Getenv, a mounted file) and refuse to start when it is missing."
 
   - id: hardcoded-dsn-password
+    requirements: [ARB-062]
     title: "`{text}` opens a database with a password written in the DSN"
     severity: high
     confidence: high
@@ -648,6 +699,7 @@ rules:
   # Error identifiers are local ones (err, e, rerr, parseErr); package-level
   # sentinels (ErrNotFound, errNoBackend) are fixed messages.
   - id: error-text-in-response
+    requirements: [ARB-062]
     title: "`{text}` sends the internal error text to the client"
     severity: medium
     confidence: medium
@@ -698,8 +750,39 @@ rules:
       failed. Returned to the caller they map the internals for an attacker
       and can expose other users' data.
     remediation: "Log err server-side (with a request id) and return a fixed message: http.Error(w, \"internal error\", http.StatusInternalServerError)."
+    # One-hop data flow (Milestone 3): the error text reaches the response
+    # through a local or a helper, the 5xx status may be hoisted, and the
+    # writer is found by its declared type rather than its name.
+    taint:
+      sources: |
+        ((call_expression function: (selector_expression operand: (identifier) @ev field: (field_identifier) @m) arguments: (argument_list) @none) @source
+         (#match? @ev "^(err|e|[a-z]\\w*Err|[a-z]+err)$") (#eq? @m "Error") (#eq? @none "()"))
+        ((identifier) @source (#match? @source "^(err|[a-z]\\w*Err|[a-z]+err)$"))
+      sinks: |
+        ((call_expression function: (selector_expression) @f
+          arguments: (argument_list . (_) . (_) @sink . (_) @code .)) @hit
+         (#eq? @f "http.Error"))
+        ((call_expression function: (selector_expression) @f
+          arguments: (argument_list . (identifier) @w (_) @sink)) @hit
+         (#match? @f "^fmt\\.Fprint(f|ln)?$"))
+        ((call_expression function: (selector_expression operand: (identifier) @w field: (field_identifier) @m)
+          arguments: (argument_list . (_) @sink .)) @hit
+         (#eq? @m "Write"))
+        ((call_expression function: (selector_expression) @f
+          arguments: (argument_list . (identifier) @w . (_) @sink .)) @hit
+         (#eq? @f "io.WriteString"))
+        ((call_expression function: (selector_expression operand: (identifier) @gc field: (field_identifier) @m)
+          arguments: (argument_list . (_) @code (_) @sink)) @hit
+         (#match? @m "^(JSON|String|IndentedJSON|PureJSON|AbortWithStatusJSON|XML)$"))
+      where:
+        code: "^(http\\.)?Status(InternalServerError|BadGateway|ServiceUnavailable|GatewayTimeout|NotImplemented|InsufficientStorage)$|^5[0-9][0-9]$"
+      types:
+        w: "^http\\.ResponseWriter$"
+        gc: "^\\*?(gin\\.Context|echo\\.Context|fiber\\.Ctx)$"
+      requires: true
 
   - id: pprof-on-default-mux
+    requirements: [ARB-062]
     title: "`{text}` publishes /debug/pprof on the default mux"
     severity: medium
     confidence: medium
@@ -742,6 +825,7 @@ rules:
   # passed through strconv or filepath.Base is not a path or URL any more.
 
   - id: path-traversal-request
+    requirements: [ARB-062]
     title: "`{text}` builds a file path from a request value"
     severity: high
     confidence: medium
@@ -797,8 +881,38 @@ rules:
       absolute path, for os.Open) walk out of that directory: `?file=../../etc/passwd`
       reads any file the process can.
     remediation: "Reject names that are not filepath.IsLocal (Go 1.20+), or keep filepath.Base(name), or open through os.OpenRoot/os.OpenInRoot (Go 1.24+); check the joined path still has the base as its prefix."
+    # One-hop data flow (Milestone 3): the request value reaches the path
+    # call through locals, a decoded body or a same-file helper. The request
+    # is found by its declared type as well as by name.
+    taint:
+      sources: &go_request_sources |
+        ((call_expression function: (selector_expression operand: (identifier) @r field: (field_identifier) @m)) @source
+         (#match? @m "^(FormValue|PostFormValue|PathValue|Query|DefaultQuery|Param|Params|PostForm|DefaultPostForm|QueryParam|QueryParams|ShouldBind\\w*|Bind\\w*|BodyParser)$"))
+        ((call_expression function: (selector_expression
+            operand: (selector_expression operand: (identifier) @r field: (field_identifier) @u)
+            field: (field_identifier) @m)) @source
+         (#eq? @u "URL") (#eq? @m "Query"))
+        ((selector_expression operand: (identifier) @r field: (field_identifier) @m) @source
+         (#match? @m "^(Form|PostForm|Body)$"))
+        ((call_expression function: (selector_expression) @f) @source
+         (#match? @f "^(mux\\.Vars|chi\\.URLParam)$"))
+      sinks: |
+        ((call_expression function: (selector_expression) @f arguments: (argument_list (_) @sink)) @hit
+         (#match? @f "^(filepath|path)\\.Join$"))
+        ((call_expression function: (selector_expression) @f arguments: (argument_list . (_) @sink)) @hit
+         (#match? @f "^(os\\.(Open|OpenFile|ReadFile|Create|WriteFile|Remove|RemoveAll|ReadDir|Stat|Lstat|Mkdir|MkdirAll|Truncate|Chmod|Chown)|ioutil\\.(ReadFile|WriteFile|ReadDir))$"))
+        ((call_expression function: (selector_expression operand: (identifier) @r field: (field_identifier) @m) arguments: (argument_list . (_) @sink)) @hit
+         (#match? @m "^(File|FileAttachment|Attachment|SendFile|Download)$"))
+        ((call_expression function: (selector_expression) @f arguments: (argument_list . (_) . (_) . (_) @sink)) @hit
+         (#eq? @f "http.ServeFile"))
+      sanitizers: &go_path_sanitizers |
+        ((call_expression function: (selector_expression) @g) @sanitizer
+         (#match? @g "^(filepath\\.Base|path\\.Base|strconv\\.\\w+|uuid\\.\\w+)$"))
+      types: &go_request_types
+        r: "^\\*?(http\\.Request|gin\\.Context|echo\\.Context|fiber\\.Ctx)$"
 
   - id: upload-client-filename
+    requirements: [ARB-062]
     title: "`{text}` stores an upload under the client's file name"
     severity: high
     confidence: medium
@@ -856,8 +970,24 @@ rules:
       stored cross-site scripting, a `.php` or `.jsp` may run, and one
       user's upload overwrites another's file of the same name.
     remediation: "Name the file yourself (a random id), pick the extension from an allowlist of types sniffed with http.DetectContentType, cap the size with http.MaxBytesReader, and store outside the served tree."
+    # One-hop data flow (Milestone 3): the client's file name reaches the
+    # write through a local or a same-file helper.
+    taint:
+      sources: |
+        ((selector_expression field: (field_identifier) @m) @source (#eq? @m "Filename"))
+        ((call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list) @none) @source
+         (#eq? @m "FileName") (#eq? @none "()"))
+      sinks: |
+        ((call_expression function: (selector_expression) @f arguments: (argument_list (_) @sink)) @hit
+         (#match? @f "^(filepath|path)\\.Join$"))
+        ((call_expression function: (selector_expression) @f arguments: (argument_list . (_) @sink)) @hit
+         (#match? @f "^(os\\.(Create|OpenFile|WriteFile)|ioutil\\.WriteFile)$"))
+        ((call_expression function: (selector_expression field: (field_identifier) @m) arguments: (argument_list . (_) . (_) @sink)) @hit
+         (#eq? @m "SaveUploadedFile"))
+      requires: true
 
   - id: ssrf-request-url
+    requirements: [ARB-062]
     title: "`{text}` fetches a URL taken from the request"
     severity: high
     confidence: medium
@@ -903,8 +1033,28 @@ rules:
       internal services behind the firewall. Link previews, webhooks and
       image proxies written this way are the usual source.
     remediation: "Parse the URL, require https and a host from an allowlist, resolve and refuse private, loopback and link-local addresses (in a custom Dialer.Control so redirects and DNS rebinding are covered), and don't follow redirects blindly."
+    # One-hop data flow (Milestone 3). A URL whose scheme and host are fixed
+    # (a "https://host/" prefix, or a Sprintf format starting with one) is
+    # the sanitizer.
+    taint:
+      sources: *go_request_sources
+      sinks: |
+        ((call_expression function: (_) @f arguments: (argument_list . (_) @sink)) @hit
+         (#match? @f "^http\\.(Get|Head|Post|PostForm)$|(^|\\.)\\w*([Cc]lient|HTTP)\\.(Get|Head|Post|PostForm)$"))
+        ((call_expression function: (selector_expression) @f arguments: (argument_list . (_) . (_) @sink)) @hit
+         (#eq? @f "http.NewRequest"))
+        ((call_expression function: (selector_expression) @f arguments: (argument_list . (_) . (_) . (_) @sink)) @hit
+         (#eq? @f "http.NewRequestWithContext"))
+      sanitizers: |
+        ((binary_expression) @sanitizer (#match? @sanitizer "^\"https?://[^/\"%]+/"))
+        ((call_expression function: (selector_expression) @sp arguments: (argument_list . (interpreted_string_literal) @fm)) @sanitizer
+         (#eq? @sp "fmt.Sprintf") (#match? @fm "^\"https?://[^/\"%]+/"))
+        ((call_expression function: (selector_expression) @g) @sanitizer
+         (#match? @g "^(url\\.(PathEscape|QueryEscape)|strconv\\.\\w+)$"))
+      types: *go_request_types
 
   - id: argument-injection
+    requirements: [ARB-062]
     title: "`{text}` passes a request value to a command with no `--` before it"
     severity: high
     confidence: medium
@@ -942,8 +1092,26 @@ rules:
       command; curl, ssh, rsync and tar have options that read or write
       arbitrary files.
     remediation: "Put \"--\" before the first value argument (exec.Command(\"git\", \"clone\", \"--\", url, dir)), and validate the value (url.Parse with an https scheme, a ref name pattern) before it reaches the command."
+    # One-hop data flow (Milestone 3): the request value reaches the argv
+    # through a local or a helper; the tool name may be hoisted. A "--"
+    # anywhere in the argument list is taken as the fix.
+    taint:
+      sources: *go_request_sources
+      sinks: |
+        ((call_expression function: (selector_expression) @f arguments: (argument_list . (_) @tool) @sink) @hit
+         (#eq? @f "exec.Command"))
+        ((call_expression function: (selector_expression) @f arguments: (argument_list . (_) . (_) @tool) @sink) @hit
+         (#eq? @f "exec.CommandContext"))
+      sanitizers: |
+        ((call_expression function: (selector_expression) @g) @sanitizer (#match? @g "^strconv\\.\\w+$"))
+        ((binary_expression) @sanitizer (#match? @sanitizer "^\"-"))
+      where:
+        tool: "^\"(/usr/local/bin/|/usr/bin/|/bin/)?(git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|ffmpeg|ffprobe|convert|magick|gs|pandoc|wkhtmltopdf|psql|mysql|mysqldump|pg_dump|docker|kubectl|helm|openssl|find|grep|sed|awk)\"$"
+      types: *go_request_types
+      unless_element: "^--$"
 
   - id: parsed-int-narrowed
+    requirements: [ARB-062]
     title: "`{text}` narrows a 64-bit parsed integer without a bounds check"
     severity: medium
     confidence: medium
@@ -978,6 +1146,7 @@ rules:
   # Stubs that reached a production path
   # ---------------------------------------------------------------------
   - id: stub-on-security-path
+    requirements: [ARB-061]
     title: "`{text}` is the whole body of a security check: the check is a stub"
     severity: high
     confidence: high
@@ -1001,6 +1170,7 @@ rules:
     remediation: "Implement the check before anything depends on it, or make the stub fail closed (return an error / false) and block the merge until it is real."
 
   - id: stub-not-implemented
+    requirements: [ARB-061]
     title: "`{text}` is the whole function body: a stub on a production path"
     severity: medium
     confidence: high
@@ -1018,6 +1188,7 @@ rules:
     remediation: "Implement it, or return an explicit `errors.ErrUnsupported`-style error and make callers handle it."
 
   - id: stub-returns-nil
+    requirements: [ARB-061]
     title: "`{text}` under a TODO is the whole function body: a stub that reports success"
     severity: medium
     confidence: medium
@@ -1040,6 +1211,7 @@ rules:
   # Randomness
   # ---------------------------------------------------------------------
   - id: insecure-random-token
+    requirements: [ARB-061]
     title: "`{text}` builds a secret from math/rand, which is predictable"
     severity: high
     confidence: high
@@ -1088,6 +1260,7 @@ rules:
   # Tests that cannot fail
   # ---------------------------------------------------------------------
   - id: test-skipped-unconditionally
+    requirements: [ARB-061]
     title: "`{text}` is the first statement of the test: it never runs"
     severity: low
     confidence: high
@@ -1115,3 +1288,210 @@ rules:
       a skip behind `testing.Short()` or a platform check is a different
       thing and is not reported.
     remediation: "Fix the test or delete it; if it must be skipped somewhere, put the skip behind a condition."
+
+  # ---------------------------------------------------------------------
+  # Defect classes found in AI-written code (ARB-083)
+  # ---------------------------------------------------------------------
+  # Each shape below is one a reviewer labelled in model-written services
+  # (fixtures/ai-corpus) that no earlier rule covered. All start advisory.
+  - id: ignored-encode-error
+    requirements: [ARB-083]
+    title: "`{text}` discards the encode error"
+    severity: low
+    confidence: high
+    dimension: quality
+    cwe: [CWE-252]
+    controls: [NIST-800-218:PW.5]
+    tags: [error-handling, ai-code]
+    # A bare expression statement: the error result is not assigned, not
+    # even to `_`. `_ = enc.Encode(v)` is a decision and is not reported.
+    query: |
+      (expression_statement (call_expression
+        function: (selector_expression
+          operand: (call_expression function: (selector_expression) @mk
+            (#match? @mk "^(json|xml|gob)\\.NewEncoder$"))
+          field: (field_identifier) @f (#eq? @f "Encode"))) @hit)
+    description: >-
+      `json.NewEncoder(w).Encode(v)` returns an error when the value cannot
+      be encoded or the client has gone away mid-write. As a bare statement
+      that error is dropped: a handler that sent half a body, or none, logs
+      nothing and the failure is invisible in production.
+    remediation: "Check it: `if err := json.NewEncoder(w).Encode(v); err != nil { log... }`, or write `_ =` where ignoring it is deliberate."
+
+  - id: ignored-exec-error
+    requirements: [ARB-083]
+    title: "`{text}` runs SQL and drops the error"
+    severity: low
+    confidence: high
+    dimension: quality
+    cwe: [CWE-252]
+    controls: [NIST-800-218:PW.5]
+    tags: [error-handling, database, ai-code]
+    # database/sql's Exec returns (Result, error); called as a statement
+    # both are thrown away. The receiver must read as a database handle
+    # and the first argument be SQL text (a string literal), so an Exec on
+    # some other type (a template, a command runner) is not matched.
+    query: |
+      (expression_statement (call_expression
+        function: (selector_expression operand: (_) @recv field: (field_identifier) @f)
+        arguments: (argument_list . [(raw_string_literal) (interpreted_string_literal)] @sql))
+        (#match? @f "^(Exec|ExecContext)$")
+        (#match? @recv "(?i)(^|\\.)(db|tx|conn|pool|sqldb|database)$")
+        (#match? @sql "(?i)^.\\s*(insert|update|delete|create|drop|alter|replace|pragma|begin|commit|vacuum)\\b")) @hit
+      (expression_statement (call_expression
+        function: (selector_expression operand: (_) @recv field: (field_identifier) @f)
+        arguments: (argument_list . (_) . [(raw_string_literal) (interpreted_string_literal)] @sql))
+        (#eq? @f "ExecContext")
+        (#match? @recv "(?i)(^|\\.)(db|tx|conn|pool|sqldb|database)$")
+        (#match? @sql "(?i)^.\\s*(insert|update|delete|create|drop|alter|replace|pragma|begin|commit|vacuum)\\b")) @hit
+    description: >-
+      The statement is executed and its error discarded. A failed delete,
+      insert or migration leaves the data in a state the code believes it
+      changed, and nothing records why: an expired-token purge that keeps
+      failing lets the table grow with no sign anywhere.
+    remediation: "Handle the error (`if _, err := db.Exec(...); err != nil { ... }`) or log it; write `_, _ =` only where ignoring it is a documented decision."
+
+  - id: retry-constant-delay
+    requirements: [ARB-083]
+    title: "`{text}` retries after the same fixed delay every time"
+    severity: low
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [retry, backoff, reliability, ai-code]
+    # Retry scheduling with a constant: the wait is a value named as the
+    # retry delay (`q.retryDelay`, `retryInterval`) used as is, in a file
+    # that caps attempts (`MaxRetries`), with no growth or jitter on it.
+    # A bare `time.Sleep(100 * time.Millisecond)` is not reported: on gold
+    # code those are local polls (a busy device, a socket coming up), where
+    # a fixed short wait is the idiom. retry-no-backoff is the no-delay case.
+    query: |
+      ((call_expression function: (selector_expression) @fn
+         arguments: (argument_list . [(identifier) (selector_expression)] @d .))
+        (#match? @fn "^time\\.(Sleep|After|NewTimer|AfterFunc)$")
+        (#match? @d "(?i)(^|\\.)retry_?(delay|interval|wait|pause|sleep)(_?(ms|millis|seconds|secs))?$")) @hit
+    requires_file: |
+      ([(identifier) (field_identifier)] @r (#match? @r "(?i)^_?max_?(retries|retry|attempts?|tries)$|^_?retry_?(count|limit)$"))
+    unless_in_file: |
+      ([(identifier) (field_identifier)] @b (#match? @b "(?i)backoff|jitter"))
+      ((binary_expression operator: ["*" "<<"]) @b (#match? @b "(?i)retry_?(delay|interval)"))
+      ((assignment_statement left: (_) @l operator: ["*=" "<<="]) (#match? @l "(?i)retry_?(delay|interval)"))
+    description: >-
+      Every retry waits the same interval. When a dependency fails, every
+      caller retries in lock-step on that interval, so the recovering
+      service is hit by the whole backlog at once and each retry is as
+      likely to fail as the last.
+    remediation: "Grow the delay with the attempt (`base << attempt`, capped) and add jitter, or use a backoff package (cenkalti/backoff, k8s wait.Backoff)."
+
+  - id: ssrf-stored-callback
+    requirements: [ARB-083]
+    title: "`{text}` delivers to a stored callback URL with no internal-address block"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-918]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-7]
+    tags: [ssrf, webhook, ai-code]
+    # File level: the file stores or accepts a callback URL (a string such
+    # as `json:"callback_url"` or the SQL column), sends HTTP requests,
+    # and never checks an address (IsPrivate, IsLoopback, a dialer Control
+    # hook). ssrf-request-url is the same-function request-value case.
+    query: |
+      ((call_expression function: (selector_expression operand: (_) @c field: (field_identifier) @f)
+         arguments: (argument_list . (identifier) .))
+        (#eq? @f "Do") (#match? @c "(?i)client$")) @hit
+      ((call_expression function: (selector_expression) @f
+         arguments: (argument_list . (_) @u))
+        (#match? @f "^http\\.(Post|PostForm)$") (#not-match? @u "^\"")) @hit
+    requires_file: |
+      ([(raw_string_literal) (interpreted_string_literal)] @s (#match? @s "(?i)callback_?url|webhook_?url|notify_?url|hook_?url|callback_?uri|redirect_?hook"))
+    unless_in_file: |
+      ((field_identifier) @m (#match? @m "^(IsPrivate|IsLoopback|IsLinkLocalUnicast|IsLinkLocalMulticast|IsUnspecified|IsGlobalUnicast|Control|ControlContext)$"))
+      ([(identifier) (field_identifier)] @m (#match? @m "(?i)ssrf|private_?(ip|addr|net|range)|is_?internal|blocked_?(ip|addr|net)|allowed_?(host|ip|addr)"))
+    description: >-
+      The URL was stored by a client (a merchant, a subscriber) and the server
+      later sends a request to it. Nothing in the file refuses loopback,
+      private, link-local or cloud-metadata addresses, so whoever can set
+      the URL can make the server reach internal services
+      (169.254.169.254, localhost admin ports) and learn from the delivery
+      status whether they answered.
+    remediation: "Resolve the host and refuse non-public addresses at connect time (a net.Dialer Control hook checking ip.IsPrivate/IsLoopback/IsLinkLocalUnicast), or keep an allowlist of callback hosts."
+
+  - id: image-decode-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` decodes an image without checking its dimensions first"
+    severity: high
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-409, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, decompression-bomb, ai-code]
+    # image.Decode allocates width x height x 4 bytes from the header before
+    # reading a pixel. image.DecodeConfig anywhere in the file is taken as
+    # the dimension check.
+    query: |
+      ((call_expression function: (selector_expression) @fn)
+        (#match? @fn "^(image|png|jpeg|gif|bmp|tiff|webp)\\.Decode$")) @hit
+    unless_in_file: |
+      ((call_expression function: (selector_expression field: (field_identifier) @f))
+        (#eq? @f "DecodeConfig"))
+    description: >-
+      A PNG of a few kilobytes can declare 50000 x 50000 pixels. Decoding
+      it allocates the full canvas, about 10 GB, before anything checks the
+      size, so one upload takes the process down. Bounding the file size
+      does not help: the bomb is small; the image it declares is not.
+    remediation: "Call `image.DecodeConfig` first (rewind the reader) and refuse widths, heights or width*height above a limit before `image.Decode`."
+
+  - id: decompress-read-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` reads a decompressed stream with no size limit"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-409, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, decompression-bomb, ai-code]
+    query: |
+      ((call_expression function: (selector_expression) @fn
+         arguments: (argument_list . (identifier) @src .))
+        (#match? @fn "^(io|ioutil)\\.ReadAll$")) @hit
+    requires_in_scope: |
+      ((call_expression function: (selector_expression) @fn)
+        (#match? @fn "^(gzip|zlib|flate|bzip2|lzw|zstd|snappy|lz4|brotli)\\.(NewReader|NewReaderDict)$"))
+    unless_in_scope: |
+      ((call_expression function: (selector_expression field: (field_identifier) @f))
+        (#match? @f "^(LimitReader|MaxBytesReader|CopyN|NewLimitedReader)$"))
+      ((field_identifier) @f (#eq? @f "LimitedReader"))
+    description: >-
+      Compressed input expands by up to ~1000x (gzip) or far more (nested
+      archives). `io.ReadAll` on the decompressing reader keeps going until
+      the output ends, so a 1 MB request can become gigabytes in memory.
+    remediation: "Wrap the reader: `io.ReadAll(io.LimitReader(zr, max+1))` and refuse output longer than `max`."
+
+  - id: request-body-read-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` reads the whole request body with no size limit"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-770, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, unbounded-input, ai-code]
+    query: |
+      ((call_expression function: (selector_expression) @fn
+         arguments: (argument_list . (selector_expression) @b .))
+        (#match? @fn "^(io|ioutil)\\.ReadAll$")
+        (#match? @b "^(r|req|request)\\.Body$")) @hit
+    unless_in_scope: |
+      ((call_expression function: (selector_expression field: (field_identifier) @f))
+        (#match? @f "^(LimitReader|MaxBytesReader)$"))
+      ((selector_expression field: (field_identifier) @f) (#eq? @f "ContentLength"))
+      ([(identifier) (field_identifier)] @m (#match? @m "(?i)max_?(body|request|payload)_?(size|bytes|len)|body_?(size_?)?limit"))
+    # The last line: traefik reads the whole body only on the branch its
+    # configuration chose (`maxBodySize < 0`), a decision not a gap.
+    description: >-
+      net/http puts no limit on a request body. `io.ReadAll(r.Body)` reads
+      whatever the client sends into memory, so a few concurrent requests
+      with multi-gigabyte bodies exhaust the server.
+    remediation: "Wrap it first: `r.Body = http.MaxBytesReader(w, r.Body, max)`, and return 413 on the resulting error."

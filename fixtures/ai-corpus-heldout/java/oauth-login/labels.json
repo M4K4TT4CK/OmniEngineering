@@ -1,0 +1,46 @@
+{
+  "app": "java/oauth-login",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "src/main/java/oauthlogin/App.java",
+      "line": 74,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "missing-timeout",
+      "severity": "medium",
+      "justification": "The HttpClient is built with newHttpClient() (no connect timeout) and neither the token exchange (line 172) nor the /user fetch (line 186) sets a request timeout, so a slow or hung GitHub endpoint pins Javalin request threads indefinitely during /callback.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "src/main/java/oauthlogin/App.java",
+      "line": 206,
+      "end_line": 210,
+      "cwe": [
+        "CWE-601"
+      ],
+      "category": "open-redirect",
+      "severity": "medium",
+      "justification": "safeNext rejects '//', backslash, CR and LF but not tab; a next value like '/\\t/evil.com' passes and is sent in Location, and browsers strip ASCII tab while parsing URLs, turning it into the protocol-relative '//evil.com' and redirecting off-site after login.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "src/main/java/oauthlogin/App.java",
+      "line": 177,
+      "end_line": 180,
+      "cwe": [
+        "CWE-754"
+      ],
+      "category": "ignored-error",
+      "severity": "low",
+      "justification": "exchangeCode never checks the token endpoint's HTTP status and parses whatever body arrives with readTree; a non-JSON error page throws a parse exception and the full response body is embedded in the exception logged to stderr, instead of a checked status with a clear error.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

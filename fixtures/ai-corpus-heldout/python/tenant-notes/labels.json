@@ -1,0 +1,32 @@
+{
+  "app": "python/tenant-notes",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {"id": "D1", "file": "requirements.txt", "line": 1,
+     "cwe": [], "category": "unpinned-dependency", "severity": "low",
+     "justification": "fastapi>=0.110 is an open lower bound; any future major release (including breaking or compromised ones) will be installed.",
+     "source": "independent"},
+    {"id": "D2", "file": "requirements.txt", "line": 2,
+     "cwe": [], "category": "unpinned-dependency", "severity": "low",
+     "justification": "uvicorn>=0.29 is an open lower bound with no upper pin or lock file.",
+     "source": "independent"},
+    {"id": "D3", "file": "requirements.txt", "line": 3,
+     "cwe": [], "category": "unpinned-dependency", "severity": "low",
+     "justification": "httpx>=0.27 is an open lower bound with no upper pin or lock file.",
+     "source": "independent"},
+    {"id": "D4", "file": "requirements.txt", "line": 4,
+     "cwe": [], "category": "unpinned-dependency", "severity": "low",
+     "justification": "pytest>=8.0 is an open lower bound with no upper pin or lock file.",
+     "source": "independent"},
+    {"id": "D5", "file": "app.py", "line": 18,
+     "cwe": [], "category": "undeclared-dependency", "severity": "low",
+     "justification": "app.py imports pydantic directly and relies on v2-only APIs (AfterValidator, model_dump), but pydantic is not declared; fastapi>=0.110 still permits pydantic v1, which would break the import.",
+     "source": "independent"},
+    {"id": "D6", "file": "app.py", "line": 281, "end_line": 287,
+     "cwe": ["CWE-307"], "category": "missing-rate-limit", "severity": "medium",
+     "justification": "/login performs a password check with no attempt limiting, lockout or throttling per account or IP, so passwords can be brute-forced online (README admits rate limiting is not included).",
+     "source": "independent"}
+  ],
+  "false_alarms": []
+}

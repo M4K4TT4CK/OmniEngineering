@@ -102,6 +102,11 @@ def _add_scan_commands(sub) -> None:
         sp.add_argument("--cache-path", default=None, metavar="FILE",
                         help="where the result cache lives (default: "
                              ".arbiter/cache.json under the first target)")
+        sp.add_argument("--model-verify", dest="model_verify",
+                        action=argparse.BooleanOptionalAction, default=None,
+                        help="ask a model to confirm or reject each finding at or above "
+                             "verify.min_severity (default: on for --profile assisted; "
+                             "never under offline or ci)")
         return sp
 
     sc = common(sub.add_parser("scan", help="analyze and report"))
@@ -467,6 +472,7 @@ def cmd_scan(args, gate_mode: bool = False) -> int:
         use_cache=not getattr(args, "no_cache", False),
         cache_path=getattr(args, "cache_path", None),
         verify_cache=bool(getattr(args, "verify_cache", False)),
+        model_verify=getattr(args, "model_verify", None),
     )
 
     formats = _formats(args.format)

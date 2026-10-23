@@ -1,0 +1,28 @@
+{
+  "app": "python/admin-export",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {"id": "D1", "file": "app.py", "line": 21,
+     "cwe": [], "category": "undeclared-dependency", "severity": "low",
+     "justification": "The app imports flask (and tests import pytest) but there is no dependency manifest at all; the README only says `pip install flask pytest` with no versions.",
+     "source": "independent"},
+    {"id": "D2", "file": "app.py", "line": 259, "end_line": 262,
+     "cwe": ["CWE-1236"], "category": "csv-injection", "severity": "medium",
+     "justification": "Customer name and email from the database are written to the CSV export unescaped, so a customer named e.g. `=HYPERLINK(...)` becomes a live formula when an admin opens the export in a spreadsheet.",
+     "source": "independent"},
+    {"id": "D3", "file": "app.py", "line": 236, "end_line": 254,
+     "cwe": ["CWE-400"], "category": "unbounded-memory", "severity": "medium",
+     "justification": "The export has no limit or pagination: fetchall() loads every matching order into memory and then builds the whole JSON/CSV body in memory, so an unfiltered export of a large shop can exhaust memory.",
+     "source": "independent"},
+    {"id": "D4", "file": "app.py", "line": 227, "end_line": 230,
+     "cwe": ["CWE-20"], "category": "unhandled-input-error", "severity": "low",
+     "justification": "parse_int has no bounds for customer_id, so a value beyond 64 bits makes sqlite3 raise OverflowError when binding, giving a 500 instead of a 400.",
+     "source": "independent"},
+    {"id": "D5", "file": "app.py", "line": 100,
+     "cwe": ["CWE-20"], "category": "unhandled-input-error", "severity": "low",
+     "justification": "end=9999-12-31 parses fine but `end + timedelta(days=1)` raises OverflowError, which is not caught and returns a 500.",
+     "source": "independent"}
+  ],
+  "false_alarms": []
+}

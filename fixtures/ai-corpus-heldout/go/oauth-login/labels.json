@@ -1,0 +1,16 @@
+{
+  "app": "go/oauth-login",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {"id": "D1", "file": "app.go", "line": 262,
+     "cwe": ["CWE-252"], "category": "ignored-error", "severity": "low",
+     "justification": "The error from deleting the previous session on re-login is discarded (`_ = a.deleteSession(...)`), so if the delete fails the old session token stays valid in the database with nothing logged, even though the code says it rotates sessions.",
+     "source": "independent"},
+    {"id": "D2", "file": "go.mod", "line": 6,
+     "cwe": ["CWE-1395"], "category": "vulnerable-dependency", "severity": "low",
+     "justification": "golang.org/x/oauth2 v0.24.0 predates the fix for CVE-2025-22868 (unbounded memory in the jws token parser, fixed in v0.27.0). The app does not call jws, so the risk is low, but the pinned version is a known-vulnerable release.",
+     "source": "independent"}
+  ],
+  "false_alarms": []
+}

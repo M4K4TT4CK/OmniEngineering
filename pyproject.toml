@@ -45,7 +45,7 @@ arbiter = "arbiter.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-arbiter = ["packs/**/*.yaml", "packs/**/*.toml", "packs/**/*.adapter.toml"]
+arbiter = ["packs/**/*.yaml", "packs/**/*.toml", "packs/**/*.adapter.toml", "packs/precision.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

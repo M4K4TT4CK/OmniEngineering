@@ -13,6 +13,7 @@ treated as passes.
 - [Machine-authored code](#machine-authored-code)
 - [Concurrency](#concurrency)
 - [Language packs](#language-packs)
+- [AI-written services](#ai-written-services)
 - [Contracts between artifacts](#contracts-between-artifacts)
 - [Assurance: is the checking switched on?](#assurance-is-the-checking-switched-on)
 - [The judgement pass](#the-judgement-pass)
@@ -37,6 +38,7 @@ treated as passes.
 | `assurance` | assurance | nothing | Whether the *checking* is switched on — see below |
 | `authored` | supply chain, security | nothing | Defects characteristic of machine-drafted code — see below |
 | `concurrency` | quality | nothing | Python: shared state changed by concurrent workers with no lock held — see below |
+| `aiapp` | security, quality | tree-sitter (for function boundaries) | App-level defects found in AI-written services: destructive routes or mail-sending endpoints in an app that authenticates nobody, and per-request stores that are never evicted — see [AI-written services](#ai-written-services) |
 | `lang_<pack>` | quality, security | tree-sitter + that language's grammar | Shipped structural rules for each IDE language: `lang_python`, `lang_typescript` (TS and JS), `lang_go`, `lang_java`, `lang_ruby` — see below |
 | `contract` | drift | nothing | Contracts declared in one artifact and implemented in another — see below |
 | `governance` | drift | a failure ledger | The ledger held against the change — see [Probe scopes](#probe-scopes). `governance.open-failure-untested`: an open or mitigated entry's affected file changed without any of its regression tests (`--changed` only). `governance.regression-test-missing`: a fixed entry whose regression test file is gone. Not applicable (`n/a`) without `.ai/failures/failure-ledger.json` |
@@ -198,6 +200,49 @@ function is (`python.sql-injection`; one function, no data flow). The schema is 
 `src/arbiter/lang_rules.py`, and a pack that breaks it fails at import.
 Rule ids are `arbiter/<pack>.<id>`; each carries its CWE.
 
+#### One-hop data flow (`taint:`)
+
+A rule may add a `taint:` block (Milestone 3, `src/arbiter/dataflow.py`). An
+abstract interpreter walks each function holding a sink, statement by
+statement, and gives every local one of four values: CLEAN (built from
+literals, with its constant when known), DERIVED (returned by an unseen call
+whose inputs are all CLEAN), UNKNOWN (a parameter, a field, an unseen call)
+and TAINT (reached from a source). Assignments, destructuring, `+=`,
+concatenation, format calls, templates, f-strings, interpolation, lists and
+maps with constant keys carry values; a condition, ternary or `switch` that
+folds to a constant runs only its live branch; a same-file call is followed
+one hop (arguments to parameters, returns back, sinks inside the helper see
+the bound values). The rule's own `query` stays as the fallback, so recall
+never drops: the block only adds findings and drops provably constant ones.
+
+```yaml
+taint:
+  mode: source            # source (default): report a TAINT sink; nonconst: any non-CLEAN sink
+  sources: |              # @source: a value from outside, unless it evaluates CLEAN
+  inputs: |               # @input: always TAINT (request accessors, @RequestParam parameters)
+                          # (with `sources` too, a sink must be reached from a source)
+  sinks: |                # @sink: the value checked; @hit: where the finding is reported
+  sanitizers: |           # @sanitizer: an expression whose value is CLEAN
+  value: [sql]            # captures of `query`: a hit whose values are all CLEAN is dropped
+  kill: derived           # also drop a hit whose values are DERIVED, in a function that reads an input
+  where: {sh: "regex"}    # a capture's text, or a hoisted literal's text, must match
+  types: {w: "regex"}     # a captured identifier's declared type must match
+  element0: "regex"       # the sink is a list whose first element matches (an argv's tool)
+  unless_element: "^--$"  # skip a list sink holding a matching element
+  built: true             # only a string spliced together from parts is a sink value
+  at: source              # report at the source when it is in the sink's function
+  hops: 1                 # same-file calls followed (0-2)
+  requires: false         # apply requires_file / requires_in_scope to the new findings too
+```
+
+`unless_inside`, `unless_in_scope` and `unless_in_file` apply to the new
+findings as well; when a value crossed a function on its way, `unless_in_scope`
+is checked over the whole file, since the check may sit in either function.
+One finding is kept per source per function. An analysis that outgrows its
+step budget, or fails, changes nothing (`ARBITER_DATAFLOW_STRICT=1` makes a
+failure raise; the test suite sets it). Nothing crosses a file; fields,
+aliasing and exceptions are not followed.
+
 Every finding, native or external, carries `cwe` in the JSON report and as
 `external/cwe/cwe-N` tags in SARIF. Native rules declare it in their pack or
 in `src/arbiter/cwe.py`; semgrep, bandit and gitleaks report their own, read
@@ -280,6 +325,52 @@ $ arbiter scan ./app --profile connected
 Zero false criticals across the corpus.
 
 ---
+
+## AI-written services
+
+Rules added from the AI-written development corpus (`fixtures/ai-corpus`,
+ARB-083): the defect classes a reviewer labelled in model-written services
+that no rule covered. All start **advisory** (docs/precision.md). Most are
+pack rules, listed with their packs; the cross-file ones are the `aiapp`
+probe (`src/arbiter/aiapp.py`).
+
+| Class | Rules |
+|---|---|
+| Unbounded memory | `<lang>.image-decode-unbounded` (Go `image.Decode` with no `DecodeConfig`, Java `ImageIO.read` with no `ImageReader` size check), `python.image-bomb-check-disabled`, `typescript.image-pixel-limit-disabled`; `go`/`java.decompress-read-unbounded`, `python`/`ruby.decompress-unbounded`, `typescript.decompress-sync-unbounded`; `go`/`ruby.request-body-read-unbounded`, `python.request-body-unbounded` (Flask with no `MAX_CONTENT_LENGTH`, Starlette `await request.body()`), `typescript.request-body-accumulated-unbounded`, `typescript.upload-memory-storage-unbounded`; `aiapp.store-never-evicted` |
+| Missing authentication | `aiapp.unauthenticated-destructive-route`, `aiapp.open-mail-relay` |
+| Mail TLS | `python.mail-tls-unverified`, `java.mail-starttls-not-required`, `java.mail-ssl-trust-all`, `typescript.mail-starttls-not-required`, `ruby.mail-tls-verify-none` |
+| Ignored errors (Go) | `go.ignored-encode-error`, `go.ignored-exec-error` |
+| Constant-delay retries | `<lang>.retry-constant-delay` (all five), `ruby.requeue-without-delay` |
+| SSRF to stored callbacks | `<lang>.ssrf-stored-callback` (all five) |
+
+The `aiapp` probe, per repository:
+
+- **`aiapp.unauthenticated-destructive-route`** (CWE-306, CWE-862): a DELETE
+  route, or a non-GET route under `/admin`, `/purge`, `/wipe` or `/flush`,
+  with no inline guard, when either nothing in the repository authenticates
+  a caller (no `login_required`, `requireAuth`, Bearer/JWT, passport, API key,
+  `current_user`, `@PreAuthorize`, HMAC signature check...), or other routes
+  in the same Go, TypeScript/JavaScript or Python file pass an auth
+  middleware, wrapper or `Depends(...)` inline and this one does not. Java and
+  Ruby are only checked at repository level, because they usually guard
+  routes globally (a Spring filter chain, a `before` filter).
+- **`aiapp.open-mail-relay`** (CWE-306): a write route in a repository that
+  sends mail (smtplib, net/smtp, nodemailer, Jakarta/JavaMail, Net::SMTP,
+  ActionMailer) and authenticates nobody.
+- **`aiapp.store-never-evicted`** (CWE-770, CWE-401): a map held by an object
+  (`self._jobs`, `q.jobs`, `@jobs`, `this.jobs`, a Java `Map` field) filled
+  under the id of a freshly created item (`job.id`, in a file that calls
+  uuid4/randomUUID/SecureRandom/crypto/rand...), that nothing outside the
+  inserting function or constructor removes from, clears, bounds by size or
+  expires. Reported at the insert.
+
+Authentication is recognised by name, so auth applied outside the repository
+(a gateway, a mesh, a proxy) is invisible: the route findings are medium
+confidence and say so. The store check reads one file. On the 24 gold
+repositories and the real corpora the probe reported one finding
+(nodejs-goof's unauthenticated `DELETE /chat`, a true positive). The CWE-306
+Top 25 cell stays out of reach: these are application-level heuristics, not a
+per-function check.
 
 ## Contracts between artifacts
 

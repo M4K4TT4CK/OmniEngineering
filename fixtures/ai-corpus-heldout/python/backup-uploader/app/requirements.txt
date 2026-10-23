@@ -1,0 +1,4 @@
+boto3>=1.34
+croniter>=2.0
+# Tests only
+pytest>=8.0

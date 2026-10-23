@@ -11,6 +11,12 @@ import sys
 import pytest
 from helpers import ROOT
 
+
+# These tests need tree-sitter grammars; the fast CI tier installs none.
+_needs_ts = pytest.mark.skipif(
+    not __import__("arbiter.ast", fromlist=["available"]).available(),
+    reason="tree-sitter not installed")
+
 _spec = importlib.util.spec_from_file_location("ai_corpus_score", ROOT / "tools" / "ai_corpus_score.py")
 acs = importlib.util.module_from_spec(_spec)
 sys.modules["ai_corpus_score"] = acs
@@ -112,3 +118,58 @@ def test_end_to_end_scan_of_a_tiny_app(tmp_path):
     data = json.loads(out.read_text())
     assert data["summary"]["all"]["defects"] == 1
     assert data["summary"]["all"]["recall"] == 1.0
+
+
+# --- held-out tree: aggregate-only output ------------------------------------
+
+def test_precision_by_category_and_severity_counts_every_verdict():
+    labels = {"defects": [_defect()],
+              "false_alarms": [{"rule": "arbiter/python.x", "file": "app.py", "line": 30, "reason": "safe"}]}
+    cfg = {**CFG, "category_rules": {"swallowed-exception": ["arbiter/*.swallowed-*"]}}
+    findings = [_finding(), _finding(rule="arbiter/python.x", line=30, cwe=["CWE-22"], severity="low"),
+                _finding(rule="arbiter/python.swallowed-exception", line=70, cwe=[], severity="medium")]
+    s = acs.score_app("python/x", "python", labels, findings, cfg)
+    cats = {r["category"]: r for r in acs.precision_by([s], cfg, "category")}
+    assert cats["sql-injection"]["tp"] == 1 and cats["sql-injection"]["precision"] == 1.0
+    assert cats["CWE-22"]["fp"] == 1
+    assert cats["swallowed-exception"]["unreviewed"] == 1
+    sev = [r["severity"] for r in acs.precision_by([s], cfg, "severity")]
+    assert sev == ["high", "medium", "low"]
+
+
+@_needs_ts
+def test_aggregate_only_output_names_no_rule_file_or_finding(tmp_path):
+    app = tmp_path / "python" / "tiny"
+    (app / "app").mkdir(parents=True)
+    (app / "app" / "db_layer.py").write_text(
+        "import sqlite3\n\n\ndef find(conn, name):\n"
+        "    return conn.execute(f\"SELECT * FROM users WHERE name = '{name}'\").fetchall()\n")
+    (app / "labels.json").write_text(json.dumps({"defects": [
+        _defect(file="db_layer.py", line=5, justification="UNIQUE-JUSTIFICATION-TEXT"),
+        _defect(id="D2", file="db_layer.py", line=1, cwe=["CWE-1"], category="logic-bug",
+                justification="ANOTHER-UNIQUE-TEXT")]}))
+    out, md = tmp_path / "agg.json", tmp_path / "agg.md"
+    assert acs.main(["--corpus", str(tmp_path), "--aggregate-only", "--json", str(out),
+                     "--markdown", str(md)]) == 0
+    for text in (out.read_text(), md.read_text()):
+        for leak in ("db_layer", "arbiter/", "UNIQUE-JUSTIFICATION-TEXT", "ANOTHER-UNIQUE-TEXT", "tiny"):
+            assert leak not in text, leak
+    data = json.loads(out.read_text())
+    assert data["summary"]["all"]["detected"] == 1 and data["summary"]["all"]["defects"] == 2
+    assert data["labels"]["by_severity"] == {"high": 2}
+
+
+def test_the_committed_heldout_labels_point_at_real_lines():
+    corpus = ROOT / "fixtures" / "ai-corpus-heldout"
+    found = acs.apps(corpus)
+    assert len(found) == 40, "eight tasks in five languages"
+    assert [p for a in found for p in acs.validate_labels(a)] == []
+    manifest = json.loads((corpus / "manifest.json").read_text())
+    assert {f"{m['language']}/{m['task']}" for m in manifest["apps"]} == \
+        {a.relative_to(corpus).as_posix() for a in found}
+    for a in found:
+        labels = acs.load_labels(a)
+        assert labels["false_alarms"] == [], "held out: findings are never reviewed one by one"
+        assert all(d["source"] == "independent" for d in labels["defects"])
+    assert json.loads((corpus / "corpus.json").read_text())["category_rules"] == \
+        json.loads((ROOT / "fixtures" / "ai-corpus" / "corpus.json").read_text())["category_rules"]

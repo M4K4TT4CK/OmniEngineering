@@ -1,0 +1,10 @@
+# frozen_string_literal: true
+
+source "https://rubygems.org"
+
+gem "aws-sdk-s3", "~> 1.0"
+gem "rufus-scheduler", "~> 3.9"
+
+group :test do
+  gem "minitest", "~> 5.0"
+end

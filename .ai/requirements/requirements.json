@@ -1461,7 +1461,8 @@
         "criterion 5 done 2026-10-22 (r2-controls): CWE Top 25 control pack src/arbiter/packs/controls/cwe-top25-2024.yaml with per-language cells (applies / not_applicable with reason / out_of_reach with reason), a not_applicable control state distinct from not_automatable, and per-language assessed/gap/OOR/n/a counts in the scan report and arbiter controls; applying cells are assessed by the language rules tagged with the CWE; tests/test_controls_cwe_top25.py holds every cell to the docs/cwe-top25.md matrix. Also: house/<id> maps to house_rules or house_rules_ast (FAIL-055, every emitted rule-id prefix tested), and language rules' controls: declarations now assess the controls they name. Left: IaC (resource.yaml) controls: declarations are not wired; S/B cells read as gaps because the pack counts native checks only",
         "progress 2026-10-22 (Go and Ruby, round 2): go/ruby path-traversal-request, upload-client-filename, ssrf-request-url, argument-injection and go.parsed-int-narrowed (same-function request-value rules); Go 22, 434, 77, 918, 190 and Ruby 22, 434, 77, 918 now native; no Go or Ruby gaps left; 0 gold findings",
         "progress 2026-10-22 (TypeScript and Python, round 2): native ssrf-request-url (CWE-918, TS), argument-injection (CWE-77/88, TS and Python), upload-client-filename (CWE-434, TS and Python), csrf-unsafe-methods-ignored and session-cookie-cross-site (CWE-352, TS) and python.debug-mode-enabled (CWE-200/489); TS native cells 8 to 12, Python 9 to 11, no gap cells left in either (TS 352 missing-middleware form stays a gap: marker); 0 gold findings",
-        "progress 2026-10-22 (Java, round 2): native same-method rules xss-unescaped-html (CWE-79), ssrf-request-url (918), argument-injection (88/77), parsed-number-narrowed and parsed-count-overflow (190), upload-client-filename (434); Java native 8 to 13 of 15, caught by anything 15 of 15, no Java gaps left; OWASP Benchmark Java XSS recall 0.894 at FPR 0.455"
+        "progress 2026-10-22 (Java, round 2): native same-method rules xss-unescaped-html (CWE-79), ssrf-request-url (918), argument-injection (88/77), parsed-number-narrowed and parsed-count-overflow (190), upload-client-filename (434); Java native 8 to 13 of 15, caught by anything 15 of 15, no Java gaps left; OWASP Benchmark Java XSS recall 0.894 at FPR 0.455",
+        "Milestone 3 (2026-10-22): one-hop data flow (src/arbiter/dataflow.py, pack taint: blocks) for the injection-family rules in all five languages; same-file, one hop, no fields/aliasing; rule queries kept as fallback. Variants 81%->94% on migrated rules; OWASP Java in-scope FPR 0.537->0.235 at unchanged recall; Juliet CWE-89/78 FP -66% with TP unchanged."
       ]
     },
     {
@@ -1508,7 +1509,9 @@
       "documentation_required": [
         "changelog"
       ],
-      "risk_notes": []
+      "risk_notes": [
+        "rule requirements 2026-10-22 (p1a-tiers): 157 of 228 shipped rules carry requirements: metadata (all 144 pack rules, 13 native); 71 predate the registry and are listed with that reason in tests/test_rule_requirements.py; findings carry requirements and reports a top-level rules block. The graph side (reading them as EXTRACTED) is not changed here"
+      ]
     },
     {
       "id": "ARB-065",
@@ -1547,7 +1550,10 @@
         "gold repositories are untrusted: scanned only never built or run",
         "OWASP Benchmark is GPL: fetched never redistributed",
         "first measurement 2026-10-21: 16 rules over budget; rule fixes are follow-up work, listed in tools/gold/results/2026-10-21-triage.md",
-        "round 2 testing harness 2026-10-22: AI-written corpus (fixtures/ai-corpus, 25 generated apps, 172 hand labels) scored by tools/ai_corpus_score.py: native recall 2/117 code defects, code-finding precision 2/31; human-label sampling with Wilson CIs and Cohen's kappa (tools/label_sample.py), labelling itself not yet done; regression guards (tools/regression_guard.py) on in-tree corpora and 4 small pinned repos; mutation variants (tools/variants.py) 83% robustness. Corpus labels are model-written and unaudited by people; see docs/testing-harness.md"
+        "round 2 testing harness 2026-10-22: AI-written corpus (fixtures/ai-corpus, 25 generated apps, 172 hand labels) scored by tools/ai_corpus_score.py: native recall 2/117 code defects, code-finding precision 2/31; human-label sampling with Wilson CIs and Cohen's kappa (tools/label_sample.py), labelling itself not yet done; regression guards (tools/regression_guard.py) on in-tree corpora and 4 small pinned repos; mutation variants (tools/variants.py) 83% robustness. Corpus labels are model-written and unaudited by people; see docs/testing-harness.md",
+        "precision tiers and ledger 2026-10-22 (p1a-tiers): findings carry tier verified|advisory|inferred; gate.tier_mode legacy (default) or tiered; per-rule ledger tools/gold/precision.json (shipped as packs/precision.json) built by tools/precision_ledger.py, admitted at Wilson lower >= 0.97 on >= 30 labels with kappa >= 0.8; CI precision guard tools/precision_guard.py. The ledger is empty (no labels yet): every finding is advisory and no precision claim is made; switching to tiered waits for Phase 1b labels. Labels are model-made plus external ground truth, not human",
+        "precision Phase 2 2026-10-22: model verification pass (src/arbiter/verify.py, profile assisted) records a confirmed/rejected/unsure verdict per finding at >= medium, never hides one; tools/verify_eval.py measures confirmed-set precision against labels with Wilson 95%; not yet measured live (no API key on the build machine)",
+        "held-out AI corpus 2026-10-22 (plan Phase 1 item 5): fixtures/ai-corpus-heldout, 40 apps from claude-opus-5-5 and claude-haiku-5-5, 236 blind labels committed before the scan (88bcb10), sealed in tools/gold/heldout.json; aggregate-only score: code recall 6/142, code-finding precision 7/40 (lower bound, unreviewed counted as FP), high-severity findings 0/11; regression guard keeps counts and a digest only. Held-out gold-repo split (30% of gold repos) not done here"
       ]
     },
     {
@@ -1581,7 +1587,13 @@
       "description": "`arbiter why <finding>` shows the matched query, the captures and which exclusions (unless_inside / unless_in_scope / unless_in_file) were checked; `arbiter why-not <file:line> <rule>` shows which part failed to match. `arbiter feedback` verdicts adjust per-rule confidence and are reported, never silently applied.",
       "priority": "high",
       "status": "proposed",
-      "minimum_access_scope": [],
+      "minimum_access_scope": [
+        "tools/label_models.py",
+        "tools/ground_truth/",
+        "tools/gold/labels/",
+        "tools/gold/heldout.json",
+        "tests/test_label_models.py"
+      ],
       "acceptance_criteria": [
         "why and why-not work for every native pack rule",
         "a recorded false-positive verdict lowers that rule's reported confidence on the next scan, with the verdict cited",
@@ -1596,7 +1608,12 @@
       "documentation_required": [
         "changelog"
       ],
-      "risk_notes": []
+      "risk_notes": [
+        "2026-10-22 progress (Phase 1 items 4-5): measured per-rule precision with no human labels: ground truth (OWASP Java/Python, Juliet Java, 70 CVE fix pairs; 8,061 labels) and two independent model labellers + adjudicator (692 labels, $34.82), in tools/gold/labels/ and tools/gold/results/2026-10-22-labels.md. Labeller tp-call precision on blind ground truth 0.993 with Wilson lower bound 0.962, so model labels cannot yet support a 0.99 claim; calibration covers injection/crypto only. Held-out split frozen in tools/gold/heldout.json. why/why-not and feedback criteria are untouched.",
+        "2026-10-23 progress (calibration round 2): 450 more blind ground-truth items; labeller tp-call precision pooled over 700 items 395/401 (Wilson lower 0.968), still below 0.99; all 6 false TPs have the deciding fact outside the excerpt (other-file safe source, Flask route decorator, cross-file Juliet), 389/390 (0.986) without them. Planted-twin calibration for tests/secrets/stubs/resilience/concurrency (lower bounds 0.67-0.86, too few items for 0.99) and fact-checks for supply chain and secrets. BenchmarkTest01096's safe label is right (fixed route). No category's model labels can back a 0.99 claim; tools/gold/results/2026-10-23-calibration.md. $21.27.",
+        "2026-10-23 progress (labeller context, calibration round 3): shared excerpt builder src/arbiter/context.py for labellers and verify (decorators/annotations, class header, route registration, taint-path callees, up to 3 cross-file definitions resolved by type/import; bounded 220 lines, masked); label prompt v2, verify-v2. 500 new blind ground-truth items: tp calls 286/286 (Wilson lower 0.987), fp calls 206/206; pooled rounds 1-3 681/687 (0.981). Injection family still short of a 0.99 lower bound (363 clean tp calls needed on v2; 286 so far). 5 of round 1-2's 6 false TPs become correct fp with the new excerpt; the 6th (Juliet _81) is now excluded by the widened cross-file filter. Timeout-family claim no longer asserts indefinite blocking. tools/gold/results/2026-10-23-calibration-3.md. $18.58.",
+        "2026-10-23 progress (relabel at v3, calibration rounds 4-5): context.build adds up to 2 same-file callers when a parameter feeds the flagged line; labeller prompt v3, verify-v3. Calibration on v3 (494 new blind ground-truth items): tp calls 382/382, Wilson lower 0.99004 (round 4 alone 154/154, 0.976), fp calls 112/112, 0 unsure: the first single-version 0.99 bound, for injection/weak-crypto/deserialisation on benchmark code only, margin one error. Gold sample (601, fresh gold run), AI corpus (115) and CVE suspects (5) relabelled with v3; v1 files in tools/gold/labels/history/, and the ledger build drops superseded-version model labels. Admitted: java.weak-random-for-secret, assurance.blanket-suppression (125/125, 0.970, model labels in an uncalibrated category, so not declared verified). Precision guard green. Rule gaps: ruby.sql-injection 0/19 on Rails; supply.unpinned-action reports blank lines (3 FPs); model labels lack stratum_size. tools/gold/results/2026-10-23-calibration-4.md, -relabel.md. $44.97."
+      ]
     },
     {
       "id": "ARB-068",
@@ -1897,6 +1914,49 @@
         "the omni gate runs the arbiter on PATH (the shared install)",
         "which gets this behaviour only once it is updated",
         "verified 2026-10-21 on branch m1-base: full pytest, planted_score for five languages, gold benchmark (24 repositories) and ./omni gate --no-memo with this checkout on PYTHONPATH"
+      ]
+    },
+    {
+      "id": "ARB-083",
+      "category": "feature",
+      "title": "Rules for defect classes found in AI-written code",
+      "description": "On the 25-app AI-written development corpus (fixtures/ai-corpus) Arbiter caught 2 of 117 labelled code defects and none of the 11 high-severity ones; the misses cluster in classes no rule covered. Add advisory rules, in each of Python, TypeScript/JavaScript, Go, Java and Ruby where the class applies: unbounded memory (decompression bombs, image decode without a pixel bound, request bodies read whole with no limit, in-memory job/result maps that only grow), unauthenticated destructive or mail-sending endpoints (app-level probe), SMTP/TLS without certificate verification or with opportunistic STARTTLS, Go errors discarded by an expression statement (Encode, Exec), retries scheduled with a constant delay, and server-side fetches of stored callback URLs with no internal-address block. Each rule ships with planted bad/good twins, is triaged on the gold set and real corpora, stays within its gold budget, or is dropped.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/packs/rules/ast/python.yaml",
+        "src/arbiter/packs/rules/ast/typescript.yaml",
+        "src/arbiter/packs/rules/ast/go.yaml",
+        "src/arbiter/packs/rules/ast/java.yaml",
+        "src/arbiter/packs/rules/ast/ruby.yaml",
+        "src/arbiter/aiapp.py",
+        "src/arbiter/packs/rules/native.yaml",
+        "fixtures/planted",
+        "docs/probes.md",
+        "tests"
+      ],
+      "acceptance_criteria": [
+        "every new rule carries CWE ids severity confidence description remediation and requirements ARB-083 and starts advisory",
+        "planted score stays fully caught with 0 on good twins and 0 unmarked",
+        "each new rule is within its gold budget (tools/gold/budgets.json) with every gold and real-corpus finding triaged",
+        "AI development corpus recall and precision per language and category are reported before and after",
+        "full pytest passes"
+      ],
+      "validation_required": [
+        "pytest",
+        "planted_score",
+        "gold_benchmark",
+        "ai_corpus_score",
+        "regression_guard"
+      ],
+      "documentation_required": [
+        "changelog",
+        "docs/probes.md"
+      ],
+      "risk_notes": [
+        "rules tuned on 25 development apps can overfit: the held-out corpus is the honest measure and was not read",
+        "app-level auth detection is name-based and can be fooled by auth done outside the repository (a gateway)",
+        "Dev-corpus code recall 2% to 28%, precision 9% to 52%; held-out 10 of 142 (aggregate only). New rules stay advisory until the ledger admits them."
       ]
     }
   ]

@@ -5,6 +5,14 @@
     python tools/ai_corpus_score.py --only go,python/notes-api
     python tools/ai_corpus_score.py --json out.json --markdown out.md
     python tools/ai_corpus_score.py --adapters          # with semgrep, bandit, ...
+    python tools/ai_corpus_score.py --corpus fixtures/ai-corpus-heldout --aggregate-only \
+        --markdown tools/gold/results/<date>-ai-corpus-heldout.md
+
+`--aggregate-only` is for the held-out tree (fixtures/ai-corpus-heldout/):
+the report and JSON carry counts, recall and precision per language, per
+category and per severity, and nothing that names a finding, a rule, a
+file or a missed defect. Rule authors must not see individual results
+there, or the tree stops being held out.
 
 The corpus is fixtures/ai-corpus/<lang>/<task>/: `app/` is what a model
 wrote when asked to build the task (see manifest.json for the prompt, model
@@ -314,6 +322,93 @@ def scan(app_dir: Path, use_adapters: bool = False) -> list[dict]:
              "title": f.title} for f in report.active()]
 
 
+def finding_category(f: dict, cfg: dict) -> str:
+    """The category a finding is counted under in the precision-by-category
+    table: the label category it detected, else the category its rule is tied
+    to in `category_rules`, else its first CWE."""
+    cats = f.get("detects_categories")
+    if cats:
+        return cats[0]
+    for cat, globs in cfg.get("category_rules", {}).items():
+        if cat.startswith("_"):
+            continue
+        if any(fnmatch.fnmatchcase(f["rule"], g) for g in globs):
+            return cat
+    cwe = f.get("cwe") or []
+    return cwe[0] if cwe else "uncategorised"
+
+
+def _findings_with_verdicts(scores: list[AppScore]):
+    for s in scores:
+        cat_of = {d["id"]: d["category"] for d in s.defects}
+        for f in s.true_positives:
+            yield s, {**f, "detects_categories": [cat_of[i] for i in f["detects"] if i in cat_of]}, "tp"
+        for f in s.false_alarms:
+            yield s, f, "fp"
+        for f in s.unreviewed:
+            yield s, f, "unreviewed"
+
+
+def precision_by(scores: list[AppScore], cfg: dict, key: str) -> list[dict]:
+    """Precision per finding category (key="category") or per finding
+    severity (key="severity"). Counts only; no finding is named."""
+    tally: dict[str, list[int]] = defaultdict(lambda: [0, 0, 0])
+    slot = {"tp": 0, "fp": 1, "unreviewed": 2}
+    for _s, f, verdict in _findings_with_verdicts(scores):
+        k = finding_category(f, cfg) if key == "category" else (f.get("severity") or "unknown")
+        tally[k][slot[verdict]] += 1
+    rows = [{key: k, "tp": a, "fp": b, "unreviewed": c, "findings": a + b + c,
+             "precision": _ratio(a, a + b + c)} for k, (a, b, c) in tally.items()]
+    order = {sev: i for i, sev in enumerate(SEVERITIES)}
+    if key == "severity":
+        return sorted(rows, key=lambda r: order.get(r[key], 99))
+    return sorted(rows, key=lambda r: (-r["findings"], r[key]))
+
+
+def aggregate_report(summary: dict, code_summary: dict | None, cats: list[dict],
+                     prec_cats: list[dict], prec_sev: list[dict], label_counts: dict) -> dict:
+    """Everything the held-out report may carry: no rule ids, paths, lines or
+    justifications."""
+    return {"summary": summary, "code_summary": code_summary, "recall_by_category": cats,
+            "precision_by_category": prec_cats, "precision_by_severity": prec_sev,
+            "labels": label_counts}
+
+
+def label_counts(scores: list[AppScore]) -> dict:
+    by_sev: dict[str, int] = defaultdict(int)
+    by_cat: dict[str, int] = defaultdict(int)
+    for s in scores:
+        for d in s.defects:
+            by_sev[d["severity"]] += 1
+            by_cat[d["category"]] += 1
+    return {"total": sum(by_sev.values()),
+            "by_severity": {k: by_sev[k] for k in SEVERITIES if by_sev.get(k)},
+            "by_category": dict(sorted(by_cat.items(), key=lambda kv: (-kv[1], kv[0])))}
+
+
+def render_aggregate_markdown(agg: dict, title: str = "AI-written corpus score (aggregate only)",
+                              hygiene: set[str] | None = None) -> str:
+    pct = lambda v: "—" if v is None else f"{v * 100:.0f}%"  # noqa: E731
+    lines = [f"# {title}", ""]
+    if agg["code_summary"] is not None:
+        lines += [f"## Code defects (excluding {', '.join(sorted(hygiene or ()))})", ""]
+        lines += _summary_table(agg["code_summary"])
+        lines += ["", "## All labels", ""]
+    lines += _summary_table(agg["summary"])
+    lines += ["", "## Recall by category", "", "| category | detected / defects | recall |", "|---|---|---|"]
+    lines += [f"| {c['category']} | {c['detected']}/{c['defects']} | {pct(c['recall'])} |"
+              for c in agg["recall_by_category"]]
+    for key, rows in (("severity", agg["precision_by_severity"]), ("category", agg["precision_by_category"])):
+        lines += ["", f"## Precision by finding {key}", "",
+                  f"| {key} | findings | TP | FP | unreviewed | precision |", "|---|---|---|---|---|---|"]
+        lines += [f"| {r[key]} | {r['findings']} | {r['tp']} | {r['fp']} | {r['unreviewed']} | "
+                  f"{pct(r['precision'])} |" for r in rows]
+    lab = agg["labels"]
+    lines += ["", "## Labels", "", f"{lab['total']} defects: "
+              + ", ".join(f"{n} {k}" for k, n in lab["by_severity"].items()) + "."]
+    return "\n".join(lines) + "\n"
+
+
 def _summary_table(summary: dict) -> list[str]:
     pct = lambda v: "—" if v is None else f"{v * 100:.0f}%"  # noqa: E731
     lines = ["| language | apps | defects | recall | recall (independent) | recall high+crit | findings | TP | FP | unreviewed | precision |",
@@ -365,6 +460,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--json", type=Path, help="write the full result here")
     ap.add_argument("--markdown", type=Path, help="write the summary here")
     ap.add_argument("--validate", action="store_true", help="check the labels only; no scan")
+    ap.add_argument("--aggregate-only", action="store_true",
+                    help="report counts and ratios only (the held-out tree): no rule, file, line or "
+                         "finding is named in the JSON or the markdown")
     args = ap.parse_args(argv)
     if args.adapters:
         from arbiter.adapters import register_adapters
@@ -386,6 +484,17 @@ def main(argv: list[str] | None = None) -> int:
     summary, cats, rules = summarize(scores), by_category(scores), by_rule(scores)
     hygiene = set(cfg.get("hygiene_categories", []))
     code_summary = summarize(code_only(scores, hygiene)) if hygiene else None
+    if args.aggregate_only:
+        agg = aggregate_report(summary, code_summary, cats, precision_by(scores, cfg, "category"),
+                               precision_by(scores, cfg, "severity"), label_counts(scores))
+        if args.json:
+            args.json.write_text(json.dumps(agg, indent=1) + "\n", encoding="utf-8")
+        md = render_aggregate_markdown(agg, hygiene=hygiene)
+        if args.markdown:
+            args.markdown.write_text(md, encoding="utf-8")
+        else:
+            print(md)
+        return 1 if problems else 0
     if args.json:
         args.json.write_text(json.dumps({"summary": summary, "code_summary": code_summary,
                                          "categories": cats, "rules": rules,

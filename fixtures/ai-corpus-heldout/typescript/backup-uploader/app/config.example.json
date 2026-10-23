@@ -1,0 +1,17 @@
+{
+  "schedule": "0 3 * * *",
+  "timezone": "UTC",
+  "directories": ["/etc", "/var/www"],
+  "retentionDays": 30,
+  "s3": {
+    "bucket": "my-backups",
+    "prefix": "hosts/web-1/",
+    "region": "us-east-1",
+    "endpoint": "https://s3.example.com",
+    "forcePathStyle": true
+  },
+  "status": {
+    "host": "127.0.0.1",
+    "port": 8080
+  }
+}

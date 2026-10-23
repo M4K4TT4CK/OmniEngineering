@@ -29,6 +29,9 @@ RULES = {
     # CWE Top 25, round 2 (ARB-062)
     "xss-unescaped-html", "ssrf-request-url", "argument-injection", "parsed-number-narrowed",
     "parsed-count-overflow", "upload-client-filename",
+    # AI-written-code defect classes (ARB-083)
+    "mail-starttls-not-required", "mail-ssl-trust-all", "retry-constant-delay",
+    "ssrf-stored-callback", "image-decode-unbounded", "decompress-read-unbounded",
 }
 
 pytestmark = pytest.mark.skipif(not ts.available(), reason="tree-sitter not installed")
