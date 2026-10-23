@@ -31,6 +31,7 @@ RULES = {
     "parsed-count-overflow", "upload-client-filename",
     # AI-written-code defect classes (ARB-083)
     "mail-starttls-not-required", "mail-ssl-trust-all", "retry-constant-delay",
+    "ssrf-stored-callback",
 }
 
 pytestmark = pytest.mark.skipif(not ts.available(), reason="tree-sitter not installed")

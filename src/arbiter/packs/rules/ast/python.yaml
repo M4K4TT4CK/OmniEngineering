@@ -906,3 +906,33 @@ rules:
       service is hit by the whole backlog at once and each retry is as
       likely to fail as the last.
     remediation: "Grow the delay with the attempt (`base * 2 ** attempt`, capped) and add jitter, or use tenacity/backoff."
+
+  - id: ssrf-stored-callback
+    requirements: [ARB-083]
+    title: "`{text}` delivers to a stored callback URL with no internal-address block"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-918]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-7]
+    tags: [ssrf, webhook, ai-code]
+    # A literal key or column (`"callback_url"`) means the URL comes from
+    # a client or the database; a callback map read from the environment is
+    # operator configuration and is not matched.
+    query: |
+      ((call function: (attribute attribute: (identifier) @m) @f
+         arguments: (argument_list . [(identifier) (attribute) (subscript)]))
+        (#match? @f "^(requests|httpx|client|session|self\\.(client|session|_client|_session|http))\\.post$")) @hit
+    requires_file: |
+      ((string (string_content) @s) (#match? @s "(?i)callback_?url|webhook_?url|notify_?url|hook_?url|callback_?uri|redirect_?hook"))
+    unless_in_file: |
+      ((attribute attribute: (identifier) @m) (#match? @m "^(is_private|is_loopback|is_link_local|is_global|is_reserved|is_multicast|is_unspecified)$"))
+      ((identifier) @m (#match? @m "(?i)ssrf|private_?(ip|addr|net|range)|is_?internal|is_?public|blocked_?(ip|addr|host)|allowed_?(host|ip)"))
+    description: >-
+      The URL was stored by a client (a merchant, a subscriber) and the server
+      later sends a request to it. Nothing in the file refuses loopback,
+      private, link-local or cloud-metadata addresses, so whoever can set
+      the URL can make the server reach internal services
+      (169.254.169.254, localhost admin ports) and learn from the delivery
+      status whether they answered.
+    remediation: "Resolve the host with `socket.getaddrinfo`, refuse any address that is not `ipaddress.ip_address(a).is_global`, and connect to the checked address; or keep an allowlist of callback hosts."

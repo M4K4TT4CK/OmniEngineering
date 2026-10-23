@@ -1375,3 +1375,31 @@ rules:
       dependency is retried at full speed, all attempts are used up in
       milliseconds, and the job fails anyway.
     remediation: "Schedule the retry after a growing delay (a timer, `perform_in`, or a delayed queue keyed by next-attempt time) with jitter."
+
+  - id: ssrf-stored-callback
+    requirements: [ARB-083]
+    title: "`{text}` delivers to a stored callback URL with no internal-address block"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-918]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-7]
+    tags: [ssrf, webhook, ai-code]
+    query: |
+      ((call receiver: [(identifier) (instance_variable)] @r method: (identifier) @m)
+        (#match? @r "(?i)^@?(http|conn|connection|client)$") (#match? @m "^(post|request)$")) @hit
+      ((call receiver: (scope_resolution) @r method: (identifier) @m)
+        (#match? @r "^(Net::HTTP|HTTParty|Faraday|RestClient)$") (#match? @m "^(post|post_form)$")) @hit
+    requires_file: |
+      ((string_content) @s (#match? @s "(?i)callback_?url|webhook_?url|notify_?url|hook_?url|callback_?uri|redirect_?hook"))
+    unless_in_file: |
+      ((identifier) @m (#match? @m "^(private\\?|loopback\\?|link_local\\?|ipv4_private\\?)$"))
+      ([(identifier) (constant)] @m (#match? @m "(?i)ssrf|private_?(ip|addr|net|range)|is_?internal|blocked_?(ip|addr|host)|allowed_?(host|ip)"))
+    description: >-
+      The URL was stored by a client (a merchant, a subscriber) and the server
+      later sends a request to it. Nothing in the file refuses loopback,
+      private, link-local or cloud-metadata addresses, so whoever can set
+      the URL can make the server reach internal services
+      (169.254.169.254, localhost admin ports) and learn from the delivery
+      status whether they answered.
+    remediation: "Resolve the host, refuse addresses where `IPAddr#private?`, `#loopback?` or `#link_local?` holds, and connect to the checked address (or use ssrf_filter); or keep an allowlist of callback hosts."

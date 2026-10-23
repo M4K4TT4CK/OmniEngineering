@@ -1445,3 +1445,33 @@ rules:
       service is hit by the whole backlog at once and each retry is as
       likely to fail as the last.
     remediation: "Grow the delay with the attempt (`base << attempt`, capped) and add jitter, or use a retry library (resilience4j, Failsafe) with exponential backoff."
+
+  - id: ssrf-stored-callback
+    requirements: [ARB-083]
+    title: "`{text}` delivers to a stored callback URL with no internal-address block"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-918]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-7]
+    tags: [ssrf, webhook, ai-code]
+    query: |
+      ((method_invocation object: (_) @c name: (identifier) @m
+         arguments: (argument_list . (identifier) . (_)))
+        (#match? @m "^(send|sendAsync)$") (#match? @c "(?i)client$")) @hit
+      ((method_invocation object: (_) @c name: (identifier) @m
+         arguments: (argument_list . (_) . (_) .))
+        (#match? @m "^(postForEntity|postForObject|exchange)$") (#match? @c "(?i)(rest)?template$")) @hit
+    requires_file: |
+      ((string_literal) @s (#match? @s "(?i)callback_?url|webhook_?url|notify_?url|hook_?url|callback_?uri|redirect_?hook"))
+    unless_in_file: |
+      ((identifier) @m (#match? @m "^(isSiteLocalAddress|isLoopbackAddress|isLinkLocalAddress|isAnyLocalAddress|isMulticastAddress)$"))
+      ((identifier) @m (#match? @m "(?i)ssrf|private_?(ip|addr|net|range)|is_?internal|is_?public_?(host|addr|ip)|blocked_?(ip|addr|host)|allowed_?(host|ip)"))
+    description: >-
+      The URL was stored by a client (a merchant, a subscriber) and the server
+      later sends a request to it. Nothing in the file refuses loopback,
+      private, link-local or cloud-metadata addresses, so whoever can set
+      the URL can make the server reach internal services
+      (169.254.169.254, localhost admin ports) and learn from the delivery
+      status whether they answered.
+    remediation: "Resolve the host, refuse loopback, site-local, link-local and any-local addresses, and connect to the address you checked; or keep an allowlist of callback hosts."

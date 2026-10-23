@@ -1237,3 +1237,37 @@ rules:
       service is hit by the whole backlog at once and each retry is as
       likely to fail as the last.
     remediation: "Grow the delay with the attempt (`base << attempt`, capped) and add jitter, or use a backoff package (cenkalti/backoff, k8s wait.Backoff)."
+
+  - id: ssrf-stored-callback
+    requirements: [ARB-083]
+    title: "`{text}` delivers to a stored callback URL with no internal-address block"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-918]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-7]
+    tags: [ssrf, webhook, ai-code]
+    # File level: the file stores or accepts a callback URL (a string such
+    # as `json:"callback_url"` or the SQL column), sends HTTP requests,
+    # and never checks an address (IsPrivate, IsLoopback, a dialer Control
+    # hook). ssrf-request-url is the same-function request-value case.
+    query: |
+      ((call_expression function: (selector_expression operand: (_) @c field: (field_identifier) @f)
+         arguments: (argument_list . (identifier) .))
+        (#eq? @f "Do") (#match? @c "(?i)client$")) @hit
+      ((call_expression function: (selector_expression) @f
+         arguments: (argument_list . (_) @u))
+        (#match? @f "^http\\.(Post|PostForm)$") (#not-match? @u "^\"")) @hit
+    requires_file: |
+      ([(raw_string_literal) (interpreted_string_literal)] @s (#match? @s "(?i)callback_?url|webhook_?url|notify_?url|hook_?url|callback_?uri|redirect_?hook"))
+    unless_in_file: |
+      ((field_identifier) @m (#match? @m "^(IsPrivate|IsLoopback|IsLinkLocalUnicast|IsLinkLocalMulticast|IsUnspecified|IsGlobalUnicast|Control|ControlContext)$"))
+      ([(identifier) (field_identifier)] @m (#match? @m "(?i)ssrf|private_?(ip|addr|net|range)|is_?internal|blocked_?(ip|addr|net)|allowed_?(host|ip|addr)"))
+    description: >-
+      The URL was stored by a client (a merchant, a subscriber) and the server
+      later sends a request to it. Nothing in the file refuses loopback,
+      private, link-local or cloud-metadata addresses, so whoever can set
+      the URL can make the server reach internal services
+      (169.254.169.254, localhost admin ports) and learn from the delivery
+      status whether they answered.
+    remediation: "Resolve the host and refuse non-public addresses at connect time (a net.Dialer Control hook checking ip.IsPrivate/IsLoopback/IsLinkLocalUnicast), or keep an allowlist of callback hosts."

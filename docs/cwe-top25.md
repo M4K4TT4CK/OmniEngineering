@@ -58,7 +58,7 @@ per CWE. Cells marked † are measured on pairs that were already in the corpus.
 | 16 | 502 Deserialization | N+S+B † | S | n/a | N+S † | N † |
 | 17 | 200 Information exposure | N+S+B | N | N | N | N |
 | 18 | 863 Incorrect authorization | OOR | OOR | OOR | OOR | OOR |
-| 19 | 918 SSRF | S | N | N | N | N |
+| 19 | 918 SSRF | N+S | N | N | N | N |
 | 20 | 119 Buffer bounds | n/a | n/a | n/a | n/a | n/a |
 | 21 | 476 NULL dereference | n/a | n/a | OOR | OOR | n/a |
 | 22 | 798 Hard-coded credentials | N+S+B | N+S | N | N | N+S |
@@ -84,7 +84,7 @@ the total. "Native only" means no external analyzer is needed.
 
 | Language | Applicable cells | Native | Semgrep | Bandit | Caught by anything | Gaps |
 |---|---|---|---|---|---|---|
-| Python | 14 | 11 | 12 | 7 | 14 | 0 |
+| Python | 14 | 12 | 12 | 7 | 14 | 0 |
 | TypeScript | 14 | 12 | 7 | n/a | 14 | 0 |
 | Go | 12 | 11 | 3 | n/a | 12 | 0 |
 | Java | 15 | 13 | 8 | n/a | 15 | 0 |
@@ -121,6 +121,14 @@ semgrep's bundled `generic.secrets.gitleaks.*` rules did report two of them.
   validates the host against an allowlist. The Django-labelled taint rule
   (`ssrf-injection-requests`) is the one that discriminates, and it is the one
   marked.
+- **918, stored callbacks (ARB-083)**: `<lang>.ssrf-stored-callback`, in all
+  five packs, reports a server-side POST in a file that stores or accepts a
+  callback URL (a `"callback_url"` key, struct tag or SQL column) and never
+  checks an address (`IsPrivate`, `is_global`, `isSiteLocalAddress`,
+  `IPAddr#private?`, a dialer `Control` hook). It is file-level, not taint:
+  it does not know the URL reached the call. It makes Python's cell native
+  (`fixtures/planted/python/bad/aicode_forward.py`); semgrep's mark stays on
+  the request-value pair.
 - **Java 434**: caught by semgrep's `tainted-file-path`, because the defect
   passes `getOriginalFilename()` into a path, and natively since round 2 by
   `java.upload-client-filename` (see below), which also accepts an extension
@@ -229,7 +237,8 @@ semgrep's bundled `generic.secrets.gitleaks.*` rules did report two of them.
   in a function that handles an upload (`request.files`, `request.FILES`,
   `UploadFile`). Both are silent with a sanitiser, basename, allowlist,
   `fileFilter` or MIME check in scope. All of these are medium confidence:
-  only the same function is read. Python 918 stays semgrep-only.
+  only the same function is read. Python 918 was semgrep-only until
+  ARB-083 (below).
   `python.debug-mode-enabled` (CWE-200/489) reports a literal `debug=True`
   in `app.run`, `FastAPI(...)`/`Starlette(...)`, `app.debug = True` or
   `app.config["DEBUG"] = True`, so Python's debug-mode part of 200 no

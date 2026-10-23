@@ -1227,3 +1227,41 @@ rules:
       service is hit by the whole backlog at once and each retry is as
       likely to fail as the last.
     remediation: "Grow the delay with the attempt (`base * 2 ** attempt`, capped) and add jitter."
+
+  - id: ssrf-stored-callback
+    requirements: [ARB-083]
+    title: "`{text}` delivers to a stored callback URL with no internal-address block"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-918]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-7]
+    tags: [ssrf, webhook, ai-code]
+    # File level: the file stores or accepts a callback URL (a key or SQL
+    # column named callback_url), POSTs to a non-literal URL, and never
+    # checks an address. ssrf-request-url is the same-function case.
+    query: |
+      ((call_expression function: (identifier) @f
+         arguments: (arguments . [(identifier) (member_expression)] . (object) @o))
+        (#match? @f "(?i)fetch") (#match? @o "(?i)method\\s*:\\s*['\"]post['\"]")) @hit
+      ((call_expression function: (member_expression) @f
+         arguments: (arguments . [(identifier) (member_expression)]))
+        (#match? @f "^(axios|got|ky|superagent|needle)\\.post$")) @hit
+    requires_file: |
+      ([(string_fragment) (template_string)] @s (#match? @s "(?i)callback_?url|webhook_?url|notify_?url|hook_?url|callback_?uri|redirect_?hook"))
+      ([(property_identifier) (identifier)] @s (#match? @s "(?i)callback_?url|webhook_?url|notify_?url|hook_?url|callback_?uri|redirect_?hook"))
+    unless_in_file: |
+      ([(identifier) (property_identifier)] @m (#match? @m "(?i)private|loopback|link_?local|ssrf|is_?internal|blocked_?(ip|addr|host)|allowed_?(host|ip)|ipaddr"))
+      ((string_fragment) @m (#match? @m "^(169\\.254|127\\.|10\\.|::1|fc00|fe80|localhost)"))
+    # A URL read from this request in the same function is
+    # ssrf-request-url's finding; this rule is the stored case.
+    unless_in_scope: |
+      ((member_expression) @x (#match? @x "^(req|request|ctx\\.request)\\.(body|query|params)"))
+    description: >-
+      The URL was stored by a client (a merchant, a subscriber) and the server
+      later sends a request to it. Nothing in the file refuses loopback,
+      private, link-local or cloud-metadata addresses, so whoever can set
+      the URL can make the server reach internal services
+      (169.254.169.254, localhost admin ports) and learn from the delivery
+      status whether they answered.
+    remediation: "Resolve the host, refuse non-public addresses (and pin the connection to the checked address, e.g. an undici Agent with a lookup that rejects them), or keep an allowlist of callback hosts."
