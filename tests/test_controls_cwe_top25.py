@@ -168,7 +168,7 @@ def test_applicability_follows_the_languages_present():
     go = {r["id"]: r for r in controls.evaluate(_pack(), [], _outcomes({"go"}))["controls"]}
     assert py["CWE-190"]["state"] == controls.NOT_APPLICABLE
     assert "arbitrary-precision" in py["CWE-190"]["reason"]
-    assert go["CWE-190"]["state"] == controls.NO_COVERAGE
+    assert go["CWE-190"]["state"] == controls.SATISFIED
     assert go["CWE-502"]["state"] == controls.NOT_APPLICABLE
     assert py["CWE-502"]["state"] == controls.SATISFIED
     assert go["CWE-89"]["languages"]["python"]["state"] == controls.ABSENT

@@ -106,9 +106,9 @@ controls:
     languages:
       python: {status: applies, measured: "S"}
       typescript: {status: applies, measured: "S"}
-      go: {status: applies, measured: "gap"}
+      go: {status: applies, measured: "N"}
       java: {status: applies, measured: "S"}
-      ruby: {status: applies, measured: "gap"}
+      ruby: {status: applies, measured: "N"}
 
   - id: CWE-125
     title: "Out-of-bounds Read"
@@ -181,9 +181,9 @@ controls:
     languages:
       python: {status: applies, measured: "gap"}
       typescript: {status: applies, measured: "gap"}
-      go: {status: applies, measured: "gap"}
+      go: {status: applies, measured: "N"}
       java: {status: applies, measured: "S"}
-      ruby: {status: applies, measured: "gap"}
+      ruby: {status: applies, measured: "N"}
 
   - id: CWE-94
     title: "Improper Control of Generation of Code ('Code Injection')"
@@ -226,9 +226,9 @@ controls:
     languages:
       python: {status: applies, measured: "gap"}
       typescript: {status: applies, measured: "gap"}
-      go: {status: applies, measured: "gap"}
+      go: {status: applies, measured: "N"}
       java: {status: applies, measured: "gap"}
-      ruby: {status: applies, measured: "gap"}
+      ruby: {status: applies, measured: "N"}
 
   - id: CWE-287
     title: "Improper Authentication"
@@ -316,9 +316,9 @@ controls:
     languages:
       python: {status: applies, measured: "S"}
       typescript: {status: applies, measured: "gap"}
-      go: {status: applies, measured: "gap"}
+      go: {status: applies, measured: "N"}
       java: {status: applies, measured: "gap"}
-      ruby: {status: applies, measured: "gap"}
+      ruby: {status: applies, measured: "N"}
 
   - id: CWE-119
     title: "Improper Restriction of Operations within the Bounds of a Memory Buffer"
@@ -376,7 +376,7 @@ controls:
     languages:
       python: {status: not_applicable, measured: "n/a", reason: "Integers are arbitrary-precision and cannot wrap."}
       typescript: {status: not_applicable, measured: "n/a", reason: "number is a double, so overflow is lost precision (CWE-1339), not wraparound; bigint is arbitrary-precision."}
-      go: {status: applies, measured: "gap"}
+      go: {status: applies, measured: "N"}
       java: {status: applies, measured: "gap"}
       ruby: {status: not_applicable, measured: "n/a", reason: "Integers are arbitrary-precision and cannot wrap."}
 
