@@ -1,0 +1,32 @@
+{
+  "app": "python/chat-relay",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {"id": "D1", "file": "requirements.txt", "line": 1,
+     "cwe": [], "category": "unpinned-dependency", "severity": "low",
+     "justification": "aiohttp>=3.9 is an open lower bound; it admits aiohttp releases with known CVEs fixed later and any future major version.",
+     "source": "independent"},
+    {"id": "D2", "file": "requirements.txt", "line": 2,
+     "cwe": [], "category": "unpinned-dependency", "severity": "low",
+     "justification": "pytest>=7 is an open lower bound with no upper pin or lock file.",
+     "source": "independent"},
+    {"id": "D3", "file": "requirements.txt", "line": 3,
+     "cwe": [], "category": "unpinned-dependency", "severity": "low",
+     "justification": "pytest-aiohttp>=1.0 is an open lower bound with no upper pin or lock file.",
+     "source": "independent"},
+    {"id": "D4", "file": "test_server.py", "line": 4,
+     "cwe": [], "category": "undeclared-dependency", "severity": "low",
+     "justification": "The tests import pytest_asyncio and use pytest.mark.asyncio, but pytest-asyncio is not declared; it is only pulled in transitively by pytest-aiohttp.",
+     "source": "independent"},
+    {"id": "D5", "file": "server.py", "line": 37, "end_line": 41,
+     "cwe": ["CWE-770"], "category": "unbounded-memory", "severity": "medium",
+     "justification": "Rooms are created on any join and never removed, and a single unauthenticated connection can join unlimited distinct room names, so the rooms dict (each with up to 50 x 2000-char history) grows without bound.",
+     "source": "independent"},
+    {"id": "D6", "file": "server.py", "line": 60,
+     "cwe": ["CWE-400"], "category": "slow-consumer-blocking", "severity": "medium",
+     "justification": "The sender's handler awaits asyncio.gather of send_json to every recipient with no timeout or per-client queue, so one recipient that stops reading (TCP backpressure) stalls the sender and every other poster in that room.",
+     "source": "independent"}
+  ],
+  "false_alarms": []
+}

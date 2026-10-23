@@ -1,0 +1,71 @@
+{
+  "app": "typescript/payment-webhook",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "package.json",
+      "line": 16,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"better-sqlite3\": \"^11.3.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "package.json",
+      "line": 19,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"@types/better-sqlite3\": \"^7.6.11\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "package.json",
+      "line": 20,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"@types/node\": \"^20.16.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "package.json",
+      "line": 21,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"tsx\": \"^4.19.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D5",
+      "file": "package.json",
+      "line": 22,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"typescript\": \"^5.6.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D6",
+      "file": "src/app.ts",
+      "line": 251,
+      "end_line": 255,
+      "cwe": [
+        "CWE-306"
+      ],
+      "category": "missing-authn",
+      "severity": "medium",
+      "justification": "GET /orders/:orderId has no authentication at all; anyone who can reach the service can read any order's payment status and amounts by guessing/enumerating order ids (README admits it is unauthenticated).",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

@@ -1,0 +1,20 @@
+{
+  "app": "go/backup-uploader",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {"id": "D1", "file": "store.go", "line": 9, "end_line": 10,
+     "cwe": [], "category": "undeclared-dependency", "severity": "medium",
+     "justification": "store.go imports github.com/minio/minio-go/v7 and its credentials package, but go.mod has no require directive and there is no go.sum (the README admits the dependency is not pinned), so the build resolves whatever version `go mod tidy` picks.",
+     "source": "independent"},
+    {"id": "D2", "file": "backup.go", "line": 246,
+     "cwe": ["CWE-400"], "category": "missing-timeout", "severity": "medium",
+     "justification": "The upload (and the List/Delete calls in prune) run with only the process-lifetime signal context and minio's default transport, with no per-run deadline, so a stalled S3 endpoint hangs the run forever and blocks every later scheduled backup.",
+     "source": "independent"},
+    {"id": "D3", "file": "main.go", "line": 70,
+     "cwe": [], "category": "doc-drift", "severity": "low",
+     "justification": "The README says SIGTERM stops the service 'after any in-progress backup finishes', but runner.Run gets the same ctx that signal.NotifyContext cancels, so the in-progress upload is aborted and recorded as failed rather than finished.",
+     "source": "independent"}
+  ],
+  "false_alarms": []
+}

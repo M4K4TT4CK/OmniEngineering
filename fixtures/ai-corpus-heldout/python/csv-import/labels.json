@@ -1,0 +1,28 @@
+{
+  "app": "python/csv-import",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {"id": "D1", "file": "requirements.txt", "line": 1,
+     "cwe": [], "category": "unpinned-dependency", "severity": "low",
+     "justification": "flask>=3.0 is an open lower bound with no upper pin or lock file.",
+     "source": "independent"},
+    {"id": "D2", "file": "requirements.txt", "line": 2,
+     "cwe": [], "category": "unpinned-dependency", "severity": "low",
+     "justification": "pytest>=8.0 is an open lower bound with no upper pin or lock file.",
+     "source": "independent"},
+    {"id": "D3", "file": "app.py", "line": 186, "end_line": 188,
+     "cwe": ["CWE-306"], "category": "missing-authn", "severity": "medium",
+     "justification": "POST /imports (and GET /imports/<id>) have no authentication, so anyone who can reach the service can overwrite customer records by email through an upload.",
+     "source": "independent"},
+    {"id": "D4", "file": "app.py", "line": 202,
+     "cwe": ["CWE-770"], "category": "unbounded-concurrency", "severity": "medium",
+     "justification": "Each upload starts a new thread with no pool or limit, each holding up to 10 MB of decoded text plus the parsed row list in memory, so a burst of uploads exhausts threads and memory.",
+     "source": "independent"},
+    {"id": "D5", "file": "app.py", "line": 132, "end_line": 136,
+     "cwe": ["CWE-362"], "category": "race-condition", "severity": "low",
+     "justification": "The SELECT existence check and the upsert are separate statements outside a transaction, so concurrent imports touching the same email miscount inserted vs updated rows (README admits this).",
+     "source": "independent"}
+  ],
+  "false_alarms": []
+}

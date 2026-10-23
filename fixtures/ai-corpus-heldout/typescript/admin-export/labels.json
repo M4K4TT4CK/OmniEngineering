@@ -1,0 +1,120 @@
+{
+  "app": "typescript/admin-export",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "package.json",
+      "line": 19,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"better-sqlite3\": \"^11.7.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "package.json",
+      "line": 20,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"express\": \"^5.1.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "package.json",
+      "line": 23,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"@types/better-sqlite3\": \"^7.6.12\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "package.json",
+      "line": 24,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"@types/express\": \"^5.0.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D5",
+      "file": "package.json",
+      "line": 25,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"@types/node\": \"^22.10.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D6",
+      "file": "package.json",
+      "line": 26,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"@types/supertest\": \"^6.0.2\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D7",
+      "file": "package.json",
+      "line": 27,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"supertest\": \"^7.0.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D8",
+      "file": "package.json",
+      "line": 28,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"tsx\": \"^4.19.2\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D9",
+      "file": "package.json",
+      "line": 29,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"typescript\": \"^5.7.2\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D10",
+      "file": "package.json",
+      "line": 30,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"vitest\": \"^3.0.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D11",
+      "file": "src/app.ts",
+      "line": 277,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "unbounded-memory",
+      "severity": "medium",
+      "justification": "GET /orders/export loads every matching order with .all() and builds the whole JSON/CSV response in memory with no limit, paging or streaming; an export with no filters over a large shop can exhaust memory (README acknowledges).",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

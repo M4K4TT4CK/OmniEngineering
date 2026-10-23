@@ -1,0 +1,28 @@
+{
+  "app": "go/payment-webhook",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {"id": "D1", "file": "service.go", "line": 17,
+     "cwe": [], "category": "undeclared-dependency", "severity": "medium",
+     "justification": "service.go imports modernc.org/sqlite but go.mod has no require directive for it (only `module` and `go 1.22`) and there is no go.sum, so the build is not reproducible and the driver version is unpinned.",
+     "source": "independent"},
+    {"id": "D2", "file": "main.go", "line": 24,
+     "cwe": ["CWE-400"], "category": "server-no-timeout", "severity": "medium",
+     "justification": "http.ListenAndServe uses a zero-value http.Server with no ReadHeaderTimeout/ReadTimeout/WriteTimeout/IdleTimeout, so slow-loris clients can hold connections open indefinitely.",
+     "source": "independent"},
+    {"id": "D3", "file": "service.go", "line": 167, "end_line": 170,
+     "cwe": ["CWE-841"], "category": "logic-bug", "severity": "medium",
+     "justification": "Every new event unconditionally overwrites the order status, with no state-transition check, so a late or out-of-order delivery (e.g. a retried payment.failed arriving after payment.succeeded, or payment.succeeded after refund.created) moves a paid or refunded order back to failed/paid; the event amount is also never checked against the stored order amount.",
+     "source": "independent"},
+    {"id": "D4", "file": "service.go", "line": 94,
+     "cwe": ["CWE-306"], "category": "missing-authn", "severity": "medium",
+     "justification": "GET /orders/{id} has no authentication at all, so anyone who can reach the service can enumerate order ids and read their amounts and payment status.",
+     "source": "independent"},
+    {"id": "D5", "file": "service.go", "line": 196,
+     "cwe": ["CWE-252"], "category": "ignored-error", "severity": "low",
+     "justification": "writeJSON discards the error from json.NewEncoder(w).Encode(v), so failed response writes are silently lost.",
+     "source": "independent"}
+  ],
+  "false_alarms": []
+}

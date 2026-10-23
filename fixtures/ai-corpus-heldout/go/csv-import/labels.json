@@ -1,0 +1,28 @@
+{
+  "app": "go/csv-import",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {"id": "D1", "file": "importer.go", "line": 16,
+     "cwe": [], "category": "undeclared-dependency", "severity": "medium",
+     "justification": "importer.go imports modernc.org/sqlite but go.mod contains only `module csvimport` and `go 1.22` with no require directive (and no go.sum), so the dependency is undeclared and its version unpinned.",
+     "source": "independent"},
+    {"id": "D2", "file": "main.go", "line": 172,
+     "cwe": ["CWE-400"], "category": "server-no-timeout", "severity": "medium",
+     "justification": "http.ListenAndServe is used with no http.Server timeouts (ReadHeaderTimeout/ReadTimeout/WriteTimeout), so slow clients uploading up to 64 MiB can hold connections indefinitely.",
+     "source": "independent"},
+    {"id": "D3", "file": "main.go", "line": 28,
+     "cwe": ["CWE-306"], "category": "missing-authn", "severity": "medium",
+     "justification": "POST /imports and the status/error endpoints have no authentication, so any caller can bulk insert or overwrite customer records (upsert by email) in the customer database.",
+     "source": "independent"},
+    {"id": "D4", "file": "importer.go", "line": 131,
+     "cwe": ["CWE-770"], "category": "unbounded-input", "severity": "medium",
+     "justification": "Every accepted upload spawns a new background goroutine and a temp file of up to 64 MiB with no limit on concurrent or queued imports, so repeated uploads exhaust disk, CPU and the single DB connection.",
+     "source": "independent"},
+    {"id": "D5", "file": "importer.go", "line": 323, "end_line": 327,
+     "cwe": ["CWE-252"], "category": "ignored-error", "severity": "low",
+     "justification": "countRows ignores every non-EOF error from r.Read() and just increments n; a persistent read error makes the loop spin forever, and parse errors are silently counted as rows.",
+     "source": "independent"}
+  ],
+  "false_alarms": []
+}

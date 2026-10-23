@@ -1,0 +1,16 @@
+{
+  "app": "go/tenant-notes",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {"id": "D1", "file": "server.go", "line": 159, "end_line": 183,
+     "cwe": ["CWE-307"], "category": "missing-rate-limit", "severity": "medium",
+     "justification": "POST /login (and /signup, /invites/accept) has no rate limiting, attempt counting or lockout, so passwords can be brute-forced online without limit; the README admits this instead of fixing it.",
+     "source": "independent"},
+    {"id": "D2", "file": "go.mod", "line": 6,
+     "cwe": ["CWE-1395"], "category": "vulnerable-dependency", "severity": "low",
+     "justification": "golang.org/x/crypto v0.28.0 is older than the fixes for the published x/crypto/ssh advisories (CVE-2024-45337, fixed in v0.31.0; CVE-2025-22869, fixed in v0.35.0). Only bcrypt is used here, so the risk is low, but the pin should be raised.",
+     "source": "independent"}
+  ],
+  "false_alarms": []
+}

@@ -1,0 +1,163 @@
+{
+  "app": "typescript/csv-import",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "package.json",
+      "line": 14,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"better-sqlite3\": \"^12.2.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "package.json",
+      "line": 15,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"csv-parse\": \"^5.6.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "package.json",
+      "line": 16,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"express\": \"^5.1.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "package.json",
+      "line": 17,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"multer\": \"^2.0.2\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D5",
+      "file": "package.json",
+      "line": 20,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"@types/better-sqlite3\": \"^7.6.13\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D6",
+      "file": "package.json",
+      "line": 21,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"@types/express\": \"^5.0.3\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D7",
+      "file": "package.json",
+      "line": 22,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"@types/multer\": \"^2.0.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D8",
+      "file": "package.json",
+      "line": 23,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"@types/node\": \"^22.15.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D9",
+      "file": "package.json",
+      "line": 24,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"@types/supertest\": \"^6.0.3\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D10",
+      "file": "package.json",
+      "line": 25,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"supertest\": \"^7.1.4\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D11",
+      "file": "package.json",
+      "line": 26,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"tsx\": \"^4.20.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D12",
+      "file": "package.json",
+      "line": 27,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"typescript\": \"^5.8.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D13",
+      "file": "package.json",
+      "line": 28,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"vitest\": \"^3.2.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D14",
+      "file": "src/app.ts",
+      "line": 18,
+      "cwe": [
+        "CWE-306"
+      ],
+      "category": "missing-authn",
+      "severity": "medium",
+      "justification": "POST /imports (which inserts and overwrites customer records by email) and GET /imports/:id have no authentication; anyone who can reach the service can overwrite customer names/phones/countries in bulk.",
+      "source": "independent"
+    },
+    {
+      "id": "D15",
+      "file": "src/importer.ts",
+      "line": 176,
+      "end_line": 179,
+      "cwe": [
+        "CWE-770"
+      ],
+      "category": "unbounded-memory",
+      "severity": "medium",
+      "justification": "Each upload is buffered in memory (multer memoryStorage, up to 20 MiB) and start() launches a background job per request with no limit on concurrent or queued imports, so many parallel uploads exhaust process memory.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

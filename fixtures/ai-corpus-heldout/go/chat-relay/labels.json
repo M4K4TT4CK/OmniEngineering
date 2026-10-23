@@ -1,0 +1,20 @@
+{
+  "app": "go/chat-relay",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {"id": "D1", "file": "relay.go", "line": 249, "end_line": 252,
+     "cwe": ["CWE-770"], "category": "unbounded-memory", "severity": "medium",
+     "justification": "Any client can create any number of rooms (no cap per client or globally), and a room that has history is never deleted, so a client that joins and posts once in many distinct room names keeps up to 50 x 4000-byte messages per room in memory forever; the README admits the room count is not capped.",
+     "source": "independent"},
+    {"id": "D2", "file": "relay.go", "line": 269, "end_line": 286,
+     "cwe": ["CWE-770"], "category": "missing-rate-limit", "severity": "low",
+     "justification": "publish has no per-client message rate limit, so one connection can flood a room with up to 4000-byte messages that fan out to every member, overflowing their 256-frame buffers and getting legitimate slow clients disconnected.",
+     "source": "independent"},
+    {"id": "D3", "file": "relay.go", "line": 137, "end_line": 143,
+     "cwe": ["CWE-770"], "category": "unbounded-input", "severity": "low",
+     "justification": "serveWS accepts unlimited WebSocket connections, each with its own goroutines and 256-slot send buffer, and nothing caps the total or per-IP connection count.",
+     "source": "independent"}
+  ],
+  "false_alarms": []
+}
