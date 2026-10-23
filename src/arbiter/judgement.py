@@ -98,6 +98,16 @@ class Provider:
         raise Unavailable("no provider configured")
 
 
+_NO_TEMPERATURE = re.compile(r"^claude-(opus|sonnet|haiku|fable)-5(-|$)")
+
+
+def accepts_temperature(model: str) -> bool:
+    """The 5.x models reject `temperature` with HTTP 400 (seen on
+    claude-opus-5-5, 2026-10-22); their determinism comes from the pinned
+    model id and the prompt, so the field is left out for them."""
+    return not _NO_TEMPERATURE.match(model or "")
+
+
 @dataclass
 class AnthropicProvider(Provider):
     name: str = "anthropic"
@@ -114,15 +124,17 @@ class AnthropicProvider(Provider):
         key = os.environ.get(self.api_key_env)
         if not key:
             raise Unavailable(f"{self.api_key_env} is not set")
-        body = json.dumps({
+        request = {
             "model": self.model,
             "max_tokens": self.max_tokens,
-            # Zero temperature is the most determinism a hosted model offers.
-            # It is not a guarantee, which is why inferred findings do not gate.
-            "temperature": 0,
             "system": system,
             "messages": [{"role": "user", "content": user}],
-        }).encode()
+        }
+        if accepts_temperature(self.model):
+            # Zero temperature is the most determinism a hosted model offers.
+            # It is not a guarantee, which is why inferred findings do not gate.
+            request["temperature"] = 0
+        body = json.dumps(request).encode()
         req = urllib.request.Request(
             ANTHROPIC_URL, data=body, method="POST",
             headers={
