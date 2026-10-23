@@ -1,4 +1,28 @@
 # Changelog
+## 2026-10-23
+### Completed
+- `REQ-055` | Code understanding | The code graph stays connected (FAIL-019). On
+the interview workspace's five starters 9 of 14 code files had no resolved
+edge; now 2 (an empty `__init__.py` and a Spring `Application` nothing names).
+TypeScript ESM specifiers resolve to their source (`./app.js` -> `app.ts`,
+`.mjs` -> `.mts`, `.cjs` -> `.cts`, index files); `.mts`/`.cts` are parsed, as
+are top-level calls and `const f = () => ...` functions. Python imports resolve
+against the importing project's roots: `src/`, pyproject/setup.cfg/pytest.ini
+`where`, `package-dir` and `pythonpath`, the first non-package directory up,
+relative imports and `from pkg import module`, so several projects in one
+repository each resolve inside themselves. Go resolves same-package calls and
+`go.mod` module-path imports; Java same-package types and annotation class
+literals (`@WebMvcTest(HealthController.class)`), with ambiguous names going to
+the nearest project; Ruby constants and `.ru`/`.rake` files. A resolved
+reference drops its `external:` placeholder, and a bare call no import explains
+(`it`, `expect`, a method on a local) gets none, listed in the caller's
+`attrs.unresolved_calls` instead: the starter workspace's graph goes from 746 to
+130 placeholders, all imports or calls into imported libraries. Test files now
+`verify` code in all five languages. Markdown docs (README, `docs/`, skills)
+get `mentions` edges to the existing files they name in backticks or link to;
+`omni graph why` lists them under docs. Tests in
+`tests/test_graph_resolution.py`.
+
 ## 2026-10-22
 ### Completed
 - `REQ-023` | Code understanding | The 3D graph view pans on Ctrl+drag (Cmd+drag

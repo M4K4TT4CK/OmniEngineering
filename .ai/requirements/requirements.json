@@ -1854,6 +1854,37 @@
         "docs/arbiter-integration.md"
       ],
       "risk_notes": []
+    },
+    {
+      "id": "REQ-055",
+      "category": "Code understanding",
+      "title": "The code graph stays connected: imports, same-package references, tests and docs resolve to project files",
+      "description": "A user reported graph nodes not parsed for symbols or detached from their obvious upstream/downstream. On the five interview starters 9 of 14 code files had no resolved edge: TypeScript ESM './app.js' specifiers, Python src-layout imports, Go same-package calls, Java same-package type references (@WebMvcTest(X.class)) did not resolve; resolved imports kept a duplicate external placeholder; bare unresolved calls (Ruby/RSpec DSL, methods on locals) made half the nodes external placeholders; only Ruby and Go tests verified code; markdown docs had no edges. Resolution now covers all of these and docs get mentions edges.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "omni_graph.py",
+        ".ai/graph-viewer/viewer.html",
+        "tests/test_graph_resolution.py",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "a .js specifier in TypeScript resolves to the .ts source",
+        "a src-layout or declared-root python import resolves inside its own project",
+        "Go same-package and go.mod module-path references resolve",
+        "a Java test referencing a same-package class verifies it",
+        "resolved references and bare unresolved calls leave no external placeholder",
+        "test files verify code in python typescript go java and ruby",
+        "markdown docs mention the repository files they name"
+      ],
+      "validation_required": [
+        "unittest",
+        "gate"
+      ],
+      "documentation_required": [
+        "changelog"
+      ],
+      "risk_notes": []
     }
   ]
 }

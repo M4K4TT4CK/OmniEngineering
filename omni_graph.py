@@ -13,6 +13,10 @@ with where it came from:
   refers to) or, if a semantic API is configured, by that API. INFERRED
   edges are only ever added on top of an EXTRACTED edge that justifies them
   -- an unresolved reference stays EXTRACTED-only rather than being guessed.
+  Once a reference resolves, its EXTRACTED edge to the `external:` placeholder
+  is dropped (the INFERRED edge's detail keeps the raw text it resolved), and a
+  bare call that no import explains gets no placeholder at all (it is listed
+  on the caller as `attrs.unresolved_calls`); see _ExternalPruner.
 
 `omni graph build` is the only entry point that needs tree-sitter installed
 (the `[graph]` extra). `omni graph trace` / `omni graph show` / `omni graph
@@ -51,7 +55,7 @@ INFERRED = "INFERRED"
 LANGUAGE_EXTENSIONS: dict[str, tuple[str, ...]] = {
     "python": (".py",),
     "javascript": (".js", ".jsx", ".mjs", ".cjs"),
-    "typescript": (".ts", ".tsx"),
+    "typescript": (".ts", ".tsx", ".mts", ".cts"),
 }
 
 SEMANTIC_API_URL_ENV = "OMNI_GRAPH_SEMANTIC_API_URL"
@@ -417,6 +421,7 @@ class FileFacts:
     scope_types: dict[str, dict[str, str]] = field(default_factory=dict)
     class_field_types: dict[str, dict[str, str]] = field(default_factory=dict)
     pending_relations: list[tuple[str, str, str, str]] = field(default_factory=list)
+    pending_type_refs: list[tuple[str, str]] = field(default_factory=list)  # (symbol id, bare type name it references)
 
 
 # --------------------------------------------------------------------------
@@ -754,6 +759,34 @@ def _js_import_clause_names(clause) -> list[tuple[str, str | None]]:
     return names
 
 
+_JS_FUNCTION_VALUES = {"arrow_function", "function_expression", "function", "generator_function"}
+
+
+def _walk_js_declarations(graph: Graph, declaration, container_id: str, top_level: bool, relpath: str, language: str, record_calls) -> None:
+    """`const createApp = () => ...` / `= function () ...` is a function; any other initializer at the top level is
+    module code whose calls belong to the module (`record_calls(node, caller_id, class_id)`)."""
+    for declarator in declaration.children:
+        if declarator.type != "variable_declarator":
+            continue
+        name_node = declarator.child_by_field_name("name")
+        value = declarator.child_by_field_name("value")
+        if value is None:
+            continue
+        if name_node is None or name_node.type != "identifier" or value.type not in _JS_FUNCTION_VALUES:
+            if top_level:
+                record_calls(value, container_id, None)
+            continue
+        func_name = _text(name_node)
+        func_id = f"{container_id}::{func_name}"
+        graph.add_node(
+            GraphNode(func_id, "function", func_name, func_id, relpath, declarator.start_point[0] + 1, declarator.end_point[0] + 1, language)
+        )
+        graph.add_edge(container_id, func_id, "defines", EXTRACTED, "syntax")
+        body = value.child_by_field_name("body")
+        if body is not None:
+            record_calls(body, func_id, None)
+
+
 def parse_js_like_file(path: Path, root: Path, source: bytes, graph: Graph, language: str) -> FileFacts:
     ts_language = load_language(language)  # raises GraphDependencyError before the raw import below can
     import tree_sitter as ts
@@ -861,6 +894,8 @@ def parse_js_like_file(path: Path, root: Path, source: bytes, graph: Graph, lang
             body = child.child_by_field_name("body")
             if body is not None:
                 record_calls(body, func_id, current_class_id)
+        elif ctype in ("lexical_declaration", "variable_declaration"):
+            _walk_js_declarations(graph, child, container_id, container_id == module_id, relpath, language, record_calls)
         elif ctype == "method_definition":
             name_node = child.child_by_field_name("name")
             if name_node is None:
@@ -877,6 +912,8 @@ def parse_js_like_file(path: Path, root: Path, source: bytes, graph: Graph, lang
             body = child.child_by_field_name("body")
             if body is not None:
                 record_calls(body, method_id, current_class_id)
+        elif container_id == module_id and ctype not in ("comment", "export_statement"):
+            record_calls(child, module_id, None)  # top-level code: describe()/it() blocks, app.listen(), CLI entry points
 
     walk(tree.root_node, module_id, None)
     return facts
@@ -902,25 +939,191 @@ _BUILTIN_NAMES = {
 }
 
 
-def _resolve_import_target(
-    raw: str, importing_relpath: str, module_ids: set[str], language: str
-) -> str | None:
-    if language == "python":
-        stub = raw.replace(".", "/")
-        for candidate in (f"{stub}.py", f"{stub}/__init__.py"):
-            if candidate in module_ids:
+_JS_SPECIFIER_SWAPS = {".js": (".ts", ".tsx"), ".jsx": (".tsx",), ".mjs": (".mts",), ".cjs": (".cts",)}
+_JS_SUFFIXES = (
+    "", ".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs",
+    "/index.ts", "/index.tsx", "/index.mts", "/index.js", "/index.jsx", "/index.mjs",
+)
+_PY_CONFIG_FILES = ("pyproject.toml", "setup.cfg", "pytest.ini", "tox.ini")
+
+
+def _quoted_strings(text: str) -> list[str]:
+    return re.findall(r'["\']([^"\']*)["\']', text)
+
+
+def _python_config_roots(text: str, filename: str) -> list[str]:
+    """Import roots a project's packaging/test config declares, relative to the config file's directory: setuptools
+    `where` and `package-dir`, poetry `from`, hatch wheel `packages` parents and pytest `pythonpath`."""
+    roots: list[str] = []
+    if filename.endswith(".toml"):
+        for match in re.finditer(r"^\s*(?:pythonpath|where)\s*=\s*(\[[^\]]*\]|\"[^\"]*\"|'[^']*')", text, re.M):
+            roots.extend(_quoted_strings(match.group(1)))
+        roots.extend(re.findall(r"\bfrom\s*=\s*[\"']([^\"']+)[\"']", text))  # poetry: { include = "pkg", from = "src" }
+        roots.extend(re.findall(r"(?:\"\"|'')\s*=\s*[\"']([^\"']+)[\"']", text))  # package-dir = { "" = "src" }
+        for match in re.finditer(r"^\s*packages\s*=\s*\[([^\]]*)\]", text, re.M):
+            roots.extend(Path(item).parent.as_posix() for item in _quoted_strings(match.group(1)) if "/" in item)
+    else:
+        for match in re.finditer(r"^\s*(?:pythonpath|where)\s*=\s*(.+)$", text, re.M):
+            roots.extend(match.group(1).split())
+        roots.extend(re.findall(r"^\s*=\s*(\S+)\s*$", text, re.M))  # setup.cfg [options] package_dir = \n    = src
+    return [root.strip().strip("/") for root in roots if root.strip() and not root.strip().startswith(("/", ".."))]
+
+
+def _join_rel(base: str, rest: str) -> str:
+    """`base/rest` as a normalised repository-relative posix path ("" or "." is the repository root)."""
+    if base in ("", "."):
+        return os.path.normpath(rest).replace(os.sep, "/")
+    return os.path.normpath(f"{base}/{rest}").replace(os.sep, "/")
+
+
+class _ImportResolver:
+    """Maps an import as written to the module file it loads, for python and javascript/typescript.
+
+    Python: relative imports from the importing file's package; absolute ones against every import root that could
+    hold the top-level package -- the first directory above the file that is not a package (what pytest and
+    `python file.py` put on sys.path), roots declared by a pyproject/setup.cfg/pytest.ini on the way up (setuptools
+    `where`/`package-dir`, pytest `pythonpath`), a `src/` beside any ancestor, then the ancestors themselves,
+    nearest first, so several independent projects in one repository each resolve inside themselves.
+    JS/TS: relative specifiers, including the TypeScript ESM convention of writing the emitted `.js` name for a
+    `.ts` source (`./app.js` -> app.ts, `.mjs` -> `.mts`, `.cjs` -> `.cts`) and directory index files."""
+
+    def __init__(self, module_ids: set[str], root: Path | None = None) -> None:
+        self.module_ids = module_ids
+        self.root = root
+        self._cache: dict[tuple[str, str, str], str | None] = {}
+        self._config: dict[str, list[str]] = {}
+
+    def resolve(self, raw: str, importing_relpath: str, language: str) -> str | None:
+        key = (raw, Path(importing_relpath).parent.as_posix(), language)
+        if key not in self._cache:
+            self._cache[key] = self._python(raw, importing_relpath) if language == "python" else self._js(raw, importing_relpath)
+        return self._cache[key]
+
+    def _module_at(self, base: str, stub: str) -> str | None:
+        for candidate in (_join_rel(base, f"{stub}.py"), _join_rel(base, f"{stub}/__init__.py")):
+            if candidate in self.module_ids:
                 return candidate
         return None
 
-    if not raw.startswith("."):
+    def _config_roots(self, directory: str) -> list[str]:
+        if directory not in self._config:
+            found: list[str] = []
+            if self.root is not None:
+                for name in _PY_CONFIG_FILES:
+                    try:
+                        text = (self.root / directory / name).read_text(encoding="utf-8", errors="replace")
+                    except OSError:
+                        continue
+                    found.extend(_python_config_roots(text, name))
+            self._config[directory] = [_join_rel(directory, entry) for entry in found]
+        return self._config[directory]
+
+    def python_roots(self, importing_relpath: str) -> list[str]:
+        parent = Path(importing_relpath).parent.as_posix()
+        parts = [] if parent in ("", ".") else parent.split("/")
+        ancestors = ["/".join(parts[:index]) for index in range(len(parts), -1, -1)]
+        roots: list[str] = []
+        for ancestor in ancestors:  # sys.path[0]: the first directory up that is not itself a package
+            if _join_rel(ancestor, "__init__.py") not in self.module_ids:
+                roots.append(ancestor)
+                break
+        for ancestor in ancestors:
+            roots.extend(self._config_roots(ancestor))
+            roots.extend((_join_rel(ancestor, "src"), ancestor))
+        return list(dict.fromkeys(roots))
+
+    def _python(self, raw: str, importing_relpath: str) -> str | None:
+        if raw.startswith("."):
+            dots = len(raw) - len(raw.lstrip("."))
+            base = Path(importing_relpath).parent
+            for _ in range(dots - 1):
+                base = base.parent
+            rest = raw[dots:].replace(".", "/")
+            if not rest:
+                package = _join_rel(base.as_posix(), "__init__.py")
+                return package if package in self.module_ids else None
+            return self._module_at(base.as_posix(), rest)
+        stub = raw.replace(".", "/")
+        if not stub:
+            return None
+        for base in self.python_roots(importing_relpath):
+            found = self._module_at(base, stub)
+            if found:
+                return found
         return None
-    base_dir = Path(importing_relpath).parent
-    joined = os.path.normpath((base_dir / raw).as_posix()).replace(os.sep, "/")
-    for suffix in ("", ".ts", ".tsx", ".js", ".jsx", "/index.ts", "/index.tsx", "/index.js", "/index.jsx"):
-        candidate = f"{joined}{suffix}"
-        if candidate in module_ids:
-            return candidate
-    return None
+
+    def _js(self, raw: str, importing_relpath: str) -> str | None:
+        if not raw.startswith("."):
+            return None
+        base_dir = Path(importing_relpath).parent
+        joined = os.path.normpath((base_dir / raw).as_posix()).replace(os.sep, "/")
+        stem, ext = os.path.splitext(joined)
+        for swapped in _JS_SPECIFIER_SWAPS.get(ext, ()):
+            if f"{stem}{swapped}" in self.module_ids:
+                return f"{stem}{swapped}"
+        for suffix in _JS_SUFFIXES:
+            candidate = f"{joined}{suffix}"
+            if candidate in self.module_ids:
+                return candidate
+        return None
+
+
+def _resolve_import_target(
+    raw: str, importing_relpath: str, module_ids: set[str], language: str, resolver: _ImportResolver | None = None
+) -> str | None:
+    return (resolver or _ImportResolver(module_ids)).resolve(raw, importing_relpath, language)
+
+
+def _python_submodule(base_module: str, symbol: str) -> str:
+    """The dotted name `from base_module import symbol` loads when `symbol` is a submodule."""
+    return base_module + symbol if not base_module.strip(".") else f"{base_module}.{symbol}"
+
+
+class _ExternalPruner:
+    """Keeps `external:` placeholders to what the project really depends on from outside.
+
+    Parsing links every import, base class and call site to an `external:<name>` placeholder (EXTRACTED). Once a
+    reference resolves to project code the placeholder edge is redundant -- the INFERRED edge names the raw text it
+    resolved -- so it is dropped. An unresolved call is kept only when an import binds its name or receiver (the
+    call goes into a library: `requests.get`, a static import); a bare unresolved call (`it`, `expect`, a method
+    on a local value, a Ruby DSL word) gets no placeholder and is listed in the caller's `attrs.unresolved_calls`.
+    Imports and base classes that do not resolve always keep their placeholder: they are the external
+    dependencies the viewer's "show external placeholders" option shows."""
+
+    MAX_LISTED = 12
+
+    def __init__(self) -> None:
+        self.drop: set[tuple[str, str, str]] = set()
+        self.unresolved: dict[str, set[str]] = {}
+
+    def resolved(self, source: str, raw: str, edge_type: str) -> None:
+        self.drop.add((source, f"external:{raw}", edge_type))
+
+    def unresolved_call(self, caller: str, name: str, qualifier: str | None, imported: dict[str, Any]) -> None:
+        dotted = qualifier is not None and re.fullmatch(r"[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*", qualifier)
+        root = qualifier.split(".")[0] if dotted else None  # `re.sub(...).strip()` is a str method, not a call into `re`
+        if (qualifier is None and name in imported) or (root and root in imported):
+            return
+        self.drop.add((caller, f"external:{name}", "calls"))
+        self.unresolved.setdefault(caller, set()).add(f"{qualifier}.{name}" if qualifier else name)
+
+    def apply(self, graph: Graph) -> int:
+        kept = [
+            edge for edge in graph.edges
+            if not (edge.provenance == EXTRACTED and (edge.source, edge.target, edge.type) in self.drop)
+        ]
+        removed = len(graph.edges) - len(kept)
+        graph.edges = kept
+        graph._edge_keys = {(edge.source, edge.target, edge.type, edge.provenance) for edge in kept}
+        linked = {edge.source for edge in kept} | {edge.target for edge in kept}
+        for node_id in [nid for nid, node in graph.nodes.items() if node.kind == "external" and nid not in linked]:
+            del graph.nodes[node_id]
+        for caller, names in self.unresolved.items():
+            node = graph.nodes.get(caller)
+            if node is not None:
+                listed = sorted(names)
+                node.attrs["unresolved_calls"] = listed[: self.MAX_LISTED] + ([f"+{len(listed) - self.MAX_LISTED} more"] if len(listed) > self.MAX_LISTED else [])
+        return removed
 
 
 def _resolve_reference(
@@ -932,7 +1135,7 @@ def _resolve_reference(
     imported_names: dict[str, tuple[str, str | None]],
     class_methods: dict[str, dict[str, str]],
     graph_nodes: dict[str, GraphNode],
-    module_ids: set[str],
+    resolver: _ImportResolver,
     simple_name_index: dict[str, list[str]],
     allow_self: bool,
 ) -> tuple[str, str] | None:
@@ -946,8 +1149,11 @@ def _resolve_reference(
         return same_module_id, "same-module definition"
 
     if qualifier is not None and qualifier in imported_names:
-        base_module, _symbol = imported_names[qualifier]
-        target_module = _resolve_import_target(base_module, module_relpath, module_ids, language)
+        base_module, symbol = imported_names[qualifier]
+        target_module = None
+        if symbol is not None and language == "python":  # `from pkg import module` then `module.func()`
+            target_module = resolver.resolve(_python_submodule(base_module, symbol), module_relpath, language)
+        target_module = target_module or resolver.resolve(base_module, module_relpath, language)
         if target_module:
             candidate = f"{target_module}::{name}"
             if candidate in graph_nodes:
@@ -956,7 +1162,7 @@ def _resolve_reference(
     if qualifier is None and name in imported_names:
         base_module, symbol = imported_names[name]
         if symbol is not None:
-            target_module = _resolve_import_target(base_module, module_relpath, module_ids, language)
+            target_module = resolver.resolve(base_module, module_relpath, language)
             if target_module:
                 candidate = f"{target_module}::{symbol}"
                 if candidate in graph_nodes:
@@ -970,8 +1176,10 @@ def _resolve_reference(
     return None
 
 
-def _resolve_graph(graph: Graph, file_facts: list[FileFacts]) -> None:
+def _resolve_graph(graph: Graph, file_facts: list[FileFacts], root: Path | None = None, pruner: _ExternalPruner | None = None) -> None:
     module_ids = {node.id for node in graph.nodes.values() if node.kind == "module"}
+    resolver = _ImportResolver(module_ids, root)
+    pruner = pruner or _ExternalPruner()
     simple_name_index: dict[str, list[str]] = {}
     class_methods: dict[str, dict[str, str]] = {}
     for node in graph.nodes.values():
@@ -983,34 +1191,47 @@ def _resolve_graph(graph: Graph, file_facts: list[FileFacts]) -> None:
 
     for facts in file_facts:
         for raw in facts.raw_module_imports:
-            target = _resolve_import_target(raw, facts.module_relpath, module_ids, facts.language)
+            target = resolver.resolve(raw, facts.module_relpath, facts.language)
             if target and target != facts.module_id:
                 graph.add_edge(
                     facts.module_id, target, "imports", INFERRED, "graph-traversal",
                     f"resolved '{raw}' to {target}",
                 )
+                pruner.resolved(facts.module_id, raw, "imports")
+        if facts.language == "python":
+            for base_module, symbol in facts.imported_names.values():
+                target = resolver.resolve(_python_submodule(base_module, symbol), facts.module_relpath, "python") if symbol else None
+                if target and target != facts.module_id:
+                    graph.add_edge(
+                        facts.module_id, target, "imports", INFERRED, "graph-traversal",
+                        f"resolved 'from {base_module} import {symbol}' to the submodule {target}",
+                    )
 
         for caller_id, raw_name, qualifier, current_class_id in facts.pending_calls:
             split_qualifier, name = _split_qualifier(raw_name) if qualifier is None else (qualifier, raw_name)
             resolution = _resolve_reference(
                 name, split_qualifier, current_class_id, facts.module_relpath, facts.language,
-                facts.imported_names, class_methods, graph.nodes, module_ids, simple_name_index,
+                facts.imported_names, class_methods, graph.nodes, resolver, simple_name_index,
                 allow_self=True,
             )
             if resolution:
                 target_id, reason = resolution
                 graph.add_edge(caller_id, target_id, "calls", INFERRED, "graph-traversal", reason)
+                pruner.resolved(caller_id, raw_name, "calls")
+            else:
+                pruner.unresolved_call(caller_id, raw_name, split_qualifier, facts.imported_names)
 
         for class_id, raw_base, _unused in facts.pending_inherits:
             split_qualifier, name = _split_qualifier(raw_base)
             resolution = _resolve_reference(
                 name, split_qualifier, None, facts.module_relpath, facts.language,
-                facts.imported_names, class_methods, graph.nodes, module_ids, simple_name_index,
+                facts.imported_names, class_methods, graph.nodes, resolver, simple_name_index,
                 allow_self=False,
             )
             if resolution:
                 target_id, reason = resolution
                 graph.add_edge(class_id, target_id, "inherits", INFERRED, "graph-traversal", reason)
+                pruner.resolved(class_id, raw_base, "inherits")
 
 
 # --------------------------------------------------------------------------
@@ -1110,12 +1331,12 @@ _LANGUAGE_SPECS: dict[str, dict[str, Any]] = {
         "interfaces": {"interface_declaration", "annotation_type_declaration"},
         "functions": {"method_declaration", "constructor_declaration"},
         "calls": {"method_invocation", "object_creation_expression"},
-        "imports": {"import_declaration"},
+        "imports": {"import_declaration"}, "type_refs": {"type_identifier"},
     },
     "go": {
         "extensions": (".go",), "package": "tree-sitter-go", "module": "tree_sitter_go",
         "classes": {"type_spec"}, "functions": {"function_declaration", "method_declaration"},
-        "calls": {"call_expression"}, "imports": {"import_spec"},
+        "calls": {"call_expression"}, "imports": {"import_spec"}, "type_refs": {"type_identifier"},
     },
     "rust": {
         "extensions": (".rs",), "package": "tree-sitter-rust", "module": "tree_sitter_rust",
@@ -1141,9 +1362,10 @@ _LANGUAGE_SPECS: dict[str, dict[str, Any]] = {
         "calls": {"call_expression"}, "imports": {"preproc_include"},
     },
     "ruby": {
-        "extensions": (".rb",), "package": "tree-sitter-ruby", "module": "tree_sitter_ruby",
+        "extensions": (".rb", ".ru", ".rake"), "package": "tree-sitter-ruby", "module": "tree_sitter_ruby",
         "classes": {"class", "module"}, "functions": {"method", "singleton_method"},
         "calls": {"call"}, "imports": set(), "import_calls": {"require", "require_relative", "load"},
+        "type_refs": {"constant"},
     },
     "php": {
         "extensions": (".php",), "package": "tree-sitter-php", "module": "tree_sitter_php", "factory": "language_php",
@@ -1440,6 +1662,16 @@ def _collect_var_types(node, out: dict[str, str]) -> None:
         stack.extend(current.children)
 
 
+_QUALIFIED_PARENTS = {"qualified_type", "scoped_type_identifier", "scope_resolution", "field_access", "selector_expression"}
+
+
+def _is_qualified_part(node) -> bool:
+    """True for the `Handler` of `http.Handler` / `Map.Entry` / `Rack::Test`: a member of another namespace, never a
+    bare reference to a project type of that name."""
+    parent = node.parent
+    return parent is not None and parent.type in _QUALIFIED_PARENTS
+
+
 def parse_generic_file(path: Path, root: Path, source: bytes, graph: Graph, language: str) -> FileFacts:
     spec = _LANGUAGE_SPECS[language]
     ts_language = _generic_language(language)
@@ -1459,6 +1691,7 @@ def parse_generic_file(path: Path, root: Path, source: bytes, graph: Graph, lang
     call_types = _spec_set(spec, "calls")
     import_types = _spec_set(spec, "imports")
     import_calls = _spec_set(spec, "import_calls")
+    type_refs = _spec_set(spec, "type_refs")
 
     def is_class(node_type: str) -> bool:
         return node_type in class_types or node_type in interface_types or (not hinted and bool(_HEUR_CLASS.match(node_type)))
@@ -1510,6 +1743,8 @@ def parse_generic_file(path: Path, root: Path, source: bytes, graph: Graph, lang
         stack = [body]
         while stack:
             current = stack.pop()
+            if current.type in type_refs and not _is_qualified_part(current):
+                facts.pending_type_refs.append((caller_id, _text(current)))
             if is_call(current.type):
                 qualifier, name = _call_parts(current)
                 if name and language == "elixir" and name in _ELIXIR_IGNORED_CALLS:
@@ -1587,6 +1822,8 @@ def parse_generic_file(path: Path, root: Path, source: bytes, graph: Graph, lang
                     kind = "interface" if is_interface(child_type) else "class"
                 new_id = add_class(child, container_id, kind, name)
                 relations_of(child, new_id, name, kind == "interface")
+                for modifiers in (c for c in child.children if c.type == "modifiers"):
+                    record_calls(modifiers, new_id, new_id)  # @WebMvcTest(HealthController.class), @Import(...)
                 field_types: dict[str, str] = {}
                 for member in child.children:
                     if not is_function(member.type):
@@ -2015,29 +2252,111 @@ def _stem(relpath: str) -> str:
     return re.sub(r"\.[A-Za-z0-9]+$", "", relpath)
 
 
-def _resolve_generic(graph: Graph, generic_facts: list[FileFacts]) -> None:
-    modules = {node.id: node for node in graph.nodes.values() if node.kind == "module"}
-    suffix_index: dict[str, list[str]] = {}
-    for module_id in modules:
-        parts = _stem(module_id).split("/")
-        for start in range(len(parts)):
-            suffix_index.setdefault("/".join(parts[start:]), []).append(module_id)
-    class_index: dict[str, list[str]] = {}
-    class_methods: dict[str, dict[str, str]] = {}
-    for node in graph.nodes.values():
-        if node.kind in ("class", "interface"):
-            class_index.setdefault(node.name, []).append(node.id)
-        if node.kind == "method":
-            class_methods.setdefault(node.id.rsplit("::", 1)[0], {})[node.name] = node.id
-    function_index: dict[str, list[str]] = {}
-    for node in graph.nodes.values():
-        if node.kind == "function":
-            function_index.setdefault(node.name, []).append(node.id)
+def _common_prefix_len(a: str, b: str) -> int:
+    count = 0
+    for left, right in zip(a.split("/")[:-1], b.split("/")[:-1]):
+        if left != right:
+            break
+        count += 1
+    return count
 
-    def import_target(raw: str, facts: FileFacts) -> str | None:
+
+def _closest(candidates: list[str], here: str) -> str | None:
+    """The one candidate sharing the longest directory prefix with `here` (a monorepo's own project), else None."""
+    if not candidates:
+        return None
+    scored = sorted(((_common_prefix_len(c.split("::")[0], here), c) for c in candidates), reverse=True)
+    if len(scored) == 1 or scored[0][0] > scored[1][0]:
+        return scored[0][1]
+    return None
+
+
+def _go_modules(root: Path | None, module_ids: set[str]) -> dict[str, str]:
+    """go.mod `module` path -> the directory it sits in, for every go.mod beside or above a parsed Go file."""
+    found: dict[str, str] = {}
+    if root is None:
+        return found
+    directories: set[str] = set()
+    for module_id in module_ids:
+        if module_id.endswith(".go"):
+            parent = Path(module_id).parent
+            while True:
+                directories.add(parent.as_posix())
+                if parent == parent.parent:
+                    break
+                parent = parent.parent
+    for directory in sorted(directories):
+        try:
+            text = (root / directory / "go.mod").read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        match = re.search(r"^\s*module\s+(\S+)", text, re.M)
+        if match:
+            found[match.group(1).strip('"')] = "" if directory == "." else directory
+    return found
+
+
+class _GenericResolver:
+    """Cross-file resolution for the grammar-driven languages: imports (path-like, dotted, Go module paths), types
+    (imports, same file, Java package, nearest project), and calls (typed receivers, static calls, same-module and
+    same-Go-package functions, constructors)."""
+
+    def __init__(self, graph: Graph, generic_facts: list[FileFacts], root: Path | None, pruner: _ExternalPruner) -> None:
+        self.graph = graph
+        self.facts = generic_facts
+        self.pruner = pruner
+        self.modules = {node.id: node for node in graph.nodes.values() if node.kind == "module"}
+        self.suffix_index: dict[str, list[str]] = {}
+        for module_id in self.modules:
+            parts = _stem(module_id).split("/")
+            for start in range(len(parts)):
+                self.suffix_index.setdefault("/".join(parts[start:]), []).append(module_id)
+        self.class_index: dict[str, list[str]] = {}
+        self.class_methods: dict[str, dict[str, str]] = {}
+        self.function_index: dict[str, list[str]] = {}
+        self.dir_functions: dict[tuple[str, str], list[str]] = {}
+        for node in graph.nodes.values():
+            if node.kind in ("class", "interface"):
+                self.class_index.setdefault(node.name, []).append(node.id)
+            elif node.kind == "method":
+                self.class_methods.setdefault(node.id.rsplit("::", 1)[0], {})[node.name] = node.id
+            elif node.kind == "function":
+                self.function_index.setdefault(node.name, []).append(node.id)
+                if node.file:
+                    self.dir_functions.setdefault((Path(node.file).parent.as_posix(), node.name), []).append(node.id)
+        self.package_of = {facts.module_id: facts.package for facts in generic_facts if facts.package}
+        self.go_modules = _go_modules(root, set(self.modules))
+        self.bases: dict[str, list[str]] = {}
+
+    # imports -----------------------------------------------------------------
+
+    def go_package_dir(self, raw: str) -> str | None:
+        """`example.com/svc/internal/store` -> the repository directory of that package, via the go.mod module path."""
+        best = None
+        for module_path, directory in self.go_modules.items():
+            if (raw == module_path or raw.startswith(module_path + "/")) and (best is None or len(module_path) > len(best[0])):
+                best = (module_path, directory)
+        if best is None:
+            return None
+        return _join_rel(best[1], raw[len(best[0]):].lstrip("/") or ".")
+
+    def go_package_files(self, raw: str) -> list[str]:
+        directory = self.go_package_dir(raw)
+        if directory is None:
+            return []
+        return sorted(
+            m for m, node in self.modules.items()
+            if node.language == "go" and Path(m).parent.as_posix() == directory and not m.endswith("_test.go")
+        )
+
+    def import_target(self, raw: str, facts: FileFacts) -> str | None:
         cleaned = raw.strip().rstrip("*").rstrip(".:/")
         if not cleaned:
             return None
+        if facts.language == "go":
+            files = self.go_package_files(cleaned)
+            if files:
+                return files[0]
         path_like = "/" in cleaned or cleaned.startswith(".")
         if path_like:
             base = Path(facts.module_relpath).parent
@@ -2048,25 +2367,30 @@ def _resolve_generic(graph: Graph, generic_facts: list[FileFacts]) -> None:
             parts = [p for p in re.split(r"\.|::|\\\\", cleaned) if p and p != "*"]
             candidates = ["/".join(parts[: len(parts) - drop]) for drop in (0, 1, 2) if len(parts) - drop >= 1]
         for stub in candidates:
-            hits = suffix_index.get(stub, [])
-            hits = [hit for hit in hits if hit != facts.module_id]
+            hits = [hit for hit in self.suffix_index.get(stub, []) if hit != facts.module_id]
             if len(hits) == 1:
                 return hits[0]
             if len(hits) > 1:
-                same_language = [hit for hit in hits if modules[hit].language == facts.language]
+                same_language = [hit for hit in hits if self.modules[hit].language == facts.language]
                 if len(same_language) == 1:
                     return same_language[0]
+                closest = _closest(same_language, facts.module_relpath)
+                if closest:
+                    return closest
         return None
 
-    def resolve_type(name: str, facts: FileFacts) -> tuple[str, str] | None:
+    # types -------------------------------------------------------------------
+
+    def resolve_type(self, name: str, facts: FileFacts) -> tuple[str, str] | None:
+        graph = self.graph
         if name in facts.imported_names:
-            target_module = import_target(facts.imported_names[name][0], facts)
+            target_module = self.import_target(facts.imported_names[name][0], facts)
             if target_module and f"{target_module}::{name}" in graph.nodes:
                 return f"{target_module}::{name}", "resolved via import"
         local = f"{facts.module_id}::{name}"
         if local in graph.nodes:
             return local, "same-file type"
-        candidates = class_index.get(name, [])
+        candidates = self.class_index.get(name, [])
         if len(candidates) == 1:
             return candidates[0], "unique type name"
         if len(candidates) > 1:
@@ -2077,76 +2401,124 @@ def _resolve_generic(graph: Graph, generic_facts: list[FileFacts]) -> None:
             same_language = [c for c in candidates if graph.nodes[c].language == facts.language]
             if len(same_language) == 1:
                 return same_language[0], "unique type name in this language"
+            if facts.package:
+                same_package = [c for c in same_language if self.package_of.get(c.split("::")[0]) == facts.package]
+                if len(same_package) == 1:
+                    return same_package[0], f"same package {facts.package}"
+                closest = _closest(same_package, facts.module_relpath)
+                if closest:
+                    return closest, f"same package {facts.package} in the nearest project"
+            closest = _closest(same_language, facts.module_relpath)
+            if closest:
+                return closest, "nearest project"
         return None
 
-    bases: dict[str, list[str]] = {}
-    file_of = {facts.module_id: facts for facts in generic_facts}
-
-    for facts in generic_facts:
-        for raw in facts.raw_module_imports:
-            target = import_target(raw, facts)
-            if target:
-                graph.add_edge(facts.module_id, target, "imports", INFERRED, "graph-traversal", f"resolved '{raw}' to {target}")
-        for source_id, type_name, edge_type, detail in facts.pending_relations:
-            resolved = resolve_type(type_name, facts)
-            if resolved and resolved[0] != source_id:
-                graph.add_edge(source_id, resolved[0], edge_type, INFERRED, "graph-traversal", f"{detail} ({resolved[1]})")
-                if edge_type in ("inherits", "implements"):
-                    bases.setdefault(source_id, []).append(resolved[0])
-
-    def find_method(class_id: str, name: str, seen: set[str] | None = None) -> str | None:
+    def find_method(self, class_id: str, name: str, seen: set[str] | None = None) -> str | None:
         seen = seen or set()
         if class_id in seen:
             return None
         seen.add(class_id)
-        direct = class_methods.get(class_id, {}).get(name)
+        direct = self.class_methods.get(class_id, {}).get(name)
         if direct:
             return direct
-        for base in bases.get(class_id, []):
-            found = find_method(base, name, seen)
+        for base in self.bases.get(class_id, []):
+            found = self.find_method(base, name, seen)
             if found:
                 return found
         return None
 
-    for facts in generic_facts:
-        for caller_id, name, qualifier, class_id in facts.pending_calls:
-            target = reason = None
-            if qualifier in (None, "this", "self", "super", "base") and class_id:
-                found = find_method(class_id, name)
-                if found and found != caller_id:
-                    target, reason = found, "method on the enclosing class or its supertypes"
-            if target is None and qualifier and qualifier not in ("this", "self", "super", "base"):
-                type_name = facts.scope_types.get(caller_id, {}).get(qualifier) or (facts.class_field_types.get(class_id, {}).get(qualifier) if class_id else None)
-                if type_name:
-                    resolved = resolve_type(type_name, facts)
-                    if resolved:
-                        found = find_method(resolved[0], name)
-                        if found:
-                            target, reason = found, f"'{qualifier}' is a {type_name} ({resolved[1]})"
-                else:
-                    resolved = resolve_type(qualifier, facts)  # static-style call on a type name
-                    if resolved:
-                        found = find_method(resolved[0], name)
-                        if found:
-                            target, reason = found, f"static call on {qualifier} ({resolved[1]})"
-            if target is None and qualifier is None:
-                same_module = f"{facts.module_id}::{name}"
-                if same_module in graph.nodes and graph.nodes[same_module].kind == "function":
-                    target, reason = same_module, "same-module function"
-                elif name in facts.imported_names:
-                    module = import_target(facts.imported_names[name][0], facts)
-                    if module and f"{module}::{name}" in graph.nodes:
-                        target, reason = f"{module}::{name}", "resolved via import"
-            if target is None and qualifier is None and name not in _BUILTIN_NAMES:
-                candidates = function_index.get(name, [])
-                if len(candidates) == 1:
-                    target, reason = candidates[0], "unique function name across the graph"
-            if target is None and name in class_index and qualifier is None:
-                resolved = resolve_type(name, facts)
+    # passes ------------------------------------------------------------------
+
+    def link_imports_and_types(self, facts: FileFacts) -> None:
+        graph = self.graph
+        for raw in facts.raw_module_imports:
+            targets = self.go_package_files(raw.strip()) if facts.language == "go" else []
+            targets = targets[:20] or [t for t in [self.import_target(raw, facts)] if t]
+            for target in targets:
+                if target != facts.module_id:
+                    graph.add_edge(facts.module_id, target, "imports", INFERRED, "graph-traversal", f"resolved '{raw}' to {target}")
+            if targets:
+                self.pruner.resolved(facts.module_id, raw, "imports")
+        for source_id, type_name, edge_type, detail in facts.pending_relations:
+            resolved = self.resolve_type(type_name, facts)
+            if resolved and resolved[0] != source_id:
+                graph.add_edge(source_id, resolved[0], edge_type, INFERRED, "graph-traversal", f"{detail} ({resolved[1]})")
+                self.pruner.resolved(source_id, type_name, edge_type)
+                if edge_type in ("inherits", "implements"):
+                    self.bases.setdefault(source_id, []).append(resolved[0])
+        for source_id, type_name in facts.pending_type_refs:
+            resolved = self.resolve_type(type_name, facts)
+            if resolved and resolved[0].split("::")[0] != facts.module_id and resolved[0] != source_id:
+                graph.add_edge(source_id, resolved[0], "uses", INFERRED, "graph-traversal", f"references {type_name} ({resolved[1]})")
+
+    def receiver_call(self, facts: FileFacts, caller_id: str, name: str, qualifier: str, class_id: str | None) -> tuple[str, str] | None:
+        if facts.language == "go" and qualifier in facts.imported_names:
+            directory = self.go_package_dir(facts.imported_names[qualifier][0])
+            hits = self.dir_functions.get((directory, name), []) if directory is not None else []
+            if len(hits) == 1:
+                return hits[0], f"function in the imported package '{facts.imported_names[qualifier][0]}'"
+        type_name = facts.scope_types.get(caller_id, {}).get(qualifier) or (facts.class_field_types.get(class_id, {}).get(qualifier) if class_id else None)
+        resolved = self.resolve_type(type_name or qualifier, facts)
+        found = self.find_method(resolved[0], name) if resolved else None
+        if not found:
+            return None
+        if type_name:
+            return found, f"'{qualifier}' is a {type_name} ({resolved[1]})"
+        return found, f"static call on {qualifier} ({resolved[1]})"  # static-style call on a type name
+
+    def bare_call(self, facts: FileFacts, name: str) -> tuple[str, str] | None:
+        graph = self.graph
+        same_module = f"{facts.module_id}::{name}"
+        if same_module in graph.nodes and graph.nodes[same_module].kind == "function":
+            return same_module, "same-module function"
+        if facts.language == "go":
+            hits = [h for h in self.dir_functions.get((Path(facts.module_relpath).parent.as_posix(), name), []) if graph.nodes[h].language == "go"]
+            if len(hits) == 1:
+                return hits[0], "same Go package (another file in this directory)"
+        if name in facts.imported_names:
+            module = self.import_target(facts.imported_names[name][0], facts)
+            if module and f"{module}::{name}" in graph.nodes:
+                return f"{module}::{name}", "resolved via import"
+        if name not in _BUILTIN_NAMES:
+            candidates = self.function_index.get(name, [])
+            if len(candidates) == 1:
+                return candidates[0], "unique function name across the graph"
+        return None
+
+    def resolve_call(self, facts: FileFacts, caller_id: str, name: str, qualifier: str | None, class_id: str | None) -> tuple[str, str] | None:
+        if qualifier in (None, "this", "self", "super", "base") and class_id:
+            found = self.find_method(class_id, name)
+            if found and found != caller_id:
+                return found, "method on the enclosing class or its supertypes"
+        if qualifier and qualifier not in ("this", "self", "super", "base"):
+            hit = self.receiver_call(facts, caller_id, name, qualifier, class_id)
+            if hit:
+                return hit
+        if qualifier is None:
+            hit = self.bare_call(facts, name)
+            if hit:
+                return hit
+            if name in self.class_index:
+                resolved = self.resolve_type(name, facts)
                 if resolved:
-                    target, reason = resolved[0], f"constructor / type reference ({resolved[1]})"
-            if target:
-                graph.add_edge(caller_id, target, "calls", INFERRED, "graph-traversal", reason or "")
+                    return resolved[0], f"constructor / type reference ({resolved[1]})"
+        return None
+
+    def run(self) -> None:
+        for facts in self.facts:
+            self.link_imports_and_types(facts)
+        for facts in self.facts:
+            for caller_id, name, qualifier, class_id in facts.pending_calls:
+                hit = self.resolve_call(facts, caller_id, name, qualifier, class_id)
+                if hit:
+                    self.graph.add_edge(caller_id, hit[0], "calls", INFERRED, "graph-traversal", hit[1])
+                    self.pruner.resolved(caller_id, name, "calls")
+                else:
+                    self.pruner.unresolved_call(caller_id, name, qualifier, facts.imported_names)
+
+
+def _resolve_generic(graph: Graph, generic_facts: list[FileFacts], root: Path | None = None, pruner: _ExternalPruner | None = None) -> None:
+    _GenericResolver(graph, generic_facts, root, pruner or _ExternalPruner()).run()
 
 
 def build_graph(
@@ -2207,8 +2579,10 @@ def build_graph(
         sql_stats = parse_sql_migrations(sql_files, graph)
         graph.stats["sql"].update(sql_stats)
 
-    _resolve_graph(graph, file_facts)
-    _resolve_generic(graph, generic_facts)
+    pruner = _ExternalPruner()
+    _resolve_graph(graph, file_facts, root, pruner)
+    _resolve_generic(graph, generic_facts, root, pruner)
+    pruner.apply(graph)
     linked = _link_entities_to_tables(graph)
     if linked:
         graph.stats.setdefault("sql", {})["entities_linked"] = linked
@@ -2782,6 +3156,99 @@ def _add_vendored_changelogs(graph: Graph, root: Path, index: _LayerIndex, stats
                 graph.add_edge(node_id, req_id, "records", "EXTRACTED", "changelog", "requirement id named in the entry")
 
 
+_MD_LINK = re.compile(r"\]\(\s*<?([^)\s>#?]+)")
+MENTIONS_PER_DOC = 40
+MAX_DOCS = 400
+MAX_DOC_BYTES = 512 * 1024
+
+
+def _mention_target(index: _LayerIndex, token: str, base_dir: str | None) -> GraphNode | None:
+    """The file a path-like token names: relative to `base_dir` (a doc's own directory) first, then to the repository
+    root, then as the unique suffix of a parsed module's path."""
+    if base_dir is not None and not token.startswith("/"):
+        local = _join_rel(base_dir, token)
+        target = index.file_node(local) if not (local.startswith("../") or local == "..") else None
+        if target is not None:
+            return target
+    if not token.startswith(("../", "/")):
+        target = index.file_node(token)
+        if target is not None:
+            return target
+    bare = token[2:] if token.startswith("./") else token
+    suffix = [f for f in index.modules_by_file if f.endswith("/" + bare)]
+    return index.modules_by_file[suffix[0]] if len(suffix) == 1 else None
+
+
+def _mentioned_paths(index: _LayerIndex, tokens: list[str], base_dir: str | None = None, limit: int = MENTIONS_PER_DOC) -> list[tuple[str, GraphNode]]:
+    """(token, node) for each distinct path-like token that names a file in the repository (see _mention_target)."""
+    found: list[tuple[str, GraphNode]] = []
+    seen: set[str] = set()
+    for raw in tokens:
+        token = raw.strip().rstrip(".,;:)").replace("\\", "/")
+        if len(found) >= limit or token in seen or not _PATHISH.match(token) or token.startswith(("http", "www.")):
+            continue
+        seen.add(token)
+        target = _mention_target(index, token, base_dir)
+        if target is not None:
+            found.append((token, target))
+    return found
+
+
+def _markdown_docs(root: Path) -> list[str]:
+    """The project's markdown documents (README, docs/, skills, ...), honouring the ignore files; never OmniEngineering's
+    own `.ai/` files (tooling) and bounded to MAX_DOCS."""
+    ignore_patterns = _read_ignore_patterns(root)
+    found: list[str] = []
+
+    def walk(current: Path) -> None:
+        try:
+            children = sorted(current.iterdir(), key=lambda item: item.name.lower())
+        except OSError:
+            return
+        for child in children:
+            if len(found) >= MAX_DOCS:
+                return
+            relative = child.relative_to(root)
+            is_dir = child.is_dir()
+            if (is_dir and child.is_symlink()) or _should_skip(relative, is_dir, ignore_patterns):
+                continue
+            if is_dir:
+                walk(child)
+            elif child.suffix.lower() in (".md", ".markdown", ".mdx") and not is_tooling_path(relative.as_posix(), root):
+                found.append(relative.as_posix())
+
+    walk(root)
+    return found
+
+
+def _add_doc_mentions(graph: Graph, root: Path, index: _LayerIndex, changelogs: set[str]) -> int:
+    """REQ-055: `mentions` edges from each markdown doc to the repository files it names in backticks or links to,
+    the same extraction the change log gets, so docs hang off the code they describe."""
+    added = 0
+    for rel in _markdown_docs(root):
+        if rel in changelogs:
+            continue
+        path = root / rel
+        try:
+            if path.stat().st_size > MAX_DOC_BYTES:
+                continue
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        tokens = _BACKTICK.findall(text) + _MD_LINK.findall(text)
+        mentions = [(token, target) for token, target in _mentioned_paths(index, tokens, Path(rel).parent.as_posix()) if target.file != rel]
+        if not mentions:
+            continue
+        doc = index.file_node(rel)
+        if doc is None:
+            continue
+        for token, target in mentions:
+            before = len(graph.edges)
+            graph.add_edge(doc.id, target.id, "mentions", "EXTRACTED", "docs", f"path named in {rel}: {token}")
+            added += len(graph.edges) - before
+    return added
+
+
 def add_governance_layer(graph: Graph, root: Path) -> dict[str, Any]:
     """Requirements and changelog entries, linked to the files they declare or name."""
     index = _LayerIndex(graph, root)
@@ -2846,21 +3313,11 @@ def add_governance_layer(graph: Graph, root: Path) -> dict[str, Any]:
             for req in requirements:
                 if req in req_ids:
                     graph.add_edge(node_id, req_ids[req], "records", "EXTRACTED", "changelog", "requirement id named in the entry")
-            mentioned = 0
-            for token in _BACKTICK.findall(body):
-                token = token.strip().rstrip(".,;:)")
-                if mentioned >= 40 or not _PATHISH.match(token) or token.startswith(("http", "www.")):
-                    continue
-                token = token.replace("\\", "/")
-                target = index.file_node(token)
-                if target is None:
-                    suffix = [f for f in index.modules_by_file if f.endswith("/" + token)]
-                    target = index.modules_by_file[suffix[0]] if len(suffix) == 1 else None
-                if target is not None:
-                    graph.add_edge(node_id, target.id, "mentions", "EXTRACTED", "changelog", f"path named in the entry: {token}")
-                    mentioned += 1
+            for token, target in _mentioned_paths(index, _BACKTICK.findall(body)):
+                graph.add_edge(node_id, target.id, "mentions", "EXTRACTED", "changelog", f"path named in the entry: {token}")
 
     _add_vendored_changelogs(graph, root, index, stats, found)  # REQ-054
+    stats["doc_mentions"] = _add_doc_mentions(graph, root, index, set(changelogs))  # REQ-055
 
     if not items and not any(problem.startswith(tuple(cfg["requirements_files"])) for problem in found):
         found.append(
@@ -4997,7 +5454,8 @@ def why(graph_path: Path, query: str) -> dict[str, Any]:
                     if e["source"] not in req_rank or rank < req_rank[e["source"]][0]:
                         req_rank[e["source"]] = (rank, via)
                 elif e["type"] == "mentions":
-                    add("changelog", e["source"], "names this file")
+                    source_kind = (by_id.get(e["source"]) or {}).get("kind")
+                    add("changelog" if source_kind == "changelog" else "docs", e["source"], "names this file")
                 elif e["type"] == "modifies":
                     add("commits", e["source"])
                 elif e["type"] == "prevented_by":

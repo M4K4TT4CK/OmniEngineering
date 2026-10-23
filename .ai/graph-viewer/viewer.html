@@ -203,7 +203,7 @@
           <option value="layer">layer (recommended)</option><option value="kind">kind</option><option value="language">language</option><option value="directory">top-level directory</option><option value="role">role (Spring stereotype / table)</option><option value="dimension">finding category (Arbiter dimension)</option><option value="severity">finding severity</option>
         </select></div>
       <label class="chk"><input type="checkbox" id="inferred" checked><span data-tip="INFERRED links are derived from an extracted fact (for example a call resolved across files). Untick to see only links read directly from one source.">show INFERRED links</span></label>
-      <label class="chk"><input type="checkbox" id="external"><span data-tip="Calls into libraries and the standard library that the graph could not resolve to project code.">show external placeholders</span></label>
+      <label class="chk"><input type="checkbox" id="external"><span data-tip="Imported libraries, and calls into them, that the graph could not resolve to project code. Unresolved calls with no import behind them get no placeholder (they are listed on the caller as unresolved_calls).">show external placeholders</span></label>
       <label class="chk"><input type="checkbox" id="arrows" checked><span data-tip="Draw a small arrowhead showing the direction of each link.">arrowheads</span></label>
       <label class="chk"><input type="checkbox" id="labelson" checked><span data-tip="Draw names next to nodes. In 2D they appear as you zoom in; selected and traced nodes are always labelled.">names on nodes</span></label>
       <label class="chk" id="stackrow" style="display:none"><input type="checkbox" id="stack"><span data-tip="3D only: pull the layers onto separate planes so the links between them are easy to follow.">stack layers in 3D</span></label>
@@ -300,7 +300,7 @@
     arbiter_rule: 'One Arbiter rule id (ARB-064): the check that raised its findings, with its probe.', cwe: 'One MITRE CWE weakness class (ARB-064): every finding and rule classified as it points here.',
     rule: 'One rule from a rulepack.', rulepack: 'A file of rules.', playbook: 'A written procedure for one kind of task.', checklist: 'A completion checklist.',
     module: 'A source file.', file: 'A file that is not parsed for symbols (documents, configuration, directories).', 'class': 'A class.', 'interface': 'An interface.',
-    'function': 'A function.', method: 'A method.', table: 'A database table rebuilt from the SQL migrations.', external: 'A call the graph could not resolve to project code.' };
+    'function': 'A function.', method: 'A method.', table: 'A database table rebuilt from the SQL migrations.', external: 'An imported library, or a call into one, that the graph could not resolve to project code.' };
   var ROLE_COLORS = { controller: '#e0475c', service: '#4fb3bf', repository: '#c9a869', entity: '#ffb454', component: '#9ece6a', configuration: '#b48ead', table: '#00c2ff' };
   var LANG_COLORS = { python: '#e0475c', javascript: '#4fb3bf', typescript: '#c9a869', java: '#f0a23c', sql: '#b48ead', go: '#5fd0e0', rust: '#e58b5a', csharp: '#8fbf6a' };
   var TYPE_COLORS = {
@@ -309,7 +309,7 @@
   var TYPE_TIP = {
     calls: 'A function or method calls another.', imports: 'A file imports another.', defines: 'Contains: a file defines a class, a class defines a method.', inherits: 'A class extends another.', implements: 'A class implements an interface.',
     references: 'A table has a foreign key to another.', maps_to: 'An entity class is mapped to a table.', uses: 'A weaker reference to another symbol.', touches: 'A requirement touches a file: declared in its scope, or changed by its commits.',
-    records: 'A change-log entry records a requirement.', mentions: 'A change-log entry names a file.', delivers: 'A commit delivers a requirement.', modifies: 'A commit changed a file.', logged_in: 'A commit wrote a change-log entry.',
+    records: 'A change-log entry records a requirement.', mentions: 'A change-log entry or a markdown doc names a file.', delivers: 'A commit delivers a requirement.', modifies: 'A commit changed a file.', logged_in: 'A commit wrote a change-log entry.',
     follows: 'A commit comes right after another.', verifies: 'A test file exercises code (inferred from its calls and imports).', contains: 'A test suite groups a test file.', covers: 'A test suite is meant to cover this code.',
     affects: 'A failure affected this code.', arose_in: 'A failure surfaced while working on this requirement.', guards: 'A regression test (or suite) guards against a failure returning.', prevented_by: 'A failure produced this rule or playbook.',
     fixed_by: 'A commit fixed this failure.', recurs: 'A failure repeats an earlier one.',
