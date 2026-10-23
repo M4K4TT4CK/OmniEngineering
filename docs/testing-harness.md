@@ -482,7 +482,21 @@ ground-truth items *blind*: comments blanked, Juliet's `bad`/`good` method
 and class names and OWASP's `BenchmarkTest` names replaced, paths
 neutralised. The truth is attached only afterwards. Precision of the
 labellers' `tp` calls on this sample bounds what any model-labelled
-precision figure can claim.
+precision figure can claim. A later round passes `--exclude-labels` with the
+earlier calibration files so it draws only items no labeller has seen.
+
+For categories no benchmark covers (tests, secrets, stubs, concurrency,
+resilience), `--planted CATEGORY...` builds calibration items from
+`fixtures/planted`: each finding on a `bad` file is truth `tp`, the matching
+line of its `good` twin (same test title or assigned name, else the closest
+line of the same-named function) is truth `fp`. They are blinded the same
+way (comments, so the `expect:` markers, Python docstrings, `cwe`/`planted`
+names). These are files we wrote: they measure the labellers on clear-cut
+cases and cannot back a claim on real code. `label_models.py fact-check`
+compares existing model labels with facts a script can check (a full-SHA
+action pin, a lockfile beside the manifest, a secret under a test or example
+path, every linked path existing). Results:
+`tools/gold/results/2026-10-23-calibration.md`.
 
 **Held-out split** (`tools/gold/heldout.json`, frozen by
 `tools/ground_truth/heldout_split.py`, seed 20261022): 7 of the 24 gold

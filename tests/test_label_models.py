@@ -267,3 +267,75 @@ def test_usage_limit_stops_the_run_instead_of_failing_every_item(tmp_path):
     assert lab.label(_item(tmp_path, "f:2")) is None
     assert budget.stopped and budget.limit_hit and len(calls) == 1
     assert lm.Cache(tmp_path / "c.jsonl").data == {}   # failures are never cached
+
+
+# --- calibration round 2 ---------------------------------------------------
+
+def test_ground_truth_sample_skips_items_an_earlier_round_used(tmp_path, monkeypatch):
+    root = tmp_path / "gt"
+    root.mkdir()
+    (root / "A.java").write_text("class A {\n  void f() {\n    run(x);\n  }\n}\n", encoding="utf-8")
+    recs = [g.label({"id": f"id{i}", "rule": "arbiter/java.command-injection", "path": "A.java", "line": 3},
+                    "tp" if i % 2 else "fp", labeller="ground-truth", source="owasp-java", held_out=True,
+                    reason="") for i in range(6)]
+    g.write_jsonl(tmp_path / "gt.jsonl", recs)
+    monkeypatch.setitem(lm.GT_ROOTS, "owasp-java", str(root))
+    its = lm.items_from_ground_truth([tmp_path / "gt.jsonl"], 0, 1, exclude={"id0", "id1"})
+    assert sorted(it["finding_id"] for it in its) == ["id2", "id3", "id4", "id5"]
+    assert all(it["source"] == "calibration:owasp-java" and "truth" in it for it in its)
+
+
+def test_planted_blind_drops_markers_docstrings_and_cwe_names():
+    src = ('"""CWE-798: credentials written into the module."""\nimport os\n\n'
+           'PW = "q8Vz!m2Lr7#tKw4P"  # expect: arbiter/secrets.assigned-credential\n')
+    out = g.blind(src, "cwe25/cwe798_hardcoded.py", "planted")
+    assert "expect" not in out and "CWE" not in out and "written into" not in out
+    assert out.count("\n") == src.count("\n") and 'PW = "q8Vz' in out
+    assert g.blind_path("src/main/java/planted/cwe25/Cwe918Ssrf.java", "planted") == "src/main/java/app/Ssrf.java"
+    assert g.blind_path("cwe25/cwe798_hardcoded.py", "planted") == "hardcoded.py"
+
+
+def test_twin_line_follows_test_title_then_function_name():
+    bad = 'it("drains a batch", async () => {\n  await drain([job]);\n});\n'
+    good = 'const x = 1;\nit("drains a batch", async () => {\n  expect(await drain([job])).toBe(0);\n});\n'
+    assert lm.twin_line(bad, good, "q.test.ts", 1, "typescript") == 2
+    bad_py = "import os\n\ndef verify(sig):\n    return True\n"
+    good_py = "import os\nimport hmac\n\ndef verify(sig):\n    return hmac.compare_digest(sig, KEY)\n"
+    assert lm.twin_line(bad_py, good_py, "a.py", 4, "python") == 5
+
+
+def test_fact_truth_sha_pin_lockfile_and_test_path(tmp_path):
+    wf = tmp_path / ".github" / "workflows"
+    wf.mkdir(parents=True)
+    (wf / "ci.yml").write_text("steps:\n  - uses: actions/checkout@v4\n"
+                               "  - uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b\n",
+                               encoding="utf-8")
+    act = {"rule_id": "arbiter/supply.unpinned-action", "path": ".github/workflows/ci.yml"}
+    assert lm.fact_truth({**act, "line": 2}, tmp_path)[0] == "tp"
+    assert lm.fact_truth({**act, "line": 3}, tmp_path)[0] == "fp"
+    (tmp_path / "package.json").write_text('{"dependencies": {"x": "^1.0.0"}}\n', encoding="utf-8")
+    npm = {"rule_id": "arbiter/supply.unpinned-npm-dep", "path": "package.json", "line": 1}
+    assert lm.fact_truth(npm, tmp_path) is None          # no lockfile: no fact decides it
+    (tmp_path / "package-lock.json").write_text("{}\n", encoding="utf-8")
+    assert lm.fact_truth(npm, tmp_path)[0] == "fp"
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "conf.py").write_text('PASSWORD = "hunter22"\n', encoding="utf-8")
+    sec = {"rule_id": "arbiter/secrets.assigned-credential", "path": "tests/conf.py", "line": 1}
+    assert lm.fact_truth(sec, tmp_path)[0] == "fp"
+    assert lm.fact_truth({**sec, "path": "app/conf.py"}, tmp_path) is None
+
+
+def test_server_throttle_is_retried_not_taken_for_a_usage_limit(tmp_path):
+    calls = []
+
+    def caller(system, prompt, model):
+        calls.append(1)
+        if len(calls) <= 2:
+            raise RuntimeError("cli error: API Error: Server is temporarily limiting requests "
+                               "(not your usage limit) · Rate limited. Retry after 0.5s")
+        return '{"label": "tp", "reason": "x"}', 0.01, "claude-opus-5-5"
+    budget = lm.Budget(5)
+    lab = lm.Labeller(lm.Cache(tmp_path / "c.jsonl"), budget, caller=caller, sleep=lambda s: None)
+    rec = lab.ask(_item(tmp_path, "f:1"), "prosecutor")
+    assert rec["label"] == "tp" and len(calls) == 3
+    assert not budget.stopped and not budget.limit_hit

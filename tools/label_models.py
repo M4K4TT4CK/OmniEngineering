@@ -331,9 +331,30 @@ def call_cli(system: str, prompt: str, model: str, timeout: int = 240) -> tuple[
     return meta.get("result", ""), float(meta.get("total_cost_usd") or 0.0), resolved
 
 
+# A usage limit (session, weekly, credit) stops the run: every later call
+# would fail the same way. A server-side throttle says it is not the usage
+# limit and asks for a retry; round 2 stopped on one after 196 of 450 items
+# because the old pattern matched "Rate limited".
+_USAGE_LIMIT = re.compile(r"(?i)(session|usage|rate|weekly) limit|credit balance")
+_TRANSIENT = re.compile(r"(?i)not your usage limit|temporarily limiting|retry after|overloaded")
+RETRY_DELAYS = (2, 5, 15, 40)
+
+
 class Labeller:
-    def __init__(self, cache: Cache, budget: Budget, model: str = MODEL, caller=call_cli):
-        self.cache, self.budget, self.model, self.caller = cache, budget, model, caller
+    def __init__(self, cache: Cache, budget: Budget, model: str = MODEL, caller=call_cli,
+                 sleep=time.sleep):
+        self.cache, self.budget, self.model, self.caller, self.sleep = cache, budget, model, caller, sleep
+
+    def _call(self, prompt: str) -> tuple[str, float, str]:
+        """One call, retried with growing delays while the server throttles."""
+        for delay in RETRY_DELAYS:
+            try:
+                return self.caller(SYSTEM, prompt, self.model)
+            except RuntimeError as exc:
+                if not _TRANSIENT.search(str(exc)):
+                    raise
+                self.sleep(delay)
+        return self.caller(SYSTEM, prompt, self.model)
 
     def ask(self, it: dict, role: str, votes: dict | None = None) -> dict | None:
         extra = ""
@@ -349,7 +370,7 @@ class Labeller:
         cost = 0.0
         try:
             for attempt in range(2):
-                text, c, resolved = self.caller(SYSTEM, role_prompt(it, role, votes), self.model)
+                text, c, resolved = self._call(role_prompt(it, role, votes))
                 cost += c
                 ans = parse_answer(text)
                 if ans:
@@ -358,7 +379,7 @@ class Labeller:
                 ans = {"label": "unsure", "reason": "unparseable reply"}
         except (RuntimeError, subprocess.TimeoutExpired) as exc:
             self.budget.settle(held, cost)
-            if re.search(r"(?i)(session|usage|rate) limit|credit balance", str(exc)):
+            if _USAGE_LIMIT.search(str(exc)) and not _TRANSIENT.search(str(exc)):
                 self.budget.stopped = True  # every later call would fail the same way
                 self.budget.limit_hit = str(exc)[:200]
             print(f"  call failed ({role} {it['finding_id']}): {exc}", file=sys.stderr)
@@ -586,11 +607,15 @@ def items_from_ai_corpus() -> list[dict]:
     return items
 
 
-def items_from_ground_truth(paths: list[Path], n: int, seed: int) -> list[dict]:
-    """A stratified sample of known-truth labels, shown blind."""
+def items_from_ground_truth(paths: list[Path], n: int, seed: int,
+                            exclude: set[str] | None = None) -> list[dict]:
+    """A stratified sample of known-truth labels, shown blind. Findings in
+    `exclude` (ids already used by an earlier calibration round) are skipped,
+    so a later round is drawn only from items no labeller has seen."""
     import random
+    exclude = exclude or set()
     recs = [r for p in paths for r in g.read_jsonl(p) if r.get("labeller") == "ground-truth"
-            and not _cross_file(r)]
+            and not _cross_file(r) and r["finding_id"] not in exclude]
     strata = defaultdict(list)
     for r in recs:
         strata[(r["source"], r["rule_id"], r["label"])].append(r)
@@ -613,6 +638,183 @@ def items_from_ground_truth(paths: list[Path], n: int, seed: int) -> list[dict]:
                 items.append(it)
     rng.shuffle(items)
     return items
+
+
+PLANTED = ROOT / "fixtures" / "planted"
+
+
+def _anchor(lines: list[str], line: int) -> str | None:
+    """The first quoted test title or assigned name on or just above `line`."""
+    for i in range(line - 1, max(-1, line - 4), -1):
+        m = re.search(r"""\b(?:it|test|describe|context|specify|scenario)(?:\.\w+)?\s*\(?\s*(["'])(.{4,}?)\1""",
+                      lines[i])
+        if m:
+            return m.group(1) + m.group(2) + m.group(1)
+    m = re.match(r"\s*(?:const |let |var |final |static |private |public )*([A-Za-z_]\w*)\s*[:=]", lines[line - 1])
+    return f"{m.group(1)}" if m else None
+
+
+def twin_line(bad: str, good: str, path: str, line: int, language: str) -> int | None:
+    """The line of the good twin that corresponds to `line` of the bad file:
+    the same test title or assigned name, else the closest line of the
+    same-named function. The good twin is the fixed version, so the claim
+    made about the bad line is false of this one. None when nothing matches."""
+    import difflib
+    bl, gl = bad.splitlines(), good.splitlines()
+    if not 0 < line <= len(bl):
+        return None
+    target = bl[line - 1].strip()
+    anchor = _anchor(bl, line)
+    if anchor:
+        if anchor[0] in "\"'":
+            hits = [i for i, ln in enumerate(gl, 1) if anchor in ln]
+        else:
+            hits = [i for i, ln in enumerate(gl, 1) if re.match(rf"\s*(?:\w+\s+)*{re.escape(anchor)}\s*[:=]", ln)]
+        if len(hits) == 1:
+            return hits[0]
+    span = g._function_span(bad, path, language, line)
+    funcs_b = g._named_functions(bad, path, language)
+    name = next((n for n, s in sorted(funcs_b.items(), key=lambda kv: kv[1][1] - kv[1][0])
+                 if span and s == span), None)
+    if name:
+        s = g._named_functions(good, path, language).get(name)
+        if s:
+            cands = range(s[0], min(s[1], len(gl)) + 1)
+            return max(cands, key=lambda i: difflib.SequenceMatcher(None, target, gl[i - 1].strip()).ratio())
+    return None
+
+
+def items_from_planted(categories: set[str], cap: int | None = None) -> list[dict]:
+    """Calibration items with truth by construction, for categories no
+    external benchmark covers: each finding Arbiter reports on a planted
+    `bad` file (truth tp -- the defect was planted there and marked
+    `expect:`), and the corresponding line of its `good` twin, the fixed
+    version (truth fp). Shown blind: comments (the `expect:` markers),
+    Python docstrings, `cwe`/`planted` names in paths and packages removed.
+    These are files we wrote, small and clear-cut, so this measures the
+    labellers on easy cases; it does not stand in for real-code truth."""
+    import random
+    items = []
+    for lang_dir in sorted(p for p in PLANTED.iterdir() if p.is_dir()):
+        bad_root, good_root = lang_dir / "bad", lang_dir / "good"
+        per_cat = Counter()
+        for f in sorted(g.scan_tree(bad_root), key=lambda f: (f["path"], f["line"], f["rule"])):
+            cat = category(f["rule"])
+            if cat not in categories or f["rule"].startswith(EXCLUDE):
+                continue
+            per_cat[cat] += 1
+            if cap and per_cat[cat] > cap:
+                continue
+            repo = f"planted/{lang_dir.name}"
+            it = make_item({**f, "repo": repo + "/bad"}, bad_root, f"calibration:planted-{cat}", True,
+                           "planted", truth="tp")
+            if it:
+                items.append(it)
+            gp = good_root / f["path"]
+            if not gp.exists():
+                continue
+            bad = (bad_root / f["path"]).read_text(encoding="utf-8", errors="replace")
+            good = gp.read_text(encoding="utf-8", errors="replace")
+            tl = twin_line(bad, good, f["path"], int(f["line"]), f["language"])
+            if tl is None:
+                continue
+            gf = {**f, "id": g.sha256(f"{repo}/good|{f['path']}|{tl}|{f['rule']}")[:14], "line": tl,
+                  "repo": repo + "/good"}
+            it = make_item(gf, good_root, f"calibration:planted-{cat}", True, "planted", truth="fp")
+            if it:
+                items.append(it)
+    random.Random(20261023).shuffle(items)
+    return items
+
+
+# ---------------------------------------------------------------------------
+# Mechanical facts as truth: where a claim turns on something a script can
+# check (a SHA pin, a lockfile, a file that exists, a test path), compare the
+# model label with it. The labellers saw the repo facts in their prompt, so
+# this measures whether they follow facts, not an independent truth -- except
+# the SHA-pin and test-path checks, which they were never shown.
+# ---------------------------------------------------------------------------
+
+_SHA_PIN = re.compile(r"uses:\s*['\"]?[^@\s'\"]+@[0-9a-f]{40}\b")
+_TEST_PATH = re.compile(r"(?i)(^|/)(tests?|spec|__tests__|testdata|test-?fixtures?|fixtures?|examples?|samples?|"
+                        r"docs?|cookbook|itest|testsuite|integration-test|e2e|dummyserver|caddytest)(/|$)|"
+                        r"(^|/)[^/]*(_test|\.test|\.spec|_spec|Test|Tests)\.\w+$|(^|/)test_[^/]*$")
+
+
+def fact_truth(rec: dict, root: Path) -> tuple[str, str] | None:
+    """(truth implied by a mechanical fact, the fact) or None when no fact decides it."""
+    rule, path = rec["rule_id"], rec.get("path") or ""
+    try:
+        lines = (root / path).read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return None
+    ln = lines[int(rec["line"]) - 1] if rec.get("line") and int(rec["line"]) <= len(lines) else ""
+    if rule == "arbiter/supply.unpinned-action":
+        if "uses:" not in ln or re.search(r"uses:\s*['\"]?(\./|docker://)", ln):
+            return None
+        return ("fp", "pinned to a full commit SHA") if _SHA_PIN.search(ln) else ("tp", "uses a tag or branch")
+    if rule.startswith("arbiter/supply.unpinned-"):
+        here = (root / path).parent
+        locks = [n for n in _LOCKS if (here / n).exists() or (root / n).exists()]
+        return ("fp", f"lockfile present: {', '.join(locks)}") if locks else None
+    if rule.startswith(("arbiter/drift.broken-doc-link", "arbiter/drift.doc-references-missing-file")):
+        facts = repo_facts(root, path, ln, rule)
+        if not facts:
+            return None
+        rows = facts.splitlines()
+        # Only one direction is decisive. A path that exists nowhere is not
+        # yet a broken reference: guides link to the .html they build into,
+        # prose names generic files (`structure.sql`) or other projects'
+        # files (`express.js`). Round 2 measured 21 of 28 such items as
+        # model fp with reasons of exactly that kind.
+        if all(": exists;" in r for r in rows):
+            return "fp", "every referenced path exists"
+        return None
+    if rule.startswith("arbiter/drift.documented-env-var-absent"):
+        facts = repo_facts(root, path, ln, rule)
+        if facts and all(" appears in 0 " not in r for r in facts.splitlines()):
+            return "fp", "every named variable appears in source"
+        return None
+    if category(rule) == "secrets" and _TEST_PATH.search(path):
+        return "fp", "file is under a test, example, fixture or documentation path"
+    return None
+
+
+def fact_root(rec: dict, corpus: Path) -> Path:
+    repo = rec.get("repo", "")
+    if repo.startswith("ai-corpus/"):
+        return ROOT / "fixtures" / repo / "app"
+    return corpus / repo
+
+
+def fact_check(recs: list[dict], corpus: Path) -> dict:
+    """Per rule: how often the model label agrees with the fact-implied truth."""
+    out: dict = defaultdict(lambda: {"n": 0, "agree": 0, "unsure": 0, "model_tp_fact_fp": 0,
+                                     "model_fp_fact_tp": 0, "fact_tp": 0, "fact_fp": 0,
+                                     "model_tp_calls": 0, "model_tp_right": 0, "examples": []})
+    for r in recs:
+        if r.get("labeller") == "ground-truth" or r["source"].startswith("calibration:"):
+            continue
+        ft = fact_truth(r, fact_root(r, corpus))
+        if ft is None:
+            continue
+        e = out[(category(r["rule_id"]), r["rule_id"])]
+        e["n"] += 1
+        e[f"fact_{ft[0]}"] += 1
+        if r["label"] == "unsure":
+            e["unsure"] += 1
+            continue
+        if r["label"] == "tp":
+            e["model_tp_calls"] += 1
+            e["model_tp_right"] += ft[0] == "tp"
+        if r["label"] == ft[0]:
+            e["agree"] += 1
+        else:
+            e[f"model_{r['label']}_fact_{ft[0]}"] += 1
+            if len(e["examples"]) < 5:
+                e["examples"].append({"repo": r.get("repo"), "path": r.get("path"), "line": r.get("line"),
+                                      "model": r["label"], "fact": ft[1], "reason": r.get("reason", "")[:200]})
+    return {f"{c}|{k}": v for (c, k), v in sorted(out.items())}
 
 
 def _cross_file(r: dict) -> bool:
@@ -746,6 +948,11 @@ def main(argv: list[str] | None = None) -> int:
     lab.add_argument("--ai-corpus", action="store_true", help="every finding on fixtures/ai-corpus")
     lab.add_argument("--ground-truth", type=Path, nargs="*", default=[],
                      help="ground-truth JSONL: label a blind sample for calibration")
+    lab.add_argument("--exclude-labels", type=Path, nargs="*", default=[],
+                     help="label files whose findings a ground-truth sample must not reuse")
+    lab.add_argument("--planted", nargs="*", default=[], metavar="CATEGORY",
+                     help="calibration items from fixtures/planted bad/good twins for these categories")
+    lab.add_argument("--planted-cap", type=int, help="at most this many bad-side findings per category and language")
     lab.add_argument("--suspects", type=Path, help="cve-suspects.json from cve_pairs.py")
     lab.add_argument("--n", type=int, default=600, help="sample size (report and ground truth)")
     lab.add_argument("--max", type=int, help="label at most this many items")
@@ -760,7 +967,20 @@ def main(argv: list[str] | None = None) -> int:
     sm.add_argument("--labels", type=Path, nargs="+", required=True)
     sm.add_argument("--json", type=Path)
     sm.add_argument("--markdown", type=Path, help="write the tables as Markdown")
+    fc = sub.add_parser("fact-check", help="model labels against mechanically checkable facts")
+    fc.add_argument("--labels", type=Path, nargs="+", required=True)
+    fc.add_argument("--corpus", type=Path, default=Path("~/wt/corpus-gold"))
+    fc.add_argument("--json", type=Path)
     args = ap.parse_args(argv)
+
+    if args.cmd == "fact-check":
+        res = fact_check([r for p in args.labels for r in g.read_jsonl(p)], args.corpus.expanduser())
+        if args.json:
+            args.json.write_text(json.dumps(res, indent=1) + "\n", encoding="utf-8")
+        for k, e in res.items():
+            print(f"{k}: n={e['n']} agree={e['agree']} unsure={e['unsure']} fact tp/fp={e['fact_tp']}/{e['fact_fp']} "
+                  f"model tp calls right {e['model_tp_right']}/{e['model_tp_calls']}")
+        return 0
 
     if args.cmd == "summarize":
         recs = [r for p in args.labels for r in g.read_jsonl(p)]
@@ -780,7 +1000,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.ai_corpus:
         items += items_from_ai_corpus()
     if args.ground_truth:
-        items += items_from_ground_truth(args.ground_truth, args.n, args.seed)
+        used = {r["finding_id"] for p in args.exclude_labels for r in g.read_jsonl(p)}
+        items += items_from_ground_truth(args.ground_truth, args.n, args.seed, used)
+    if args.planted:
+        items += items_from_planted(set(args.planted), args.planted_cap)
     if args.suspects:
         items += items_from_suspects(args.suspects)
     if args.max:

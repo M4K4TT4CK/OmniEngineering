@@ -222,6 +222,32 @@ def blank_comments(text: str, path: str, language: str | None = None) -> str:
 _JULIET_NAME = re.compile(r"\b(bad|good)(\w*)\b")
 _JULIET_CLASS = re.compile(r"\bCWE\d+_\w+\b")
 _OWASP_CLASS = re.compile(r"BenchmarkTest\d+")
+_PLANTED_CWE = re.compile(r"(?i)\bcwe[-_ ]?\d+[-_ :]*")
+_PLANTED_PKG = re.compile(r"\bplanted\b")
+
+
+def _blank_docstrings(text: str, path: str) -> str:
+    """Python bare string statements (docstrings) replaced by spaces: in the
+    planted fixtures they say what the file plants."""
+    tree = _tree(text, path, "python")
+    if tree is None:
+        return text
+    data = bytearray(text.encode("utf-8"))
+    stack = [tree.root_node]
+    while stack:
+        n = stack.pop()
+        # The grammar in use puts a bare string straight under the block
+        # (older ones wrap it in an expression_statement).
+        bare = n.type == "string" and n.parent is not None and n.parent.type in ("module", "block")
+        wrapped = (n.type == "expression_statement" and n.named_child_count == 1
+                   and n.named_children[0].type == "string")
+        if bare or wrapped:
+            for b in range(n.start_byte, n.end_byte):
+                if data[b] not in (0x0A, 0x0D):
+                    data[b] = 0x20
+            continue
+        stack.extend(n.children)
+    return data.decode("utf-8", errors="replace")
 
 
 def blind(text: str, path: str, kind: str) -> str:
@@ -238,6 +264,10 @@ def blind(text: str, path: str, kind: str) -> str:
         text = _JULIET_CLASS.sub("Case", text)
     elif kind == "owasp":
         text = _OWASP_CLASS.sub("Handler", text)
+    elif kind == "planted":
+        if language_of(path) == "python":
+            text = _blank_docstrings(text, path)
+        text = _PLANTED_PKG.sub("app", _PLANTED_CWE.sub("", text))
     return text
 
 
@@ -246,6 +276,8 @@ def blind_path(path: str, kind: str) -> str:
         return "src/main/java/app/Case" + Path(path).suffix
     if kind == "owasp":
         return re.sub(r"BenchmarkTest\d+", "Handler", path)
+    if kind == "planted":
+        return _PLANTED_PKG.sub("app", _PLANTED_CWE.sub("", re.sub(r"(?i)\bcwe25/", "", path)))
     return path
 
 
