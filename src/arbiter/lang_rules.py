@@ -89,9 +89,13 @@ FUNCTION_TYPES: dict[str, set[str]] = {
 _KEYS = {"id", "title", "severity", "confidence", "dimension", "cwe", "controls", "tags",
          "roles", "files", "query", "unless_inside", "unless_in_scope", "unless_in_file",
          "requires_file", "requires_in_scope", "description", "remediation", "languages",
-         "safe_splice_calls", "safe_splice_names",
+         "safe_splice_calls", "safe_splice_names", "taint",
          # Not detection logic: traceability and precision (rule_meta.py).
          "requirements", "tier", "precision_ref"}
+# Keys of a rule's `taint:` block (Milestone 3, see dataflow.py).
+_TAINT_KEYS = {"mode", "sources", "sinks", "sanitizers", "value", "where", "types", "hops", "requires", "built",
+               "unless_element", "at", "inputs", "kill", "element0"}
+TAINT_QUERY_KEYS = ("sources", "sinks", "sanitizers", "inputs")
 _SEVERITIES = {"info", "low", "medium", "high", "critical"}
 _CONFIDENCES = {"low", "medium", "high"}
 
@@ -140,6 +144,8 @@ def validate_pack(data: dict, name: str) -> None:
             raise PackError(f"{where}: `files` is a glob or a non-empty list of globs")
         if "@hit" not in rule["query"]:
             raise PackError(f"{where}: query must capture @hit")
+        if "taint" in rule:
+            _validate_taint(rule["taint"], where)
         for key in ("safe_splice_calls", "safe_splice_names"):
             if key not in rule:
                 continue
@@ -149,6 +155,61 @@ def validate_pack(data: dict, name: str) -> None:
                 re.compile(rule[key])
             except (re.error, TypeError) as exc:
                 raise PackError(f"{where}: `{key}` is not a regex: {exc}") from exc
+
+
+def _validate_taint(spec, where: str) -> None:
+    if not isinstance(spec, dict):
+        raise PackError(f"{where}: `taint` is a mapping")
+    unknown = set(spec) - _TAINT_KEYS
+    if unknown:
+        raise PackError(f"{where}: unknown taint keys {sorted(unknown)}")
+    mode = spec.get("mode", "source")
+    if mode not in ("source", "nonconst"):
+        raise PackError(f"{where}: taint `mode` is source or nonconst")
+    sinks = spec.get("sinks")
+    if sinks is None and not spec.get("value"):
+        raise PackError(f"{where}: taint needs `sinks` (a query capturing @sink and @hit) or `value`")
+    if sinks is not None and (not isinstance(sinks, str) or "@sink" not in sinks or "@hit" not in sinks):
+        raise PackError(f"{where}: taint `sinks` is a query capturing @sink and @hit")
+    if sinks is not None and mode == "source" and not any(
+            isinstance(spec.get(k), str) and f"@{c}" in spec[k] for k, c in (("sources", "source"),
+                                                                           ("inputs", "input"))):
+        raise PackError(f"{where}: taint mode `source` needs a `sources` query capturing @source")
+    if spec.get("inputs") is not None and not (isinstance(spec["inputs"], str) and "@input" in spec["inputs"]):
+        raise PackError(f"{where}: taint `inputs` is a query capturing @input")
+    if spec.get("kill", "clean") not in ("clean", "derived"):
+        raise PackError(f"{where}: taint `kill` is clean or derived")
+    if spec.get("kill") == "derived" and not spec.get("inputs"):
+        raise PackError(f"{where}: taint `kill: derived` needs `inputs`")
+    if spec.get("sanitizers") is not None and not (
+            isinstance(spec["sanitizers"], str) and "@sanitizer" in spec["sanitizers"]):
+        raise PackError(f"{where}: taint `sanitizers` is a query capturing @sanitizer")
+    value = spec.get("value", [])
+    if not (isinstance(value, list) and all(isinstance(v, str) and v for v in value)):
+        raise PackError(f"{where}: taint `value` is a list of capture names of `query`")
+    for key in ("where", "types"):
+        m = spec.get(key, {})
+        if not isinstance(m, dict):
+            raise PackError(f"{where}: taint `{key}` maps a capture name to a regex")
+        for cap, rx in m.items():
+            try:
+                re.compile(rx)
+            except (re.error, TypeError) as exc:
+                raise PackError(f"{where}: taint `{key}.{cap}` is not a regex: {exc}") from exc
+    if spec.get("at", "sink") not in ("sink", "source"):
+        raise PackError(f"{where}: taint `at` is sink or source")
+    for key in ("unless_element", "element0"):
+        if key in spec:
+            try:
+                re.compile(spec[key])
+            except (re.error, TypeError) as exc:
+                raise PackError(f"{where}: taint `{key}` is not a regex: {exc}") from exc
+    hops = spec.get("hops", 1)
+    if not isinstance(hops, int) or isinstance(hops, bool) or not 0 <= hops <= 2:
+        raise PackError(f"{where}: taint `hops` is 0, 1 or 2")
+    for key in ("requires", "built"):
+        if not isinstance(spec.get(key, False), bool):
+            raise PackError(f"{where}: taint `{key}` is true or false")
 
 
 QUERY_KEYS = ("query", "unless_inside", "unless_in_scope", "unless_in_file", "requires_file",
@@ -198,11 +259,12 @@ def compile_pack(data: dict, name: str) -> None:
     cached = ts.cached_grammars()
     for i, rule in enumerate(data["rules"]):
         for grammar in sorted(_grammars(rule, rule.get("languages") or data["languages"]) & cached):
-            for key in QUERY_KEYS:
-                if not rule.get(key):
-                    continue
+            queries = [(k, rule[k]) for k in QUERY_KEYS if rule.get(k)]
+            queries += [(f"taint.{k}", rule["taint"][k]) for k in TAINT_QUERY_KEYS
+                        if rule.get("taint") and rule["taint"].get(k)]
+            for key, q in queries:
                 try:
-                    ts.compile_query(grammar, rule[key])
+                    ts.compile_query(grammar, q)
                 except ValueError as exc:
                     raise PackError(
                         f"{name} rule {i} ({rule['id']}): `{key}` does not compile "
@@ -323,13 +385,16 @@ def run_pack(pack: str, ctx: ProbeContext) -> list[Finding]:
 def _run_rule(pack: str, rule: dict, f, parsed) -> list[Finding]:
     from . import ast as ts
     lang = f.language
+    taint = rule.get("taint")
     try:
-        if rule.get("requires_file") and not _matches(lang, rule["requires_file"], parsed):
-            return []
         if rule.get("unless_in_file") and _matches(lang, rule["unless_in_file"], parsed):
             return []
-        hits = [c for c in ts.run_query(lang, rule["query"], parsed) if c["capture"] == "hit"]
-        if not hits:
+        file_ok = not rule.get("requires_file") or bool(_matches(lang, rule["requires_file"], parsed))
+        if not file_ok and not (taint and not taint.get("requires")):
+            return []
+        caps = ts.run_query(lang, rule["query"], parsed) if file_ok else []
+        hits = [c for c in caps if c["capture"] == "hit"]
+        if not hits and not taint:
             return []
         inside = _matches(lang, rule["unless_inside"], parsed) if rule.get("unless_inside") else []
         scoped = _matches(lang, rule["unless_in_scope"], parsed) if rule.get("unless_in_scope") else []
@@ -338,42 +403,230 @@ def _run_rule(pack: str, rule: dict, f, parsed) -> list[Finding]:
     except ValueError as exc:
         raise RuntimeError(f"rule arbiter/{pack}.{rule['id']}: {exc}") from exc
 
-    out: list[Finding] = []
+    def accept(node, use_requires: bool = True, whole_file: bool = False) -> bool:
+        if any(_encloses(o, node) for o in inside):
+            return False
+        if scoped or (needed is not None and use_requires):
+            # Outside any function, the file is the scope; so it is for a
+            # value that crossed a function on its way (the check may sit
+            # in either function, or in a third the value went through).
+            scope = (parsed[0].root_node if whole_file else None) \
+                or _enclosing_function(node, lang) or parsed[0].root_node
+            if any(_encloses(scope, s) for s in scoped):
+                return False
+            if use_requires and needed is not None and not any(_encloses(scope, s) for s in needed):
+                return False
+        return True
+
+    kept: list[dict] = []
     seen: set[int] = set()
     for hit in hits:
         node = hit["node"]
         if node.start_byte in seen:
             continue
         seen.add(node.start_byte)
-        if any(_encloses(o, node) for o in inside):
-            continue
         if (rule.get("safe_splice_calls") or rule.get("safe_splice_names")) \
                 and lang == "python" and _splices_safe(node, rule):
             continue
-        if scoped or needed is not None:
-            # Outside any function, the file is the scope.
-            scope = _enclosing_function(node, lang) or parsed[0].root_node
-            if any(_encloses(scope, s) for s in scoped):
+        if not accept(node):
+            continue
+        kept.append(hit)
+    if taint:
+        try:
+            kept = _taint_pass(rule, lang, parsed, kept, caps, accept)
+        except ValueError as exc:
+            raise RuntimeError(f"rule arbiter/{pack}.{rule['id']}: {exc}") from exc
+    return [_finding(pack, rule, f, hit) for hit in kept]
+
+
+def _finding(pack: str, rule: dict, f, hit: dict) -> Finding:
+    text = _snippet(hit["text"], 60)
+    return Finding(
+        rule_id=f"arbiter/{pack}.{rule['id']}",
+        title=rule["title"].replace("{text}", text),
+        dimension=rule.get("dimension", "quality"),
+        severity=rule.get("severity", "medium"),
+        confidence=rule.get("confidence", "medium"),
+        repo_id=f.repo_id, probe=f"lang_{pack}",
+        location=Location(path=f.path, start_line=hit["start_line"],
+                          end_line=hit["end_line"], repo_id=f.repo_id),
+        description=rule.get("description", ""),
+        remediation=rule["remediation"],
+        evidence=f"{rule['id']}:{_snippet(hit['text'], 120)}",
+        controls=list(rule.get("controls") or []),
+        cwe=list(rule.get("cwe") or []),
+        tags=["lang-rule", f.language, *(rule.get("tags") or [])],
+    )
+
+
+# ---------------------------------------------------------------------------
+# One-hop data flow (`taint:`), see dataflow.py
+# ---------------------------------------------------------------------------
+
+def _hit_dict(node) -> dict:
+    return {"capture": "hit", "type": node.type, "start_line": node.start_point[0] + 1,
+            "end_line": node.end_point[0] + 1, "node": node,
+            "text": node.text.decode("utf-8", "replace") if node.text is not None else ""}
+
+
+def _taint_pass(rule: dict, lang: str, parsed, kept: list[dict], caps: list[dict], accept) -> list[dict]:
+    """Drop the rule's own hits whose `value` is provably constant, and add
+    sink hits the data flow reaches. Returns the new list of hits."""
+    try:
+        return _taint_hits(rule, lang, parsed, kept, caps, accept)
+    except ValueError:
+        raise
+    except Exception:  # noqa: BLE001 - see dataflow.analyse: never lose the rule's own hits
+        import os
+        if os.environ.get("ARBITER_DATAFLOW_STRICT"):
+            raise
+        return kept
+
+
+def _taint_hits(rule: dict, lang: str, parsed, kept: list[dict], caps: list[dict], accept) -> list[dict]:
+    from . import ast as ts
+    from . import dataflow as df
+    spec_cfg = rule["taint"]
+    root = parsed[0].root_node
+    funcs = FUNCTION_TYPES.get(lang, set())
+    spec = df.Spec(mode=spec_cfg.get("mode", "source"), hops=spec_cfg.get("hops", 1))
+    where = {k: re.compile(v) for k, v in (spec_cfg.get("where") or {}).items()}
+    types = {k: re.compile(v) for k, v in (spec_cfg.get("types") or {}).items()}
+
+    def constraints_ok(match: dict) -> bool:
+        for cap, rx in where.items():
+            for n in match.get(cap, []):
+                if not rx.search(df.static_text(lang, n, funcs)):
+                    return False
+        for cap, rx in types.items():
+            for n in match.get(cap, []):
+                if not rx.search(df.declared_type(lang, n, funcs) or ""):
+                    return False
+        return True
+
+    if spec_cfg.get("sources"):
+        for m in ts.run_matches(lang, spec_cfg["sources"], parsed):
+            if not constraints_ok(m):
                 continue
-            if needed is not None and not any(_encloses(scope, s) for s in needed):
+            for n in m.get("source", []):
+                spec.sources.add(df.nkey(n))
+                spec.source_params.add(df.span(n))
+    input_nodes = []
+    if spec_cfg.get("inputs"):
+        for m in ts.run_matches(lang, spec_cfg["inputs"], parsed):
+            if not constraints_ok(m):
                 continue
-        text = _snippet(hit["text"], 60)
-        out.append(Finding(
-            rule_id=f"arbiter/{pack}.{rule['id']}",
-            title=rule["title"].replace("{text}", text),
-            dimension=rule.get("dimension", "quality"),
-            severity=rule.get("severity", "medium"),
-            confidence=rule.get("confidence", "medium"),
-            repo_id=f.repo_id, probe=f"lang_{pack}",
-            location=Location(path=f.path, start_line=hit["start_line"],
-                              end_line=hit["end_line"], repo_id=f.repo_id),
-            description=rule.get("description", ""),
-            remediation=rule["remediation"],
-            evidence=f"{rule['id']}:{_snippet(hit['text'], 120)}",
-            controls=list(rule.get("controls") or []),
-            cwe=list(rule.get("cwe") or []),
-            tags=["lang-rule", lang, *(rule.get("tags") or [])],
-        ))
+            for n in m.get("input", []):
+                spec.inputs.add(df.nkey(n))
+                spec.source_params.add(df.span(n))
+                input_nodes.append(n)
+    if spec_cfg.get("sanitizers"):
+        for m in ts.run_matches(lang, spec_cfg["sanitizers"], parsed):
+            for n in m.get("sanitizer", []):
+                spec.sanitizers.add(df.nkey(n))
+
+    value_names = set(spec_cfg.get("value") or [])
+    kill_vals: dict[int, list] = {i: [] for i in range(len(kept))}
+    if value_names and kept:
+        # values pair with their hit by match: a declaration's value sits
+        # outside the call it reaches (`String sql = ...; execute(sql)`)
+        by_hit: dict[tuple, list] = {}
+        for m in ts.run_matches(lang, rule["query"], parsed):
+            for h in m.get("hit", []):
+                vals = [v for name in value_names for v in m.get(name, [])]
+                by_hit.setdefault((h.start_byte, h.end_byte), []).extend(vals)
+        for i, hit in enumerate(kept):
+            node = hit["node"]
+            kill_vals[i] = list({df.nkey(v): v for v in by_hit.get((node.start_byte, node.end_byte), [])}.values())
+    sinks: list[tuple] = []
+    for m in (ts.run_matches(lang, spec_cfg["sinks"], parsed) if spec_cfg.get("sinks") else []):
+        if not m.get("hit") or not m.get("sink") or not constraints_ok(m):
+            continue
+        sinks.append((m["hit"][0], m["sink"]))
+    if spec.mode == "source" and not spec.sources and not spec.inputs and not any(kill_vals.values()):
+        return kept
+    watch = [v for vs in kill_vals.values() for v in vs] + [s for _h, ss in sinks for s in ss]
+    if not watch:
+        return kept
+    seen = df.analyse(lang, root, spec, watch)
+    if seen is None:
+        return kept
+    derived = spec_cfg.get("kill") == "derived"
+
+    def killed(i: int) -> bool:
+        vals = kill_vals[i]
+        if not vals:
+            return False
+        kinds = [seen.get(df.nkey(v), df.UNK).kind for v in vals]
+        if all(k == df.CLEAN for k in kinds):
+            return True
+        if derived and all(k <= df.DERIVED for k in kinds):
+            # the function reads request input, and none of it gets here
+            fn = _enclosing_function(kept[i]["node"], lang)
+            return fn is not None and any(_encloses(fn, n) for n in input_nodes)
+        return False
+
+    out = [hit for i, hit in enumerate(kept) if not killed(i)]
+    lines = {h["start_line"] for h in out}
+    reported: set = set()
+    starts = {h["node"].start_byte for h in out}
+    for hit_node, sink_nodes in sinks:
+        avs = [seen.get(df.nkey(s), df.UNK) for s in sink_nodes]
+        if spec_cfg.get("built"):
+            avs = [a for a in avs if a.built]
+        if spec_cfg.get("element0"):
+            rx0 = re.compile(spec_cfg["element0"])
+            avs = [a for a in avs if a.items and a.items[0] == "list" and a.items[1]
+                   and isinstance(a.items[1][0].const, str) and rx0.search(a.items[1][0].const)]
+        if spec_cfg.get("unless_element"):
+            rx = re.compile(spec_cfg["unless_element"])
+            avs = [a for a in avs if not (a.items and a.items[0] == "list" and any(
+                isinstance(e.const, str) and rx.search(e.const) for e in a.items[1]))]
+        if spec.mode == "source" and spec_cfg.get("sources") and spec_cfg.get("inputs"):
+            # with both, a sink must be reached from a `sources` node (the
+            # built SQL); `inputs` alone only serve the `kill: derived` check
+            src_spans = {(k[0], k[1]) for k in spec.sources}
+            bad = [a for a in avs if a.kind == df.TAINT and src_spans & set(a.via)]
+        elif spec.mode == "source":
+            bad = [a for a in avs if a.kind == df.TAINT]
+        else:
+            bad = [a for a in avs if a.kind != df.CLEAN]
+        if not bad:
+            continue
+        line = hit_node.start_point[0] + 1
+        if hit_node.start_byte in starts or line in lines:
+            continue
+        via = set().union(*[a.via for a in bad])
+        if any(h["node"].start_byte <= s and e <= h["node"].end_byte for h in out for s, e in via):
+            continue
+        if spec_cfg.get("at") == "source":
+            # report where the value was built, when that is in the sink's own
+            # function (the convention of the rule's own query)
+            fn = _enclosing_function(hit_node, lang)
+            srcs = [n for n in df.source_nodes(root, spec, via)
+                    if _enclosing_function(n, lang) == fn and n.end_byte <= hit_node.start_byte]
+            if srcs:
+                hit_node = max(srcs, key=lambda n: n.start_byte)
+                line = hit_node.start_point[0] + 1
+                if line in lines:
+                    continue
+        sink_fn = _enclosing_function(hit_node, lang)
+        srcs_all = df.source_nodes(root, spec, via)
+        crossed = any(_enclosing_function(n, lang) != sink_fn for n in srcs_all) or any(
+            not (sink_fn is not None and sink_fn.start_byte <= s0 and e0 <= sink_fn.end_byte)
+            for s0, e0 in via)
+        if not accept(hit_node, use_requires=bool(spec_cfg.get("requires")), whole_file=crossed):
+            continue
+        # one finding per source per function: the same value written to
+        # three paths is one defect
+        sig = (sink_fn.id if sink_fn is not None else None,
+               frozenset((n.start_byte, n.end_byte) for n in srcs_all) or None)
+        if sig[1] is not None and sig in reported:
+            continue
+        reported.add(sig)
+        out.append(_hit_dict(hit_node))
+        lines.add(line)
+        starts.add(hit_node.start_byte)
     return out
 
 

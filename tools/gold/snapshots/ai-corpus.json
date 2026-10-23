@@ -1,9 +1,9 @@
 {
  "target": "ai-corpus",
  "pinned_sha": "",
- "arbiter_commit": "661632c445508cbaf30836fe58879497d263da95",
+ "arbiter_commit": "879047f42aa3a51bc8c2fe482733bb7b9c2d6a5f",
  "recorded": "2026-10-23",
- "count": 127,
+ "count": 128,
  "by_rule": {
   "arbiter/aiapp.store-never-evicted": 5,
   "arbiter/assurance.suppression-census": 1,
@@ -21,6 +21,7 @@
   "arbiter/java.mail-starttls-not-required": 1,
   "arbiter/java.retry-constant-delay": 1,
   "arbiter/java.ssrf-stored-callback": 1,
+  "arbiter/java.upload-client-filename": 1,
   "arbiter/python.mail-tls-unverified": 2,
   "arbiter/python.request-body-unbounded": 2,
   "arbiter/python.retry-constant-delay": 1,
@@ -82,6 +83,7 @@
   "arbiter/java.mail-starttls-not-required\tjava/job-queue/app/src/main/java/jobqueue/Handlers.java\t154",
   "arbiter/java.retry-constant-delay\tjava/job-queue/app/src/main/java/jobqueue/JobQueue.java\t114",
   "arbiter/java.ssrf-stored-callback\tjava/webhook-receiver/app/src/main/java/webhook/WebhookServer.java\t193",
+  "arbiter/java.upload-client-filename\tjava/file-upload/app/src/main/java/com/example/upload/FileStorage.java\t45",
   "arbiter/python.mail-tls-unverified\tpython/job-queue/app/handlers.py\t89",
   "arbiter/python.mail-tls-unverified\tpython/job-queue/app/handlers.py\t94",
   "arbiter/python.request-body-unbounded\tpython/url-shortener/app/app.py\t103",

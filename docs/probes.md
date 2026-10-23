@@ -200,6 +200,49 @@ function is (`python.sql-injection`; one function, no data flow). The schema is 
 `src/arbiter/lang_rules.py`, and a pack that breaks it fails at import.
 Rule ids are `arbiter/<pack>.<id>`; each carries its CWE.
 
+#### One-hop data flow (`taint:`)
+
+A rule may add a `taint:` block (Milestone 3, `src/arbiter/dataflow.py`). An
+abstract interpreter walks each function holding a sink, statement by
+statement, and gives every local one of four values: CLEAN (built from
+literals, with its constant when known), DERIVED (returned by an unseen call
+whose inputs are all CLEAN), UNKNOWN (a parameter, a field, an unseen call)
+and TAINT (reached from a source). Assignments, destructuring, `+=`,
+concatenation, format calls, templates, f-strings, interpolation, lists and
+maps with constant keys carry values; a condition, ternary or `switch` that
+folds to a constant runs only its live branch; a same-file call is followed
+one hop (arguments to parameters, returns back, sinks inside the helper see
+the bound values). The rule's own `query` stays as the fallback, so recall
+never drops: the block only adds findings and drops provably constant ones.
+
+```yaml
+taint:
+  mode: source            # source (default): report a TAINT sink; nonconst: any non-CLEAN sink
+  sources: |              # @source: a value from outside, unless it evaluates CLEAN
+  inputs: |               # @input: always TAINT (request accessors, @RequestParam parameters)
+                          # (with `sources` too, a sink must be reached from a source)
+  sinks: |                # @sink: the value checked; @hit: where the finding is reported
+  sanitizers: |           # @sanitizer: an expression whose value is CLEAN
+  value: [sql]            # captures of `query`: a hit whose values are all CLEAN is dropped
+  kill: derived           # also drop a hit whose values are DERIVED, in a function that reads an input
+  where: {sh: "regex"}    # a capture's text, or a hoisted literal's text, must match
+  types: {w: "regex"}     # a captured identifier's declared type must match
+  element0: "regex"       # the sink is a list whose first element matches (an argv's tool)
+  unless_element: "^--$"  # skip a list sink holding a matching element
+  built: true             # only a string spliced together from parts is a sink value
+  at: source              # report at the source when it is in the sink's function
+  hops: 1                 # same-file calls followed (0-2)
+  requires: false         # apply requires_file / requires_in_scope to the new findings too
+```
+
+`unless_inside`, `unless_in_scope` and `unless_in_file` apply to the new
+findings as well; when a value crossed a function on its way, `unless_in_scope`
+is checked over the whole file, since the check may sit in either function.
+One finding is kept per source per function. An analysis that outgrows its
+step budget, or fails, changes nothing (`ARBITER_DATAFLOW_STRICT=1` makes a
+failure raise; the test suite sets it). Nothing crosses a file; fields,
+aliasing and exceptions are not followed.
+
 Every finding, native or external, carries `cwe` in the JSON report and as
 `external/cwe/cwe-N` tags in SARIF. Native rules declare it in their pack or
 in `src/arbiter/cwe.py`; semgrep, bandit and gitleaks report their own, read

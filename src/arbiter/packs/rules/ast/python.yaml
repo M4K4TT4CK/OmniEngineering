@@ -331,20 +331,20 @@ rules:
       (call function: (attribute object: (identifier) @o (#eq? @o "subprocess")
           attribute: (identifier) @m (#match? @m "^(run|call|check_output|check_call|Popen)$"))
         arguments: (argument_list . [(identifier) (attribute) (call) (binary_operator) (subscript)
-                                     (string (interpolation)) (concatenated_string (string (interpolation)))]
+                                     (string (interpolation)) (concatenated_string (string (interpolation)))] @cmd
           (keyword_argument name: (identifier) @k (#eq? @k "shell") value: (true)))) @hit
       (call function: (identifier) @f (#match? @f "^(run|call|check_output|check_call|Popen)$")
         arguments: (argument_list . [(identifier) (attribute) (call) (binary_operator) (subscript)
-                                     (string (interpolation)) (concatenated_string (string (interpolation)))]
+                                     (string (interpolation)) (concatenated_string (string (interpolation)))] @cmd
           (keyword_argument name: (identifier) @k (#eq? @k "shell") value: (true)))) @hit
       (call function: (attribute object: (identifier) @o (#eq? @o "subprocess")
           attribute: (identifier) @m (#match? @m "^(getoutput|getstatusoutput)$"))
         arguments: (argument_list . [(identifier) (attribute) (call) (binary_operator) (subscript)
-                                     (string (interpolation)) (concatenated_string (string (interpolation)))])) @hit
+                                     (string (interpolation)) (concatenated_string (string (interpolation)))] @cmd)) @hit
       (call function: (attribute object: (identifier) @o (#eq? @o "os")
           attribute: (identifier) @m (#match? @m "^(system|popen)$"))
         arguments: (argument_list . [(identifier) (attribute) (call) (binary_operator) (subscript)
-                                     (string (interpolation)) (concatenated_string (string (interpolation)))])) @hit
+                                     (string (interpolation)) (concatenated_string (string (interpolation)))] @cmd)) @hit
     unless_inside: |
       (call arguments: (argument_list . (_) @a (#match? @a "shlex\\.(quote|join)"))) @x
     description: >-
@@ -352,6 +352,25 @@ rules:
       variable. Anything in that variable -- a filename with a `;`, a
       user-supplied argument -- is interpreted as shell syntax.
     remediation: "Pass an argv list with `shell=False` (`subprocess.run([\"ls\", \"-l\", path])`); if a shell is unavoidable, quote every piece with `shlex.quote`."
+    # One-hop data flow (Milestone 3): the command reaches the shell call
+    # through a local or a helper, or wrapped in str(...) / parentheses; a
+    # command whose every part is provably constant (OWASP Benchmark's
+    # constant tricks) is dropped.
+    taint:
+      mode: nonconst
+      sinks: |
+        ((call function: (attribute object: (identifier) @o attribute: (identifier) @m)
+          arguments: (argument_list . (_) @sink
+            (keyword_argument name: (identifier) @k value: (true)))) @hit
+         (#eq? @o "subprocess") (#match? @m "^(run|call|check_output|check_call|Popen)$") (#eq? @k "shell"))
+        ((call function: (attribute object: (identifier) @o attribute: (identifier) @m)
+          arguments: (argument_list . (_) @sink)) @hit
+         (#match? @o "^(os|subprocess)$") (#match? @m "^(system|popen|getoutput|getstatusoutput)$"))
+      sanitizers: |
+        ((call function: (attribute object: (identifier) @o attribute: (identifier) @m)) @sanitizer
+         (#eq? @o "shlex") (#match? @m "^(quote|join)$"))
+      value: [cmd]
+      built: true
 
   - id: code-injection
     requirements: [ARB-065]
@@ -365,7 +384,7 @@ rules:
     query: |
       (call function: (identifier) @f (#match? @f "^(eval|exec)$")
         arguments: (argument_list . [(identifier) (attribute) (call) (binary_operator) (subscript)
-                                     (string (interpolation)) (concatenated_string (string (interpolation)))])) @hit
+                                     (string (interpolation)) (concatenated_string (string (interpolation)))] @cmd)) @hit
     # `exec(compile(src, path, "exec"), ns)` is deliberate code loading -- a
     # config file, a plugin -- and never the shape model-drafted code uses to
     # evaluate an expression. Flask's config.from_pyfile is the reference case.
@@ -735,6 +754,25 @@ rules:
       `-oProxyCommand=...` (ssh) is taken as an option, which can run a
       command or overwrite a file.
     remediation: "Put `\"--\"` before the first value argument (`[\"git\", \"clone\", \"--\", url, dest]`) and validate the value (scheme check with `urlparse`, or reject a leading `-`)."
+    # One-hop data flow (Milestone 3): the request value reaches the argv
+    # list through a local or a helper; the list itself may be hoisted.
+    taint:
+      sources: &py_request_sources |
+        ((attribute object: (identifier) @r attribute: (identifier) @a) @source
+         (#match? @r "^(request|req)$")
+         (#match? @a "^(args|form|json|values|data|files|cookies|headers|GET|POST|FILES|COOKIES|META|body|query_params|path_params|match_info|get_json|query)$"))
+      sinks: |
+        ((call function: (attribute object: (identifier) @o attribute: (identifier) @m)
+          arguments: (argument_list . (_) @sink)) @hit
+         (#eq? @o "subprocess") (#match? @m "^(run|call|check_call|check_output|Popen)$"))
+        ((call function: (identifier) @m arguments: (argument_list . (_) @sink)) @hit
+         (#match? @m "^(run|check_call|check_output|Popen)$"))
+      # a number, or an element bound to its option (`f"--branch={b}"`)
+      sanitizers: |
+        ((call function: (identifier) @f) @sanitizer (#match? @f "^(int|float)$"))
+        ((string (interpolation)) @sanitizer (#match? @sanitizer "^[fFrRbB]*[\"']-"))
+      element0: "(^|/)(git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|find|sendmail|ffmpeg|ffprobe|convert|magick|docker|kubectl|npm|npx|pip|openssl|gpg)$"
+      unless_element: "^--$"
 
   - id: upload-client-filename
     requirements: [ARB-062]
@@ -788,6 +826,24 @@ rules:
       outside it, and the same name overwrites another user's upload.
       Nothing in the function checks the type or cleans the name.
     remediation: "Name the stored file yourself (`uuid4().hex` plus an extension from an allowlist checked against the content type), or at least `werkzeug.utils.secure_filename`, and cap the size (`MAX_CONTENT_LENGTH`)."
+    # One-hop data flow (Milestone 3): the client's file name reaches the
+    # write through a local or a same-file helper.
+    taint:
+      sources: |
+        ((attribute attribute: (identifier) @a) @source (#eq? @a "filename"))
+        ((attribute object: (identifier) @u attribute: (identifier) @a) @source
+         (#match? @u "(?i)(upload|file|doc|avatar|attachment|image)") (#eq? @a "name"))
+      sinks: |
+        ((call function: (attribute attribute: (identifier) @m) arguments: (argument_list . (_) @sink)) @hit
+         (#eq? @m "save"))
+        ((call function: [(identifier) (attribute)] @m arguments: (argument_list . (_) @sink . (string) @mode)) @hit
+         (#match? @m "^(open|aiofiles\\.open|io\\.open)$") (#match? @mode "^[rbuf]*[\"'][rbt]*[wax]"))
+        ((call function: [(identifier) (attribute)] @m
+          arguments: (argument_list . (_) @sink (keyword_argument name: (identifier) @k value: (string) @mode))) @hit
+         (#match? @m "^(open|aiofiles\\.open|io\\.open)$") (#eq? @k "mode") (#match? @mode "^[rbuf]*[\"'][rbt]*[wax]"))
+        ((call function: (attribute object: (identifier) @o attribute: (identifier) @m) arguments: (argument_list (_) @sink)) @hit
+         (#match? @o "^(shutil|os)$") (#match? @m "^(move|copy|copyfile|rename|replace)$"))
+      requires: true
 
   - id: debug-mode-enabled
     requirements: [ARB-062]

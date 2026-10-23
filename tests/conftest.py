@@ -7,12 +7,17 @@ rather than once per file -- without this, adding a second file that scans
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
 
 from arbiter.engine import run_scan
 from arbiter.policy import load_config
+
+# The data-flow engine swallows its own faults in a scan (a rule then keeps
+# exactly its query's findings); the suite wants to see them.
+os.environ.setdefault("ARBITER_DATAFLOW_STRICT", "1")
 
 ROOT = Path(__file__).resolve().parents[1]
 LEGACY = ROOT / "fixtures" / "legacy-platform"
