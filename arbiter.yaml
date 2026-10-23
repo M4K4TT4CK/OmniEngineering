@@ -40,6 +40,10 @@ suppress:
     path: "fixtures/**"
     reason: "planted defects — this is the golden-fixture test corpus"
     expires: 2099-01-01
+  - rule: "ruff/*"
+    path: "fixtures/**"
+    reason: "planted defects and the AI-written corpus (fixtures/ai-corpus, copied in unchanged as data): lint style there is not this project's code"
+    expires: 2099-01-01
   - rule: "gitleaks/*"
     path: "tests/**"
     reason: "the tests assert on token shapes (Stripe, Slack) that are documentation examples, not live"
