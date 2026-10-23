@@ -8,7 +8,8 @@ gate` until they edited the rulepack by hand. Now adopt removes it from the
 completion rulepack it just copied (one it skipped is left alone) and says so;
 `--with-arbiter` keeps it and `omni arbiter install` adds it back.
 `tests/test_adopt_loop.py` covers all four cases and the dry run; README's
-adoption notes say so.
+adoption notes, `docs/arbiter-integration.md` and `adopt --help` say so;
+the integration doc no longer calls Arbiter proprietary (it is Apache-2.0).
 - `REQ-058` | Adoption | `omni adopt` ships an empty requirements registry.
 It used to copy this repository's whole registry, so an adopter started with
 OmniEngineering's requirements and its first id continued after them. The

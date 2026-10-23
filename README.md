@@ -451,7 +451,7 @@ would be scanned as source, FAIL-012), and `.arbiter/baseline.json`. The table
 of what each file holds is in
 [docs/arbiter-integration.md section 3](docs/arbiter-integration.md#3-what-the-wiring-writes).
 `--skip-pip` writes the wiring only; `--dry-run` shows it. Arbiter is a
-separate, proprietary product: this installs and wires it, it does not vendor
+separate Apache-2.0 product: this installs and wires it, it does not vendor
 it.
 
 Installation also cuts the **baseline**: a full offline scan of the project

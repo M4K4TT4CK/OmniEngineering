@@ -6866,7 +6866,7 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Also install Arbiter (a local checkout path, a git+https URL, or a pip spec; "
             f"default {ARBITER_DEFAULT_SOURCE}) and wire it in: .mcp.json, the completion.arbiter_gate "
-            "command rule, a starter arbiter.yaml."
+            "command rule, a starter arbiter.yaml. Without it, adopt leaves completion.arbiter_gate out."
         ),
     )
     adopt_parser.add_argument(

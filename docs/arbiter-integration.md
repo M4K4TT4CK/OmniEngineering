@@ -29,7 +29,10 @@ through.
    product repository). `omni adopt --with-arbiter [SOURCE]` installs Arbiter
    while adopting, and `omni arbiter install --source SOURCE` adds it to a
    repository adopted earlier. The source is a local checkout (editable
-   install) or the GitHub URL. Arbiter is proprietary and not on PyPI.
+   install) or the GitHub URL. Arbiter is Apache-2.0 but not on PyPI.
+   A plain `omni adopt` (no `--with-arbiter`) leaves the required
+   `completion.arbiter_gate` rule out of the completion rulepack, so `omni
+   gate` works without Arbiter; `omni arbiter install` adds it (REQ-059).
 2. **Vendored as a subtree** (this repository's `main`, since 2026-10-09). The whole
    Arbiter checkout sits under `arbiter/` with its own `.ai/` workspace. The
    root workspace recognises it as a vendored workspace: the requirement-id
