@@ -1033,3 +1033,22 @@ def test_forgery_protection_on_in_production_is_silent(tmp_path):
     code = FORGERY_OFF.replace("= false", "= true")
     assert "csrf-protection-off-in-production" not in _rules(
         tmp_path, code, "config/environments/production.rb")
+
+
+# --- undeclared-import, round 2 gold precision (ARB-065) ---------------------
+
+def test_named_gemfiles_inline_gemfiles_and_rescued_requires_are_declared(tmp_path):
+    (tmp_path / "Gemfile").write_text('source "https://rubygems.org"\ngem "rake"\n')
+    (tmp_path / "tool" / "bundler").mkdir(parents=True)
+    (tmp_path / "tool" / "bundler" / "release_gems.rb").write_text('gem "octokit"\n')
+    (tmp_path / "lib").mkdir()
+    (tmp_path / "lib" / "release.rb").write_text('require "octokit"\n')
+    (tmp_path / "lib" / "integration.rb").write_text(
+        'begin\n  require "bundled_gems"\nrescue LoadError\nend\nrequire "httparty"\n')
+    (tmp_path / "repro.rb").write_text(
+        'require "bundler/inline"\ngemfile(true) do\n  gem "rails"\nend\n'
+        'require "action_controller/railtie"\n')
+    rep = run_scan([str(tmp_path)], load_config(None), only=["authored"], use_adapters=False)
+    names = sorted(f.evidence for f in rep.active() if "undeclared-import" in f.rule_id)
+    # httparty is still undeclared: only the rescued require is optional.
+    assert names == ["undeclared:rubygems:httparty"]

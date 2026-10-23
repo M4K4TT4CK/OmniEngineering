@@ -12,6 +12,17 @@ func TestSubmitQueuesJob(t *testing.T) { // expect: arbiter/assurance.test-asser
 	_ = len(p.jobs)
 }
 
+// TestSubmitTwice skips in short mode and otherwise asserts nothing (round 2:
+// the conditional skip used to excuse it).
+func TestSubmitTwice(t *testing.T) { // expect: arbiter/assurance.test-asserts-nothing
+	if testing.Short() {
+		t.Skip("slow")
+	}
+	p := NewPool(2)
+	p.Submit(Job{ID: "a"})
+	p.Submit(Job{ID: "a"})
+}
+
 func TestHeartbeatStops(t *testing.T) {
 	t.Skip() // expect: arbiter/assurance.permanently-skipped-test
 	p := NewPool(1)

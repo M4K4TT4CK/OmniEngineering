@@ -539,3 +539,50 @@ def test_wtf_csrf_off_in_a_test_config_is_fine(tmp_path):
         "    WTF_CSRF_ENABLED = False\n"
         "app.config['WTF_CSRF_ENABLED'] = False\n")
     assert _lines(tmp_path, code, "csrf-protection-disabled") == [2, 5]
+
+
+def test_sql_spliced_from_a_local_built_by_quoting_is_fine(tmp_path):
+    """Round 2 (ARB-065): simple in-function constant tracking. Django's cache
+    backend quotes the table into a local first (`table = quote_name(...)`,
+    db.py:76/136/233/302), celery's session.py quotes `col_name` and compiles
+    `col_type`, createcachetable chooses `unique` between two literals."""
+    code = (
+        "def f(self, cursor, connection, keys, col, preparer, engine, flag):\n"
+        "    quote_name = connection.ops.quote_name\n"
+        "    table = quote_name(self._table)\n"
+        "    cursor.execute('DELETE FROM %s' % table)\n"
+        "    cursor.execute('DELETE FROM %s WHERE %s IN (%s)' % (\n"
+        "        table, quote_name('k'), ', '.join(['%s'] * len(keys))), keys)\n"
+        "    col_name = preparer.quote_identifier(col.name)\n"
+        "    col_type = col.type.compile(engine.dialect)\n"
+        "    stmt = f'ALTER TABLE {table} ADD COLUMN {col_name} {col_type}'\n"
+        "    unique = 'UNIQUE ' if flag else ''\n"
+        "    cursor.execute('CREATE %sINDEX %s ON %s' % (unique, quote_name('i'), table))\n"
+        "    cursor.execute(str(constraint_sql) + ' NOT VALID')\n"
+        "    cursor.execute('SELECT %s FROM t' % ', '.join(self.quote_name(c) for c in keys))\n"
+        "    cursor.execute(sql.SQL('x') if 0 else 'SELECT * FROM {}'.format(sql.Identifier(t)))\n"
+        # still reported: a parameter, a local assigned from a parameter in
+        # one branch, a container filled later, a loop variable
+        "def g(cursor, name, flag, rows):\n"
+        "    cursor.execute('SELECT %s()' % name)\n"
+        "    t = 'jobs'\n"
+        "    if flag:\n"
+        "        t = name\n"
+        "    cursor.execute('DELETE FROM %s' % t)\n"
+        "    parts = []\n"
+        "    parts.append(name)\n"
+        "    cursor.execute('SELECT * FROM (%s)' % ' UNION '.join(parts))\n"
+        "    for r in rows:\n"
+        "        cursor.execute(f'DELETE FROM {r}')\n")
+    assert _lines(tmp_path, code, "sql-injection") == [16, 20, 23, 25]
+
+
+def test_safe_splice_keys_are_python_only():
+    from arbiter.lang_rules import PackError, validate_pack
+    rule = {"id": "x", "title": "t", "query": "(identifier) @hit", "remediation": "r",
+            "safe_splice_names": "[A-Z]+"}
+    validate_pack({"languages": ["python"], "rules": [rule]}, "p")
+    with pytest.raises(PackError):
+        validate_pack({"languages": ["go"], "rules": [rule]}, "g")
+    with pytest.raises(PackError):
+        validate_pack({"languages": ["python"], "rules": [{**rule, "safe_splice_names": "("}]}, "p")

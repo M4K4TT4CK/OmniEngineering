@@ -315,7 +315,10 @@ Fast, honest and quiet on good code.
 Exit criteria, all measurable:
 
 - [ ] Gold benchmark: the three P1 rules are within budget; total
-  over-budget rules ≤ 8 (from 16). *2026-10-22: 9 over at `1047341`, 3 of them
+  over-budget rules ≤ 8 (from 16). *2026-10-22, round 2: 6 over, 3 of them
+  accepted breaches **[M]**; `authored.undeclared-import` (0.0005),
+  `assurance.test-asserts-nothing` (0.0122) and `python.sql-injection`
+  (0.0282) are within budget (CHANGELOG, round 2 precision).* *2026-10-22: 9 over at `1047341`, 3 of them
   accepted breaches recorded in `tools/gold/budgets.json` (java and typescript
   test-without-assertion, permanently-skipped-test), so 6 fail the run **[M]**.
   The criterion counts all 9, so it stays open.* *2026-10-21, all 24 repositories: 7

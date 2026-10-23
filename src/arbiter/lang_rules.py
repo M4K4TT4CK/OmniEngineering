@@ -40,6 +40,10 @@ rules:
     requires_in_scope: "..." # only report a hit whose enclosing function (or file) matches this
     unless_in_file: "..."    # skip every hit when the file matches this
     requires_file: "..."     # only report in a file that matches this
+    # Python only: skip a string-building hit when every value spliced into
+    # it is safe (see _splices_safe). Each is a regex, full-matched:
+    safe_splice_calls: "..." # callee of a call whose result is safe (`quote_name`)
+    safe_splice_names: "..." # a name or attribute that is safe (`TABLE`, `inner_sql`)
     description: "..."
     remediation: "..."
 ```
@@ -51,6 +55,7 @@ fingerprint stable across line shifts.
 from __future__ import annotations
 
 import fnmatch
+import re
 from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -81,7 +86,8 @@ FUNCTION_TYPES: dict[str, set[str]] = {
 
 _KEYS = {"id", "title", "severity", "confidence", "dimension", "cwe", "controls", "tags",
          "roles", "files", "query", "unless_inside", "unless_in_scope", "unless_in_file",
-         "requires_file", "requires_in_scope", "description", "remediation", "languages"}
+         "requires_file", "requires_in_scope", "description", "remediation", "languages",
+         "safe_splice_calls", "safe_splice_names"}
 _SEVERITIES = {"info", "low", "medium", "high", "critical"}
 _CONFIDENCES = {"low", "medium", "high"}
 
@@ -125,6 +131,15 @@ def validate_pack(data: dict, name: str) -> None:
             raise PackError(f"{where}: `files` is a glob or a non-empty list of globs")
         if "@hit" not in rule["query"]:
             raise PackError(f"{where}: query must capture @hit")
+        for key in ("safe_splice_calls", "safe_splice_names"):
+            if key not in rule:
+                continue
+            if set(rule.get("languages") or data["languages"]) != {"python"}:
+                raise PackError(f"{where}: `{key}` is implemented for Python only")
+            try:
+                re.compile(rule[key])
+            except (re.error, TypeError) as exc:
+                raise PackError(f"{where}: `{key}` is not a regex: {exc}") from exc
 
 
 QUERY_KEYS = ("query", "unless_inside", "unless_in_scope", "unless_in_file", "requires_file",
@@ -323,6 +338,9 @@ def _run_rule(pack: str, rule: dict, f, parsed) -> list[Finding]:
         seen.add(node.start_byte)
         if any(_encloses(o, node) for o in inside):
             continue
+        if (rule.get("safe_splice_calls") or rule.get("safe_splice_names")) \
+                and lang == "python" and _splices_safe(node, rule):
+            continue
         if scoped or needed is not None:
             # Outside any function, the file is the scope.
             scope = _enclosing_function(node, lang) or parsed[0].root_node
@@ -348,6 +366,204 @@ def _run_rule(pack: str, rule: dict, f, parsed) -> list[Finding]:
             tags=["lang-rule", lang, *(rule.get("tags") or [])],
         ))
     return out
+
+
+# ---------------------------------------------------------------------------
+# Python: values spliced into a built string, and whether each is safe
+# ---------------------------------------------------------------------------
+#
+# Simple in-function constant tracking, for `python.sql-injection` (round 2,
+# ARB-065). Django's cache backend writes `table = quote_name(self._table)`
+# and then `"DELETE FROM %s" % table`; celery builds `col_name =
+# preparer.quote_identifier(col.name)` before an f-string. A spliced value is
+# safe when it is a literal, a call to a quoting function, a safe name (by
+# the rule's regex), `str()` of a safe value, a `sep.join(...)` of safe
+# elements, a conditional or string-format of safe values, or a local
+# variable every assignment of which in the enclosing function is safe.
+# A parameter, a loop variable, anything assigned from elsewhere, and any
+# expression not listed are not. This is not data flow: nothing crosses a
+# function boundary (that is Milestone 3).
+
+_LITERALS = {"integer", "float", "true", "false", "none"}
+
+
+def _txt(node) -> str:
+    return node.text.decode("utf-8", "replace") if node.text is not None else ""
+
+
+def _splices(node) -> list | None:
+    """The values spliced into a string-building expression; None if unknown."""
+    t = node.type
+    if t == "string":
+        return [c.named_children[0] for c in node.named_children
+                if c.type == "interpolation" and c.named_children]
+    if t == "concatenated_string":
+        out: list = []
+        for c in node.named_children:
+            out.extend(_splices(c) or [])
+        return out
+    if t == "parenthesized_expression" and node.named_children:
+        inner = node.named_children[0]
+        return _splices(inner) if inner.type in ("string", "concatenated_string",
+                                                 "binary_operator", "call") else [inner]
+    if t == "binary_operator":
+        op = node.child_by_field_name("operator")
+        left, right = node.child_by_field_name("left"), node.child_by_field_name("right")
+        if op is None or left is None or right is None:
+            return None
+        if _txt(op) == "%" and left.type in ("string", "concatenated_string"):
+            values = _splices(left) or []
+            if right.type == "tuple":
+                return values + list(right.named_children)
+            if right.type == "dictionary":
+                return values + [p.child_by_field_name("value") for p in right.named_children
+                                 if p.type == "pair"]
+            return values + [right]
+        if _txt(op) == "+":
+            out = []
+            for side in (left, right):
+                inner = _splices(side) if side.type in ("string", "concatenated_string") \
+                    or (side.type == "binary_operator" and _txt(side.child_by_field_name("operator")) == "+") \
+                    else [side]
+                if inner is None:
+                    return None
+                out.extend(inner)
+            return out
+        return None
+    if t == "call":
+        fn, args = node.child_by_field_name("function"), node.child_by_field_name("arguments")
+        if fn is not None and fn.type == "attribute" and args is not None:
+            obj, attr = fn.child_by_field_name("object"), fn.child_by_field_name("attribute")
+            if attr is not None and _txt(attr) == "format" and obj is not None \
+                    and obj.type in ("string", "concatenated_string"):
+                out = list(_splices(obj) or [])
+                for a in args.named_children:
+                    if a.type == "keyword_argument":
+                        out.append(a.child_by_field_name("value"))
+                    else:
+                        out.append(a)
+                return out
+    return None
+
+
+def _scope_of(node):
+    cur = node.parent
+    while cur is not None and cur.type != "function_definition":
+        cur = cur.parent
+    return cur
+
+
+def _assignments(scope, name: str) -> list | None:
+    """Right-hand sides assigned to `name` in this function; None when it is a
+    parameter or is bound some other way (a loop, `with ... as`, `global`)."""
+    params = scope.child_by_field_name("parameters")
+    if params is not None and re.search(rf"(?<![\w.]){re.escape(name)}\b", _txt(params)):
+        return None
+    out: list = []
+    stack = [scope.child_by_field_name("body")]
+    while stack:
+        n = stack.pop()
+        if n is None:
+            continue
+        if n.type in ("function_definition", "lambda", "class_definition"):
+            continue
+        if n.type in ("assignment", "augmented_assignment"):
+            left, right = n.child_by_field_name("left"), n.child_by_field_name("right")
+            if left is not None and _txt(left) == name:
+                if right is None:
+                    return None
+                out.append(right)
+            elif left is not None and re.search(rf"(?<![\w.]){re.escape(name)}\b", _txt(left)):
+                return None     # tuple unpacking or a subscript
+        if n.type in ("for_statement", "for_in_clause", "with_item", "as_pattern",
+                      "global_statement", "nonlocal_statement", "named_expression"):
+            target = n.child_by_field_name("left") or n.child_by_field_name("alias") or n
+            if re.search(rf"(?<![\w.]){re.escape(name)}\b", _txt(target)) and n.type != "with_item":
+                return None
+            if n.type == "with_item" and re.search(rf"\bas\s+{re.escape(name)}\b", _txt(n)):
+                return None
+        stack.extend(n.children)
+    return out
+
+
+def _value_safe(node, rule: dict, scope, depth: int = 0) -> bool:
+    if node is None or depth > 4:
+        return False
+    t = node.type
+    calls = rule.get("safe_splice_calls")
+    names = rule.get("safe_splice_names")
+    if t in _LITERALS:
+        return True
+    if t in ("string", "concatenated_string", "binary_operator"):
+        parts = _splices(node)
+        if t == "binary_operator" and parts is None:
+            # arithmetic on safe values (`a * 2`) stays safe
+            left, right = node.child_by_field_name("left"), node.child_by_field_name("right")
+            return _value_safe(left, rule, scope, depth + 1) and _value_safe(right, rule, scope, depth + 1)
+        return parts is not None and all(_value_safe(p, rule, scope, depth + 1) for p in parts)
+    if t == "parenthesized_expression":
+        return bool(node.named_children) and _value_safe(node.named_children[0], rule, scope, depth + 1)
+    if t == "conditional_expression":
+        kids = node.named_children
+        return len(kids) == 3 and _value_safe(kids[0], rule, scope, depth + 1) \
+            and _value_safe(kids[2], rule, scope, depth + 1)
+    if t in ("list", "tuple"):
+        return all(_value_safe(k, rule, scope, depth + 1) for k in node.named_children)
+    if t in ("generator_expression", "list_comprehension"):
+        body = node.child_by_field_name("body")
+        return body is not None and body.type == "call" and _value_safe(body, rule, scope, depth + 1)
+    if t in ("identifier", "attribute"):
+        if names and re.fullmatch(names, _txt(node)):
+            return True
+        if t == "identifier" and scope is not None:
+            name = _txt(node)
+            rhs = _assignments(scope, name)
+            if not rhs:
+                return False
+            # A container filled later (`query = []`, then `query.append(...)`)
+            # is only as safe as what goes in, which this does not follow.
+            if any(r.type in ("list", "dictionary", "set") for r in rhs) and re.search(
+                    rf"(?<![\w.]){re.escape(name)}\s*(?:\.\w+\s*\(|\[)", _txt(scope)):
+                return False
+            return all(_value_safe(r, rule, scope, depth + 1) for r in rhs)
+        return False
+    if t == "call":
+        fn, args = node.child_by_field_name("function"), node.child_by_field_name("arguments")
+        if fn is None:
+            return False
+        callee = _txt(fn)
+        if calls and re.fullmatch(calls, callee):
+            return True
+        if args is not None and args.type == "generator_expression":
+            argv = [args]       # `", ".join(q(c) for c in cols)`: no argument list
+        else:
+            argv = [a for a in (args.named_children if args is not None else [])
+                    if a.type != "comment"]
+        if callee == "str" and len(argv) == 1:
+            return _value_safe(argv[0], rule, scope, depth + 1)
+        if fn.type == "attribute":
+            obj, attr = fn.child_by_field_name("object"), fn.child_by_field_name("attribute")
+            if attr is not None and _txt(attr) == "join" and obj is not None \
+                    and obj.type == "string" and len(argv) == 1:
+                arg = argv[0]
+                if arg.type == "binary_operator" and _txt(arg.child_by_field_name("operator")) == "*":
+                    # `", ".join(["%s"] * len(keys))`: a placeholder list
+                    return _value_safe(arg.child_by_field_name("left"), rule, scope, depth + 1)
+                return _value_safe(arg, rule, scope, depth + 1)
+            if attr is not None and _txt(attr) == "format" and obj is not None \
+                    and obj.type == "string":
+                return all(_value_safe(p, rule, scope, depth + 1)
+                           for p in (_splices(node) or [None]))
+        return False
+    return False
+
+
+def _splices_safe(hit, rule: dict) -> bool:
+    parts = _splices(hit)
+    if not parts:
+        return False
+    scope = _scope_of(hit)
+    return all(_value_safe(p, rule, scope) for p in parts)
 
 
 def register_lang_rules() -> None:

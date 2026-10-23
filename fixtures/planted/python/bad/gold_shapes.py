@@ -10,6 +10,14 @@ def purge_owner(cursor, connection, table: str, owner: str) -> None:
     cursor.execute("DELETE FROM %s WHERE owner = '%s'" % (qn(table), owner))  # expect: arbiter/python.sql-injection
 
 
+def purge_table(cursor, connection, table: str, owner: str, mine: bool) -> None:
+    # Quoted on one path only: one raw assignment makes the local unsafe.
+    target = connection.ops.quote_name(table)
+    if not mine:
+        target = owner
+    cursor.execute("DELETE FROM %s" % target)  # expect: arbiter/python.sql-injection
+
+
 def remember_me(response):
     value = str(random.random())[2:]  # expect: arbiter/python.insecure-random-for-secret
     session["remember_me"] = value
