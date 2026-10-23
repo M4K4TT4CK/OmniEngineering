@@ -1,6 +1,6 @@
 # Testing Harness
 
-Four instruments that measure Arbiter beyond the planted corpus, the gold
+Five instruments that measure Arbiter beyond the planted corpus, the gold
 benchmark and OWASP Benchmark:
 
 | # | Instrument | Question | Tool | Runs in CI |
@@ -9,6 +9,7 @@ benchmark and OWASP Benchmark:
 | 2 | [Human-label sampling](#2-human-label-sampling) | What is each rule's *measured* precision, and do two people agree on it? | `tools/label_sample.py` | no (people label) |
 | 3 | [Regression guards](#3-regression-guards) | Did a change remove findings, add findings, or slow the scan? | `tools/regression_guard.py` | in-tree snapshots (fast tier); pinned repos + timings (slow tier) |
 | 4 | [Mutation variants](#4-mutation-variants) | Does a rule still fire when its defect is written another way? | `tools/variants.py` | proven by a test; the sweep is run by hand |
+| 5 | [Ground truth and model labels](#5-ground-truth-and-model-labels) | What is each rule's precision with no person in the loop, and how far can the labellers be trusted? | `tools/ground_truth/`, `tools/label_models.py` | logic tested offline (fast tier); labelling is run by hand |
 
 Every command below runs from the repository root with the source tree on the
 path, e.g. `PYTHONPATH=$PWD/src python tools/ai_corpus_score.py`.
@@ -23,6 +24,7 @@ reliable.
 - [2. Human-label sampling](#2-human-label-sampling)
 - [3. Regression guards](#3-regression-guards)
 - [4. Mutation variants](#4-mutation-variants)
+- [5. Ground truth and model labels](#5-ground-truth-and-model-labels)
 - [What the numbers say](#what-the-numbers-say)
 
 ---
@@ -410,6 +412,87 @@ marker in all five languages, refuses unsafe shapes and discards unparsable
 output. It also seeds a regression: `python.sql-injection` is made blind to
 `" + str(` concatenation, and the sweep must report the loss and a
 robustness below 1.
+
+## 5. Ground truth and model labels
+
+The precision claim is meant to stand with no person reading findings, so
+the labels come from two places that do not depend on Arbiter: benchmarks
+with published answers, and model labellers kept independent of Arbiter and
+of the Phase 2 verifier. Labels are JSON lines in `tools/gold/labels/`
+(`finding_id`, `rule_id`, `label` tp|fp|unsure, `labeller`, `source`,
+`held_out`, `reason`, `excerpt_sha256`, plus path, line and CWE). Results:
+`tools/gold/results/2026-10-22-labels.md`.
+
+```bash
+tools/ground_truth/fetch_gt.sh                       # Juliet (SHA-256 pinned) + CVE pair files -> ~/wt/corpus-gt
+python tools/ground_truth/benchmarks_gt.py owasp  --corpus ~/wt/corpus-gold --out tools/gold/labels
+python tools/ground_truth/benchmarks_gt.py juliet --root ~/wt/corpus-gt/juliet-java --out tools/gold/labels
+python tools/ground_truth/cve_pairs.py label --out tools/gold/labels   # cve-fix.jsonl + cve-suspects.json
+python tools/label_models.py label --ground-truth tools/gold/labels/{owasp-java,owasp-python,cve-fix}.jsonl \
+    tools/gold/labels/juliet-java.jsonl.gz --n 250 --out tools/gold/labels/calibration.jsonl
+python tools/label_models.py label --report <gold-report.json> --n 600 --budget-usd 35 --out tools/gold/labels/gold-model.jsonl
+python tools/label_models.py summarize --labels tools/gold/labels/*.jsonl* --markdown out.md
+```
+
+**Ground truth, judged by no model.**
+
+| Source | What decides the label | Labels |
+|---|---|---|
+| OWASP Benchmark Java 1.2 / Python 0.1 (pinned in `tools/fetch_corpus.sh`) | the case's `real` flag in `expectedresults-*.csv`, for a finding in that case's file whose CWE meets the case's CWE (benchmark aliases) | `owasp-java.jsonl`, `owasp-python.jsonl` |
+| Juliet Java 1.3 (NIST SARD, archive SHA-256 pinned) | a finding of the directory's CWE inside a `bad*` method (or `_bad` class) is TP, inside a `good*` method FP; CWE-79 is Juliet 80/81/83, CWE-22 is 23/36 | `juliet-java.jsonl.gz` |
+| CVE fix pairs (GitHub advisories, `tools/ground_truth/cve_pairs.json`, chosen by `cve_select.py`) | a finding on a line the fix changed, gone after the fix, with the advisory's CWE, is TP; one that persists, or carries another CWE, is a *suspect* and goes to the model labellers | `cve-fix.jsonl` |
+
+A finding whose CWE the case does not address gets no label: each case
+answers one question. Juliet cases split across files (`_54a` ... `_54e`)
+are labelled but kept out of labeller calibration, since no single-file
+excerpt shows whether their data is tainted.
+
+**Model labellers** (`tools/label_models.py`), through the logged-in Claude
+CLI (`claude -p --model opus`, no tools, settings, skills or MCP servers, a
+replaced system prompt):
+
+- A labeller sees the excerpt (enclosing function, same-file functions it
+  calls, imports; at most 180 lines; secrets masked by
+  `judgement._mask_secrets`), the file path and a *neutral claim* written
+  for this tool (`CLAIMS`). It never sees Arbiter's title, description,
+  remediation, severity or confidence, or any verifier verdict. A test checks
+  the prompt for the rule's own wording.
+- Where the excerpt cannot settle a claim, the tool adds facts it computes
+  itself from the tree: whether a linked file exists, whether a lockfile sits
+  beside a manifest, whether an env var is read in code, and the *shape* of a
+  masked secret (length, character classes, entropy, placeholder words),
+  never the value.
+- Two labellers per finding, with different prompts: a prosecutor (how does
+  the claim hold?) and a defender (what concrete reason makes it not hold?).
+  Neither sees the other. A disagreement goes to an adjudicator that sees
+  both reasons. κ between prosecutor and defender is reported per rule.
+- Label meaning: `tp` = the defect the claim describes is really present at
+  the marked line, with the claim's own conditions (an application not a
+  library, production not a test fixture, outside data not a constant).
+  `unsure` = it depends on code not shown. Unsure labels are not counted.
+- The cache (`--cache`, keyed by finding id, excerpt hash, prompt version,
+  role and model) is this tool's own; the verifier's cache is separate, and
+  the verifier never writes labels.
+- `--budget-usd` (default 25) stops the run before a call that could pass
+  the cap; `--max` caps the number of findings; reruns resume from the
+  output file and the cache.
+
+**Calibration.** The same labellers label a stratified sample of
+ground-truth items *blind*: comments blanked, Juliet's `bad`/`good` method
+and class names and OWASP's `BenchmarkTest` names replaced, paths
+neutralised. The truth is attached only afterwards. Precision of the
+labellers' `tp` calls on this sample bounds what any model-labelled
+precision figure can claim.
+
+**Held-out split** (`tools/gold/heldout.json`, frozen by
+`tools/ground_truth/heldout_split.py`, seed 20261022): 7 of the 24 gold
+repositories (30%, stratified by language) plus every ground-truth source.
+**Rule authors must not open findings, labels or excerpts from held-out
+repositories or ground-truth sources while changing a rule**; the precision
+claim is reported on the held-out split only. `heldout_split.py --check`
+fails if the committed file no longer matches a fresh computation. The
+AI-written corpus is development data (rules were tuned on it); a second
+corpus from a different generator model, held out, is future work.
 
 ## What the numbers say
 
