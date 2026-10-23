@@ -314,8 +314,8 @@ Fast, honest and quiet on good code.
 
 Exit criteria, all measurable:
 
-- [ ] Gold benchmark: the three P1 rules are within budget; total
-  over-budget rules ≤ 8 (from 16). *2026-10-22, round 2: 6 over, 3 of them
+- [x] Gold benchmark: the three P1 rules are within budget; total
+  over-budget rules ≤ 8 (from 16). *2026-10-22, round 2 integrated at `bc3b91f`, all 24 repositories: 6,960 findings (1.144/KLOC), 3 over budget, all 3 accepted breaches, so 0 fail the run **[M]** (`tools/gold/results/2026-10-22-gold-summary.md`).* *2026-10-22, round 2 branches: 6 over, 3 of them
   accepted breaches **[M]**; `authored.undeclared-import` (0.0005),
   `assurance.test-asserts-nothing` (0.0122) and `python.sql-injection`
   (0.0282) are within budget (CHANGELOG, round 2 precision).* *2026-10-22: 9 over at `1047341`, 3 of them
@@ -339,8 +339,8 @@ Exit criteria, all measurable:
   those three were triaged (all 22 TypeScript read; Java and skipped tests
   by category with samples) and are real by each rule's letter **[I]**
   (see CHANGELOG, round 1 follow-ups).*
-- [ ] The full gold run takes ≤ 50% of 6,454.9 s on the same machine, and
-  java-keycloak ≤ 10 min. *2026-10-21: the first half is met (2,308.9 s
+- [x] The full gold run takes ≤ 50% of 6,454.9 s on the same machine, and
+  java-keycloak ≤ 10 min. *2026-10-22, round 2 at `bc3b91f`, `--jobs 4`: 656.4 s summed (10%), java-keycloak 124.6 s (2.1 min) **[M]**, after the once-per-scan repository facts (ARB-076, round 2: scan speed).* *2026-10-21: the first half is met (2,308.9 s
   summed, 36%, at `7dd990c`, `--jobs 4`; the jobs setting of the 6,454.9 s run is not recorded) **[M]**, the second is not (keycloak 1,239.9 s,
   20.7 min; the remaining time is in `authored` and `doc_drift`) **[M]**.
   At `1047341`: 2,229.7 s summed, keycloak 1,196.3 s (19.9 min) **[M]**.*
@@ -354,7 +354,7 @@ Exit criteria, all measurable:
   **[M]**; not yet seen in CI, because the branch has not been pushed.*
 - [ ] `arbiter preflight` output is embedded in gold and planted reports.
 - [ ] Perf budgets and snapshots fail CI on a seeded regression (proven by
-  a mutation in `mutate_tests.py`).
+  a mutation in `mutate_tests.py`). *2026-10-22: `tools/regression_guard.py` (snapshots and scan-time budgets) fails on a removed rule and on a seeded 3 s sleep, proven in `tests/test_regression_guard.py` **[M]**; not yet via `mutate_tests.py`, so this stays open.*
 - [x] The public/licence decision is recorded (ARB-005/075), and a
   full-history gitleaks scan result is in the CHANGELOG. (2026-10-21:
   Apache-2.0; gitleaks findings all synthetic test values.)
