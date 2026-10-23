@@ -60,6 +60,24 @@ class TestAdoptCopiesNestedCliFilesWithTheirDirectory(unittest.TestCase):
             self.assertFalse((Path(tmp) / ".ai").exists())
 
 
+class TestAdoptShipsTheClaudeSkills(unittest.TestCase):
+    """REQ-056: `--tools claude` copies the clarify skill (requirements gathering in plan mode) beside CLAUDE.md."""
+
+    def test_claude_tool_copies_the_clarify_skill(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            args = ma.build_parser().parse_args(["adopt", "--target", tmp, "--tools", "claude"])
+            out = io.StringIO()
+            with redirect_stdout(out):
+                code = ma.run_adopt(args)
+            self.assertEqual(code, 0, out.getvalue())
+            skill = Path(tmp) / ".claude" / "skills" / "clarify" / "SKILL.md"
+            self.assertTrue(skill.is_file(), out.getvalue())
+            text = skill.read_text(encoding="utf-8")
+            self.assertTrue(text.startswith("---\nname: clarify\n"), "skill frontmatter must name the skill")
+            self.assertIn("Plan mode", text)
+            self.assertIn("./omni requirement add", text)
+
+
 @unittest.skipUnless(shutil.which("arbiter") and shutil.which("git"), "needs the real `arbiter` and `git` on PATH")
 class TestAdoptLoop(unittest.TestCase):
     def setUp(self) -> None:

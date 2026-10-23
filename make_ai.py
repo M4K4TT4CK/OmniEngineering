@@ -535,7 +535,7 @@ CONTEXT_PROFILE_ALIASES = {
 ADOPTION_TOOL_FILES = {
     "universal": ["LLM_CONTEXT.md"],
     "codex": ["AGENTS.md"],
-    "claude": ["CLAUDE.md"],
+    "claude": ["CLAUDE.md", ".claude/skills/clarify"],  # REQ-056: requirements gathering in plan mode
     "cursor": [".cursorrules", ".cursorignore"],
     "copilot": [".github/copilot-instructions.md"],
     "kiro": [".kiro/steering/omnicontext.md"],
