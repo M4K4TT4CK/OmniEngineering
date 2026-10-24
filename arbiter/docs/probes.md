@@ -10,9 +10,10 @@ treated as passes.
 - [External adapters](#external-adapters)
 - [Infrastructure as code](#infrastructure-as-code)
 - [The resource graph](#the-resource-graph)
-- [Machine-authored code](#machine-authored-code)
 - [Concurrency](#concurrency)
 - [Language packs](#language-packs)
+- [Machine-authored code](#machine-authored-code)
+- [AI-written services](#ai-written-services)
 - [Contracts between artifacts](#contracts-between-artifacts)
 - [Assurance: is the checking switched on?](#assurance-is-the-checking-switched-on)
 - [The judgement pass](#the-judgement-pass)
@@ -26,17 +27,18 @@ treated as passes.
 | Probe | Dimension | Requires | Catches |
 |---|---|---|---|
 | `secrets` | security | nothing | AWS keys, private keys, GitHub/Slack tokens, credentialed URLs, high-entropy literals assigned to credential-named symbols |
-| `resource_policy` | security, compliance | nothing | 13 provider-neutral rules over the normalized resource graph — unencrypted storage, public buckets, open ingress, plaintext listeners, missing retention |
+| `resource_policy` | security, compliance | nothing | 28 provider-neutral rules (`src/arbiter/packs/rules/resource.yaml`) over the normalized resource graph — unencrypted storage, public buckets, open ingress, plaintext listeners, missing retention |
 | `quality` | quality | nothing | Oversized files, TODO clusters, repositories with no tests |
 | `ast_metrics` | quality | tree-sitter | Function length, cyclomatic complexity and nesting depth measured from a real parse tree, in 11 languages |
 | `house_rules_ast` | quality, security | tree-sitter | Your own tree-sitter queries from `arbiter.yaml` |
-| `supply_chain` | supply chain | nothing | Unpinned Python/npm dependencies, GitHub Actions on mutable refs, `pull_request_target` |
+| `supply_chain` | supply chain, security | nothing | Unpinned Python/npm dependencies, GitHub Actions on mutable refs, `pull_request_target` |
 | `doc_drift` | drift | nothing | Broken documentation links, files described in prose that do not exist, documented environment variables nothing reads |
 | `interface` | interface | 2+ repos | Six cross-repo seam checks — see [systems.md](systems.md). On a single repository it is recorded as not applicable (`n/a` in the NOT ASSESSED block) and leaves the coverage denominator; a probe that was *prevented* from running stays in it, and claim invariant CI-12 refuses a report that marks a prevented probe as not applicable. |
 | `house_rules` | quality, drift | nothing | Your own rules from `arbiter.yaml` |
 | `assurance` | assurance | nothing | Whether the *checking* is switched on — see below |
 | `authored` | supply chain, security | nothing | Defects characteristic of machine-drafted code — see below |
 | `concurrency` | quality | nothing | Python: shared state changed by concurrent workers with no lock held — see below |
+| `aiapp` | security, quality | tree-sitter (for function boundaries) | App-level defects found in AI-written services: destructive routes or mail-sending endpoints in an app that authenticates nobody, and per-request stores that are never evicted — see [AI-written services](#ai-written-services) |
 | `lang_<pack>` | quality, security | tree-sitter + that language's grammar | Shipped structural rules for each IDE language: `lang_python`, `lang_typescript` (TS and JS), `lang_go`, `lang_java`, `lang_ruby` — see below |
 | `contract` | drift | nothing | Contracts declared in one artifact and implemented in another — see below |
 | `governance` | drift | a failure ledger | The ledger held against the change — see [Probe scopes](#probe-scopes). `governance.open-failure-untested`: an open or mitigated entry's affected file changed without any of its regression tests (`--changed` only). `governance.regression-test-missing`: a fixed entry whose regression test file is gone. Not applicable (`n/a`) without `.ai/failures/failure-ledger.json` |
@@ -47,6 +49,11 @@ List what can run in a given checkout, and why anything cannot:
 ```bash
 arbiter probes ./repo
 ```
+
+The `CHECKS` column is how many rules each probe holds. On this repository,
+2026-10-23, the language packs hold 176 rules (Python 26, TypeScript/JavaScript
+42, Go 34, Java 39, Ruby 35) and Arbiter ships 263 rules in all. Every rule
+starts in the `advisory` precision tier ([precision.md](precision.md#tiers)).
 
 ### Probe scopes
 
@@ -182,12 +189,71 @@ a grammar this machine lacks shows that one language as **not assessed**
 rather than as a clean pass. `tools/install_tools.sh` caches every grammar the
 packs need; scans never download one.
 
-Rules are tree-sitter queries, with four optional context conditions for the
+Rules are tree-sitter queries, with five optional context conditions for the
 things a bare pattern cannot say ("no lock held", "no timeout set"):
-`unless_inside`, `unless_in_scope` (the enclosing function, or the file),
-`unless_in_file` and `requires_file`. The schema is documented at the top of
+`unless_inside`, `unless_in_scope` and `requires_in_scope` (the enclosing
+function, or the file), `unless_in_file` and `requires_file`. `files:`
+restricts a rule to paths matching an fnmatch glob, or any glob of a list
+(`*` also crosses `/`): the JSX rules read `*.[jt]sx`, the RSpec rules
+`*_spec.rb`, and `ruby.csrf-protection-off-in-production` reads
+`config/environments/production.rb` at the root or under any directory,
+because the same line is Rails' generated default in `test.rb`. A Python rule
+may also give `safe_splice_calls` and `safe_splice_names` (regexes): a hit that
+builds a string is skipped when every value spliced into it is a literal, a
+call or name those match, or a local whose every assignment in the enclosing
+function is (`python.sql-injection`; one function, no data flow). A Ruby
+rule may give the same two keys plus `safe_splice_text` (searched in each
+`#{...}`) and `safe_splice_values` (full-matched against a value or a local's
+assigned value): a call whose first argument is an interpolated string is
+skipped when every interpolation is safe, which includes a literal chosen by
+a condition (`ruby.sql-injection`: `#{x ? 'A' : 'B'}`, `#{' IF EXISTS' if
+f}`, a PRAGMA setting read back with `query_value("PRAGMA foreign_keys")`).
+The schema is documented at the top of
 `src/arbiter/lang_rules.py`, and a pack that breaks it fails at import.
 Rule ids are `arbiter/<pack>.<id>`; each carries its CWE.
+
+#### One-hop data flow (`taint:`)
+
+A rule may add a `taint:` block (Milestone 3, `src/arbiter/dataflow.py`). An
+abstract interpreter walks each function holding a sink, statement by
+statement, and gives every local one of four values: CLEAN (built from
+literals, with its constant when known), DERIVED (returned by an unseen call
+whose inputs are all CLEAN), UNKNOWN (a parameter, a field, an unseen call)
+and TAINT (reached from a source). Assignments, destructuring, `+=`,
+concatenation, format calls, templates, f-strings, interpolation, lists and
+maps with constant keys carry values; a condition, ternary or `switch` that
+folds to a constant runs only its live branch; a same-file call is followed
+one hop (arguments to parameters, returns back, sinks inside the helper see
+the bound values). The rule's own `query` stays as the fallback, so recall
+never drops: the block only adds findings and drops provably constant ones.
+
+```yaml
+taint:
+  mode: source            # source (default): report a TAINT sink; nonconst: any non-CLEAN sink
+  sources: |              # @source: a value from outside, unless it evaluates CLEAN
+  inputs: |               # @input: always TAINT (request accessors, @RequestParam parameters)
+                          # (with `sources` too, a sink must be reached from a source)
+  sinks: |                # @sink: the value checked; @hit: where the finding is reported
+  sanitizers: |           # @sanitizer: an expression whose value is CLEAN
+  value: [sql]            # captures of `query`: a hit whose values are all CLEAN is dropped
+  kill: derived           # also drop a hit whose values are DERIVED, in a function that reads an input
+  where: {sh: "regex"}    # a capture's text, or a hoisted literal's text, must match
+  types: {w: "regex"}     # a captured identifier's declared type must match
+  element0: "regex"       # the sink is a list whose first element matches (an argv's tool)
+  unless_element: "^--$"  # skip a list sink holding a matching element
+  built: true             # only a string spliced together from parts is a sink value
+  at: source              # report at the source when it is in the sink's function
+  hops: 1                 # same-file calls followed (0-2)
+  requires: false         # apply requires_file / requires_in_scope to the new findings too
+```
+
+`unless_inside`, `unless_in_scope` and `unless_in_file` apply to the new
+findings as well; when a value crossed a function on its way, `unless_in_scope`
+is checked over the whole file, since the check may sit in either function.
+One finding is kept per source per function. An analysis that outgrows its
+step budget, or fails, changes nothing (`ARBITER_DATAFLOW_STRICT=1` makes a
+failure raise; the test suite sets it). Nothing crosses a file; fields,
+aliasing and exceptions are not followed.
 
 Every finding, native or external, carries `cwe` in the JSON report and as
 `external/cwe/cwe-N` tags in SARIF. Native rules declare it in their pack or
@@ -203,6 +269,35 @@ asserts that every marked defect is reported, nothing fires on a good twin,
 and no owned rule fires on an unmarked line. `python tools/planted_score.py
 [--adapters]` prints the catch rate per language, with or without the external
 analyzers.
+
+A comment may carry both kinds of marker, `# expect: <native> expect-ext:
+<external>`, when both report the same defect. A planted defect that nothing
+reports yet carries `gap: CWE-N` instead of a marker, so it shows in the source
+without failing the score.
+
+### CWE Top 25: not assessed
+
+The 2024 CWE Top 25 is planted per language and measured in
+[`docs/cwe-top25.md`](cwe-top25.md), with the matrix, the per-language counts
+and the ranked gap list. The CWEs below are **not assessed** by Arbiter in the
+named language. A scan that finds none of them says nothing about them.
+
+| Language | Not assessed: does not apply | Not assessed: out of reach for single-file checks | Applies, but no check yet (gap) |
+|---|---|---|---|
+| Python | 787, 125, 416, 119 (memory-safe); 476 (`None` access raises); 190 (arbitrary-precision ints) | 862, 863, 306, 269, 20; 918 beyond one function; 434, 77 beyond one function | none |
+| TypeScript / JavaScript | 787, 125, 416, 119; 476 (`undefined` access raises); 190 (`number` is a double) | 862, 863, 306, 269, 20; 918, 434 and 77 beyond one function; 352 as a missing CSRF middleware | none |
+| Go | 787, 125, 416, 119 (outside `unsafe`); 94 (no runtime eval); 502 (stdlib decoders fill declared types) | 862, 863, 306, 269, 20, 476 (nil-flow analysis), 352 (absent middleware); 22, 434, 77 and 918 beyond one function | none |
+| Java | 787, 125, 416, 119 (outside JNI) | 862, 863, 306, 269, 20, 476 (nullness analysis); 79, 918, 77, 190 and 434 beyond one function | none |
+| Ruby | 787, 125, 416, 119 (outside C extensions); 476 (`nil` access raises); 190 (arbitrary-precision ints) | 862, 863, 306, 269, 20; 22, 434, 77 and 918 beyond one function | none |
+
+Gap cells that semgrep or bandit cover only when installed are listed as
+covered in `docs/cwe-top25.md`. Without the analyzers they fall back to the
+native column there. In a scan, an analyzer that did not run is already
+reported as not assessed (see [Native probes](#native-probes)). The same
+cells are the `cwe-top25-2024` control pack, so a scan's controls report says
+per language which weaknesses were assessed, which are gaps, which are out of
+reach and which do not apply (`arbiter controls --framework CWE-Top25-2024`;
+see [compliance.md](compliance.md#cwe-top-25-per-language)).
 
 ## Machine-authored code
 
@@ -220,7 +315,7 @@ of the judgement pass:
 |---|---|
 | `undeclared-import` / `import-of-nonexistent-package` | A module nothing declares. See the two modes below. |
 | `stub-on-production-path` | `return True  # TODO`, `raise NotImplementedError`, a `pass` body. Severity keyed to whether the function name says it decides something: a stub in `verify_signature` is not an unfinished feature, it is an always-yes. |
-| `security-check-disabled` | `verify=False`, `InsecureSkipVerify: true`, `StrictHostKeyChecking=no`. Written to make an example work, then never removed. |
+| `security-check-disabled` | `verify=False`, `InsecureSkipVerify: true`, `StrictHostKeyChecking=no`. Written to make an example work, then never removed. Under a test or local-development path it is reported low; in a test file, a TLS check off for the test's own local server (`localhost`, `server.address()`, `httptest`) and Django's `override_settings(DEBUG=True)` are the fixture and are not reported. |
 | `docstring-promises-absent-behaviour` | A docstring saying the function validates or retries, in a body that does neither. |
 
 The import check ships in **two modes**, and the split is the honest part:
@@ -239,9 +334,53 @@ $ arbiter scan ./app --profile connected
   critical  import-of-nonexistent-package  secure_token_validator
 ```
 
-Zero false criticals across the corpus.
-
 ---
+
+## AI-written services
+
+Rules added from the AI-written development corpus (`fixtures/ai-corpus`,
+ARB-083): the defect classes a reviewer labelled in model-written services
+that no rule covered. All start **advisory** (docs/precision.md). Most are
+pack rules, listed with their packs; the cross-file ones are the `aiapp`
+probe (`src/arbiter/aiapp.py`).
+
+| Class | Rules |
+|---|---|
+| Unbounded memory | `<lang>.image-decode-unbounded` (Go `image.Decode` with no `DecodeConfig`, Java `ImageIO.read` with no `ImageReader` size check), `python.image-bomb-check-disabled`, `typescript.image-pixel-limit-disabled`; `go`/`java.decompress-read-unbounded`, `python`/`ruby.decompress-unbounded`, `typescript.decompress-sync-unbounded`; `go`/`ruby.request-body-read-unbounded`, `python.request-body-unbounded` (Flask with no `MAX_CONTENT_LENGTH`, Starlette `await request.body()`), `typescript.request-body-accumulated-unbounded`, `typescript.upload-memory-storage-unbounded`; `aiapp.store-never-evicted` |
+| Missing authentication | `aiapp.unauthenticated-destructive-route`, `aiapp.open-mail-relay` |
+| Mail TLS | `python.mail-tls-unverified`, `java.mail-starttls-not-required`, `java.mail-ssl-trust-all`, `typescript.mail-starttls-not-required`, `ruby.mail-tls-verify-none` |
+| Ignored errors (Go) | `go.ignored-encode-error`, `go.ignored-exec-error` |
+| Constant-delay retries | `<lang>.retry-constant-delay` (all five), `ruby.requeue-without-delay` |
+| SSRF to stored callbacks | `<lang>.ssrf-stored-callback` (all five) |
+
+The `aiapp` probe, per repository:
+
+- **`aiapp.unauthenticated-destructive-route`** (CWE-306, CWE-862): a DELETE
+  route, or a non-GET route under `/admin`, `/purge`, `/wipe` or `/flush`,
+  with no inline guard, when either nothing in the repository authenticates
+  a caller (no `login_required`, `requireAuth`, Bearer/JWT, passport, API key,
+  `current_user`, `@PreAuthorize`, HMAC signature check...), or other routes
+  in the same Go, TypeScript/JavaScript or Python file pass an auth
+  middleware, wrapper or `Depends(...)` inline and this one does not. Java and
+  Ruby are only checked at repository level, because they usually guard
+  routes globally (a Spring filter chain, a `before` filter).
+- **`aiapp.open-mail-relay`** (CWE-306): a write route in a repository that
+  sends mail (smtplib, net/smtp, nodemailer, Jakarta/JavaMail, Net::SMTP,
+  ActionMailer) and authenticates nobody.
+- **`aiapp.store-never-evicted`** (CWE-770, CWE-401): a map held by an object
+  (`self._jobs`, `q.jobs`, `@jobs`, `this.jobs`, a Java `Map` field) filled
+  under the id of a freshly created item (`job.id`, in a file that calls
+  uuid4/randomUUID/SecureRandom/crypto/rand...), that nothing outside the
+  inserting function or constructor removes from, clears, bounds by size or
+  expires. Reported at the insert.
+
+Authentication is recognised by name, so auth applied outside the repository
+(a gateway, a mesh, a proxy) is invisible: the route findings are medium
+confidence and say so. The store check reads one file. On the 24 gold
+repositories and the real corpora the probe reported one finding
+(nodejs-goof's unauthenticated `DELETE /chat`, a true positive). The CWE-306
+Top 25 cell stays out of reach: these are application-level heuristics, not a
+per-function check.
 
 ## Contracts between artifacts
 
@@ -303,17 +442,21 @@ answers, and swapping a decidable check for a probabilistic one is a downgrade
 dressed as an upgrade.
 
 ```yaml
-profile: connected          # offline and ci forbid model calls outright
+profile: connected          # offline, ci and assisted do not run it
 judgement:
-  provider: anthropic       # reads ANTHROPIC_API_KEY from the environment
-  model: claude-sonnet-4-5
+  provider: anthropic       # reads ANTHROPIC_API_KEY (or api_key_env) from the environment
+  model: claude-sonnet-4-5  # the default
 ```
+
+This is a different pass from model *verification* (the `assisted` profile),
+which judges Arbiter's own findings rather than producing new ones; see
+[precision.md](precision.md#model-verification).
 
 Three rules it obeys:
 
 - **Inferred findings never blend with deterministic ones.** Everything from
   this pass is `provenance: inferred`, and the gate ignores inferred findings
-  unless `gate.gate_inferred` is set. A model's opinion should not turn a build
+  unless `gate.gate_on_inferred` is set. A model's opinion should not turn a build
   red on its own.
 - **No provider configured is *not assessed*, never a pass.** The easy
   implementation returns an empty list when there is no key — and an empty list

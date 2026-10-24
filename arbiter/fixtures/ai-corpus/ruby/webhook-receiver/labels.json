@@ -1,0 +1,44 @@
+{
+  "app": "ruby/webhook-receiver",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "app.rb",
+      "line": 113,
+      "cwe": [
+        "CWE-755"
+      ],
+      "category": "ignored-error",
+      "severity": "medium",
+      "justification": "When forwarding a payment.succeeded event fails, it is marked 'failed' and never retried, and the provider's own retry is rejected as 'duplicate'. A transient merchant outage therefore loses the payment notification for good. The README admits the gap, but losing payment events would block the PR.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "app.rb",
+      "line": 81,
+      "cwe": [
+        "CWE-390"
+      ],
+      "category": "swallowed-exception",
+      "severity": "low",
+      "justification": "Forwarder rescues every StandardError and returns false with no logging, so the cause of a failed forward (DNS, TLS, timeout, bug) is lost.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "app.rb",
+      "line": 99,
+      "cwe": [
+        "CWE-294"
+      ],
+      "category": "replay",
+      "severity": "low",
+      "justification": "The signature covers only the body, with no timestamp or tolerance window; a captured request can be replayed once its event id is no longer in the database or with a different id from another signed payload. De-duplication by id limits but doesn't remove the risk (the README says replay-window checks are missing).",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

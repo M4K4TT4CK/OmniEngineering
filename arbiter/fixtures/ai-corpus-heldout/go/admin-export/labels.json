@@ -1,0 +1,32 @@
+{
+  "app": "go/admin-export",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {"id": "D1", "file": "server.go", "line": 40,
+     "cwe": ["CWE-400"], "category": "server-no-timeout", "severity": "medium",
+     "justification": "http.ListenAndServe runs a default http.Server with no read-header/read/write/idle timeouts, so slow or stalled clients can tie up connections and long export queries indefinitely.",
+     "source": "independent"},
+    {"id": "D2", "file": "handlers.go", "line": 345, "end_line": 352,
+     "cwe": ["CWE-1236"], "category": "csv-injection", "severity": "medium",
+     "justification": "The CSV export writes customer_name (and status) verbatim with no neutralisation of leading =, +, -, @, so a customer-controlled name becomes a spreadsheet formula when an admin opens the export (the README admits this rather than fixing it).",
+     "source": "independent"},
+    {"id": "D3", "file": "handlers.go", "line": 368, "end_line": 370,
+     "cwe": ["CWE-390"], "category": "swallowed-exception", "severity": "low",
+     "justification": "On a scan, marshal or rows error mid-export the JSON writer just logs, breaks and still writes the closing `]` with a 200 status, so the client receives a well-formed but silently truncated export (same pattern in writeOrdersCSV at line 341-344).",
+     "source": "independent"},
+    {"id": "D4", "file": "handlers.go", "line": 354,
+     "cwe": ["CWE-252"], "category": "ignored-error", "severity": "low",
+     "justification": "The return values of cw.Write are ignored and cw.Error() is never checked after cw.Flush(), so CSV write failures are lost.",
+     "source": "independent"},
+    {"id": "D5", "file": "server.go", "line": 53, "end_line": 70,
+     "cwe": ["CWE-307"], "category": "missing-rate-limit", "severity": "low",
+     "justification": "The API-key middleware has no rate limiting or lockout on failed attempts, so the admin endpoints can be brute-forced or used to hammer the database with unlimited unauthenticated lookups.",
+     "source": "independent"},
+    {"id": "D6", "file": "server.go", "line": 97,
+     "cwe": ["CWE-252"], "category": "ignored-error", "severity": "low",
+     "justification": "writeJSON ignores the error returned by json.NewEncoder(w).Encode(v).",
+     "source": "independent"}
+  ],
+  "false_alarms": []
+}

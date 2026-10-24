@@ -1,0 +1,161 @@
+{
+  "app": "typescript/thumbnail-service",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "package.json",
+      "line": 16,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"express\": \"^4.21.2\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "package.json",
+      "line": 17,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"multer\": \"^2.0.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "package.json",
+      "line": 18,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"sharp\": \"^0.33.5\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "package.json",
+      "line": 21,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"@types/express\": \"^4.17.21\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D5",
+      "file": "package.json",
+      "line": 22,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"@types/multer\": \"^1.4.12\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D6",
+      "file": "package.json",
+      "line": 23,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"@types/node\": \"^20.14.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D7",
+      "file": "package.json",
+      "line": 24,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"tsx\": \"^4.19.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D8",
+      "file": "package.json",
+      "line": 25,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"typescript\": \"^5.6.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D9",
+      "file": "app.ts",
+      "line": 182,
+      "cwe": [
+        "CWE-918",
+        "CWE-367"
+      ],
+      "category": "ssrf",
+      "severity": "medium",
+      "justification": "assertPublicHost resolves the hostname once (line 152) but fetch() re-resolves it independently, so a DNS-rebinding host can pass the public-address check and then be fetched at a private/loopback address.",
+      "source": "independent"
+    },
+    {
+      "id": "D10",
+      "file": "app.ts",
+      "line": 175,
+      "cwe": [
+        "CWE-918"
+      ],
+      "category": "ssrf",
+      "severity": "low",
+      "justification": "The private-address deny list is incomplete: IPv6 NAT64 (64:ff9b::/96), 6to4 (2002::/16) and IPv4 ranges such as 192.0.0.0/24 and 198.18.0.0/15 are not blocked, so internal hosts reachable via those prefixes pass the check.",
+      "source": "independent"
+    },
+    {
+      "id": "D11",
+      "file": "app.ts",
+      "line": 104,
+      "end_line": 108,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "unbounded-memory",
+      "severity": "medium",
+      "justification": "sharp() is called on untrusted input with no limitInputPixels lower than the ~268M-pixel default; a few-KB highly compressible PNG declaring e.g. 16000x16000 pixels decodes to ~1 GB per request (decompression/pixel bomb), and requests are unauthenticated and concurrent.",
+      "source": "independent"
+    },
+    {
+      "id": "D12",
+      "file": "app.ts",
+      "line": 61,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "unbounded-disk-usage",
+      "severity": "medium",
+      "justification": "Every distinct upload or URL is written to the on-disk cache (original plus up to 10 thumbnails) with no eviction, quota or authentication, so any client can fill the disk by posting unique images (README admits no eviction).",
+      "source": "independent"
+    },
+    {
+      "id": "D13",
+      "file": "app.ts",
+      "line": 66,
+      "cwe": [
+        "CWE-644"
+      ],
+      "category": "host-header-injection",
+      "severity": "low",
+      "justification": "Returned thumbnail URLs are built from req.protocol and the client-supplied Host header, so a request with a forged Host header gets (and may cache/propagate) URLs pointing at an attacker-controlled host.",
+      "source": "independent"
+    },
+    {
+      "id": "D14",
+      "file": "app.test.ts",
+      "line": 113,
+      "end_line": 123,
+      "cwe": [],
+      "category": "missing-test",
+      "severity": "low",
+      "justification": "The only URL-safety test is the private-address refusal; the 20 MB download cap, redirect refusal, fetch timeout and multipart 413 path in fetchSource/multer are never exercised.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

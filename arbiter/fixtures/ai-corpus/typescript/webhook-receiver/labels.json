@@ -1,0 +1,190 @@
+{
+  "app": "typescript/webhook-receiver",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "src/app.ts",
+      "line": 136,
+      "cwe": [
+        "CWE-294"
+      ],
+      "category": "replay",
+      "severity": "medium",
+      "justification": "The signature covers only the body, with no timestamp or nonce and no freshness window, so a captured signed request can be replayed indefinitely. Only exact-id dedup limits this, and that does not cover payloads the provider re-signs or events pruned later.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "src/app.ts",
+      "line": 97,
+      "end_line": 102,
+      "cwe": [
+        "CWE-918"
+      ],
+      "category": "ssrf",
+      "severity": "medium",
+      "justification": "The server POSTs to the merchant callback_url, which is only checked to be http(s) (isHttpUrl). Loopback, private and metadata addresses are allowed, so a configured or compromised merchant URL makes the service hit internal endpoints. The README acknowledges this.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "src/app.ts",
+      "line": 182,
+      "cwe": [
+        "CWE-754"
+      ],
+      "category": "unreliable-delivery",
+      "severity": "medium",
+      "justification": "Forwarding runs as an in-process fire-and-forget promise after the 202 ack, with no durable queue or startup sweeper. Successful-payment callbacks in flight or awaiting retry when the process restarts stay 'pending' forever and are never delivered.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "src/app.ts",
+      "line": 115,
+      "cwe": [
+        "CWE-390"
+      ],
+      "category": "swallowed-exception",
+      "severity": "low",
+      "justification": "p.catch(() => {}) silently discards any error thrown by deliver(), such as a SQLite failure in updateDelivery, so delivery bookkeeping failures go unlogged.",
+      "source": "independent"
+    },
+    {
+      "id": "D5",
+      "file": "src/app.ts",
+      "line": 105,
+      "end_line": 107,
+      "cwe": [
+        "CWE-390"
+      ],
+      "category": "swallowed-exception",
+      "severity": "low",
+      "justification": "Callback errors (timeouts, connection refused, DNS failures) are caught and dropped without logging or storing the reason, so operators cannot diagnose why payment forwarding failed.",
+      "source": "independent"
+    },
+    {
+      "id": "D6",
+      "file": "package.json",
+      "line": 14,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D7",
+      "file": "package.json",
+      "line": 15,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D8",
+      "file": "package.json",
+      "line": 18,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D9",
+      "file": "package.json",
+      "line": 19,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D10",
+      "file": "package.json",
+      "line": 20,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D11",
+      "file": "package.json",
+      "line": 21,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D12",
+      "file": "package.json",
+      "line": 22,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D13",
+      "file": "package.json",
+      "line": 23,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D14",
+      "file": "package.json",
+      "line": 24,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D15",
+      "file": "package.json",
+      "line": 25,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

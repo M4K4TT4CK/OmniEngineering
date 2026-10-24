@@ -5,7 +5,422 @@ under `[Unreleased]` (there are no release tags yet) and reference the
 `REQ-###` they serve. Rationale belongs in `.ai/project-context.md`.
 
 ## [Unreleased]
+### 2026-10-23 (round 4)
+- ARB-067 | Round 4 merge: `r4-weights` and `r4-rulefix` both rewrote the model label files, so the rule-fix relabel was kept and `label_populations.py backfill` re-run on it (gold-model 701 records, AI corpus 114, 0 unknown) and the ledger rebuilt: 3 rules admitted (`supply.unpinned-action` 196/0, lower 0.981, joins `java.weak-random-for-secret` and `assurance.blanket-suppression` 150/0). `backfill --check` compares gzip files by their decompressed text, since Python 3.11 and 3.12+ compress the same text to different bytes.
+- ARB-064 | Every shipped rule now carries a requirement (263 of 263; was 192 of 263, with 71 listed as pre-registry exceptions). Ten have history in their emitting code: `drift.broken-doc-link` ARB-013 (9d568a6) and ARB-048 (fa04e50); `authored.stub-on-production-path` ARB-048 (FAIL-042, d09a60e) and ARB-065 (c258219); `assurance.suppression-census` ARB-049 (FAIL-048, 2285212) and ARB-065 (951f75a); `judgement.claim-contradicts-code` ARB-065 (the 5.x provider fix). The rest shipped on 2026-09-12/13 before the registry and take new group requirements: ARB-084 code size and complexity (`ast.*`, `quality.*`), ARB-085 IaC resource policy (all of `resource.yaml`, `resource.unknown-until-apply`, `resource.source-is-literal-hcl`), ARB-086 provider token patterns (14 `secrets.*`), ARB-087 supply chain (`supply.*`, `authored.import-of-nonexistent-package`), ARB-088 interface and contract consistency, ARB-089 written claims checked against code (`drift.documented-env-var-absent`, `authored.docstring-promises-absent-behaviour`, `judgement.claim-contradicts-code`), ARB-090 assurance census (`assurance.analysis-excluded`, `assurance.suppression-census`).
+- ARB-064 | `tests/test_rule_requirements.py` is strict: no exception list; every rule cites at least one id in the registry or its archive, and every `arbiter/*` finding of the legacy, system and plan fixture scans carries requirements. That scan test found `arbiter/resource.<rule>.not-assessed` findings with none: `rule_meta.requirements_of` resolves them to the rule they stand for. Findings, severities and ids are unchanged (planted Python/Go and multicloud scans compared before and after).
+- ARB-065 | The tier claim is a stratified, population-weighted precision. Strata are (rule, source, language), each weighted by its held-out population N_h. The interval is Wilson on the smaller of Kish's effective n and the design-based p(1-p)/V. Held-out findings in strata with no decided held-out label count against the bound (`claim_lower = coverage x lower`). Before, a rule's population fell back to its label count, because model label records carried no `stratum_size`, and each rule's held-out labels were weighted by its whole population. Now a label with no population is unknown, never the label count. The ledger reports it (`population_unknown`; the tier names the rules and makes no claim), and `tools/precision_guard.py` fails a declared-verified rule that has one. Two sizes for one stratum are refused. New ledger fields: `held_out_population`, `population_unknown`, `strata`, `source_population`, `weighted`. Method: `docs/precision.md` `### Population weights`. Seeded tests: two strata of 9,000 findings at 90% (50 labels) and 1,000 at 100% (950 labels) give 0.91, not the pooled 0.995; unknown populations; coverage; the guard failure.
+- ARB-067 | `label_models.py` writes `stratum_size`, `stratum_held_out_size`, `rule_population`, `rule_held_out_population` and `sampling` on every new label. `--report` takes them from the gold run's (rule, language) strata; the AI corpus and the CVE suspects are censuses. `benchmarks_gt.py` and `cve_pairs.py` add the same fields as a census (`gt_common.census_population`).
+- ARB-067 | `tools/label_populations.py backfill [--check]` adds the population fields to existing label files with no model calls, and refuses any other change. `gold-model.jsonl` is backfilled from the gold run its `--per-rule` sample was drawn from (now committed as `tools/gold/results/2026-10-23-gold-report-relabel.json.gz`, run at `27febe3`); all 601 labels match by repository and finding id, with rule, language and split agreeing. The AI corpus, CVE suspects, OWASP, CVE-fix and Juliet files are backfilled as censuses. 6,139 records in all, 0 unknown, no label changed. Calibration and `history/` files are not touched.
+- ARB-065 | Ledger rebuilt. The 2 admitted rules keep their counts and pooled bounds. `java.weak-random-for-secret` is unchanged (one census stratum, 218 held out). `assurance.blanket-suppression`'s population is now 150 (Python 62, TypeScript 88), up from the 125 labels it fell back to, with 20 held out. No rule is declared verified, so there is still no tier claim. Were both declared: held-out estimate 1.0, lower 0.984 on n_eff 235.8, coverage 1.0 (previous method: 0.966 on n_eff 108). 76 rules' populations changed (for example, `drift.broken-doc-link` 6 -> 582).
+- ARB-071 | Documentation review against the code and the CLI. `README.md` is a getting-started path (what it is, what to expect with the measured precision and recall, install from git with the `ast` extra, a first scan on `fixtures/legacy-platform`, reading the report, gating, configuring, next steps); `docs/README.md` indexes every document; new `docs/reading-a-report.md` explains every report field. `docs/cli.md` lists all 17 commands and the shared `scan`/`gate` flags; `docs/configuration.md` covers every key the code reads (`verify:`, `gate.tier_mode`/`tiers`, `fail_on_probe_error`, `precision:`, `score:`, `probes:`, `controls:`, `terraform:`) and drops `gate.use_calibration`, which nothing reads. Corrected across the docs: twelve claim invariants (not ten or eleven), 28 resource rules (not 13), Python 3.10 floor, `gate.gate_on_inferred` (not `gate_inferred`), not on PyPI, four service operations, the `assisted` profile is not refused by the hosted `check_profile`, `--limiter file` exists, the action's SARIF behaviour, injection and corpus figures dated and sourced, the AI-corpus recall after ARB-083, and gaps that have shipped (data flow, ranked CWE gaps, held-out corpus). `docs/precision.md` is left to the ledger work, apart from links. CLI help strings added where flags had none. `tests/test_docs.py`: every relative link and anchor in the root guides and `docs/` resolves, and every CLI subcommand appears in `docs/cli.md`. The example pull-request workflow gains `security-events: write`, without which its SARIF upload cannot succeed.
+- ARB-065 | `supply.unpinned-action` reported the blank line above a step: `_ACTION_USES` used `^\s*` under `re.M`, which matched from the blank line and swallowed its newline. It now uses `[ \t]*`, so the finding is on the `uses:` line. All 3 `v3` FP labels were this (py-celery, ruby-rack, java-netty). Test: `tests/test_probes_quality.py`. The planted fixtures have no workflows, so there is no planted twin.
+- ARB-065 | `ruby.sql-injection`: `lang_rules._rb_splices_safe`, a Ruby counterpart of the Python splice check, skips a call whose interpolated string argument holds only safe interpolations: the rule's existing exclusion (`safe_splice_text`), a literal or a conditional of literals (`#{x ? 'A' : 'B'}`, `#{' IF EXISTS' if f}`), a `quote_*`/`sanitize_sql*`/`escape_*` call (`safe_splice_calls`), or a local assigned only such values or a PRAGMA setting read back with `query_value`/`select_value("PRAGMA name")` (`safe_splice_values`). Values read back from table rows stay reported (second-order injection). It runs after the taint pass so the sink pass cannot re-report the call. The taint sanitizer list now takes any `quote*`. Gold: 20 -> 12 findings, all 8 removed were labelled fp. The AI corpus loses 1 labelled-fp finding (`notes-api` app.rb:252); its snapshot is updated. The planted bad twins are all still caught. Tests: `tests/test_lang_ruby.py`, `tests/test_lang_python.py` (the `safe_splice_*` key validation).
+- ARB-067 | `label_models.py fact-check`: `suppression_fact` checks `assurance.blanket-suppression`'s claim, whether the directive on the line names a rule. It uses its own per-tool patterns (noqa, type/pyright ignore, nosec, pylint, rubocop, ts-ignore/expect-error, eslint-disable, nolint, NOSONAR, `@SuppressWarnings`), not Arbiter's. The labellers are never shown it. It agrees with 150/150 model labels.
+- ARB-067 | Relabel (`v3`, `--per-rule`, seed 20261026, fresh gold run): `supply.unpinned-action` 200 sampled of 273 and `assurance.blanket-suppression` all 150. That was 116 new items for $3.85, every one `tp`. The SHA-pin fact check agrees on 200/200. The 8 pre-fix `unpinned-action` labels whose marked line moved, and the 9 `ruby.sql-injection` labels of findings no longer reported, moved to `tools/gold/labels/history/`. Ledger: **`supply.unpinned-action` 196/0, lower 0.981, newly admitted**; `blanket-suppression` 150/0, lower 0.975 (was 0.970); `ruby.sql-injection` 0/10. 3 rules admitted, none declared verified.
+### 2026-10-23 (relabel at v3, calibration round 4)
+- ARB-067 | `context.build` shows up to 2 same-file callers (25 lines each) of the enclosing function when one of its parameters feeds the flagged statement through the taint slice (`context.parameter_names`, `tainted_parameters`, `callers`; `Context.callers`). This was calibration round 3's recommendation: all 8 of its unsure items were Juliet sinks whose argument came from an unseen caller. The labeller prompt is now `v3` and the verifier `verify-v3`, so cached verdicts refresh. Tests: `tests/test_context.py`.
+- ARB-067 | Calibration rounds 4 and 5 on `v3` (`calibration-4.jsonl`, 200 items, seed 20261025; `calibration-5.jsonl`, 294 items, seed 20261027; each excludes every earlier round). Round 4 alone: `tp` calls 154/154, Wilson lower 0.976. **`v3` pooled: 382/382, lower 0.99004**, the first single-version labeller bound at 0.99. `fp` calls were 112/112, with 0 unsure and κ 0.994. Shown for context: `v2` (round 3) 0.987, `v2`+`v3` 0.994, rounds 1-5 0.984. Results: `tools/gold/results/2026-10-23-calibration-4.md`.
+- ARB-067 | Relabel with `v3` at this commit: the gold sample (601 findings drawn from a fresh `gold_benchmark.py --raw` run by the new `label_models.py --per-rule` allocation), the development AI corpus (115) and the CVE suspects (5); $25.62, κ 0.95. The `v1` files moved to `tools/gold/labels/history/`. `precision_ledger.py build` drops model labels from a superseded prompt version (`--model-prompt any` keeps all), and treats a change of labellers as a re-label. `assurance.blanket-suppression` is newly admitted (125/125, lower 0.970). `ruby.sql-injection` is 0/19 on Rails. `supply.unpinned-action`'s 3 FPs are the rule reporting a blank line. Results: `tools/gold/results/2026-10-23-relabel.md`.
+- ARB-067 | FAIL-056: a labeller's reason could quote a credential-shaped string from the corpus (two `postgres://user:pass@` URLs reached a label file, which failed `omni gate`). `label_models.parse_answer` now passes reasons through `mask_reason` (`_mask_secrets` plus inline DB-URL credentials). The reasons in the existing label files, history included, were re-masked; no label changed. The AWS example key in `2026-10-23-calibration.md` is elided for the same check.
+- ARB-065 | Ledger rebuilt from the `v3` labels: 120 rules, 2 admitted, none declared verified. `tools/precision_guard.py check` passes again; the 6 rules it failed on planted-count jumps are relabelled. Total labelling spend for the day's work: $44.97.
+### 2026-10-23 (labeller context, calibration round 3)
+- ARB-067 | Shared excerpt builder `src/arbiter/context.py`, used by the model labellers (`gt_common.excerpt`) and the verification pass (`verify.excerpt_for`). It shows the enclosing function with its decorators and annotations, the class header, imports, same-file route registration, same-file callees on the taint path (a backward textual slice from the flagged statement; the sink's receiver is not followed) and up to 3 definitions (30 lines each) from other files of the repository for calls on that path. Those calls are resolved by receiver type or import, never by name alone. It is bounded to 220 lines, masked with `_mask_secrets`, and deterministic. For ground truth, the other files are blinded too. `verify.PROMPT_VERSION` is `verify-v2`, so cached verdicts refresh. The labeller prompt is `v2`. Tests: `tests/test_context.py`.
+- ARB-067 | Calibration round 3, `tools/gold/labels/calibration-3.jsonl`: 500 new blind ground-truth items (OWASP Java/Python, Juliet Java; rounds 1-2 excluded; seed 20261024), $18.34 over 1,005 CLI calls. `tp` calls were 286/286 right (Wilson lower **0.987**) and `fp` calls 206/206, with 8 unsure (all Juliet) and κ 0.98. Pooled over rounds 1-3: 681/687 (lower 0.981). The injection family does not yet reach a 0.99 lower bound. About 80 more clean `tp` calls on `v2` would get there. Round 1-2's 6 false `tp` items, re-run with the new excerpt ($0.24): 5 are now correct `fp` calls (route decorator, `SeparateClassRequest.getTheValue` definition). The sixth is the Juliet `_81` case, now filtered out. Results: `tools/gold/results/2026-10-23-calibration-3.md`.
+- ARB-067 | `label_models._cross_file` now also matches Juliet's `_NN_bad`, `_NN_good*` and `_NN_base` files, so the `_81` family stays out of calibration.
+- ARB-060, ARB-061 | Decision on the resilience claim wording: the labeller claim for the timeout family no longer says a call "can block indefinitely". It now says "no explicit timeout or deadline set by this code, so how long it waits ... is left to the library's default (which may be long or unlimited)". The old wording was false for Ruby Net::HTTP's 60 s defaults, and the round 2 labellers rejected planted true positives because of it. Rule descriptions checked: `typescript.fetch-no-timeout` no longer says fetch waits "forever" (Node's undici fetch gives up after 300 s). Ruby's `http-no-timeout` already states the 60 s default. The Java, Go, Python `requests`, axios and Node `http.request` texts are accurate.
+### 2026-10-23 (labeller calibration, round 2)
+- ARB-067 | Labeller calibration round 2, `tools/gold/labels/calibration-2.jsonl`, $21.27 over 1,354 CLI calls. 450 more blind ground-truth items (OWASP Java/Python, Juliet Java; 260 truth-TP / 190 truth-FP; round 1's items excluded): `tp` calls 252/257 right (0.981, Wilson lower 0.955), `fp` calls 176/176, unsure 3.8%, κ prosecutor/defender 0.948. Pooled with round 1: 395/401 (0.985, lower **0.968**), still below 0.99. All 6 false TPs have the deciding fact outside the excerpt: OWASP Java's `scr.getTheValue` "safe source" in another file (3), OWASP Python's fixed-route `request.path.split("/")[1]` (2, including BenchmarkTest01096), and one cross-file Juliet `_81` case. Without them the result is 389/390 (0.986). BenchmarkTest01096: round 1's note was wrong and the benchmark's safe label is right (the route fixes `parts[1]` to `"benchmark"`; 94 of the 112 such cases are marked safe). The result counts against the labellers. Results and open questions: `tools/gold/results/2026-10-23-calibration.md`.
+- ARB-067 | Other categories, model-free truth: planted bad/good twins (`label_models.py label --planted CATEGORY... --planted-cap N`; bad-file finding = tp, matching good-twin line = fp; blinded with `gt_common.blind(..., "planted")`, which removes comments, Python docstrings and `cwe`/`planted` names). 211 items, `tp` calls 99/103: tests 24/24 (lower 0.862), secrets 17/17 (0.816), stubs 17/17 (0.816), resilience 25/27 (0.766), concurrency 16/18 (0.672). Several disagreements are fixture or claim faults: Ruby Net::HTTP has 60 s default timeouts, some racy increments are unreachable, and RSpec `pending` runs its body. `label_models.py fact-check` compares model labels with mechanical facts. Secrets under test/example paths: 90/90 called fp. `unpinned-action` vs SHA pin: 18/18. npm ranges with a lockfile: 17/17 decided fp. Docs drift has no decisive fact, so "path exists nowhere" is not used. `tools/mutate_tests.py` only re-applies this repo's own shipped defects, so it gives no truth for test findings elsewhere. No category's model labels reach a 0.99 lower bound; `docs/precision.md` `## Current numbers` has the table.
+- ARB-067 | `label_models.py`: `--exclude-labels` for disjoint calibration rounds. A server throttle ("not your usage limit") is retried with growing delays instead of being taken for a usage limit, which had stopped the first run after 196 of 450 items. `tools/precision_ledger.py build` drops `calibration:` records, so `labels/*.jsonl` never double-counts ground truth. Tests in `tests/test_label_models.py` and `tests/test_precision_ledger.py`.
+### 2026-10-23 (precision ledger filled)
+- ARB-065 | `tools/gold/precision.json` (and its packaged copy) built from the p1b labels: OWASP Java/Python and Juliet Java ground truth, CVE fix pairs, and the model labels on the gold and AI-corpus samples (`calibration.jsonl` left out, because it relabels ground-truth items blind and would count them twice). 98 rules have entries; 1 is admitted (`java.weak-random-for-secret`, 218 TP / 0 FP, lower bound 0.983); none is declared verified, so the tiered gate would block nothing yet and the verified-tier claim is not made. Java injection rules sit far below the bar on Juliet and OWASP (`java.sql-string-built` 0.418, `java.command-injection` 0.406): their false positives are the constant-propagation cases the one-hop data-flow work targets. `tools/precision_ledger.py` reads `.jsonl.gz` label files. Claim scopes in `tools/label_models.py` `CLAIMS` are kept as written (lockfile-backed npm ranges FP; embedded-database calls without a deadline and first-party actions pinned by tag TP).
+### 2026-10-23 (rules for AI-written-code defects)
+- ARB-083 | New advisory rules for the defect classes a reviewer labelled in the 25-app AI-written development corpus and no rule covered. Unbounded memory: `go`/`java.image-decode-unbounded`, `python.image-bomb-check-disabled`, `typescript.image-pixel-limit-disabled`, `go`/`java.decompress-read-unbounded`, `python`/`ruby.decompress-unbounded`, `typescript.decompress-sync-unbounded`, `go`/`ruby.request-body-read-unbounded`, `python.request-body-unbounded`, `typescript.request-body-accumulated-unbounded`, `typescript.upload-memory-storage-unbounded`. Mail TLS: `python.mail-tls-unverified`, `java.mail-starttls-not-required`, `java.mail-ssl-trust-all`, `typescript.mail-starttls-not-required`, `ruby.mail-tls-verify-none`. Go ignored errors: `go.ignored-encode-error`, `go.ignored-exec-error`. Retries: `<lang>.retry-constant-delay` (all five), `ruby.requeue-without-delay`. SSRF: `<lang>.ssrf-stored-callback` (all five), a server-side POST in a file that stores a callback URL and checks no address. Python's CWE-918 Top 25 cell is now `N+S`.
+- ARB-083 | New repository-scoped probe `aiapp` (`src/arbiter/aiapp.py`): `aiapp.unauthenticated-destructive-route` (a DELETE or non-GET admin/purge route with no inline guard, in a repository that authenticates nobody, or in a Go/TS/Python file whose other routes are guarded inline), `aiapp.open-mail-relay` (a write route in a mail-sending repository that authenticates nobody), `aiapp.store-never-evicted` (a map field filled under new items' ids that nothing outside the inserting function removes from, caps or expires). Authentication is recognised by name; auth outside the repository is invisible, so all three are medium confidence. `docs/probes.md` (## AI-written services), `tests/test_aiapp.py`.
+- ARB-083 | Dropped after triage: `java.request-body-read-unbounded` (7 of 7 real-code hits were process or classpath streams, test-framework callbacks or Tomcat's admin-only manager servlets, with no Java corpus label to catch), a Go literal-duration variant of `retry-constant-delay` (11 gold hits, all fixed short waits on local resources), and a Pillow `Image.open` rule (Pillow already refuses bombs at twice its default limit).
+- ARB-083 | AI corpus (development; held-out not read), code defects: recall 2/117 (2%) -> 33/117 (28%), high+critical 0/11 -> 4/11; precision 2/22 (9%) -> 33/64 (52%), 11 unreviewed. Per language, recall go 0% -> 58%, java 0% -> 16%, python 0% -> 21%, ruby 6% -> 28%, typescript 4% -> 18%. Per category: tls-disabled 3/3, retry-no-backoff 4/5, ignored-error 7/9, missing-authn 7/10, unbounded-memory 5/12, unbounded-input 3/8, ssrf 2/8. `fixtures/ai-corpus/corpus.json` maps `retry-constant-delay` and `requeue-without-delay` to the `retry-no-backoff` category, whose labels carry no CWE. Gold (24 repositories): 10 findings from the new rules, all triaged and within budget (5 `typescript.request-body-accumulated-unbounded` in axios/otel-js example servers, 2 `go.request-body-read-unbounded` in etcd, 1 each `go.retry-constant-delay` containerd devmapper, `java.decompress-read-unbounded` Keycloak persisted config, `ruby.request-body-read-unbounded` ActionMailbox relay ingress); no new breach. Real corpora (corpus-go/java/ruby/typescript/django/clean): 4 findings (nsq `NewReqParams` body read, Zulip `IMAP4_SSL` with no context, healthchecks' fixed 1 s SMTP retry, nodejs-goof's unauthenticated `DELETE /chat`; all TP). Planted 100% with 0 on good twins and 0 unmarked; regression snapshots updated (new-rule findings plus five findings moved down one line in fixtures given a body limit or TLS context).
+### 2026-10-23 (judgement provider on 5.x models)
+- ARB-065 | The judgement probe's `AnthropicProvider` no longer sends `temperature` to the 5.x models (`claude-{opus,sonnet,haiku,fable}-5*`), which reject it with HTTP 400; older models keep `temperature: 0`. Found by the model verification pass (2026-10-22). `tests/test_judgement_provider.py`.
+### 2026-10-22 (precision: tiers and ledger)
+- ARB-065 | Precision tiers (`src/arbiter/precision.py`): every finding carries `tier` (`verified` gate-eligible, `advisory` shown and never blocking a tiered gate, `inferred` model-found) and a one-line `tier_reason`. `verified` needs the rule declared verified (rule metadata `tier: verified` or `precision.verified_rules`), admitted by the ledger, and either a model `confirmed` verdict (read generically from `finding.verification`) or, on a profile that cannot call a model (`offline`, `ci`), a rule lower bound of at least 0.99; `rejected`/`unsure` demote to advisory with the model's reason. `gate.tier_mode: legacy` (default, the severity gate unchanged) or `tiered` (only `gate.tiers`, default `[verified]`, can fail); a misspelt mode is an error. Console and markdown print a `tiers: N verified · M advisory · K inferred` line and each finding's tier; SARIF carries tier, reason and requirements, and under a tiered gate an advisory or inferred result is level `note`. Reports from before tiers load as advisory (or inferred), never verified.
+- ARB-065 | Per-rule precision ledger `tools/gold/precision.json`, shipped as `src/arbiter/packs/precision.json` (package data; a test holds them identical), rebuilt by `tools/precision_ledger.py build` from JSON-lines labels or `label_sample.py` sheets: TP/FP/unsure, held-out counts, Wilson 95% bounds, Cohen's kappa, labellers, sources, dates, population, `fp_notes` (kept across rebuilds; the verify pass reads them), and `admitted` (lower bound >= 0.97 on >= 30 labels, kappa >= 0.8 where two labellers looked; computed, never trusted from the file). The tier claim is the population-weighted precision of declared-and-admitted rules over held-out labels only, Wilson on Kish's effective n, overall and per category (dimension, each CWE), each claiming 99% only on its own lower bound. With no FP, Wilson needs 125 labels for 0.97 and 381 for 0.99. The ledger ships empty, so every finding is advisory and legacy stays the default. Label format in `docs/precision.md` (`## Label format`) for Phase 1b.
+- ARB-065 | CI precision guard `tools/precision_guard.py check` (pr-check): fails when a declared-verified rule has no admitting ledger entry, an entry's `admitted` flag disagrees with its counts, a labelled rule's planted or AI-corpus snapshot count is more than 20% above the count at labelling and the ledger entry is not newer than the snapshot, or the ledger and its packaged copy differ. `regression_guard.py update` now dates snapshots (`recorded`). `tests/test_precision_ledger.py` seeds each failure; `tests/test_precision_tiers.py` covers tier assignment, the legacy and tiered gate (an advisory critical finding passes a tiered gate, a verified one fails it) and the renderers.
+- ARB-064 | Rule metadata: every pack rule may carry `requirements: [ARB-xxx]`, `tier` and `precision_ref` (validated at pack load), and rules coded in Python are listed in `src/arbiter/packs/rules/native.yaml`, held to the rule ids the source can emit. `tools/rule_requirements.py` proposed the mapping from CHANGELOG bullets, pack comments, the registry and each rule's introducing commit; reviewed by hand (overrides recorded in the tool). 157 of 228 rules trace to a requirement: all 144 language-pack rules and 13 native ones; the 71 others predate the registry (2026-09-12/13) and are listed with that reason in `tests/test_rule_requirements.py`. Findings carry `requirements`, and the JSON report gains a top-level `rules: [{id, requirements, tier}]` block for the OmniGraph.
+### 2026-10-22 (precision: model verification pass)
+- ARB-065 | `src/arbiter/verify.py`: a post-probe pass that asks a model (`claude-opus-5-5`, structured output, no `temperature`, which Opus 5.5 rejects) whether each active, non-inferred finding at or above `verify.min_severity` (medium) is real. Each finding is sent on its own, with its rule's description, remediation and known FP notes (`tools/gold/precision.json` `fp_notes`, optional) and a numbered, secret-masked excerpt of its own file only: the enclosing tree-sitter function or a 120-line window, plus that file's imports. The verdict `{confirmed|rejected|unsure, reason, line}` is recorded as `Finding.verification` (new optional field; older reports still load). A finding is never hidden, deleted or re-graded. Unparseable replies, verdicts outside the enum and refusals become `unsure`; a line outside the excerpt is dropped.
+- ARB-065 | No provider, an exhausted per-scan budget (`max_findings` 150, `max_tokens` 400k) or a failing provider gives `not_verified` with the reason. `scan_scope.verification` carries the counts, calls, cache hits and tokens, and the report's "Read first" block states how many findings were not model-verified. Verdicts are cached in `.arbiter/verify-cache.json` keyed by (finding id, excerpt sha256, model, `PROMPT_VERSION`, rule-text hash), so an unchanged tree makes 0 calls.
+- ARB-065 | New profile `assisted` (`ci` plus verification). `offline` and `ci` never verify, whatever `verify.enabled` or `--model-verify` say; `connected` and `audit` verify on request. `verify:` config defaults are in `policy.DEFAULTS`; `scan`/`gate` accept `--model-verify`/`--no-model-verify`. Console, Markdown and HTML show the verdict and reason under each finding plus a summary line; SARIF carries `verification` in result properties. The default profile's report is unchanged.
+- ARB-065 | `tools/verify_eval.py`: runs the pass over the AI-corpus labels (matched as `ai_corpus_score.py` does) or a `label_sample.py` sheet. It reports confirmed-set precision with Wilson 95% intervals, agreement and Cohen's kappa against the labels, the TP-rejection rate, unsure and not-verified counts, and tokens and cost, per rule and overall. It reuses label_sample's Wilson and kappa. `docs/precision.md` (## Model verification) documents the pass. No live measurement yet: `ANTHROPIC_API_KEY` was not set on the build machine.
+### 2026-10-22 (precision: ground truth and model labels)
+- ARB-067 | Ground-truth labels judged by no model, in `tools/gold/labels/`: OWASP Benchmark Java 1,288 (836 TP / 452 FP) and Python 250 (220 / 30) from the published `expectedresults` for findings of the case's CWE (`tools/ground_truth/benchmarks_gt.py owasp`); Juliet Java 1.3 (NIST SARD, archive pinned by SHA-256 in `tools/ground_truth/fetch_gt.sh`) 6,510 (2,826 / 3,684; `bad*` method TP, `good*` FP; CWE-78/79/89); CVE fix pairs: 70 GitHub advisories, 14 per language, pinned by fix commit and parent in `tools/ground_truth/cve_pairs.json` (`cve_select.py`), scanned on the changed files at both commits (`cve_pairs.py`): 13 TP where a finding of the advisory's CWE on a changed line disappears at the fix, 5 suspects that persist. Only 3 of 70 pairs drew a finding on a line the fix changed.
+- ARB-067 | `tools/label_models.py`: two independent model labellers (prosecutor and defender prompts) and an adjudicator on disagreement, through the logged-in Claude CLI (`claude -p --model opus`, no tools, settings, skills or MCP, replaced system prompt). A labeller sees only the excerpt (enclosing function, the same-file functions it calls, imports; at most 180 lines; secrets masked with `judgement._mask_secrets`), the path and a neutral claim written per rule (`CLAIMS`, one for every pack rule, enforced by a test), plus facts the tool computes itself (link target exists, lockfile present, env var read, masked-secret shape). It never sees Arbiter's wording, severity, confidence or a verifier verdict. Stratified sampling by (rule, language, category) via `label_sample.py`, JSON-lines output, resumable, its own cache keyed by finding id, excerpt hash, prompt version, role and model, a `--budget-usd` cap (default 25) checked before each call, `--max`, and a stop at the first CLI usage-limit error. Ground-truth items are labelled blind (comments blanked, Juliet/OWASP case names and paths replaced) for calibration.
+- ARB-067 | First batch, $34.82 over 1,950 calls: labeller calibration on 250 blind ground-truth items: `tp` calls 143/144 right (0.993, Wilson lower 0.962, below 0.99), `fp` calls 94/94, κ prosecutor/defender 0.913. Gold sample 600 of 3,160 findings: population-weighted precision 0.349 (95% CI 0.313-0.384), κ 0.89. AI corpus 81 TP / 6 FP. CVE suspects 4 TP / 1 unsure. Per rule and per category with Wilson bounds: `tools/gold/results/2026-10-22-labels.md`. No rule or category reaches a 0.99 lower bound; nearest are `java.weak-random-for-secret` 218/218 (0.983), `python.insecure-random-for-secret` 99/99 and `python.weak-password-hash` 71/71.
+- ARB-067 | Held-out split frozen in `tools/gold/heldout.json` (`tools/ground_truth/heldout_split.py`, seed 20261022, `--check`): 7 of 24 gold repositories (30%, stratified by language) plus every ground-truth source. Rule authors must not open held-out findings; `docs/testing-harness.md` section 5. The AI corpus is development data; a second-generator corpus is future work. `tools/gold_benchmark.py` raw findings now carry the finding `id`.
+### 2026-10-22 (precision: held-out AI corpus)
+- ARB-065 | Held-out AI-written corpus (`fixtures/ai-corpus-heldout/`): eight tasks not in the development corpus (tenant-notes with roles, idempotent payment webhook, thumbnail service, CSV import job, GitHub OAuth login, admin export/report, WebSocket chat relay, scheduled S3 backup uploader) x five languages = 40 apps, from two generator models alternated over the grid (claude-opus-5-5 and claude-haiku-5-5, 20 each; the development corpus is sonnet). `tools/ai_corpus_generate.py` gains `--set heldout`, `--models` (alternation by `model_for`), `--budget-usd`/`--per-run-usd` (a run starts only if spent plus every in-flight run's cap stays under the total) and `--install` (copies the output in and writes `manifest.json` with model and exact prompt per app). Generation cost $17.62 of a $25 cap, including a rerun of 24 apps cut off by a usage limit and one that wrote no files. 236 defects (1 high, 68 medium, 167 low) labelled by one blind subagent per language and committed (`88bcb10`) before Arbiter ran on the tree; no reconciliation, so unreviewed findings count against precision.
+- ARB-065 | `tools/gold/heldout.json` (`ai_corpus_heldout`) seals the tree: rule authors do not inspect its findings or labels; only aggregate scores are reported. `tools/ai_corpus_score.py --aggregate-only` writes counts, recall and precision per language, per category and per finding severity, and names no rule, file, line or finding (a test asserts it). `tools/regression_guard.py` aggregate targets (`"aggregate": true`, target `ai-corpus-heldout`) store a count, a SHA-256 digest of the finding list and the scorer's counts, and fail with before/after numbers only.
+- ARB-065 | First and only held-out score (`tools/gold/results/2026-10-22-ai-corpus-heldout.md`): code defects 6/142 detected (4%), code findings 7/40 detecting a label (18%, lower bound), high-severity findings 0/11; all labels 87/236 and 88/121. Development corpus at the same commit: 2/117 and 2/22.
+### 2026-10-22 (Milestone 3: one-hop data flow)
+- ARB-062 | `src/arbiter/dataflow.py`: an intraprocedural abstract interpreter over tree-sitter for Python, TypeScript/JavaScript, Go, Java and Ruby. Each local is CLEAN (built from literals, with its constant), DERIVED (an unseen call on constants), UNKNOWN or TAINT; assignments, destructuring, `+=`, concatenation, format calls, templates, f-strings, interpolation, heredocs, lists and maps with constant keys (`add`/`remove(0)`/`get(1)`, `put`/`get`), Go out-parameters (`Decode(&req)`) and tuple returns carry values. A condition, ternary or `switch` that folds to a constant runs only its live branch; a value reassigned to a literal is CLEAN. One same-file call is followed (arguments to parameters, returns back, sinks in the helper see the bound values). Only immutable file-level bindings (Java `final`, TS `const`, Go `const`, ALL_CAPS) are constants. A step budget bounds each file; a fault or an exhausted budget changes nothing (`ARBITER_DATAFLOW_STRICT=1` raises; the suite sets it).
+- ARB-062 | Pack schema: an optional, validated `taint:` block (`sources`, `inputs`, `sinks`, `sanitizers`, `value`, `kill`, `where`, `types`, `element0`, `unless_element`, `built`, `at`, `hops`, `requires`; docs/probes.md). The rule's own `query` stays as the fallback: the block adds sink hits the flow reaches and drops a query hit whose `value` captures are provably constant (or, with `kill: derived`, derived only from constants in a function that reads request input). When a value crossed a function, `unless_in_scope` is checked over the file; one finding is kept per source per function. Migrated: TypeScript html-from-request, sql-string-built, shell-command-built, shell-spawn-built, ssrf-request-url, argument-injection; Go sql-injection, command-injection, error-text-in-response, path-traversal-request, upload-client-filename, ssrf-request-url, argument-injection; Java sql-string-built, command-injection, xss-unescaped-html, ssrf-request-url, argument-injection, upload-client-filename, exception-message-to-client; Python command-injection, argument-injection, upload-client-filename; Ruby sql-injection, command-injection, path-traversal-request, upload-client-filename, ssrf-request-url, argument-injection.
+- ARB-065 | Measured before (`9eedb76`) and after. `tools/variants.py`: 485/596 to 608/648 pairs kept overall (81% to 94%); per migrated rule: typescript.html-from-request 1/8 to 13/13, typescript.sql-string-built 3/8 to 11/11, go.sql-injection 9/14 to 18/18, go.command-injection 3/7 to 10/10, go.error-text-in-response 5/13 to 19/19, ruby.sql-injection 5/11 to 13/13, ruby.command-injection 1/3 to 3/3, python.argument-injection 3/7 to 8/8. OWASP Benchmark Java FPR at unchanged recall: sqli 1.0 to 0.254, cmdi 1.0 to 0.688, xss 0.455 to 0.254 (in-scope FPR 0.537 to 0.235, score 0.432 to 0.734); Python cmdi FPR 1.0 to 0.857. Juliet Java (bad* method = TP, good* = FP): CWE-89 FP 3,000 to 1,020 with TP 2,160 unchanged; CWE-78 FP 612 to 204 with TP 432 unchanged. AI corpus: 2 to 3 of 117 code defects (java/file-upload D3), precision 9% to 13%. Planted 361/361 with new hoist/helper bad/good pairs in every language, 0 on good twins, 0 unmarked; snapshots refreshed (16 planted, 1 AI-corpus finding added).
+- ARB-065 | Gold, all 24 repositories, against `9eedb76`: 9 findings gone (5 keycloak SQL through `getTableNameForNativeQuery`, 3 jose/otel build-script shell commands on constants, all FPs) and 7 new, each read: 4 Rails SQL built in a one-hop helper from method arguments (postgresql `explain`, `primary_key_column_and_sequence_sql` twice, the `rails query` console), 2 etcd `http.Error(w, msg, 500)` with `msg := fmt.Sprintf("... %v", err)` (the rule's defect, hoisted), 1 nest e2e SQL template through a helper; each is the shape the rule reports inline. ruby.sql-injection 0.029/KLOC (budget 0.03). Scan time: java-keycloak 101.6 s to 108.0 s, ruby-rails 26.6 s to 33.5 s, go-containerd 42.0 s to 42.9 s.
+### 2026-10-22 (round 2: scan speed)
+- ARB-076 | Per-repository facts are built once per scan, not once per file. `probe_authored` called `facts.setdefault(key, _ecosystem_facts(...))`, which evaluates its argument every time, so each Go, Java or Ruby file rebuilt its repository's declared and local names -- every manifest and, for Java, every file's `package` line: 8,546 rebuilds on keycloak, 1,808 s of 2,486 s under cProfile. `apply_scope_notes` had the same shape per finding (1,026 extractions, 6.7 s). `probe_doc_drift` built each repository's code blob by repeated concatenation, copying the whole blob per file (458 s). `tests/test_scan_once_per_repo.py` counts the calls during a 12-file Java scan.
+- ARB-076 | The assigned-credential pattern is tried only near its keywords: every `_ASSIGNED_SECRET` match starts at most 24 characters before a credential word and the pattern has no anchors or lookbehind, so `_assigned_secret_matches` runs `match` only at those starts and yields exactly what `finditer` did (31.0 s -> 6.8 s of regex on keycloak). `tests/test_secrets_scan_equivalence.py` checks the keyword list and bound against the pattern text and the output against `finditer` on hand-written, random and real inputs; change the pattern and update both.
+- ARB-076 | Scan seconds per repository, same machine, `tools/gold_benchmark.py --only java-keycloak,ruby-rails,ts-nest,go-grpc,py-celery --jobs 4 --no-fail --raw`, before (`24b2b54`) -> after: java-keycloak 1,819.4 -> 79.0, ruby-rails 133.3 -> 24.0, go-grpc 24.9 -> 14.9, ts-nest 15.0 -> 7.6, py-celery 8.2 -> 6.0; wall clock 30:19 -> 1:19. The gold report is identical apart from its timestamp, commit and seconds: 2,559 findings, every raw finding equal and in the same order, per-rule counts and breaches equal. Full `Finding.to_dict()` output (ids, lines, titles, descriptions, evidence, scope notes) is identical on all five repositories. Keycloak's largest probes now are `lang_java` (35 s), `secrets` (24 s), `authored` (14 s), `ast_metrics` (10 s).
+### 2026-10-22 (round 2 precision: secrets and suppression)
+- ARB-065 | `assurance.blanket-suppression`: a blanket directive followed by a written reason (two words of prose after it, separators and a second comment marker skipped) is not reported; TypeScript cannot name an error in `@ts-expect-error`/`@ts-ignore`, so a reason is all its author can give (otel-js `// @ts-expect-error access internal property for testing`, axios `// @ts-expect-error -- the encoding opt-in only accepts booleans`, celery `# type: ignore  # whole point here ...`). A `@ts-*`, `eslint-disable` or `nolint` directive matched later inside a comment, after a quote or backtick, or on a `*` block-comment line is prose about the directive and is no longer counted, in the census either (jose's JSDoc `* // @ts-ignore` example, its tools/declaration-comments.js). A bare directive, or one followed by a lone token (`// @ts-expect-error TS2345`), is still blanket. Generated and vendored paths were already skipped.
+- ARB-065 | `secrets.private-key`: a data file (no inventory language: `.pem`, `.key`, `.key.insecure`, `.txt`) under a fixture-data directory (`testdata/`, `test-data/`, `fixtures*/`, `__fixtures__/`, `vectors/`, `test-vectors/`) is not reported (grpc-go testdata/x509, etcd tests/fixtures, cryptography vectors). Every other test-path key stays reported at low and tagged `test-fixture`, as since round 1 (tests/certs, examples/, integration/…/tls, keys written into test code). Test material also covers `testsuite/`, `test-suite(s)/`, `dummyserver/`, a `t/` directory, modules named `fixture(s)*` and `*localhost*.key|pem`: keycloak's testsuite PKI, urllib3's dummyserver/certs, celery's t/unit/security, jose's tap/fixtures.ts and caddy's caddytest/caddy.localhost.key were 19 critical, high-confidence reports and are now low. No private-key finding on gold is high any more.
+- ARB-065 | `secrets.assigned-credential`, all post-match filters (the `_ASSIGNED_SECRET` patterns are unchanged): the symbol is read back to its first character before the echo checks, because the 24-character prefix cut `LOGOUT_TRIGGERED_BY_ACTION_TOKEN` short; a quoted value that spells its symbol plus at most one naming word (keycloak Messages.java `EXPIRED_ACTION_TOKEN_NO_SESSION = "expiredActionTokenNoSessionMessage"`), or is a letters-only snake_case identifier sharing a word with it (`FORM_PASSWORD = "j_password"`, `_aj_hash_with_indifferent_access`), is a key name; dotted names of three or more segments may carry a digit run per segment (`org.apache.tomcat.manager2.CsrfFilter.token`, grpc's `type.googleapis.com/...v3.AccessTokenCredentials`, which was high); variable references (`$dir/private/ca.key.pem`, `$${project.version}`), interpolated strings (rubygems' `credential_info`, which was high), unquoted values ending in `;` (axios index.d.cts `token: CancelToken;`), Fetch credential modes (`same-origin`, `include`, `omit`), and symbols naming a password hash (`encodedPassword`, `PWD_MD5`, `*_SHA*`; not `DEFAULT_ENCODED_SECRET_KEY`) are skipped, as are fixture-data files as above (cryptography's RFC 8032 `SECRET =` vectors, coredns testdata/*.private). Weak secrets spelled as words (`"super-secret-key"`), snake_case passphrases sharing no word with their symbol, JWTs and test credentials stay reported.
+- ARB-065 | Gold benchmark, all 24 repositories, native checks, `--jobs 6`, against `24b2b54` (6,085.9 KLOC): `assurance.blanket-suppression` 280 to 150 (0.046 to 0.0246), `secrets.private-key` 260 to 114 (0.0427 to 0.0187), `secrets.assigned-credential` 210 to 142 (0.0345 to 0.0233); budget 0.03, all three within it; every removed finding was read. 7,385 findings, 6 over budget (3 accepted). Planted corpus unchanged at 100% with 0 on good twins and 0 unmarked. `tests/test_probes_precision_secrets_suppression.py` (7 tests, each failing before the change).
+### 2026-10-22 (round 2: controls)
+- ARB-062 | Fixed FAIL-055: `controls._probe_of("house/x")` returned `house`, which is not a probe, so a control backed by a house rule always read not assessed. `house/<id>` now maps to `house_rules_ast` for an `ast_query` rule and `house_rules` otherwise, from the scan configuration; `arbiter controls` on a saved report (no configuration) requires both house probes, and an id the configuration does not define reads not assessed. Every rule-id prefix the scanner can emit is enumerated from the source and asserted to map to a registered probe, and a real scan over every planted tree asserts each finding's recorded probe is the one `_probe_of` names (`tests/test_controls_probe_mapping.py`). No shipped pack maps a house rule, so shipped output does not change.
+- ARB-062 | Language-pack rules' `controls:` declarations now assess the control they name: a control gains `declared_by` and a `languages` cell per pack (`satisfied`, `violated`, `not_assessed`, `absent`). A declaration does not override a control the pack marks `not_automatable` (NIST 800-53 IA-2; the reason names the disagreeing rules), and `controls.unresolved_declarations()` lists the ones no pack enumerates (800-53 SC-13, SC-23, SI-10, SI-11; OWASP ASVS). Shipped output changes only for SSDF PW.5 and PW.8 and 800-53 IA-5, SA-11 and SC-8: on spring-petclinic (native only) PW.8 goes from satisfied to violated (3 `java.test-without-assertion` findings); on the other four sample repos nothing changes in a native-only run, where PW.5 stays not assessed because semgrep and bandit did not run. With the analyzers, PW.5 can now read violated by a language rule. IaC rules' declarations are still not wired.
+- ARB-062 | New control pack `cwe-top25-2024`: one control per 2024 CWE Top 25 weakness, each with one cell per language (`applies`, `not_applicable` with a reason, `out_of_reach` with a reason) and the docs/cwe-top25.md mark. An applying cell is assessed by the language pack's rules tagged with the CWE, so a new tagged rule assesses it with no pack edit. A sixth control state, `not_applicable` (distinct from `not_automatable`), for a weakness no language of the codebase can have; per-language cell states add `out_of_reach` and `absent`. The scan report's controls summary and `arbiter controls` show per language: assessed, violated, not run, gap, out of reach, n/a. `tests/test_controls_cwe_top25.py` holds every cell to the doc matrix (N cell has a native rule, other applying cells none, the Native column matches) and runs each planted bad tree end to end. Framework packs print no `not_applicable` row unless it is non-zero; `counts` gains a `not_applicable` key (0) for every pack.
+### 2026-10-22 (round 2: testing harness)
+- ARB-065 | AI-written-code corpus (`fixtures/ai-corpus/`): five interview-style tasks in five languages, 25 apps generated by headless `claude -p --model sonnet` (claude-sonnet-5-5) runs with file tools only and a neutral prompt (`tools/ai_corpus_generate.py`; prompt, model and date per app in `manifest.json`), copied in as data and never built or run. 172 defects were labelled by reading the code before Arbiter ran (commit a02f048), then reconciled: every in-scope native finding is a TP or a listed false alarm with its reason. `tools/ai_corpus_score.py` scores recall and precision per language and category (2-line tolerance, CWE or `category_rules` match, unreviewed findings counted as FP). First result: 2 of 117 code defects detected, 2 of 31 code findings true; dependency pinning 52/55. Two Arbiter defects surfaced: `drift.documented-env-var-absent` does not read `config.ru`, and `assurance.test-asserts-nothing` anchors one line early after a blank line (`^\s*` under `re.M`).
+- ARB-065 | `tools/label_sample.py`: a stratified labelling sheet from a gold run (`--raw`), with code context and a blank verdict column, and a scorer for precision per rule with 95% Wilson intervals, a stratum-weighted overall estimate, and Cohen's kappa between two labellers with the disagreements listed.
+- ARB-065 | `tools/regression_guard.py`: finding snapshots and scan-time budgets for `fixtures/planted`, `fixtures/ai-corpus` and four small pinned gold repositories (`tools/gold/guards.json`, `tools/gold/snapshots/`). The budget is scaled by a pure-Python calibration workload, because a reference that ran Arbiter slowed down with a seeded `sleep` and hid it. In-tree snapshots run in the fast tier; the pinned repositories are fetched at their pins and checked in the slow-tier job. Tests prove each guard fails on a deleted rule and on a seeded sleep.
+- ARB-065 | `tools/variants.py`: semantics-preserving rewrites of the planted bad fixtures (rename, hoist, helper, move, string style) in all five languages, with each marker tracked to its new line, giving robustness per rule. First sweep: 404/486 kept (83%). Hoisting the sink argument into a temporary (57/83) or passing it through a helper (60/83) loses the most; `typescript.html-from-request`, the Ruby and Go command-injection rules, and the TypeScript and Ruby sql rules are the least robust.
+- ARB-065 | `arbiter.yaml` suppresses `ruff/*` under `fixtures/**`, as it already did for every other analyzer, so the corpus never reaches the self-gate. `docs/testing-harness.md` documents all four instruments and their numbers.
+### 2026-10-22 (CWE Top 25 round 2: Go and Ruby)
+- ARB-062 | Native rules for ranked gaps 5-8 and 10 in Go and Ruby, each a
+same-function source-to-sink rule: a request value (Go `r.URL.Query().Get`,
+`r.FormValue`, `r.PathValue`, `mux.Vars`, `chi.URLParam`, gin/echo/fiber
+`c.Query`/`c.Param`; Ruby `params[...]`, `params.require/fetch`,
+`request.params`) written in the sink call, or assigned to a local that a later
+statement of the same block passes to it (tied with `#eq?` up to six levels
+below the assignment's sibling; no schema change). `path-traversal-request`
+(CWE-22; `filepath.Join`/`os.Open`/`http.ServeFile`/`c.File`, `File.join`/
+`Rails.root.join`/`File.read`/`send_file`/`render file:`; silent with
+`filepath.IsLocal`/`Base`/`Rel`, `strings.HasPrefix`, `os.OpenRoot`,
+`File.basename`, `start_with?`, `include?`, `=~`), `upload-client-filename`
+(CWE-434; `header.Filename`/`part.FileName()` in a multipart handler,
+`original_filename` or Rack's `params[:f][:filename]`, in a path that is
+written; silent with an extension/MIME allowlist or a basename),
+`ssrf-request-url` (CWE-918; `http.Get`, `*Client.Get`, `http.NewRequest*`;
+Net::HTTP, Faraday, HTTParty, RestClient, http.rb, `URI.open`, a `conn`/`client`
+local; silent with a literal scheme and host or a host check) and
+`argument-injection` (CWE-77/88; `exec.Command`/`system`/`Open3`/`IO.popen` with
+a literal git/curl/ssh/rsync/tar/... and a request value, no `"--"`), all high
+severity, medium confidence; Go also gains `parsed-int-narrowed` (CWE-190/681,
+medium: `strconv.Atoi` or a 64-bit `ParseInt`/`ParseUint` narrowed to
+`int32`/`int16`/`int8`/`uint*` with no comparison in between). The nine `gap:`
+markers became `expect:`; the Go argument-injection pair is now an HTTP handler,
+and Go SSRF/path and Ruby SSRF gained a variable-form pair. Planted Go 60/60,
+Ruby 64/64. Real code: the gold Go and Ruby repositories (1687 KLOC) give none
+of the nine rules a finding; corpus-go, corpus-clean, rack and sinatra none;
+railsgoat two, both true. Matrix: Go 22, 434, 77, 918, 190 and Ruby 22, 434,
+77, 918 are N; Go native 6 to 11 and Ruby 9 to 13, no gaps left in either.
+Decisions recorded 2026-10-22: the variable tie stays within one block (no
+cross-branch or closure flow); Ruby's broad `include?`/`=~` guards on
+path-traversal stay (precision first); an untrusted function parameter is not an
+argument-injection source (it needs interprocedural taint or a name heuristic).
+### 2026-10-22 (CWE Top 25 round 2: TypeScript and Python)
+- ARB-062 | Native rules for ranked gaps 3, 5, 6 and 8 (`docs/cwe-top25.md`)
+in TypeScript and Python, same-function form. TypeScript:
+`ssrf-request-url` (CWE-918, high severity, medium confidence: `fetch`,
+axios, got, ky, needle, superagent, `http(s).get/request`, undici, called
+with `req`/`ctx` `.query`/`.body`/`.params` as the URL or its start, directly
+or through one local, `const { url } = req.body` included; a fixed origin
+before the value, an allowlist or a `.hostname` check is not reported),
+`argument-injection` (CWE-77/88: `execFile`/`spawn`/`execa` running git,
+curl, ssh, rsync, tar and similar tools with a request value in the argv
+array and no `"--"`; a value bound to its option or a `startsWith("-")`
+check is not reported), `upload-client-filename` (CWE-434: multer
+`diskStorage` named by `originalname`, formidable `originalFilename` or
+`originalname` in a write/rename/copy path, express-fileupload `mv`; silent
+with a `fileFilter`, MIME check, sanitiser or basename in scope),
+`csrf-unsafe-methods-ignored` (CWE-352, high/high: csurf `ignoreMethods`
+listing POST/PUT/PATCH/DELETE) and `session-cookie-cross-site` (CWE-352,
+medium: a session-library cookie with `sameSite: "none"` in a file that
+mentions no CSRF token). Python: `argument-injection` (subprocess argv
+lists and `asyncio.create_subprocess_exec`), `upload-client-filename`
+(Flask `save(f.filename)`, `open(..., "wb")` with `.filename`/`.name`,
+Django `storage.save(f.name, f)`, only in a function that handles an
+upload; silent with `secure_filename`, a uuid name, an allowlist or a MIME
+check) and `debug-mode-enabled` (CWE-200/489: literal `debug=True` in
+`app.run`, `FastAPI`/`Starlette`, `app.debug`, `app.config["DEBUG"]`). A
+local is tied to its sink by a regex backreference over the enclosing
+function in `requires_in_scope`; no schema change. Python 918 stays
+semgrep-only. The planted good twin `server.ts` `/convert` route, which
+passed `req.body.file` to ImageMagick, now rejects a leading `-`. `gap:`
+markers TS 77, 434, 918 and Python 77, 434 became `expect:`; new pairs for
+the TS CSRF weakenings; the TS missing-middleware CSRF line keeps its
+`gap:` marker. Planted: Python 57/57, TypeScript 72/72, 0 on good twins, 0
+unmarked. Real code: the SSRF lessons in juice-shop
+(`profileImageUrlUpload`) and nodegoat (`research.js`) are reported, both
+true positives; nothing else in corpus-typescript, the three Django
+applications, corpus-clean or the gold TypeScript and Python repositories
+(0 gold findings from the new rules). Matrix: TypeScript 352, 434, 77 and
+918 and Python 434 and 77 to N; native cells TypeScript 8 to 12, Python 9
+to 11; neither language has a gap cell left. `docs/probes.md` not-assessed
+rows updated.
+### 2026-10-22 (CWE Top 25 round 2: Java)
+- ARB-062 | Java native rules for the gaps left after round 1, each in the
+same-method form: a value bound from the request (`@RequestParam`,
+`@PathVariable`, `@RequestHeader`, JAX-RS `@QueryParam`/`@PathParam`/`@FormParam`,
+`String x = request.getParameter(...)`) reaching the sink in the method that
+binds it. CWE-79: `java.xss-unescaped-html` (high/medium; the bound string
+beside an HTML literal in a `return`, `body(...)` or `ok(...)`, or a servlet
+that reads the request and prints a non-constant into a `text/html` page; a
+file that applies an HTML encoder is skipped, since OWASP Benchmark escapes in
+a helper). CWE-918: `java.ssrf-request-url` (high/medium; the bound name or
+`"http://" +` it as the URL of `new URL`, `URI.create`, `new HttpGet`,
+`Jsoup.connect`, RestTemplate, WebClient `.uri` or OkHttp `.url`, in a method
+that makes a request; a fixed host, a `getHost()` check or an allowlist is
+not reported). CWE-77/88: `java.argument-injection` (high/medium; the bound
+name as a `ProcessBuilder`/`exec(String[])`/`command` element for git, curl,
+ssh, rsync, tar and other option parsers, with no `"--"` before it).
+CWE-190: `java.parsed-number-narrowed` (`(byte)`/`(short)` of
+`Integer.parseInt`, `(int)` of `Long.parseLong`; radix forms,
+`Number.intValue()` bodies and byte-array fills skipped) and
+`java.parsed-count-overflow` (a parsed count multiplied into an allocation
+with no range check); the planted `int * int` total became these forms.
+CWE-434: `java.upload-client-filename` (high/medium; `getOriginalFilename()`
+or `getSubmittedFileName()` in a write path, no `FilenameUtils.getName`,
+`getFileName()` or extension check). Planted pairs for all five; the gap:
+markers for Java 79, 77, 918 and 190 are expect: markers. Java Top 25: native
+8 to 13 cells, caught by anything 11 to 15 of 15, no Java gap left. Real
+code: WebGoat 3 true positives (the reflected-XSS lesson, the WebWolf upload,
+the zip upload); 17 false positives fixed and pinned by tests (a parameter's
+`.length()` beside HTML, a directory named after the user, a logged path, a
+zip entry name, gson's `intValue`, tomcat's drawboard colour bytes). Gold Java
+repositories (httpclient, netty, spring-security, tomcat, and keycloak scanned
+with the Java pack alone): 0 findings from the new rules. OWASP Benchmark Java: XSS recall 0 to 0.894 at FPR 0.455
+(score 0.44); cmdi, sqli and weak randomness unchanged; in-scope recall 1.0
+to 0.97, FPR 0.565 to 0.537, score 0.435 to 0.432.
+### 2026-10-22 (round 2 precision: tests, imports, SQL)
+- ARB-065 | `assurance.test-asserts-nothing` reads each test's own body: Python through `ast`, JS/TS and Go by matching its braces. The old span ran to the next test, which is the conditional-skip blind spot the user asked about: the NEXT test's `@pytest.mark.skip`, `it.skip(` or `t.Skip()` hid a test that asserts nothing; a skip under a branch (`if testing.Short() { t.Skip() }`) hid the test though `permanently-skipped-test` does not report it either; and an unconditionally skipped test was reported by both rules. Now a test that never runs (an unconditional skip on it or its class, an unconditional `pytest.skip()`/`t.Skip()` at the top of its body, an enclosing `describe.skip`) is left to `permanently-skipped-test`, and one with `skipif`, `xfail(<cond>)` or a skip under a branch is judged on its body. That surfaced 13 aiohttp tests that only call the code, two of them missing an `assert` (`await response.read() == payload`, `resp.text is None`). Also counted as asserting, as round 1 did for the Java and TypeScript rules: node:assert functions called bare (98 of undici's 100), `pytest.warns`/`deprecated_call`/`fail`, `with *raises*(...)` helpers, `self.fail`, `ensure*`, a Promise `reject`, a same-file helper or decorator that asserts (axios `testHeaderValue`, nest `equalTest`, Django `@test_mutation()`), a name or body comment saying not raising is the check, Go's `writer{t: t}`. Not tests: pytest-benchmark tests (cryptography `tests/bench`, 25), nested defs, `test_*` outside a test module (Django `runner.py`), fixtures and functions that return or yield. `_TEST_DEF` anchors on `^[ \t]*`: `^\s*` took the blank lines above a test and reported it on the first (from the harness agent). Python test methods (`def test_x(self)`) were never judged, because the delegated-helper pattern matched their own `def` line; `JUDGE_PYTHON_METHODS = False` keeps that scope by decision (user, 2026-10-22), and turning it on is a separate later step (+357 on gold: Django 226, celery 105, urllib3 16, cryptography 10; of 15 read, 14 only call the code, 1 is an empty inherited-test override). Gold 257 to 74 (0.0422 to 0.0122 per KLOC, budget 0.03).
+- ARB-065 | `authored.undeclared-import` reads more of what declares a dependency. Java: a `groupId` given as a Maven property (netty's conscrypt), Gradle build files named for their module (`spring-security-oauth2-client.gradle`), sub-groups of a listed provider (`io.projectreactor.tools`), and provider tables for packages named for neither group nor artifact (Selenium, 44 of keycloak's 158; GraalVM svm, RXTX, uap-java, HtmlUnit 2, Saxon, `ldapsdk`) or guaranteed by a declared dependency (Quarkus/RESTEasy to `jakarta.inject`/`jakarta.annotation`, Infinispan to JGroups and RxJava 3, the Quarkus Operator SDK, Agroal, XNIO, `jakarta.json`, `jakarta.ws.rs`, Jackson 3 from httpcore5-jackson3, R2DBC from spring-r2dbc, Netty from rsocket, JSpecify from Guava, Jakarta Mail from Angus Mail). Python: imports under `if TYPE_CHECKING:` or a `sys.version_info` branch, function-local imports in a module that handles ImportError (the `shell` commands' IPython/bpython), a module tried once and imported again later, a framework's own requirements (FastAPI to pydantic/starlette, Flask to werkzeug/jinja2/click/..., Django to asgiref/sqlparse, requests to urllib3/idna/certifi, gevent/eventlet to greenlet, pymongo to bson, boto3 to botocore, Sphinx to docutils), Pyodide's `js`; test-role files are skipped as for Go, Java and Ruby (celery's `t/`). JS: no check without a package.json (urllib3's lone eslint config); a module a bundler config serves is local (keycloak's "message-bundle"). Ruby: named Bundler gemfiles (`*_gems.rb`), bundler/inline gemfiles, `rescue LoadError` requires, `rails` bringing its components. Gold 237 to 3 (0.0389 to 0.0005): tomcat's jdt and bnd (declared only in its Ant build) and puma's ffi (shipped by JRuby).
+- ARB-065 | `python.sql-injection` follows a spliced local one step inside its function. Pack schema: Python-only `safe_splice_calls` and `safe_splice_names` (regexes, validated at load, documented in lang_rules.py and docs/probes.md). A value is safe when it is a literal, a quoting call, a safe name, `str()` of one, a `sep.join(...)` of quoted names or `%s` placeholders, a conditional of safe values, `sql.Identifier`/`Literal`, SQLAlchemy `type.compile(dialect)`, or a local every assignment of which is safe; a parameter, loop variable or container filled later is not. Gold 29 to 21 (0.0389 to 0.0282, budget 0.03): Django's cache backend `table = quote_name(...)` (4), createcachetable, oracle `cache_key`, `str(constraint_sql)`, celery's session.py. The 21 left splice parameters or method results, which needs data flow (Milestone 3).
+- ARB-065 | Gold benchmark, all 24 repositories, native checks, `--jobs 6`, against `24b2b54`: 7,729 to 7,304 findings, 9 to 6 rules over budget (3 accepted; the three above leave); no other rule's count moved. Planted 100% in every language, 0 on good twins, 0 unmarked.
+### 2026-10-22 (round 1 decisions)
+- ARB-065 | Gold budgets gain `accepted_breaches`: a rule over budget by a recorded decision stays in the report and in `rules_over_budget`, and the run fails again only if its rate passes a ceiling set about 10% above the rate at the decision (`failing_breaches`, tested). Recorded on 2026-10-22 by the user: `java.test-without-assertion` is a known breach (0.066/KLOC; its remaining findings are tests that only call the code), and `assurance.permanently-skipped-test` (0.0315) and `typescript.test-without-assertion` (0.034) are accepted overages. The run on the 1047341 report has 9 over budget, 3 of them accepted, and 6 failing.
+- ARB-065 | Decisions recorded by the user on 2026-10-22: the test-file exclusions in 1047341 and c4d8bfe stand (TLS off for a test's own local server, `override_settings(DEBUG=True)`, empty skipped tests, Java `@Override` tests). The three Django applications stay a separate corpus, not gold, so Python denominators don't move. Checking `assurance.test-asserts-nothing` for the same conditional-skip blind spot is round 2 work.
+### 2026-10-21 (licence)
+- ARB-005 | Relicensed under the Apache License, Version 2.0, by decision of
+the copyright holder (Nicholas J Pauken); the repository stays public. `LICENSE`
+is the standard, unmodified Apache-2.0 text, replacing the interim
+all-rights-reserved notice. `NOTICE` opens with "Arbiter / Copyright 2026
+Nicholas J Pauken" and reproduces the OmniEngineering workspace's NOTICE
+unchanged. `pyproject.toml` keeps `license = { file = "LICENSE" }` (the SPDX
+string form needs setuptools 77; the floor is 68) and adds the Apache
+classifier; the wheel builds and carries `LICENSE`, `NOTICE` and `NOTICE.md`.
+The planned proprietary per-repository licence (the L-3 draft grant) is
+dropped; `docs/licensing.md` is rewritten as the current position with a short
+history of the superseded draft. Scan output belongs to the user, now stated in
+`README.md`, `NOTICE` and `docs/licensing.md`. `NOTICE.md` adds tomli, the
+vendored 3d-force-graph viewer and the OmniEngineering workspace, and says the
+bundle carries the unmodified PyYAML/tomli wheels. `CONTRIBUTING.md` names
+Apache-2.0 §5 as the inbound basis and still takes no outside contributions;
+`TRADEMARKS.md` says it covers the OmniEngineering names only. ARB-005 stays
+pending: its fourth criterion, the L-6 redistribution review for bundling the
+analyzers (semgrep LGPL-2.1), is not done and needs a named reviewer.
+- ARB-005 | Pre-publication check (Milestone 1, `docs/gaps-and-next-steps.md`):
+a full-history gitleaks scan. Run earlier on 2026-10-21 over 272 commits: 70
+hits, all synthetic test values (68 in `tests/`, 2 in
+`fixtures/legacy-platform`), none in `src/`, `tools/` or `docs/`. Re-run for
+this change with gitleaks 8.21.2, `gitleaks detect --source . --log-opts="--all"
+--redact`: 292 commits scanned, 73 hits — 70 in `tests/`, 2 in
+`fixtures/legacy-platform/app/config.py` (a planted `DB_PASSWORD`, the same
+line in two commits), and 1 in a planted CWE-798 fixture under
+`fixtures/planted/python/bad/cwe25/` that exists only on an unpushed local
+branch; none in `src/`, `tools/` or `docs/`. Each distinct hit was inspected
+and is a synthetic test value. The published history alone
+(`--log-opts="--remotes=origin"`, 226 commits) gives 48 hits: 47 in `tests/`,
+1 in `fixtures/legacy-platform`. The `training/` redistribution check named
+in the same gap is not recorded here.
+### 2026-10-21 (round 1 follow-ups)
+- ARB-065 | `test-d/` (tsd type-level tests, jose) and `integration-tests/` (opentelemetry-js) are test roles in the inventory, whole directory names only. Gold, ts-jose and ts-otel-js at `d67566e` against `3984b05`: `typescript.jwt-decode-unverified` 2 to 0 (both in jose's `test-d/`), `typescript.error-object-in-response` 1 to 0 (otel `integration-tests/`); no other rule moved; 476 jose and 55 otel TypeScript lines move from production to test.
+- ARB-062 | `ruby.csrf-protection-off-in-production` (CWE-352, high): `config.action_controller.allow_forgery_protection = false` in `config/environments/production.rb`, at the root or under any directory; Rails generates the same line in `test.rb`, which is not read. The pack schema's `files:` key (an fnmatch glob, until now undocumented) also takes a list of globs, validated at load; documented in `lang_rules.py` and `docs/probes.md`. Planted bad `production.rb`; good twins `production.rb` with the check on and `test.rb` with it off. No gold file sets it.
+- ARB-062 | Three Django applications pinned in `tools/fetch_corpus.sh` (`DJANGO_APPS_ONLY=1`, `get_pinned_app`, so the gold benchmark does not budget them): zulip `4bae1c54`, healthchecks `47415f03`, django-cms `827b4598` (252k production Python lines). Their 49 `@csrf_exempt` views give `python.csrf-protection-disabled` no finding, and none should: the only one reading `request.user` is zulip's `rest_dispatch`, exempt so it can re-apply `csrf_protect()` to its session branch, which is now an explicit exclusion (it was silent only because the word `Authorization` appears in it). No `jwt-*` or `error-*` finding on the three either. Not added to the gold set.
+- ARB-065 | `java.test-without-assertion` skips an `@Override` test, a body comment saying not throwing is the check, names saying the call completes (`NoneExceptionIsThrown`, `NoAssertError`, `DoNotCause...`, `...NotRequired`, `CanBeInstanced`, `IsSerializable`, `Compiles`, and `Created`/`Granted`/`GrantsAccess`/`Success`/`Wires`/`Autowires`/`Allow(s|ed)` outcome words, spring-security's authorization tests), `ensure*` helpers and performance-harness classes (`*Performance`, `*Benchmark(s)`), each anchored on the `@Test` method so an anonymous class inside it does not count. Gold 276 to 199 (0.092 to 0.066 per KLOC raw, budget 0.03): still over. Each of the 77 removed was reviewed by name and category; the rest, triaged by category with samples, only call the code (netty boundary tests, tomcat `MessageBytes`, keycloak admin-client flows, empty `// FIXME` tests), so the budget is not reachable without dropping real findings.
+- ARB-065 | Per-site counting (ARB-080) kept; precision fixes for the two rules it pushed over budget. `authored.security-check-disabled`: in a test file, a TLS check off for the test's own local server (`localhost`, `127.0.0.1`, `server.address()`, `httptest`) and Django's `override_settings(DEBUG=True)` are the fixture and are not reported; other test-path hits stay reported at low. 328 to 86 (0.054 to 0.014, within budget). `assurance.permanently-skipped-test`: a `t.Skip()`/`it.skip(`/`describe.skip(` under a branch or after code on its line is conditional, `xfail(<expr>, ...)` has a positional condition, and a skip on an empty test (Java `{}`, Python `pass`) switches an inherited test off in a subclass it does not apply to; a skipped test with a body stays reported. 311 to 192 (0.051 to 0.0315, budget 0.03): just over, and the rest are real tests switched off. `typescript.test-without-assertion` unchanged at 22: 16 only call the code, 6 are otel compile-time type checks with no generic signal.
+- ARB-065 | Gold benchmark, all 24 repositories, native checks, `--jobs 4`, at `1047341` against `3984b05`: 8,170 to 7,729 findings, 10 to 9 rules over budget (`authored.security-check-disabled` leaves). Scan seconds summed 2,259.8 to 2,229.7; java-keycloak 1,196.3.
+### 2026-10-21 (Milestone 1: trustworthy numbers)
+- ARB-076 | Each tree-sitter query is compiled once per process: `run_query` used to build `Query(lang, src)` on every call (files × rules compilations). Compiled queries are cached by grammar and query text (tsx and typescript separately); a failed compile is never cached; the on-disk compiled-pack stamp is unchanged. `tests/test_query_cache.py` counts real compilations during a 1- and 8-file Ruby scan. Scan seconds per repository, same machine, `tools/gold_benchmark.py --only java-keycloak,ruby-rails,go-grpc,ts-nest --jobs 4 --no-fail`, before (`de35f15`) → after (`d693074`): ts-nest 252.5 → 26.2, ruby-rails 720.1 → 203.3, go-grpc 59.1 → 45.9, java-keycloak 2,124.1 → 1,499.8; wall clock 35:24 → 25:00; per-rule finding counts identical (2,200 both). Keycloak's remaining time is outside the packs: on `services/` (1,751 Java files) `authored` takes 28.4 s and `doc_drift` 14.9 s against `lang_java` 6.2 s.
+- ARB-078 | `import arbiter.lang_rules` works before `arbiter.probes`: lang_rules no longer imports probes at load time (it imported `PACKS` and `ProbeContext`, while probes imports lang_rules to register the packs). Two tests' import-order workaround lines removed. `tests/test_import_order.py` imports every module first in a fresh interpreter. FAIL-052.
+- ARB-062 | `controls._probe_of("arbiter/<lang>.x")` returns `lang_<lang>` (it returned `<lang>`, a probe that does not exist, so a control backed by a language-pack rule always read as not assessed). Tested for all five languages, including a real scan per language with a one-control pack. No shipped control pack references a language-pack rule yet, so shipped controls output is unchanged. FAIL-053.
+- ARB-080 | Same-evidence findings in one file each count: the distinct sites of one fingerprint get an occurrence ordinal in line order (occurrence 0 keeps its old id, occurrence k gets a derived one). Reports and new baselines say `fingerprint: occurrence-v1` (baseline schema 1.1). A 1.0 baseline still matches every repeat it collapsed, as do suppressions by id and `arbiter diff` from an older report, so upgrading leaves the gate green on unchanged code; `arbiter baseline REPORT --migrate OLD --out OLD` rewrites a 1.0 baseline without accepting anything new and keeps `created`, `commit` and `config_hash`. On this repository's committed 1.0 baseline (native, offline): 86 active (66 existing, 20 new) before, 100 (80 existing, 20 new) after. FAIL-054.
+- ARB-065 | `java.test-without-assertion` lowered to confidence low (reviewer-approved, instead of raising its budget). The gate reads severity only, so it is unaffected (the rule is severity low). The gold harness now records confidence and reports a confidence-weighted rate beside the raw one (low counts 0.5, the scorecard's low/medium factor); budgets stay on the raw rate, because weighting them moved three other rules under budget through their existing low-confidence findings while this one stayed over (276 findings, 0.092 raw, 0.046 weighted, budget 0.03).
+- ARB-065 / ARB-080 | Gold benchmark, all 24 repositories, native checks, `--jobs 4`: at `bd6bf16` (before ARB-080) 7,457 findings, 7 rules over budget, per-repository counts identical to `2026-10-21-gold-report-after.json` on its 23 repositories; at `7dd990c` 8,162 findings, 10 over budget (`authored.security-check-disabled`, `assurance.permanently-skipped-test` and `typescript.test-without-assertion` join, all from counting each same-evidence site). Scan seconds summed 2,308.9 (6,454.9 in the first run), keycloak 1,239.9. (The `7dd990c` run used the same scan code under an earlier, unpublished budget rule; its over-budget count was re-evaluated from the run's JSON with `evaluate` as committed.)
+### 2026-10-21 (CWE Top 25, TypeScript and Go round 1)
+- ARB-062 | Native rules for ranked gaps 1, 2 and 4 in TypeScript and Go.
+TypeScript: `jwt-decode-unverified` (CWE-287/347, medium: `jwt.decode` or
+jose `decodeJwt` in a function that never verifies; `decode(t, {complete:
+true})` is the key-lookup form and is not reported), `jwt-verify-insecure-options`
+(`algorithms: ["none"]`, `ignoreExpiration: true`; high), `jwt-hardcoded-secret`
+(CWE-798, literal secret to `jwt.sign`/`verify`; high), `error-stack-in-response`
+(CWE-200/209, `err.stack` in an Express/Koa response unless the function checks
+`NODE_ENV`; high) and `error-object-in-response` (`res.json(err)`; medium).
+Go: `jwt-parse-unverified` (medium, silent when the function also verifies),
+`jwt-claims-validation-disabled` (high), `hardcoded-signing-key` (`[]byte("…")`
+to `SignedString`, `hmac.New`, a keyfunc, or a key-named variable; high),
+`hardcoded-dsn-password` (mysql `user:pass@` and key=value DSNs; trivial
+passwords skipped as in `pg-url`; high), `error-text-in-response` (err text
+to `http.Error`/gin/echo with a 5xx, or `fmt.Fprint*`/`Write` to the writer
+in a handler; medium) and `pprof-on-default-mux` (medium; silent when the
+server listens on loopback). The pack schema gains `requires_in_scope`. The
+matrix moves TypeScript 287 and 200 and Go 287, 200 and 798 to N: TypeScript
+native 6 to 8 cells, Go 4 (798 part) to 6.
+### 2026-10-21 (CWE Top 25 round 1: Python and Ruby)
+- ARB-062 | Native rules for the ranked CWE Top 25 gaps in Python and Ruby.
+`python.jwt-unverified-decode` / `ruby.jwt-unverified-decode` (CWE-287):
+PyJWT and python-jose with `verify_signature: False`, `verify=False`, a
+"none" algorithm or `get_unverified_claims`; `JWT.decode(t, k, false)`. A
+function that also verifies with a fixed algorithm list (peek, then verify) is
+not reported. `python.jwt-literal-signing-key` / `ruby.jwt-literal-signing-key`
+(CWE-798): a string literal, or a `*_KEY`/`*_SECRET` constant tied to the call,
+as the key of jwt encode/decode; the secrets probe missed both.
+`python.csrf-protection-disabled` / `ruby.csrf-protection-disabled` (CWE-352):
+`@csrf_exempt` on a session-authenticated Django view, `WTF_CSRF_ENABLED =
+False` outside a test config; `skip_before_action :verify_authenticity_token`
+and `skip_forgery_protection` in a controller with a state-changing action that
+is not an API, webhook or self-authenticating controller. `null_session` is not
+reported. `python.error-traceback-to-client` / `ruby.error-backtrace-to-client`
+(CWE-209/200, high) and `python.error-message-to-client` /
+`ruby.error-message-to-client` (medium): a traceback, backtrace or catch-all
+exception message in a response in the same statement. Cells in
+`docs/cwe-top25.md`: Python 352, 287 and 200 and Ruby 352, 287 and 200 are
+now native; Python native 6 to 9, Ruby native 6 to 9 and caught 8 to 10.
+### 2026-10-21 (CWE Top 25, Java round 1)
+- ARB-062 | Java native rules for gap-list ranks 1-4 (`docs/cwe-top25.md`).
+CWE-287: `java.jwt-unsigned-accepted` (jjwt `parseClaimsJwt`,
+`parseUnsecuredClaims`, `.unsecured()`; high confidence) and
+`java.jwt-decode-without-verify` (auth0 `JWT.decode`, Nimbus `JWTParser.parse`
+with no `verify`/`require`/JWT processor in the file, an issuer or key-id peek
+excepted; medium). CWE-798: `java.hardcoded-signing-key` (`Algorithm.HMAC256`,
+`Keys.hmacShaKeyFor`, `signWith`/`setSigningKey`, `new SecretKeySpec` given a
+literal) and `java.hardcoded-db-password` (`DriverManager.getConnection` with a
+literal password or `password=` in the URL, `setPassword` on a data source);
+placeholders and empty passwords skipped, test code skipped, the literal never
+in the finding. CWE-352: `java.csrf-disabled` (all three Spring Security forms;
+high severity, medium confidence) and `java.csrf-disabled-stateless` (low/low
+where the file declares `SessionCreationPolicy.STATELESS`). CWE-200/209:
+`java.stack-trace-to-client` (high confidence) and
+`java.exception-message-to-client` (medium; broad or library exceptions only,
+tied to their own catch clause or `@ExceptionHandler`). Java Top 25 coverage:
+native 4 to 8 cells, caught by anything 8 to 11 of 15; gaps left 79, 77, 918,
+190. Gold Java repositories (httpclient, netty, spring-security, tomcat; keycloak
+skipped): 0 findings from the new rules. OWASP Benchmark Java unchanged
+(in-scope recall 1.0, FPR 0.565).
+### 2026-10-21 (gold re-run)
+- ARB-065 | Gold benchmark re-run after the precision fixes (Arbiter 8cf1ee7, 23 repositories without keycloak, native checks): 6,477 findings, 1.32 per KLOC, 7 rules over budget. The first run (d57e479, 24 repositories) had 12,468 findings, 2.05 per KLOC, 16 over budget. Results in `tools/gold/results/2026-10-21-gold-*-after.*`.
+### 2026-10-21 (roadmap)
+- ARB-066 to ARB-075 | Proposed roadmap requirements: remediation through MCP
+with a verify loop, explaining why a rule fired or did not, auto-apply only for
+fixes that verify, and seven requirements against hallucination and hidden
+assumptions (claims need evidence, assumption ledger, generated briefs,
+environment preflight, independent re-verification, verified/inferred/assumed
+labels, ask instead of guessing).
 ### 2026-10-21
+- ARB-067 | Gaps and next-steps report (`docs/gaps-and-next-steps.md`):
+where Arbiter stands, with measured numbers and their sources (gold benchmark,
+OWASP recall, CWE Top 25 matrix, scan times), the gaps in detection,
+precision, performance, platform, product and developer experience, fifteen
+improvements ranked by value over effort with requirement ids, an evaluation
+of fourteen testing options, and three milestones with measurable exit
+criteria. Every claim is labelled measured, inferred or assumed (ARB-074).
+Records the issues found during the overnight runs: findings with the same
+evidence collapsing, per-file query recompilation, the `lang_rules` import
+cycle and `controls._probe_of`. Documentation only; no code changed.
+- ARB-065 | Java and TypeScript packs fixed against the gold triage and
+OWASP Benchmark Java. TypeScript test-without-assertion recognises node:test
+plans (`tspl`) and their destructured methods, AVA's `t.*` assertions
+(`t.throwsAsync`), node:assert functions called bare, `runClient(t)`-style
+helpers, a Promise's `reject`, "should not crash / without error" titles and
+Playwright `({ page })` flows: 729 to 18 on the gold set (1.11 to 0.027 per
+KLOC). fetch-no-timeout skips browser files (`document`/`window`): 25 to 14.
+Java test-without-assertion skips `@Disabled`/`@Ignore` and empty `@Override`
+tests, tests whose name or `@DisplayName` says nothing throws (the TypeScript
+rule's convention), a conditional `throw`, and a method reference handed to
+a runner (keycloak run-on-server): 446 to 276, still over budget; the rest
+only call the code. Java sql-string-built needs a receiver (not Ant's
+`execute`), SQL words in the string, and a splice that is not
+identifier-shaped (`tableName`, `getTableName(...)`; a bare `column` stays),
+and tracks `String sql = ...` into a following `try`: gold 45 to 7. Java
+command-injection adds `Runtime r = Runtime.getRuntime(); r.exec(...)`,
+`exec("echo " + x)`, and a ProcessBuilder list in a method that adds a shell
+`-c`; weak-random-for-secret adds `new java.util.Random()`,
+`java.lang.Math.random()` and one hop through a local or a `nextBytes`
+buffer into a `rememberMe`/reset/auth key. OWASP Java in-scope recall 0.045
+to 1.0, false-positive rate 0.043 to 0.565, score 0.003 to 0.435: weak
+randomness 218/218 with no false positive; SQL and command injection flag
+every safe case too, because the safe cases differ only by constant
+propagation.
+- ARB-065 | Shared-probe precision on the gold set (23 repositories without
+Keycloak). undeclared-import 1,647 to 79: Python requirement files in any
+layout (`requirements/*.txt`, `requirements-*.txt`, `requirements.in`, extras
+and markers), Go files resolved against their nearest go.mod (and module paths
+without a slash), bare Node built-ins, tsconfig path aliases, Java plugin ids,
+artifactId-named packages, the Gradle API in plugin builds and a documented
+table of guaranteed transitive packages (jspecify, aopalliance,
+reactive-streams, jose4j), Ruby gemspecs and renamed requires.
+assigned-credential 1,019 to 132: only literals are judged (no unquoted
+values in source code), constants holding key names, headers, URLs, hashes or
+their own name's words are skipped, as are i18n bundles and docs; under test
+paths only generated-looking values report. blanket-suppression 243 to 178:
+gosec `#nosec G115` names a rule. stub-on-production-path 309 to 48: abstract,
+base-class, hook, explained and "not supported" bodies are declarations.
+Fixture private keys stay reported, as low with a `test-fixture` tag. Keycloak:
+undeclared-import 678 to 158, assigned-credential 677 to 56. Insecure apps
+keep their true positives (planted corpus unchanged in all five languages).
+- ARB-065 | Python and Ruby packs, first fixes from the gold triage.
+Python `sql-injection` skips a statement whose every spliced value is a
+quoting call (`quote_name`, `qn`, `escape_identifier`), an ALL_CAPS constant
+or a built SQL fragment, and a two-stage template whose values stay `%%s`
+binds (Django 65 to 29). `insecure-random-for-secret` also reports a
+`random` value stored in a session or cookie, and knows `normalvariate` and
+the other distributions; `weak-password-hash` reports an empty md5/sha1
+object fed by `update()` in a function that handles a password (OWASP
+Benchmark Python: weak randomness 0/99 to 99/99, weak hash 0/71 to 71/71, no
+safe case flagged). `code-injection` skips eval behind a validating guard
+that returns or raises (safe cases flagged 33/33 to 11/33; the rest are
+constant-propagation decoys). Ruby: `stub-method` treats a class with two or
+more bare `raise NotImplementedError` methods, a private hook, an
+`Abstract*`/`Base` class and "is not implemented" messages as the abstract
+idiom; `vacuous-spec` counts `should_*`/`expect_*`/`mock_*` helpers, a
+helper with a heredoc and "does not raise" names; `check-then-act-unlocked`
+needs a collection query and a mutating act, and skips a `Concurrent::Map`
+constant declared beside its use, ENV and per-thread stores; `sql-injection`
+skips `escape_*` and `.to_i` interpolations; `rescue-exception` skips a
+hand-off to an error method, a collected or wrapped exception, and a
+RuboCop disable; `swallowed-error` skips an empty rescue with a comment
+saying why, and `rescue => @ivar`. Each pinned by planted pairs and tests
+that keep a still-reported case.
+- ARB-062 | CWE Top 25 (2024) measured before any new rule: an
+applicability matrix for Python, TypeScript/JavaScript, Go, Java and Ruby
+(`docs/cwe-top25.md`), 47 new planted pairs, one per applicable cell not
+already in the corpus, and a ranked gap list. Each defect is marked with what
+reports it, native or semgrep/bandit. 32 defects nothing reports are tagged
+`gap: CWE-N` in the source (TS JWT `decode`, Java `csrf.disable()`, error
+detail returned to the client, uploads under the client's filename, SSRF
+outside Python...). `docs/probes.md` lists, per language, the CWEs that do not
+apply, are out of reach for single-file checks, or are gaps. One marker
+comment can now carry both `expect:` and `expect-ext:`.
+- ARB-065 | Gold-standard benchmark. A fourth group in
+`tools/fetch_corpus.sh` (`GOLD_ONLY=1`) pins 24 exemplary repositories, 4 or 5
+per language (urllib3, Django, Celery, aiohttp, cryptography; undici, Nest,
+jose, OpenTelemetry JS, axios; Caddy, containerd, CoreDNS, grpc-go, etcd;
+Netty, HttpClient 5, Tomcat, Spring Security, Keycloak; Rails, Rack, Puma,
+RubyGems). Each is pinned to one commit and chosen on evidence recorded in
+`tools/gold/repos.json`: OpenSSF Scorecard checks, the Best Practices badge,
+and stewardship. OWASP Benchmark for Java and Python is pinned too, as
+labelled ground truth. `tools/gold_benchmark.py` counts findings per rule
+per KLOC against per-rule budgets in `tools/gold/budgets.json` and exits 1
+on a breach. `--recall` scores a labelled benchmark per CWE: recall,
+false-positive rate and TPR-FPR, with the CWEs Arbiter claims kept apart
+from those it does not. First measurement (`tools/gold/results/`): 6,086
+KLOC, 2.05 findings/KLOC, 16 rules over budget, led by TypeScript
+test-without-assertion (1.11/KLOC, from tspl plans and AVA `t.*`),
+undeclared-import (0.38) and assigned-credential (0.28). In-scope recall
+is 0.045 on OWASP Java (command injection and weak randomness 0%) and 0.22
+on OWASP Python. The triage, with a file:line for each verdict and a
+prioritised fix list, is in `tools/gold/results/2026-10-21-triage.md`.
+No rule changed.
 - ARB-061 | Rule packs for Python, TypeScript/JavaScript, Go, Java and Ruby:
 races, outbound calls with no timeout (and Go DB calls with no deadline),
 retry loops with no backoff or cap, swallowed errors and unstoppable worker
@@ -19,6 +434,15 @@ Java undeclared-import reads Gradle version catalogs, maps packages to
 groupIds and treats Gradle test source sets as tests (2,295 findings to 117
 on seven Java repos); a skip annotation inside a comment is no longer a
 skipped test.
+- ARB-061 | Precision follow-ups in shared files, from the language runs.
+A Go test handing `t` to a helper in any argument position delegates its
+assertion (cobra 34 to 2 tests-assert-nothing); `//go:build ignore` generators
+may import undeclared modules (client_golang 2 to 0); `InsecureSkipVerify`
+beside its own `VerifyPeerCertificate`/`VerifyConnection`/`PeerCertSANs` in the
+same literal is custom verification, not off (traefik 25 to 20); a `_test/`
+directory holds tests (yaegi 19 source findings under it to 0). Pack queries
+are compiled when a pack loads, and one that does not compile raises a
+`PackError` naming pack, rule and reason instead of silently emptying a scan.
 - ARB-064 | Findings traceable in OmniGraph: rule and CWE nodes, `violates`
 and `classified_as` edges, full and gate reports merged, `--if-stale`
 rebuild, `omni graph findings --cwe/--rule`, impact by file or CWE.

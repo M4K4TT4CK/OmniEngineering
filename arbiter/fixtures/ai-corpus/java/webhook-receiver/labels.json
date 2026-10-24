@@ -1,0 +1,83 @@
+{
+  "app": "java/webhook-receiver",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "src/main/java/webhook/WebhookServer.java",
+      "line": 283,
+      "cwe": [
+        "CWE-918"
+      ],
+      "category": "ssrf",
+      "severity": "medium",
+      "justification": "validCallbackUrl only checks scheme and host, so callbacks can target localhost, RFC1918 or 169.254.169.254 and the server will POST payment data there; setting it needs the admin token, which limits it to medium, but an allowlist/private-address block is required.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "src/main/java/webhook/WebhookServer.java",
+      "line": 116,
+      "cwe": [
+        "CWE-294"
+      ],
+      "category": "replay",
+      "severity": "low",
+      "justification": "The signature covers only the body with no timestamp or nonce, so a captured request stays valid forever; deduplication by event id blunts it (hence low), but an event replayed after DB cleanup or with a provider-reused id would be accepted and forwarded again.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "src/main/java/webhook/WebhookServer.java",
+      "line": 151,
+      "cwe": [
+        "CWE-770",
+        "CWE-404"
+      ],
+      "category": "unbounded-memory",
+      "severity": "medium",
+      "justification": "Forwarding is submitted to an in-memory fixed thread pool with an unbounded queue: each pending task holds up to 1MB, slow callbacks (10s x3 plus sleeps) let the backlog grow without bound, and all pending deliveries for acknowledged payment events are silently lost on restart (status stuck at 'pending'), i.e. no durable outbox.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "src/main/java/webhook/WebhookServer.java",
+      "line": 201,
+      "end_line": 203,
+      "cwe": [
+        "CWE-390",
+        "CWE-778"
+      ],
+      "category": "swallowed-exception",
+      "severity": "low",
+      "justification": "Delivery exceptions (connection refused, timeout, bad URL) are caught and dropped without logging, so operators only ever see 'failed' with no cause.",
+      "source": "independent"
+    },
+    {
+      "id": "D5",
+      "file": "src/main/java/webhook/WebhookServer.java",
+      "line": 216,
+      "cwe": [
+        "CWE-390"
+      ],
+      "category": "swallowed-exception",
+      "severity": "low",
+      "justification": "If updating delivery_status fails the error is only printStackTrace'd, leaving the event stuck at 'pending' with no retry or alert.",
+      "source": "independent"
+    },
+    {
+      "id": "D6",
+      "file": "src/main/java/webhook/WebhookServer.java",
+      "line": 189,
+      "cwe": [
+        "CWE-345"
+      ],
+      "category": "missing-authn",
+      "severity": "low",
+      "justification": "The forwarded request reuses the provider's X-Signature, which merchants can only verify if they hold the provider shared secret; in practice the callback is unauthenticated (or the secret must be shared with every merchant). Sign forwards with a per-merchant secret.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

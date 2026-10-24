@@ -1,0 +1,12 @@
+source 'https://rubygems.org'
+
+gem 'csv'
+gem 'puma'
+gem 'rackup'
+gem 'sinatra', '~> 4.0'
+gem 'sqlite3', '~> 2.0'
+
+group :test do
+  gem 'minitest'
+  gem 'rack-test'
+end

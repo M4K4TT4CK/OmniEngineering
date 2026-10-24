@@ -35,9 +35,12 @@ def test_markers_parse_every_comment_style(tmp_path):
     (tmp_path / "a.go").write_text("x() // expect: arbiter/go.a, arbiter/go.b\n", encoding="utf-8")
     (tmp_path / "b.rb").write_text("y # expect-ext: semgrep/x\n", encoding="utf-8")
     (tmp_path / "c.py").write_text("z = 1\n", encoding="utf-8")
+    (tmp_path / "d.rb").write_text(
+        "w # expect: arbiter/ruby.a expect-ext: semgrep/y.z-1, bandit/B2\n", encoding="utf-8")
     got = sorted((e.rule, e.path, e.line, e.external) for e in planted.markers(tmp_path))
     assert got == [("arbiter/go.a", "a.go", 1, False), ("arbiter/go.b", "a.go", 1, False),
-                   ("semgrep/x", "b.rb", 1, True)]
+                   ("arbiter/ruby.a", "d.rb", 1, False), ("bandit/B2", "d.rb", 1, True),
+                   ("semgrep/x", "b.rb", 1, True), ("semgrep/y.z-1", "d.rb", 1, True)]
 
 
 def test_a_broken_pack_fails_loudly():
@@ -49,3 +52,20 @@ def test_a_broken_pack_fails_loudly():
         validate_pack({"languages": ["go"], "rules": [
             {"id": "x", "title": "t", "remediation": "r", "query": "(_) @hit", "sevrity": "high"}]},
             "t.yaml")
+
+
+def test_files_is_a_glob_or_a_list_of_globs():
+    from arbiter.lang_rules import PackError, _path_selected, validate_pack
+    base = {"id": "x", "title": "t", "remediation": "r", "query": "(_) @hit"}
+    validate_pack({"languages": ["ruby"], "rules": [{**base, "files": "*_spec.rb"}]}, "t.yaml")
+    validate_pack({"languages": ["ruby"], "rules": [{**base, "files": ["a.rb", "*/a.rb"]}]}, "t.yaml")
+    for bad in ([], [""], "", ["a.rb", 3], {"a": 1}):
+        with pytest.raises(PackError, match="files"):
+            validate_pack({"languages": ["ruby"], "rules": [{**base, "files": bad}]}, "t.yaml")
+    rule = {"files": ["config/environments/production.rb", "*/config/environments/production.rb"]}
+    assert _path_selected(rule, "config/environments/production.rb")
+    assert _path_selected(rule, "apps/shop/config/environments/production.rb")
+    assert not _path_selected(rule, "myconfig/environments/production.rb")
+    assert not _path_selected(rule, "config/environments/test.rb")
+    assert _path_selected({}, "anything.rb")
+    assert _path_selected({"files": "*_spec.rb"}, "spec/a_spec.rb")

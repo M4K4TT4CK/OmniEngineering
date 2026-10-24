@@ -4,9 +4,11 @@
 > statement to send each tester with their key, and it goes out as written. It
 > describes what the software actually does, which is verifiable in
 > [hosted-api.md](hosted-api.md) and in the test suite. It has not been through
-> counsel — ARB-005 tracks that, along with the L-3 term structure — so it is
-> not a contract and must not be presented as a signed agreement. Anything
-> beyond a pilot needs the counsel-reviewed version first.
+> counsel, so it is not a contract and must not be presented as a signed
+> agreement. Anything beyond a pilot needs the counsel-reviewed version first.
+> (2026-10-21: the software is Apache-2.0, which governs the code, not this
+> service; the earlier reference here to ARB-005's L-3 term structure belonged
+> to the superseded proprietary model — see [licensing.md](licensing.md).)
 
 You are about to upload a copy of source code — often your employer's — to a
 service somebody else runs. Here is what happens to it.
@@ -60,7 +62,8 @@ request.
 
 We read files. Nothing from your upload is executed: no build, no test suite, no
 git hook, no entry point, no package install. The scan does not reach the
-network — the profiles that would allow it are refused on this service.
+network — the profiles that would allow it are refused on this service, and
+the service holds no model key, so no excerpt of your code is sent to a model.
 
 ## About the report you get back
 

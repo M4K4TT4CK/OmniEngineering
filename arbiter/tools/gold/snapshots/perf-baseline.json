@@ -1,0 +1,14 @@
+{
+ "arbiter_commit": "2520303ae488d9b8e6e4d2182f822d8bb19fd368",
+ "recorded": "2026-10-22",
+ "reference_seconds": 0.338,
+ "targets": {
+  "ai-corpus": 1.1,
+  "ai-corpus-heldout": 13.27,
+  "go-coredns": 7.3,
+  "planted": 0.88,
+  "py-urllib3": 1.76,
+  "ruby-puma": 1.85,
+  "ts-jose": 1.79
+ }
+}

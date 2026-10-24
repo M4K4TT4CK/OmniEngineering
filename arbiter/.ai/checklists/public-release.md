@@ -1,8 +1,8 @@
-Not applicable to arbiter today: it is proprietary and ships its own
-`NOTICE.md` rather than the OmniEngineering `LICENSE`/`NOTICE`/
-`TRADEMARKS.md` set (see `.ai/project-configuration.md`). Keep this
-checklist for the day that changes, or for an adopting project that is
-already public.
+Applies to arbiter: the repository is public and, since 2026-10-21, licensed
+under Apache-2.0 (`LICENSE`, with Arbiter's copyright and the OmniEngineering
+workspace's notice in `NOTICE`, third-party components in `NOTICE.md`; see
+`docs/licensing.md`). The full-history secrets scan run for the change is
+recorded in `CHANGELOG.md` under 2026-10-21.
 
 - `LICENSE`, `NOTICE`, `TRADEMARKS.md`, `CONTRIBUTING.md` exist, are current,
   and name the actual license and actual trademark holder — not placeholder

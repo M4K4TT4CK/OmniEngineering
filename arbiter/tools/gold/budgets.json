@@ -1,0 +1,50 @@
+{
+  "_about": "Per-rule false-positive budgets for tools/gold_benchmark.py (ARB-065), in findings per thousand non-blank lines. A language-pack rule is divided by the KLOC of its own language across the gold set, a shared rule by all five languages. Lookup: exact entry in `rules`, else the longest matching entry in `prefixes`, else `default_per_kloc`. A rule with fewer than `min_count` findings is never a breach. On this code nearly every finding is a false positive, so a defect rule's budget is small: 0.03/KLOC is one finding per 33,000 lines. Budgets are targets, not a ratchet of today's numbers: a breach is a rule to fix, not a number to raise. Raising one needs a reason that names the evidence.",
+  "default_per_kloc": 0.03,
+  "min_count": 5,
+  "prefixes": {
+    "arbiter/ast.": {
+      "per_kloc": 0.5,
+      "reason": "Maintainability metrics (length, complexity, nesting) with fixed thresholds. Correct by construction on any code; reported for trend, budgeted only against a regression that multiplies them."
+    },
+    "arbiter/quality.": {
+      "per_kloc": 0.5,
+      "reason": "Size and TODO-density metrics, same as arbiter/ast.*: not defect claims."
+    },
+    "arbiter/supply.": {
+      "per_kloc": 0.1,
+      "reason": "Repository hygiene (floating ranges, unpinned actions) counted per manifest or workflow line, not per code line; gold projects deliberately use ranges in libraries."
+    },
+    "arbiter/drift.": {
+      "per_kloc": 0.1,
+      "reason": "Documentation drift scales with docs, not code; a docs site built by a generator legitimately links to pages that exist only after the build."
+    },
+    "arbiter/resource.": {
+      "per_kloc": 0.1,
+      "reason": "Kubernetes manifest hygiene: fires per manifest in examples and test deployments."
+    },
+    "arbiter/assurance.suppression-census": {
+      "per_kloc": 1.0,
+      "reason": "One informational census row per repository by design."
+    }
+  },
+  "rules": {},
+  "accepted_breaches": {
+    "_about": "Rules over budget by a recorded decision (user, 2026-10-22). Each stays in the report and in rules_over_budget; the benchmark fails again only if its rate passes ceiling_per_kloc, which is set about 10% above the rate measured at the decision.",
+    "arbiter/java.test-without-assertion": {
+      "ceiling_per_kloc": 0.073,
+      "decided": "2026-10-22",
+      "reason": "Known breach: 199 findings (0.066/KLOC) after the by-design exclusions in c4d8bfe; the rest are tests that only call the code, which is what the rule exists to report. Narrowing further would drop true findings."
+    },
+    "arbiter/assurance.permanently-skipped-test": {
+      "ceiling_per_kloc": 0.035,
+      "decided": "2026-10-22",
+      "reason": "Accepted overage: 192 findings (0.0315/KLOC) after 1047341; the remainder are real tests with bodies that are switched off."
+    },
+    "arbiter/typescript.test-without-assertion": {
+      "ceiling_per_kloc": 0.038,
+      "decided": "2026-10-22",
+      "reason": "Accepted overage: 22 findings (0.034/KLOC), all read: 16 only call the code, 6 are compile-time type checks with no generic signal."
+    }
+  }
+}

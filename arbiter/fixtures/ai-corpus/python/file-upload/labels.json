@@ -1,0 +1,99 @@
+{
+  "app": "python/file-upload",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "app.py",
+      "line": 42,
+      "cwe": [
+        "CWE-306"
+      ],
+      "category": "missing-authn",
+      "severity": "medium",
+      "justification": "Upload, download and delete endpoints have no authentication at all, so anyone who can reach the service can overwrite (?overwrite=true) or delete every stored file; the README only says to add auth later. I would block exposing it as-is.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "app.py",
+      "line": 53,
+      "cwe": [
+        "CWE-367",
+        "CWE-459"
+      ],
+      "category": "race-condition",
+      "severity": "medium",
+      "justification": "Files are written in place: overwrite mode truncates the existing file before copying, so concurrent downloads see a partial file and a failure mid-copy (e.g. disk full) destroys the old file and leaves a truncated one (which also blocks retries with 409). Write to a temp file and os.replace it.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "app.py",
+      "line": 107,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "unbounded-memory",
+      "severity": "medium",
+      "justification": "Pillow only raises DecompressionBombError above 2x MAX_IMAGE_PIXELS; images between ~89M and ~179M pixels merely warn and are fully decoded, so a small crafted PNG can make each thumbnail request allocate hundreds of MB.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "app.py",
+      "line": 112,
+      "cwe": [
+        "CWE-362"
+      ],
+      "category": "race-condition",
+      "severity": "low",
+      "justification": "The temp file name `<size>.tmp` is shared by all concurrent requests for the same thumbnail, so two simultaneous requests write the same temp file and one os.replace can publish a half-written PNG or fail with FileNotFoundError (500).",
+      "source": "independent"
+    },
+    {
+      "id": "D5",
+      "file": "app.py",
+      "line": 115,
+      "cwe": [
+        "CWE-755"
+      ],
+      "category": "unhandled-input-error",
+      "severity": "low",
+      "justification": "Only UnidentifiedImageError and DecompressionBombError are caught; a truncated or corrupt image raises OSError during thumbnail()/save(), producing a 500 instead of the documented 415.",
+      "source": "independent"
+    },
+    {
+      "id": "D6",
+      "file": "test_app.py",
+      "line": 77,
+      "cwe": [],
+      "category": "test-ineffective",
+      "severity": "low",
+      "justification": "`/files/..%2Fsecret` is decoded to a path with a slash that never matches the `/files/<name>` route, so the 404 comes from Flask routing and the test does not exercise the file_path() name validation it claims to cover.",
+      "source": "independent"
+    },
+    {
+      "id": "D7",
+      "file": "requirements.txt",
+      "line": 1,
+      "end_line": 3,
+      "cwe": [
+        "CWE-1104"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependencies use open-ended `>=` ranges (flask, pillow, pytest); Pillow in particular has frequent security releases and breaking changes, so the version should be pinned.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": [
+    {
+      "rule": "arbiter/authored.undeclared-import",
+      "file": "app.py",
+      "line": 9,
+      "reason": "werkzeug is Flask's own dependency and werkzeug.utils.secure_filename is Flask's documented upload helper; requirements.txt declares flask"
+    }
+  ]
+}

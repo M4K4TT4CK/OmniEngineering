@@ -37,6 +37,7 @@ on:
 permissions:
   contents: write        # the nightly job commits the refreshed baseline
   pull-requests: write   # the pull-request job posts its comment
+  security-events: write # the SARIF upload to code scanning
 
 concurrency:
   group: arbiter-${{ github.ref }}

@@ -1,0 +1,52 @@
+{
+  "app": "python/notes-api",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "app.py",
+      "line": 47,
+      "cwe": [
+        "CWE-916"
+      ],
+      "category": "weak-password-hash",
+      "severity": "low",
+      "justification": "scrypt with n=2**14 is below the OWASP minimum cost (N=2^17, r=8, p=1) for password storage; borderline, but I would require raising the work factor (also on line 53) before production.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "app.py",
+      "line": 127,
+      "cwe": [
+        "CWE-770"
+      ],
+      "category": "unbounded-input",
+      "severity": "low",
+      "justification": "No request body size limit anywhere (FastAPI/uvicorn have none by default); the pydantic max_length checks only run after the whole JSON body has been read and parsed, so a large body from an unauthenticated client can exhaust memory.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "requirements.txt",
+      "line": 1,
+      "end_line": 4,
+      "cwe": [
+        "CWE-1104"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "fastapi, uvicorn, httpx and pytest are completely unpinned, so installs are non-reproducible and can silently pull breaking or malicious versions.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": [
+    {
+      "rule": "arbiter/authored.undeclared-import",
+      "file": "app.py",
+      "line": 13,
+      "reason": "pydantic is FastAPI's own dependency and BaseModel is FastAPI's documented request-model API; requirements.txt declares fastapi"
+    }
+  ]
+}

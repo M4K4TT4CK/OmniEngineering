@@ -1,0 +1,96 @@
+{
+  "app": "typescript/tenant-notes",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "package.json",
+      "line": 16,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"better-sqlite3\": \"^11.7.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "package.json",
+      "line": 19,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"@types/better-sqlite3\": \"^7.6.12\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "package.json",
+      "line": 20,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"@types/node\": \"^22.10.0\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "package.json",
+      "line": 21,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"tsx\": \"^4.19.2\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D5",
+      "file": "package.json",
+      "line": 22,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency \"typescript\": \"^5.7.2\" uses a caret range, so installs can silently pull newer minor/patch releases; there is no lockfile in the app to pin the resolved version.",
+      "source": "independent"
+    },
+    {
+      "id": "D6",
+      "file": "store.ts",
+      "line": 204,
+      "end_line": 207,
+      "cwe": [
+        "CWE-613"
+      ],
+      "category": "insufficient-session-expiration",
+      "severity": "medium",
+      "justification": "login() inserts a bearer token row with no expiry column and authenticate() never checks age; tokens are valid forever and there is no logout/revocation path, so a leaked token grants permanent access.",
+      "source": "independent"
+    },
+    {
+      "id": "D7",
+      "file": "server.ts",
+      "line": 44,
+      "end_line": 47,
+      "cwe": [
+        "CWE-307"
+      ],
+      "category": "missing-rate-limit",
+      "severity": "medium",
+      "justification": "POST /auth/login has no rate limiting, lockout or backoff, so passwords (including the short 12-char generated temporary passwords) can be brute-forced online without restriction.",
+      "source": "independent"
+    },
+    {
+      "id": "D8",
+      "file": "store.ts",
+      "line": 201,
+      "cwe": [
+        "CWE-208"
+      ],
+      "category": "timing-attack",
+      "severity": "low",
+      "justification": "When the email is unknown, login returns 401 without running scrypt, but a known email incurs a full scrypt verification; the response-time difference lets an attacker enumerate registered emails.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

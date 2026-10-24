@@ -2,17 +2,29 @@
 
 `arbiter.yaml` at the repository root is the whole configuration surface. There
 is no second config file, no environment-variable override matrix, and no
-implicit user-level defaults.
+implicit user-level defaults. Arbiter looks for `arbiter.yaml`, then
+`arbiter.yml`, then `.arbiter.yaml` in the first target; `--config FILE`
+overrides that. Every key is optional: anything you leave out takes the default
+in `DEFAULTS` in `src/arbiter/policy.py`. The only environment variables a scan
+reads are credentials and cache locations (`ANTHROPIC_API_KEY` for the model
+passes, `ARBITER_CACHE_DIR`, `ARBITER_NO_VERSION_MEMO`), never policy.
+
+This repository's own [`arbiter.yaml`](../arbiter.yaml) is a working example.
 
 ## Contents
 
 - [The file](#the-file)
 - [Profiles](#profiles)
+- [Model verification](#model-verification)
 - [Gating](#gating)
+- [Precision tiers](#precision-tiers)
+- [Scoring](#scoring)
+- [Choosing probes](#choosing-probes)
 - [Suppressions](#suppressions)
 - [House rules](#house-rules)
 - [Adaptive thresholds](#adaptive-thresholds)
 - [External analyzers](#external-analyzers)
+- [Other keys](#other-keys)
 - [Where state lives](#where-state-lives)
 
 ---
@@ -21,7 +33,7 @@ implicit user-level defaults.
 
 ```yaml
 version: 1
-profile: offline          # offline | ci | connected | audit
+profile: offline          # offline | ci | assisted | connected | audit
 
 gate:
   fail_on:
@@ -49,9 +61,10 @@ A profile is a capability budget, not a severity setting.
 
 | Profile | Network | Model | For |
 |---|---|---|---|
-| `offline` | no | no | air-gapped and high-side environments |
+| `offline` (default) | no | no | air-gapped and high-side environments |
 | `ci` | no | no | fast, deterministic gating |
-| `connected` | yes | yes | full depth |
+| `assisted` | only the model call | verification only | `ci` plus the model verification pass ([precision.md](precision.md#model-verification)) |
+| `connected` | yes | yes | full depth: registry lookups, the judgement pass |
 | `audit` | yes | yes | everything, no time budget |
 
 A probe that needs a capability the profile forbids is skipped with that reason
@@ -59,6 +72,39 @@ recorded, so the report says what the profile cost you. Coverage falls by
 exactly the amount that was not checked — the grade never quietly absorbs it.
 
 Override per run with `arbiter scan . --profile connected`.
+
+## Model verification
+
+The `verify:` block configures the optional model verification pass, which
+asks a model to confirm or reject each finding and records the verdict on it
+(how it works: [precision.md](precision.md#model-verification)). It needs
+`ANTHROPIC_API_KEY`; without one, every candidate is recorded as
+`not_verified` and the report says so. Defaults:
+
+```yaml
+verify:
+  enabled: null            # null: the profile decides (on for assisted)
+  provider: anthropic
+  model: claude-opus-5-5
+  effort: medium
+  min_severity: medium
+  max_findings: 150        # model calls per scan
+  max_tokens: 400000       # input + output tokens per scan
+  max_output_tokens: 4000  # per call
+  excerpt_lines: 120
+  cache: true              # .arbiter/verify-cache.json; cache_path overrides
+  skip_rules: ["arbiter/ast.*", "arbiter/quality.*", "arbiter/assurance.suppression-census"]
+  # fp_notes_path: FILE    # known false-positive notes; default: the shipped ledger
+```
+
+| Profile | Verification runs |
+|---|---|
+| `offline`, `ci` | never, whatever `verify.enabled` or `--model-verify` say |
+| `assisted` | yes, unless `verify.enabled: false` or `--no-model-verify` |
+| `connected`, `audit` | only with `verify.enabled: true` or `--model-verify` |
+
+Do not confuse this with `arbiter verify REPORT`, which checks a report's
+claim ledger and calls no model ([cli.md](cli.md#integrity-and-compliance)).
 
 ## Gating
 
@@ -69,20 +115,83 @@ gate:
     new: high
     coverage_below: 0.60
   gate_on_inferred: false
-  use_calibration: false
+  fail_on_probe_error: false
+  tier_mode: legacy
+  tiers: [verified]
 ```
 
 | Key | Effect |
 |---|---|
-| `severity` | any finding at or above this severity fails |
-| `new` | findings at or above this severity that are absent from the baseline fail |
-| `coverage_below` | the run fails if rubric coverage falls below this fraction |
-| `gate_on_inferred` | when false (default), findings with `provenance: inferred` never fail a build |
-| `use_calibration` | when false (default), learned confidence never changes a gate outcome |
+| Key | Default | Effect |
+|---|---|---|
+| `fail_on.severity` | `critical` | any finding at or above this severity fails |
+| `fail_on.new` | none | findings at or above this severity that are absent from the baseline (`--baseline`) fail |
+| `fail_on.coverage_below` | none | the run fails if rubric coverage falls below this fraction |
+| `gate_on_inferred` | `false` | when false, findings with `provenance: inferred` (from a model) never fail a build |
+| `fail_on_probe_error` | `false` | when true, a probe that errored fails the build |
+| `tier_mode` | `legacy` | `legacy`: `fail_on` reads every active finding. `tiered`: only findings whose precision tier is in `tiers` ([below](#precision-tiers)). Any other value is an error |
+| `tiers` | `[verified]` | under `tier_mode: tiered`, the tiers that can fail the gate: any of `verified`, `advisory`, `inferred` |
+
+Suppressed findings never fail the gate. The gate reads severity, never
+confidence, so calibration ([calibration.md](calibration.md)) cannot change a
+gate outcome. (Older docs mention a `use_calibration` key; nothing reads it.)
 
 `coverage_below` is the guard against a reassuring result from a scan that
 barely ran. Without it, uninstalling an analyzer looks identical to fixing every
 finding it produced.
+
+## Precision tiers
+
+Every finding in every report carries a precision tier, `verified`,
+`advisory` or `inferred`, and a one-line `tier_reason`. The tier says whether
+the finding is precise enough to block a `tiered` gate; it never hides or
+re-grades a finding. The rules for assigning tiers are in
+[precision.md](precision.md#tiers).
+
+```yaml
+precision:
+  ledger: null            # null = the ledger shipped with Arbiter (src/arbiter/packs/precision.json)
+  verified_rules: []      # rule ids or globs declared verified; the ledger must still admit them
+  deterministic_profiles: [offline, ci]   # profiles that cannot ask a model
+```
+
+Today no rule is declared verified, so every deterministic finding is
+`advisory` and a `tier_mode: tiered` gate blocks nothing. That is why
+`legacy` is the default. Switch a repository to `tiered` only once rules it
+cares about are declared verified and admitted by the ledger
+([precision.md](precision.md#current-numbers) has the current state).
+
+## Scoring
+
+```yaml
+score:
+  coverage_threshold: 0.6     # below this rubric coverage the overall grade is withheld
+  weights:                    # per dimension; the defaults are below
+    security: 0.30
+    quality: 0.20
+    supply_chain: 0.15
+    interface: 0.15
+    compliance: 0.10
+    drift: 0.10
+    assurance: 0.0            # deliberately zero: it measures the checking, not the code
+```
+
+`coverage_threshold` decides when the grade is withheld; `gate.fail_on.coverage_below`
+decides when the gate fails. They are separate keys.
+
+## Choosing probes
+
+```yaml
+probes:
+  disable: [judgement]                 # same as --skip on every run
+  severity_overrides:
+    "arbiter/quality.todo-density": info   # rule id or glob -> severity
+  adapters_parallel: 2                 # see External analyzers
+```
+
+`--only` and `--skip` on the command line choose probes for one run; `arbiter
+probes .` lists the probe names. A disabled probe is reported as skipped, so
+coverage shows what it cost.
 
 ## Suppressions
 
@@ -125,8 +234,10 @@ rules:
     type: ast_query
     languages: [python]
     files: "src/**/*.py"
-    query: "(except_clause) @hit"
-    title: "Bare or broad except clause"
+    # The predicate is the rule: `(except_clause) @hit` alone matches every handler.
+    query: '(except_clause (identifier) @t (#match? @t "^(Exception|BaseException)$")) @hit'
+    capture: hit
+    title: "Broad except clause"
     remediation: "Catch the specific exception, or re-raise after handling."
     severity: low
 ```
@@ -188,6 +299,17 @@ memoised adapter per scan and reports a divergence as
 `arbiter/assurance.cache-divergence`; `--no-cache` disables the memo along
 with the rest of the cache.
 
+## Other keys
+
+| Key | Effect |
+|---|---|
+| `quality.max_file_lines`, `quality.max_function_lines`, `quality.max_complexity` | fixed thresholds (defaults 800, 120, 20); see [Adaptive thresholds](#adaptive-thresholds) |
+| `cache.enabled` | `false` turns the result cache off, like `--no-cache` ([cli.md](cli.md#the-result-cache)) |
+| `controls.frameworks`, `controls.packs` | limit the control-coverage summary to these framework ids; extra pack directories ([compliance.md](compliance.md)) |
+| `terraform.plans` | Terraform plan JSON files to read, as `--tfplan` ([probes.md](probes.md#terraform-supply-a-plan)) |
+| `judgement.provider`, `judgement.model`, `judgement.timeout`, `judgement.api_key_env` | the judgement pass ([probes.md](probes.md#the-judgement-pass)) |
+| `out` | tells the doc-drift probe where generated output lives ([below](#where-state-lives)) |
+
 ## Where state lives
 
 | Path | Contents | Commit it? |
@@ -197,6 +319,7 @@ with the rest of the cache.
 | `.arbiter/knowledge.json` | calibration ledgers and learned confidence | yes |
 | `.arbiter/external-severity.json` | measured severities for external checks | yes |
 | `.arbiter/cache.json` | per-file results of the file-local probes, and one whole-tree entry per external analyzer | no — git-ignored |
+| `.arbiter/verify-cache.json` | model verification verdicts, keyed on the excerpt, model and prompt version | optional — not git-ignored; committing it lets another machine reproduce the verdicts without model calls |
 | `~/.cache/arbiter/tool-versions.json` (`ARBITER_CACHE_DIR`) | the external analyzers' version strings, keyed on each binary's path, mtime and size, so registration does not run every `--version` on every invocation; `--no-cache` leaves it alone, `ARBITER_NO_VERSION_MEMO=1` bypasses it, and a tool replaced in place with the same size and mtime keeps its old string until the file is deleted | no — machine-local |
 | `arbiter-out/` | reports from the last run | no — git-ignored |
 | `arbiter-ab/` | A/B harness output | no — git-ignored |

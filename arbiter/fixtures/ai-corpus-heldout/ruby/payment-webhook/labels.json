@@ -1,0 +1,128 @@
+{
+  "app": "ruby/payment-webhook",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "Gemfile",
+      "line": 3,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Gem 'puma' has no version constraint, so bundle install resolves whatever release is newest, including future major versions with breaking changes.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "Gemfile",
+      "line": 4,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Gem 'sinatra' has no version constraint, so bundle install resolves whatever release is newest, including future major versions with breaking changes.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "Gemfile",
+      "line": 5,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Gem 'sqlite3' has no version constraint, so bundle install resolves whatever release is newest, including future major versions with breaking changes.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "Gemfile",
+      "line": 8,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Gem 'minitest' has no version constraint, so bundle install resolves whatever release is newest, including future major versions with breaking changes.",
+      "source": "independent"
+    },
+    {
+      "id": "D5",
+      "file": "Gemfile",
+      "line": 9,
+      "cwe": [],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Gem 'rack-test' has no version constraint, so bundle install resolves whatever release is newest, including future major versions with breaking changes.",
+      "source": "independent"
+    },
+    {
+      "id": "D6",
+      "file": "app.rb",
+      "line": 43,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "unbounded-request-body",
+      "severity": "medium",
+      "justification": "request.body.read reads the whole unauthenticated webhook body into memory with no size cap, before the signature is even checked, so a huge POST can exhaust memory.",
+      "source": "independent"
+    },
+    {
+      "id": "D7",
+      "file": "app.rb",
+      "line": 28,
+      "end_line": 29,
+      "cwe": [],
+      "category": "logic-bug",
+      "severity": "medium",
+      "justification": "payment.succeeded only applies to 'pending' orders, so a successful payment that follows a payment.failed (customer retries the card) is recorded as 'ignored' and the order stays 'failed' even though it was paid; the test at webhook_test.rb:77 enshrines this.",
+      "source": "independent"
+    },
+    {
+      "id": "D8",
+      "file": "app.rb",
+      "line": 111,
+      "end_line": 113,
+      "cwe": [
+        "CWE-20"
+      ],
+      "category": "logic-bug",
+      "severity": "medium",
+      "justification": "The event amount is never compared with the order's stored amount, so a payment.succeeded for any amount (e.g. 1 cent) marks a 1500-cent order 'paid', and a refund of any amount marks it fully 'refunded'.",
+      "source": "independent"
+    },
+    {
+      "id": "D9",
+      "file": "app.rb",
+      "line": 53,
+      "end_line": 55,
+      "cwe": [
+        "CWE-306"
+      ],
+      "category": "missing-authn",
+      "severity": "low",
+      "justification": "GET /orders/:id has no authentication, so anyone can look up payment status and amount of any order by guessing ids like 'order-1'.",
+      "source": "independent"
+    },
+    {
+      "id": "D10",
+      "file": "app.rb",
+      "line": 134,
+      "cwe": [],
+      "category": "undeclared-dependency",
+      "severity": "low",
+      "justification": "run! on Sinatra 4 (the unpinned sinatra gem resolves to 4.x) needs the 'rackup' gem to find a server handler, but rackup is not in the Gemfile, so the README's 'bundle exec ruby app.rb' aborts.",
+      "source": "independent"
+    },
+    {
+      "id": "D11",
+      "file": "webhook_test.rb",
+      "line": 18,
+      "end_line": 21,
+      "cwe": [],
+      "category": "test-ineffective",
+      "severity": "low",
+      "justification": "The tests never set RACK_ENV/APP_ENV=test, so Sinatra 4.1+ runs in development with host authorization enabled and rejects Rack::Test's default host example.org with 403; the suite fails instead of exercising the app.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

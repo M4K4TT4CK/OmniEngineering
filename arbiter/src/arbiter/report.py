@@ -29,6 +29,72 @@ def _remediation_text(f: Finding) -> str:
     return f.remediation or NO_REMEDIATION
 
 
+TIER_ORDER = ["verified", "advisory", "inferred"]
+
+
+def tier_counts(findings: list[Finding]) -> dict[str, int]:
+    out = {t: 0 for t in TIER_ORDER}
+    for f in findings:
+        t = f.tier or "advisory"
+        out[t] = out.get(t, 0) + 1
+    return out
+
+
+def tier_summary(report: Report) -> str:
+    """'tiers: 3 verified · 40 advisory · 0 inferred (gate: legacy)'. The
+    mode is part of the line: under legacy every tier can fail the gate."""
+    counts = tier_counts(report.active())
+    mode = (report.gate or {}).get("tier_mode", "legacy")
+    gate = ("gate reads every tier" if mode == "legacy"
+            else "gate reads " + ", ".join((report.gate or {}).get("tiers") or ["verified"]))
+    return ("tiers: " + " · ".join(f"{counts[t]} {t}" for t in TIER_ORDER)
+            + f" (tier_mode {mode}: {gate})")
+
+
+def _tiered(report: Report) -> bool:
+    return (report.gate or {}).get("tier_mode") == "tiered"
+
+
+def _sarif_level(report: Report, f: Finding) -> str:
+    """Severity's level, except that under a tiered gate a finding that
+    cannot block (advisory, inferred) is a note: an `error` the gate ignores
+    teaches people to ignore errors. Under legacy every finding can block, so
+    the level stays the severity's."""
+    if _tiered(report) and (f.tier or "advisory") != "verified":
+        return "note"
+    return SARIF_LEVEL.get(f.severity, "warning")
+
+
+def _verification_text(f: Finding) -> str:
+    """'model: rejected -- <reason>' when the verification pass looked; ''
+    when it did not run. `not_verified` is spelled out: it is not a pass."""
+    v = f.verification or {}
+    verdict = v.get("verdict")
+    if not verdict:
+        return ""
+    label = "not model-verified" if verdict == "not_verified" else f"model: {verdict}"
+    reason = v.get("reason") or ""
+    cached = " (cached)" if v.get("cached") else ""
+    return f"{label}{cached}" + (f" -- {reason}" if reason else "")
+
+
+def _verification_tally(members: list[Finding]) -> str:
+    counts: dict[str, int] = {}
+    for m in members:
+        verdict = (m.verification or {}).get("verdict")
+        if verdict:
+            counts[verdict] = counts.get(verdict, 0) + 1
+    if not counts:
+        return ""
+    order = ["confirmed", "rejected", "unsure", "not_verified"]
+    return "model: " + ", ".join(f"{counts[k]} {k.replace('_', ' ')}" for k in order if k in counts)
+
+
+def _verification_summary(report: Report) -> str:
+    from .verify import summary_line
+    return summary_line((report.scan_scope or {}).get("verification") or {})
+
+
 def _grouped(findings: list[Finding], key) -> list[list[Finding]]:
     """Cluster findings that share `key(f)`, preserving first-seen order.
 
@@ -196,6 +262,14 @@ def _bluf_lines(report: Report) -> list[str]:
             f"{noted} finding(s) below carry a scope note from this repo's own docs, "
             "marked unverified -- a doc's claim, not a check that ran."
         )
+    vs = (report.scan_scope or {}).get("verification") or {}
+    if vs.get("not_verified"):
+        lines.append(
+            f"{vs['not_verified']} of {vs.get('candidates', 0)} finding(s) at or above "
+            f"{vs.get('min_severity', 'medium')} were not model-verified"
+            + (f" ({vs['reason']})" if vs.get("reason") else "")
+            + " -- no verdict, which is not a confirmation."
+        )
     no_fix = sum(1 for f in report.active() if f.remediation_source == "default")
     if no_fix:
         lines.append(
@@ -232,6 +306,7 @@ def write_sarif(report: Report, path: str, min_severity: str | None = None) -> N
                     "tags": f.tags + f.controls
                     + [f"external/cwe/{c.lower()}" for c in f.cwe],
                     **({"cwe": list(f.cwe)} if f.cwe else {}),
+                    **({"requirements": list(f.requirements)} if f.requirements else {}),
                 },
             }
         loc = {
@@ -244,7 +319,7 @@ def write_sarif(report: Report, path: str, min_severity: str | None = None) -> N
             loc["logicalLocations"] = [{"fullyQualifiedName": f.location.logical}]
         results.append({
             "ruleId": f.rule_id,
-            "level": SARIF_LEVEL.get(f.severity, "warning"),
+            "level": _sarif_level(report, f),
             "message": {"text": f.title},
             "locations": [loc],
             "fingerprints": {"arbiter/v1": f.id},
@@ -256,6 +331,10 @@ def write_sarif(report: Report, path: str, min_severity: str | None = None) -> N
                 "remediation": _remediation_text(f),
                 "remediation_source": f.remediation_source,
                 "scope_note": f.scope_note,
+                "tier": f.tier or "advisory",
+                "tier_reason": f.tier_reason,
+                **({"requirements": list(f.requirements)} if f.requirements else {}),
+                **({"verification": f.verification} if f.verification else {}),
             },
         })
     doc = {
@@ -274,6 +353,8 @@ def write_sarif(report: Report, path: str, min_severity: str | None = None) -> N
                 "properties": {
                     "profile": report.profile,
                     "coverage": report.scorecard.coverage,
+                    "tier_mode": (report.gate or {}).get("tier_mode", "legacy"),
+                    "tiers": tier_counts(report.active()),
                     "bluf": _bluf_lines(report),
                     "skipped_probes": [
                         {"name": p.name, "reason": p.reason}
@@ -368,6 +449,8 @@ def render_console(report: Report, color: bool | None = None, limit: int = 40) -
     )
     L.append(head.rstrip() or _color(color, "green", "  no findings"))
 
+    if active:
+        L.append(_color(color, "dim", "  " + tier_summary(report)))
     if sc.withheld:
         L.append("  " + _color(color, "medium", f"grade withheld — {sc.withheld_reason}"))
     elif sc.overall is not None:
@@ -403,9 +486,18 @@ def render_console(report: Report, color: bool | None = None, limit: int = 40) -
             prefix = "" if (f.location.repo_id or len(report.repos) == 1) else f"{f.repo_id}:"
             where = prefix + f.location.short()
             L.append(f"  {tag} {where}  {f.title}{conf}")
-            L.append(_color(color, "dim", f"           {f.rule_id}  {f.id}"))
+            L.append(_color(color, "dim", f"           {f.rule_id}  {f.id}  [{f.tier or 'advisory'}]"
+                                          + (f" {f.tier_reason}" if f.tier_reason else "")))
+            vt = _verification_text(f)
+            if vt:
+                L.append(_color(color, "dim", f"           {vt}"))
         if len(active) > limit:
             L.append(_color(color, "dim", f"  … {len(active) - limit} more (see the JSON report)"))
+        L.append("")
+
+    vsum = _verification_summary(report)
+    if vsum:
+        L.append("  " + vsum)
         L.append("")
 
     skipped = [p for p in report.probes if p.status != "ran"]
@@ -459,7 +551,14 @@ def render_markdown(report: Report) -> str:
     L.append("|" + "---|" * len(SEV_ORDER))
     L.append("| " + " | ".join(str(counts[s]) for s in SEV_ORDER) + " |")
     L.append("")
+    if active:
+        L.append(tier_summary(report).replace("tiers: ", "**Tiers:** ", 1))
+        L.append("")
     L.extend(requirement_block(active, base=(report.scan_scope or {}).get("changed_since")))
+    vsum = _verification_summary(report)
+    if vsum:
+        L.append(vsum[0].upper() + vsum[1:] + ".")
+        L.append("")
 
     if sc.dimensions:
         gaps: dict[str, list[str]] = defaultdict(list)
@@ -499,12 +598,17 @@ def render_markdown(report: Report) -> str:
                 f = members[0]
                 if len(members) == 1:
                     repo = f"`{f.repo_id}` " if len(report.repos) > 1 else ""
-                    L.append(f"- {repo}**{f.title}**  \n  `{f.location.short()}` · `{f.rule_id}` · {f.id}")
+                    L.append(f"- {repo}**{f.title}**  \n  `{f.location.short()}` · `{f.rule_id}` · {f.id}"
+                             f" · {f.tier or 'advisory'}"
+                             + (f" ({f.tier_reason})" if f.tier_reason else ""))
                     if f.description:
                         L.append(f"  \n  {f.description}")
                     L.append(f"  \n  Fix: {_remediation_text(f)}")
                     if f.scope_note:
                         L.append(f"  \n  ⚠ {f.scope_note}")
+                    vt = _verification_text(f)
+                    if vt:
+                        L.append(f"  \n  ⚖ {vt}")
                     continue
 
                 files = {m.location.path for m in members}
@@ -513,14 +617,25 @@ def render_markdown(report: Report) -> str:
                 if len(locs) > GROUP_LOCATION_CAP:
                     loc_text += f", … {len(locs) - GROUP_LOCATION_CAP} more"
                 remediations = dict.fromkeys(_remediation_text(m) for m in members)
+                tiers = tier_counts(members)
+                tier_text = ", ".join(f"{tiers[t]} {t}" for t in TIER_ORDER if tiers[t])
+                reasons = list(dict.fromkeys(m.tier_reason for m in members if m.tier_reason))
                 L.append(
                     f"- **{f.title}** (×{len(members)} across {len(files)} file(s))  \n"
-                    f"  `{f.rule_id}`  \n  {loc_text}"
+                    f"  `{f.rule_id}` · {tier_text}"
+                    + (f" ({' / '.join(reasons[:3])})" if reasons else "")
+                    + f"  \n  {loc_text}"
                 )
                 L.append(f"  \n  Fix: {' / '.join(remediations)}")
                 scope_notes = dict.fromkeys(m.scope_note for m in members if m.scope_note)
                 if scope_notes:
                     L.append(f"  \n  ⚠ {' / '.join(scope_notes)}")
+                tally = _verification_tally(members)
+                if tally:
+                    L.append(f"  \n  ⚖ {tally}")
+                    for m in members:
+                        if (m.verification or {}).get("verdict") not in (None, "confirmed"):
+                            L.append(f"  \n  ⚖ `{m.location.short()}` {_verification_text(m)}")
             L.append("")
 
     skipped = [p for p in report.probes if p.status != "ran"]
@@ -589,6 +704,9 @@ def _html_rows_findings(active: list[Finding], loc_cell) -> str:
                 ) + "</span>"
             fix = f"<br><span class='muted'>Fix: {e(_remediation_text(f))}</span>"
             scope = f"<br><span class='muted'>&#9888; {e(f.scope_note)}</span>" if f.scope_note else ""
+            vt = _verification_text(f)
+            if vt:
+                scope += f"<br><span class='muted'>&#9878; {e(vt)}</span>"
             out.append(
                 f"<tr><td><span class='pill s-{f.severity}'>{f.severity}</span></td>"
                 f"<td>{e(f.title)}<br><span class='muted mono'>{e(f.rule_id)} · {e(f.id)}"
@@ -605,6 +723,9 @@ def _html_rows_findings(active: list[Finding], loc_cell) -> str:
         fix = f"<br><span class='muted'>Fix: {e(' / '.join(remediations))}</span>"
         scope_notes = dict.fromkeys(m.scope_note for m in members if m.scope_note)
         scope = f"<br><span class='muted'>&#9888; {e(' / '.join(scope_notes))}</span>" if scope_notes else ""
+        tally = _verification_tally(members)
+        if tally:
+            scope += f"<br><span class='muted'>&#9878; {e(tally)}</span>"
         locs = [f"{loc_cell(m)} <span class='muted'>({e(m.repo_id)})</span>" for m in members]
         loc_html = "<br>".join(locs[:GROUP_LOCATION_CAP])
         if len(locs) > GROUP_LOCATION_CAP:

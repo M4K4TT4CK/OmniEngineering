@@ -107,6 +107,15 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: python tools/integrity.py
 
+      # A rule may be gate-eligible (tier verified) only on ledger evidence:
+      # a declared-verified rule with no admitting ledger entry, a hand-edited
+      # `admitted` flag, or a labelled rule whose snapshot count jumped >20%
+      # since its labels fails here (docs/precision.md).
+      - name: Precision guard
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python tools/precision_guard.py check
+
       # The step above proves the claim invariants are enforced by breaking
       # them. This does the same for the regression tests: it puts each known
       # defect back and requires the test named after it to fail. A suite that
@@ -183,7 +192,9 @@ jobs:
           python -m pip install --upgrade pip
           # mcp and api: the slow tier includes the scans that go through the
           # hosted surfaces, and those skip without their extras.
-          pip install -e .[dev,mcp,api]
+          # ast: the regression guards below compare against snapshots taken
+          # with the grammars installed.
+          pip install -e .[dev,mcp,api,ast]
 
       # The same installer the Linux cell uses, so the tier runs the same
       # tools a laptop installs. A tool it could not fetch is a skip, printed
@@ -195,3 +206,17 @@ jobs:
         env:
           PYTHONIOENCODING: utf-8
         run: python -m pytest -q -rs -m slow
+
+      # Regression guards (docs/testing-harness.md): the findings on four
+      # small gold repositories, each fetched at its pinned commit and only
+      # read, must match tools/gold/snapshots/, and each scan must stay inside
+      # its time budget (scaled by a pure-Python calibration workload, so a
+      # runner is not held to a laptop's seconds). The in-tree corpora are
+      # snapshot-checked in the fast tier already
+      # (tests/test_regression_guard.py); this adds real code and timings.
+      - name: Regression guards
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python tools/regression_guard.py fetch --corpus /tmp/corpus-guard
+          python tools/regression_guard.py check --corpus /tmp/corpus-guard

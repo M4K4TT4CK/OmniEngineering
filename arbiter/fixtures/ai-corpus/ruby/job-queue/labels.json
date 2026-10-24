@@ -1,0 +1,90 @@
+{
+  "app": "ruby/job-queue",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "job_queue.rb",
+      "line": 128,
+      "cwe": [
+        "CWE-22",
+        "CWE-73"
+      ],
+      "category": "path-traversal",
+      "severity": "high",
+      "justification": "The path check runs only when IMAGE_ROOT is set, and it is unset by default, so an unauthenticated client can make the worker open any server file in ImageMagick and write a `<name>_resized` file into any writable directory. Default to deny, i.e. require IMAGE_ROOT.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "app.rb",
+      "line": 12,
+      "cwe": [
+        "CWE-306"
+      ],
+      "category": "missing-authn",
+      "severity": "medium",
+      "justification": "POST /jobs has no authentication, so anyone who can reach the API can send arbitrary email to any recipient through the configured SMTP account (spam relay) and start ImageMagick work on server paths.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "job_queue.rb",
+      "line": 76,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "retry-no-backoff",
+      "severity": "medium",
+      "justification": "Failed jobs are put straight back on the queue with no delay or backoff, so a transient SMTP or ImageMagick failure is retried three times within milliseconds (pointless, and it hammers the dependency).",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "job_queue.rb",
+      "line": 33,
+      "cwe": [
+        "CWE-770",
+        "CWE-401"
+      ],
+      "category": "unbounded-memory",
+      "severity": "medium",
+      "justification": "Every job (payload and result included) stays in @jobs forever and the pending Queue is unbounded, so a long-running process, or a client flooding POST /jobs, grows memory without limit.",
+      "source": "independent"
+    },
+    {
+      "id": "D5",
+      "file": "job_queue.rb",
+      "line": 118,
+      "end_line": 120,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "missing-timeout",
+      "severity": "low",
+      "justification": "MiniMagick runs with no timeout or resource limits; a huge or crafted image (up to 20000x20000 output) can hang or exhaust a worker thread indefinitely, starving the pool.",
+      "source": "independent"
+    },
+    {
+      "id": "D6",
+      "file": "job_queue.rb",
+      "line": 72,
+      "cwe": [
+        "CWE-755"
+      ],
+      "category": "unhandled-input-error",
+      "severity": "low",
+      "justification": "Only StandardError is rescued; any other exception (e.g. SystemStackError, NoMemoryError, Interrupt) kills the worker thread for good, leaves the job stuck in 'running', and silently shrinks the pool, since the thread is never restarted.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": [
+    {
+      "rule": "arbiter/drift.documented-env-var-absent",
+      "file": "README.md",
+      "line": 28,
+      "reason": "WORKERS is read in config.ru:4 (ENV.fetch(\"WORKERS\", \"4\")); the probe does not read .ru files"
+    }
+  ]
+}

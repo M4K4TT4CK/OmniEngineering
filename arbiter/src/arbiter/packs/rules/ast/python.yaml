@@ -16,6 +16,7 @@ rules:
   # Outbound HTTP
   # --------------------------------------------------------------------------
   - id: http-no-timeout
+    requirements: [ARB-060]
     title: "`{text}` has no timeout: a stalled upstream stalls this call forever"
     severity: medium
     confidence: high
@@ -38,6 +39,7 @@ rules:
     remediation: "Pass `timeout=(connect, read)` on every call, or wrap the client so the default is set once."
 
   - id: http-timeout-disabled
+    requirements: [ARB-061]
     title: "`{text}` switches the client's timeout off"
     severity: medium
     confidence: high
@@ -63,6 +65,7 @@ rules:
   # Retry and worker loops
   # --------------------------------------------------------------------------
   - id: retry-loop-no-backoff
+    requirements: [ARB-060]
     title: "Unbounded retry loop with no sleep or backoff"
     severity: medium
     confidence: medium
@@ -110,6 +113,7 @@ rules:
     remediation: "Cap the attempts and sleep with exponential backoff and jitter (or use tenacity/backoff)."
 
   - id: swallowed-error-in-worker-loop
+    requirements: [ARB-061]
     title: "`{text}` drops every error inside a worker loop"
     severity: medium
     confidence: medium
@@ -157,6 +161,7 @@ rules:
     remediation: "Log the exception (`logger.exception`) and count it; re-raise or dead-letter what cannot be retried."
 
   - id: worker-loop-no-stop-signal
+    requirements: [ARB-061]
     title: "Worker loop `while True` has no way to stop"
     severity: medium
     confidence: medium
@@ -189,6 +194,7 @@ rules:
     remediation: "Loop on `while not self._stop.is_set()` (threading.Event) or a sentinel item on the queue; join the thread on shutdown."
 
   - id: thread-not-daemon-never-joined
+    requirements: [ARB-061]
     title: "`{text}` is neither a daemon nor ever joined"
     severity: low
     confidence: low
@@ -217,6 +223,7 @@ rules:
   # Injection
   # --------------------------------------------------------------------------
   - id: sql-injection
+    requirements: [ARB-065]
     title: "SQL built by string formatting: `{text}`"
     severity: high
     confidence: high
@@ -276,6 +283,35 @@ rules:
       (call function: (attribute object: (identifier) @re (#eq? @re "re")
           attribute: (identifier) @rf
           (#match? @rf "^(match|fullmatch|search|compile|findall|finditer|sub|subn|split)$"))) @x
+      ; Gold benchmark (ARB-065), Django's database backends. Every spliced
+      ; value is a quoting call (`quote_name`, `connection.ops.quote_name`,
+      ; `qn`, `escape_identifier`, ...), an ALL_CAPS constant, a SQL fragment
+      ; variable (`sql`, `inner_sql`: reported where it was built, if at all)
+      ; or a placeholder list (`", ".join(["%s"] * len(keys))`). The regex is
+      ; that atom, repeated for a tuple, a dict and .format() arguments. One
+      ; raw value among quoted ones is still reported.
+      (binary_operator left: (string) operator: ["%" "+"] right: (_) @r
+        (#match? @r "^(((\\w+\\.)*(quote_?\\w*|qn2?|escape_\\w+|format_table)\\([^()]*(\\([^()]*\\)[^()]*)*\\)|(\\w+\\.)*[A-Z][A-Z0-9_]+|\\w*sql|\"[^\"]*\"\\.join\\(\\[?\\s*\"[^\"]*\"\\s*\\]?\\s*\\*\\s*len\\([^()]*(\\([^()]*\\)[^()]*)*\\)\\))|\\(\\s*((\\w+\\.)*(quote_?\\w*|qn2?|escape_\\w+|format_table)\\([^()]*(\\([^()]*\\)[^()]*)*\\)|(\\w+\\.)*[A-Z][A-Z0-9_]+|\\w*sql|\"[^\"]*\"\\.join\\(\\[?\\s*\"[^\"]*\"\\s*\\]?\\s*\\*\\s*len\\([^()]*(\\([^()]*\\)[^()]*)*\\)\\))(\\s*,\\s*((\\w+\\.)*(quote_?\\w*|qn2?|escape_\\w+|format_table)\\([^()]*(\\([^()]*\\)[^()]*)*\\)|(\\w+\\.)*[A-Z][A-Z0-9_]+|\\w*sql|\"[^\"]*\"\\.join\\(\\[?\\s*\"[^\"]*\"\\s*\\]?\\s*\\*\\s*len\\([^()]*(\\([^()]*\\)[^()]*)*\\)\\)))*\\s*,?\\s*\\)|\\{\\s*[\"']\\w+[\"']\\s*:\\s*((\\w+\\.)*(quote_?\\w*|qn2?|escape_\\w+|format_table)\\([^()]*(\\([^()]*\\)[^()]*)*\\)|(\\w+\\.)*[A-Z][A-Z0-9_]+|\\w*sql|\"[^\"]*\"\\.join\\(\\[?\\s*\"[^\"]*\"\\s*\\]?\\s*\\*\\s*len\\([^()]*(\\([^()]*\\)[^()]*)*\\)\\))(\\s*,\\s*[\"']\\w+[\"']\\s*:\\s*((\\w+\\.)*(quote_?\\w*|qn2?|escape_\\w+|format_table)\\([^()]*(\\([^()]*\\)[^()]*)*\\)|(\\w+\\.)*[A-Z][A-Z0-9_]+|\\w*sql|\"[^\"]*\"\\.join\\(\\[?\\s*\"[^\"]*\"\\s*\\]?\\s*\\*\\s*len\\([^()]*(\\([^()]*\\)[^()]*)*\\)\\)))*\\s*,?\\s*\\})$")) @x
+      (call function: (attribute object: (string) attribute: (identifier) @fm (#eq? @fm "format"))
+        arguments: (argument_list) @r (#match? @r "^\\(\\s*((\\w+\\.)*(quote_?\\w*|qn2?|escape_\\w+|format_table)\\([^()]*(\\([^()]*\\)[^()]*)*\\)|(\\w+\\.)*[A-Z][A-Z0-9_]+|\\w*sql|\"[^\"]*\"\\.join\\(\\[?\\s*\"[^\"]*\"\\s*\\]?\\s*\\*\\s*len\\([^()]*(\\([^()]*\\)[^()]*)*\\)\\))(\\s*,\\s*((\\w+\\.)*(quote_?\\w*|qn2?|escape_\\w+|format_table)\\([^()]*(\\([^()]*\\)[^()]*)*\\)|(\\w+\\.)*[A-Z][A-Z0-9_]+|\\w*sql|\"[^\"]*\"\\.join\\(\\[?\\s*\"[^\"]*\"\\s*\\]?\\s*\\*\\s*len\\([^()]*(\\([^()]*\\)[^()]*)*\\)\\)))*\\s*,?\\s*\\)$")) @x
+      ((string (interpolation)) @x (#match? @x "^[^{}]*(\\{((\\w+\\.)*(quote_?\\w*|qn2?|escape_\\w+|format_table)\\([^()]*(\\([^()]*\\)[^()]*)*\\)|(\\w+\\.)*[A-Z][A-Z0-9_]+|\\w*sql|\"[^\"]*\"\\.join\\(\\[?\\s*\"[^\"]*\"\\s*\\]?\\s*\\*\\s*len\\([^()]*(\\([^()]*\\)[^()]*)*\\)\\))\\}[^{}]*)+$"))
+      ; A two-stage template: identifiers are spliced in, and the values stay
+      ; `%%s` bind parameters for execute(). A `'%s'` slot inside quotes is
+      ; a value spliced as a literal and is still reported.
+      (binary_operator left: (string) @s operator: "%"
+        (#match? @s "%%s") (#not-match? @s "'%s'")) @x
+      ((string (interpolation)) @x (#match? @x "%%s") (#not-match? @x "'%s'|'\\{"))
+    # Round 2 (ARB-065): the same atoms, followed one step into the enclosing
+    # function. A spliced local is safe when every assignment to it there is
+    # (`table = connection.ops.quote_name(self._table)` before `"DELETE FROM
+    # %s" % table`, Django's cache backend; `col_name =
+    # preparer.quote_identifier(...)`, celery), as is `str()` of a SQL
+    # fragment, a `", ".join(...)` of quoted names, a conditional between
+    # literals, psycopg's `sql.Identifier`/`sql.Literal`, and SQLAlchemy's
+    # `type.compile(dialect)`. A parameter or loop variable is never safe:
+    # nothing here follows a value across a call.
+    safe_splice_calls: "(?:\\w+\\.)*(?:quote_?\\w*|qn2?|escape_\\w+|format_table|Identifier|Literal|Placeholder)|(?:\\w+\\.)+compile"
+    safe_splice_names: "(?:\\w+\\.)*[A-Z][A-Z0-9_]+|\\w*sql"
     description: >-
       The value is spliced into the statement text, so whoever controls it
       controls the query. This is the shape every SQL-injection exploit
@@ -283,6 +319,7 @@ rules:
     remediation: "Send parameters separately: `cursor.execute(\"... WHERE id = %s\", (user_id,))`, `text(\"... :id\").bindparams(id=...)`, or the ORM."
 
   - id: command-injection
+    requirements: [ARB-061]
     title: "Shell command built from a variable: `{text}`"
     severity: high
     confidence: high
@@ -294,20 +331,20 @@ rules:
       (call function: (attribute object: (identifier) @o (#eq? @o "subprocess")
           attribute: (identifier) @m (#match? @m "^(run|call|check_output|check_call|Popen)$"))
         arguments: (argument_list . [(identifier) (attribute) (call) (binary_operator) (subscript)
-                                     (string (interpolation)) (concatenated_string (string (interpolation)))]
+                                     (string (interpolation)) (concatenated_string (string (interpolation)))] @cmd
           (keyword_argument name: (identifier) @k (#eq? @k "shell") value: (true)))) @hit
       (call function: (identifier) @f (#match? @f "^(run|call|check_output|check_call|Popen)$")
         arguments: (argument_list . [(identifier) (attribute) (call) (binary_operator) (subscript)
-                                     (string (interpolation)) (concatenated_string (string (interpolation)))]
+                                     (string (interpolation)) (concatenated_string (string (interpolation)))] @cmd
           (keyword_argument name: (identifier) @k (#eq? @k "shell") value: (true)))) @hit
       (call function: (attribute object: (identifier) @o (#eq? @o "subprocess")
           attribute: (identifier) @m (#match? @m "^(getoutput|getstatusoutput)$"))
         arguments: (argument_list . [(identifier) (attribute) (call) (binary_operator) (subscript)
-                                     (string (interpolation)) (concatenated_string (string (interpolation)))])) @hit
+                                     (string (interpolation)) (concatenated_string (string (interpolation)))] @cmd)) @hit
       (call function: (attribute object: (identifier) @o (#eq? @o "os")
           attribute: (identifier) @m (#match? @m "^(system|popen)$"))
         arguments: (argument_list . [(identifier) (attribute) (call) (binary_operator) (subscript)
-                                     (string (interpolation)) (concatenated_string (string (interpolation)))])) @hit
+                                     (string (interpolation)) (concatenated_string (string (interpolation)))] @cmd)) @hit
     unless_inside: |
       (call arguments: (argument_list . (_) @a (#match? @a "shlex\\.(quote|join)"))) @x
     description: >-
@@ -315,8 +352,28 @@ rules:
       variable. Anything in that variable -- a filename with a `;`, a
       user-supplied argument -- is interpreted as shell syntax.
     remediation: "Pass an argv list with `shell=False` (`subprocess.run([\"ls\", \"-l\", path])`); if a shell is unavoidable, quote every piece with `shlex.quote`."
+    # One-hop data flow (Milestone 3): the command reaches the shell call
+    # through a local or a helper, or wrapped in str(...) / parentheses; a
+    # command whose every part is provably constant (OWASP Benchmark's
+    # constant tricks) is dropped.
+    taint:
+      mode: nonconst
+      sinks: |
+        ((call function: (attribute object: (identifier) @o attribute: (identifier) @m)
+          arguments: (argument_list . (_) @sink
+            (keyword_argument name: (identifier) @k value: (true)))) @hit
+         (#eq? @o "subprocess") (#match? @m "^(run|call|check_output|check_call|Popen)$") (#eq? @k "shell"))
+        ((call function: (attribute object: (identifier) @o attribute: (identifier) @m)
+          arguments: (argument_list . (_) @sink)) @hit
+         (#match? @o "^(os|subprocess)$") (#match? @m "^(system|popen|getoutput|getstatusoutput)$"))
+      sanitizers: |
+        ((call function: (attribute object: (identifier) @o attribute: (identifier) @m)) @sanitizer
+         (#eq? @o "shlex") (#match? @m "^(quote|join)$"))
+      value: [cmd]
+      built: true
 
   - id: code-injection
+    requirements: [ARB-065]
     title: "`{text}` evaluates code from a variable"
     severity: high
     confidence: medium
@@ -327,13 +384,25 @@ rules:
     query: |
       (call function: (identifier) @f (#match? @f "^(eval|exec)$")
         arguments: (argument_list . [(identifier) (attribute) (call) (binary_operator) (subscript)
-                                     (string (interpolation)) (concatenated_string (string (interpolation)))])) @hit
+                                     (string (interpolation)) (concatenated_string (string (interpolation)))] @cmd)) @hit
     # `exec(compile(src, path, "exec"), ns)` is deliberate code loading -- a
     # config file, a plugin -- and never the shape model-drafted code uses to
     # evaluate an expression. Flask's config.from_pyfile is the reference case.
     unless_inside: |
       (call function: (identifier) @f (#match? @f "^(eval|exec)$")
         arguments: (argument_list . (call function: (identifier) @c (#eq? @c "compile")))) @x
+    # OWASP Benchmark Python (ARB-065): a function that validates the input
+    # first and returns or raises when it fails -- `if not s.startswith("'")
+    # or ...: return`, `if not re.fullmatch(...)`, `if name not in ALLOWED`
+    # -- has bounded what reaches eval. A syntactic rule cannot tie the guard
+    # to the eval'd variable, so a guard anywhere in the function counts.
+    # Decoys where a constant replaces the input (a map, a `match`) still
+    # report: that needs constant propagation.
+    unless_in_scope: |
+      (if_statement
+        condition: (_) @c
+        (#match? @c "\\.(startswith|endswith|isidentifier|isdigit|isdecimal|isnumeric|isalnum|isalpha|fullmatch)\\(|\\bre\\.(fullmatch|match)\\(|\\bnot\\s+in\\s+[A-Z][A-Z0-9_]*\\b")
+        consequence: (block [(return_statement) (raise_statement)] .)) @x
     description: >-
       Whatever ends up in the argument runs as Python with the privileges of
       this process. Model-drafted code reaches for `eval` to parse a filter
@@ -342,6 +411,7 @@ rules:
     remediation: "Parse instead of evaluate: `ast.literal_eval` for data, `json.loads`, an operator table for expressions, importlib for a plugin name."
 
   - id: unsafe-deserialization
+    requirements: [ARB-061]
     title: "`{text}` deserialises with a format that can execute code"
     severity: high
     confidence: medium
@@ -367,6 +437,7 @@ rules:
   # Cryptography
   # --------------------------------------------------------------------------
   - id: insecure-random-for-secret
+    requirements: [ARB-065]
     title: "`random` used for a secret: `{text}`"
     severity: high
     confidence: medium
@@ -382,11 +453,23 @@ rules:
       (assignment left: (_) @t
         (#match? @t "(?i)(token|secret|passw|pwd|nonce|salt|otp|csrf|api_?key|secret_?key|signing_?key|private_?key|session_?(id|key)|reset_?code|verification_?code|auth_?code)")
         right: (_) @r
-        (#match? @r "\\brandom\\.(random|randint|choice|choices|getrandbits|randrange|randbytes|sample|uniform)\\(")) @hit
+        (#match? @r "\\brandom\\.(random|randint|choice|choices|getrandbits|randrange|randbytes|sample|uniform|normalvariate|gauss|triangular|betavariate|expovariate|lognormvariate|paretovariate|weibullvariate|vonmisesvariate|gammavariate)\\(")) @hit
       (function_definition name: (identifier) @n
         (#match? @n "(?i)(token|secret|passw|pwd|nonce|salt|otp|csrf|api_?key|session_?id|reset_?code|verification_?code|auth_?code)")
         body: (block (return_statement (_) @r
-          (#match? @r "\\brandom\\.(random|randint|choice|choices|getrandbits|randrange|randbytes|sample|uniform)\\(")) @hit))
+          (#match? @r "\\brandom\\.(random|randint|choice|choices|getrandbits|randrange|randbytes|sample|uniform|normalvariate|gauss|triangular|betavariate|expovariate|lognormvariate|paretovariate|weibullvariate|vonmisesvariate|gammavariate)\\(")) @hit))
+      ; OWASP Benchmark Python (ARB-065): the value is not named for a secret
+      ; but handed to the client as one -- stored in the session or a cookie
+      ; (`value = str(random.random())[2:]` ... `session[cookie] = value`).
+      ; A random value assigned in a function that writes a session or
+      ; cookie entry, or put there directly.
+      ((function_definition body: (block (assignment right: (_) @r
+          (#match? @r "\\brandom\\.(random|randint|choice|choices|getrandbits|randrange|randbytes|sample|uniform|normalvariate|gauss|triangular|betavariate|expovariate|lognormvariate|paretovariate|weibullvariate|vonmisesvariate|gammavariate)\\(")) @hit)) @fn
+        (#match? @fn "(?i)(session\\w*|cookies?)\\s*\\[[^\\]]*\\]\\s*=[^=]|\\bset_cookie\\("))
+      (assignment left: (subscript value: (_) @s (#match? @s "(?i)(session|cookie)"))
+        right: (_) @r (#match? @r "\\brandom\\.(random|randint|choice|choices|getrandbits|randrange|randbytes|sample|uniform|normalvariate|gauss|triangular|betavariate|expovariate|lognormvariate|paretovariate|weibullvariate|vonmisesvariate|gammavariate)\\(")) @hit
+      (call function: (attribute attribute: (identifier) @sc (#eq? @sc "set_cookie"))
+        arguments: (argument_list) @a (#match? @a "\\brandom\\.(random|randint|choice|choices|getrandbits|randrange|randbytes|sample|uniform|normalvariate|gauss|triangular|betavariate|expovariate|lognormvariate|paretovariate|weibullvariate|vonmisesvariate|gammavariate)\\(")) @hit
     description: >-
       `random` is a Mersenne Twister: 624 outputs reveal its whole state, and
       it is often seeded from the clock. A token drawn from it can be
@@ -394,6 +477,7 @@ rules:
     remediation: "Use `secrets.token_hex()`, `secrets.token_urlsafe()`, `secrets.choice()` or `random.SystemRandom()`."
 
   - id: weak-password-hash
+    requirements: [ARB-065]
     title: "Password hashed with a fast digest: `{text}`"
     severity: high
     confidence: medium
@@ -406,12 +490,589 @@ rules:
     # for passwords -- report once when both apply.
     query: |
       (block [(return_statement) (assignment) (call)] @hit
-        (#match? @hit "(?s)\\bhashlib\\.(md5|sha1)\\(.*(?i:passw|pwd)|\\bhashlib\\.new\\(\\s*[\"'](?i:md5|sha1)[\"'].*(?i:passw|pwd)"))
+        (#match? @hit "(?s)\\bhashlib\\.(md5|sha1)\\(.*(?i:passw|pwd|signature)|\\bhashlib\\.new\\(\\s*[\"'](?i:md5|sha1)[\"'].*(?i:passw|pwd|signature)"))
       (function_definition name: (identifier) @n (#match? @n "(?i)(passw|pwd)")
         body: (block [(return_statement) (assignment) (call)] @hit
           (#match? @hit "(?s)\\bhashlib\\.(md5|sha1)\\(|\\bhashlib\\.new\\(\\s*[\"'](?i:md5|sha1)[\"']")))
+      ; OWASP Benchmark Python (ARB-065): an empty digest object,
+      ; `h = hashlib.md5()` or `hashlib.new('sha1')`, fed with `h.update(...)`
+      ; in a function that handles a password (it names one: the input, the
+      ; store, the file the digest goes to). A one-shot digest of other data
+      ; in such a function (aiohttp's digest-auth cnonce) is not reported.
+      ((function_definition body: (block (assignment) @hit
+          (#match? @hit "^[^=]*=\\s*hashlib\\.(md5|sha1)\\(\\s*\\)$|^[^=]*=\\s*hashlib\\.new\\(\\s*[\"'](?i:md5|sha1)[\"']\\s*\\)$"))) @fn
+        (#match? @fn "(?i)passw|pwd"))
     description: >-
       MD5 and SHA-1 are designed to be fast, which is exactly wrong for a
       password: a GPU tries billions a second, and both have public
       collision attacks. A salt does not change the speed.
     remediation: "Use a password hash: `hashlib.scrypt`, `bcrypt.hashpw`, argon2, or `hashlib.pbkdf2_hmac` with a high iteration count."
+
+  # --------------------------------------------------------------------------
+  # Authentication, CSRF and error disclosure (CWE Top 25, ARB-062)
+  # --------------------------------------------------------------------------
+  - id: jwt-unverified-decode
+    requirements: [ARB-062]
+    title: "JWT decoded without checking its signature: `{text}`"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-287, CWE-347]
+    controls: [NIST-800-53r5:IA-2, OWASP-ASVS:3.5.3]
+    tags: [auth, jwt, security-check-disabled]
+    # PyJWT and python-jose: `options={"verify_signature": False}` (inline or
+    # built into a variable first), PyJWT 1.x `verify=False`, an algorithm
+    # list that admits "none", and python-jose's `get_unverified_claims`.
+    # `get_unverified_header` is not reported: reading `kid` before verifying
+    # is how a key is chosen.
+    query: |
+      (call function: (_) @f (#match? @f "(^|\\.)decode(_complete)?$")
+        arguments: (argument_list (keyword_argument name: (identifier) @o (#eq? @o "options")
+          value: (dictionary (pair key: (string (string_content) @k (#eq? @k "verify_signature")) value: (false)))))) @hit
+      (call function: (_) @f (#match? @f "(^|\\.)decode(_complete)?$")
+        arguments: (argument_list (keyword_argument name: (identifier) @o (#eq? @o "options")
+          value: (call function: (identifier) @d (#eq? @d "dict")
+            arguments: (argument_list (keyword_argument name: (identifier) @k (#eq? @k "verify_signature") value: (false))))))) @hit
+      (assignment right: (dictionary (pair key: (string (string_content) @k (#eq? @k "verify_signature")) value: (false)))) @hit
+      (call function: (attribute) @f (#match? @f "(?i)\\bjwt\\.decode(_complete)?$")
+        arguments: (argument_list (keyword_argument name: (identifier) @k (#eq? @k "verify") value: (false)))) @hit
+      (call function: (_) @f (#match? @f "(^|\\.)decode(_complete)?$")
+        arguments: (argument_list (keyword_argument name: (identifier) @k (#match? @k "^algorithms?$")
+          value: (_) @v (#match? @v "(?i)[\"']none[\"']")))) @hit
+      (call function: (_) @f (#match? @f "(^|\\.)get_unverified_claims$")) @hit
+    # Peek, then verify: a function that also decodes with an algorithm list
+    # and no switch-off has read an unverified claim (`iss`, `kid`) to pick
+    # the key, not to trust it.
+    unless_in_scope: |
+      ((call function: (_) @f (#match? @f "(^|\\.)decode(_complete)?$")
+         arguments: (argument_list (keyword_argument name: (identifier) @k (#eq? @k "algorithms")))) @x
+        (#not-match? @x "verify_signature|verify\\s*=\\s*False|(?i:[\"']none[\"'])"))
+    description: >-
+      The token's claims are read without checking that the issuer signed
+      them. Anyone can write `{"sub": "admin"}`, base64 it and be that user.
+      Model-drafted code reaches for this to "just read the user id" from a
+      bearer token.
+    remediation: "Decode with the key and a fixed algorithm list: `jwt.decode(token, key, algorithms=[\"HS256\"], audience=...)`."
+
+  - id: jwt-literal-signing-key
+    requirements: [ARB-062]
+    title: "JWT key is a string literal in the source: `{text}`"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-798, CWE-321]
+    controls: [NIST-800-53r5:IA-5, OWASP-ASVS:2.10.4]
+    tags: [secrets, jwt, crypto]
+    # The literal is the key argument of `jwt.encode`/`jwt.decode`
+    # (positional or `key=`), or a module constant passed there. The secrets
+    # probe misses both: the literal sits in an argument, and `SIGNING_KEY`
+    # is not a credential-shaped name. Placeholders (`changeme`,
+    # `your-secret-here`), PEM text and short strings are left alone. The hit
+    # is the call's name or the constant's name, never the literal, so the
+    # key does not end up in the report's evidence.
+    query: |
+      (call function: (attribute) @hit (#match? @hit "(?i)\\bjwt\\.(encode|decode)$")
+        arguments: (argument_list . (_) . (string (string_content) @s)
+          (#not-match? @s "^(.{0,7}|(?i:.*(changeme|change[-_]me|your[-_]|placeholder|example|dummy|xxx|replace[-_]?me|not[-_]?(a[-_])?secret).*)|-----BEGIN.*|\\$\\{.*|\\{\\{.*)$")))
+      (call function: (attribute) @hit (#match? @hit "(?i)\\bjwt\\.(encode|decode)$")
+        arguments: (argument_list (keyword_argument name: (identifier) @k (#eq? @k "key")
+          value: (string (string_content) @s)
+          (#not-match? @s "^(.{0,7}|(?i:.*(changeme|change[-_]me|your[-_]|placeholder|example|dummy|xxx|replace[-_]?me|not[-_]?(a[-_])?secret).*)|-----BEGIN.*|\\$\\{.*|\\{\\{.*)$"))))
+      ; `SIGNING_KEY = "..."` at module level, passed as the key of a jwt
+      ; call in the same module (the regex's backreference ties the two).
+      ((module (assignment left: (identifier) @hit (#match? @hit "^[A-Z][A-Z0-9_]*(KEY|SECRET)$")
+          right: (string (string_content) @s)
+          (#not-match? @s "^(.{0,7}|(?i:.*(changeme|change[-_]me|your[-_]|placeholder|example|dummy|xxx|replace[-_]?me|not[-_]?(a[-_])?secret).*)|-----BEGIN.*|\\$\\{.*|\\{\\{.*)$"))) @mod
+        (#match? @mod "(?ms)^([A-Z][A-Z0-9_]*(KEY|SECRET))\\s*=\\s*[rbu]?[\"'](?!(?i:[^\"'\\n]*(changeme|change[-_]me|your[-_]|placeholder|example|dummy|xxx|replace[-_]?me|not[-_]?(a[-_])?secret)))[^\"'\\n]{8,}[\"'].*\\bjwt\\.(encode|decode)\\((?:[^()]|\\([^()]*\\))*?,\\s*(key\\s*=\\s*)?\\1\\b"))
+    description: >-
+      Whoever can read the repository can mint a valid token for any user,
+      and rotating the key means a code change and a deploy. A placeholder
+      secret like this is the classic generated default that ships.
+    remediation: "Read the key from the environment or a secret store (`os.environ[\"JWT_SECRET\"]`) and fail at start-up if it is missing."
+
+  - id: error-traceback-to-client
+    requirements: [ARB-062]
+    title: "Traceback returned to the client: `{text}`"
+    severity: medium
+    confidence: high
+    dimension: security
+    cwe: [CWE-209, CWE-200]
+    controls: [NIST-800-53r5:SI-11, OWASP-ASVS:7.4.1]
+    tags: [error-handling, information-exposure]
+    # `traceback.format_exc()` (or format_exception/format_tb) in the same
+    # statement as a response: a response constructor or `abort()`
+    # (Flask, Django, FastAPI/Starlette, aiohttp), or a `return body,
+    # status` tuple. A traceback shown only under a debug flag
+    # (`traceback.format_exc() if settings.DEBUG else ...`, Django's ASGI
+    # handler) is not reported.
+    query: |
+      ((call function: [(identifier) (attribute)] @f (#match? @f "^((\\w+\\.)*(jsonify|make_response|JsonResponse|HttpResponse|HttpResponseServerError|HttpResponseBadRequest|Response|JSONResponse|PlainTextResponse|HTMLResponse|HTTPException|json_response|abort))$")
+         arguments: (argument_list) @a) @hit
+        (#match? @a "\\btraceback\\.(format_exc|format_exception|format_tb|format_stack)\\(") (#not-match? @a "(?i)\\bdebug\\b"))
+      ((return_statement (expression_list . (_) @b . (integer) .)) @hit
+        (#match? @b "\\btraceback\\.(format_exc|format_exception|format_tb|format_stack)\\(") (#not-match? @b "(?i)\\bdebug\\b"))
+    description: >-
+      The client receives the stack: module paths, library versions, the
+      line that failed and often the values involved. It is a map of the
+      service for whoever triggers the error. Flask and Django hide it
+      outside debug mode for that reason; this code puts it back.
+    remediation: "Log it (`log.exception(...)`) with an incident id and return a generic message carrying only that id."
+
+  - id: error-message-to-client
+    requirements: [ARB-062]
+    title: "Exception message returned to the client: `{text}`"
+    severity: low
+    confidence: medium
+    dimension: security
+    cwe: [CWE-209, CWE-200]
+    controls: [NIST-800-53r5:SI-11, OWASP-ASVS:7.4.1]
+    tags: [error-handling, information-exposure]
+    # `str(e)`, `repr(e)` or `f"{e}"` in a response built directly in a
+    # catch-all handler: `except Exception as e:` (or BaseException, or a
+    # tuple naming one) whose block returns a response constructor or a
+    # `body, status` tuple, or raises `HTTPException(detail=str(e))`; and a
+    # Flask/FastAPI handler registered for Exception or 500. A regex
+    # backreference ties the formatted name to the handler's variable. An
+    # `except ValueError as e:` that returns its message with a 400 is a
+    # validation error written for the user, and is not reported.
+    query: |
+      ((except_clause (as_pattern (_) @t (#match? @t "\\b(Exception|BaseException)\\b"))
+          (block [(return_statement (call function: [(identifier) (attribute)] @f (#match? @f "^((\\w+\\.)*(jsonify|make_response|JsonResponse|HttpResponse|HttpResponseServerError|HttpResponseBadRequest|Response|JSONResponse|PlainTextResponse|HTMLResponse|HTTPException|json_response|abort))$")))
+                  (return_statement (expression_list . (_) . (integer) .))
+                  (raise_statement (call function: [(identifier) (attribute)] @f (#match? @f "^(\\w+\\.)*HTTPException$")))] @hit)) @ex
+        (#match? @hit "\\b(str|repr)\\(\\s*\\w+\\s*\\)|\\{\\w+(![rs])?\\}")
+        (#match? @ex "(?s)^except[^:]*\\bas\\s+(?P<v>\\w+)\\s*:.*(\\b(str|repr)\\(\\s*(?P=v)\\s*\\)|\\{(?P=v)(![rs])?\\})")
+        (#not-match? @hit "\\btraceback\\.(format_exc|format_exception|format_tb|format_stack)\\(|(?i:\\bdebug\\b)"))
+      ((decorated_definition (decorator) @d
+          (#match? @d "\\.(errorhandler|exception_handler)\\(\\s*(Exception|BaseException|500|HTTPStatus\\.INTERNAL_SERVER_ERROR)\\s*\\)")
+          definition: (function_definition body: (block (return_statement) @hit))) @def
+        (#match? @hit "\\b(str|repr)\\(\\s*\\w+\\s*\\)|\\{\\w+(![rs])?\\}")
+        (#match? @def "(?s)\\bdef\\s+\\w+\\([^)]*?\\b(?P<v>\\w+)\\s*(:\\s*[\\w.]+\\s*)?\\)[^:]*:.*(\\b(str|repr)\\(\\s*(?P=v)\\s*\\)|\\{(?P=v)(![rs])?\\})")
+        (#not-match? @hit "\\btraceback\\.(format_exc|format_exception|format_tb|format_stack)\\(|(?i:\\bdebug\\b)"))
+    description: >-
+      A catch-all handler hands whatever exception it caught back to the
+      client. For a database, file or network error that text carries table
+      and column names, paths, host names and sometimes the offending input,
+      none of which was meant to leave the server.
+    remediation: >-
+      Return a fixed message with an incident id you log alongside the
+      exception; keep `str(e)` for errors raised for the user, and catch
+      those by their own class.
+
+  - id: csrf-protection-disabled
+    requirements: [ARB-062]
+    title: "CSRF protection switched off: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-352]
+    controls: [NIST-800-53r5:SC-23, OWASP-ASVS:4.2.2]
+    tags: [csrf, django, flask, security-check-disabled]
+    # Django's `@csrf_exempt` (and Flask-WTF's `@csrf.exempt`) on a view that
+    # acts as the logged-in user: it reads `request.user`/`current_user`/the
+    # session or is `@login_required`. A view that authenticates the request
+    # itself (an HMAC signature, `compare_digest`, a bearer token in the
+    # Authorization header) has no ambient cookie authority to forge, and
+    # webhook-named views are left alone: that is what the decorator is for.
+    # A dispatcher that is exempt only to re-apply `csrf_protect(...)` to the
+    # session-authenticated branch itself (zulip's `rest_dispatch`) is not
+    # reported either.
+    # Flask-WTF's `WTF_CSRF_ENABLED = False` is reported outside a test or
+    # development config class.
+    query: |
+      ((decorated_definition (decorator) @hit (#match? @hit "^@\\s*((\\w+\\.)*csrf_exempt|(\\w+\\.)*csrf\\.exempt)\\s*(#.*)?$")
+          definition: (function_definition name: (identifier) @n (#not-match? @n "(?i)webhook|callback|hook|ingest|inbound|notify|notification"))) @def
+        (#match? @def "\\brequest\\.(user|session)\\b|\\bcurrent_user\\b|\\bsession\\[|@\\s*(\\w+\\.)*login_required\\b|\\bflask_login\\b")
+        (#not-match? @def "(?i)\\bhmac\\b|compare_digest|signature|\\bAuthorization\\b|HTTP_AUTHORIZATION|bearer|\\bcsrf_protect\\("))
+      ((module (assignment left: (identifier) @k (#eq? @k "WTF_CSRF_ENABLED") right: (false)) @hit))
+      ((class_definition name: (identifier) @c (#not-match? @c "(?i)test|dev|local")
+         body: (block (assignment left: (identifier) @k (#eq? @k "WTF_CSRF_ENABLED") right: (false)) @hit)))
+      ((assignment left: (subscript value: (attribute attribute: (identifier) @cfg (#eq? @cfg "config"))
+                                   subscript: (string (string_content) @k (#eq? @k "WTF_CSRF_ENABLED")))
+                   right: (false)) @hit)
+    description: >-
+      The framework checks a per-session token on every POST so that a page
+      on another site cannot submit a form as the logged-in user. Switching
+      the check off is the usual generated "fix" for a 403 on a form or a
+      fetch; this view now does whatever any website the user visits asks.
+    remediation: >-
+      Keep the check and send the token (`{% csrf_token %}`, or the
+      `csrftoken` cookie in an `X-CSRFToken` header for fetch). An API view
+      should authenticate each request with a token, not the session cookie.
+
+  # --------------------------------------------------------------------------
+  # CWE Top 25 round 2 (ARB-062). A request value is Flask's
+  # `request.args|form|json|values|data|get_json()`, Django's
+  # `request.GET|POST|data`, DRF/Starlette `request.query_params`. Reaching
+  # the sink through one local is tied by a backreference over the
+  # enclosing function (`v = request...` then the sink with `v`); a value
+  # passed through a helper is out of reach.
+  # --------------------------------------------------------------------------
+  - id: argument-injection
+    requirements: [ARB-062]
+    title: "Request value passed as an argument with no `--`: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-77, CWE-88]
+    controls: [NIST-800-53r5:SI-10, OWASP-ASVS:5.3.8]
+    tags: [injection, shell, argument-injection, security]
+    # An argv list (no shell) whose program is a tool that parses options
+    # from any position, with no "--" element ending them.
+    query: |
+      ((call function: (attribute object: (identifier) @o attribute: (identifier) @m)
+         arguments: (argument_list . (list . (string (string_content) @tool)) @arr)) @hit
+        (#eq? @o "subprocess")
+        (#match? @m "^(run|call|check_call|check_output|Popen)$")
+        (#match? @tool "(^|/)(git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|find|sendmail|ffmpeg|ffprobe|convert|magick|docker|kubectl|npm|npx|pip|openssl|gpg)$")
+        (#not-match? @arr "[\"']--[\"']")
+        (#match? @arr "[\\[,]\\s*(str\\()?[A-Za-z_][\\w.]*(\\[[^\\]]*\\]|\\([^)]*\\))?\\s*[,\\]]"))
+      ((call function: (identifier) @m
+         arguments: (argument_list . (list . (string (string_content) @tool)) @arr)) @hit
+        (#match? @m "^(run|check_call|check_output|Popen)$")
+        (#match? @tool "(^|/)(git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|find|sendmail|ffmpeg|ffprobe|convert|magick|docker|kubectl|npm|npx|pip|openssl|gpg)$")
+        (#not-match? @arr "[\"']--[\"']")
+        (#match? @arr "[\\[,]\\s*(str\\()?[A-Za-z_][\\w.]*(\\[[^\\]]*\\]|\\([^)]*\\))?\\s*[,\\]]"))
+      ((call function: (attribute object: (identifier) @o attribute: (identifier) @m)
+         arguments: (argument_list . (string (string_content) @tool)) @arr) @hit
+        (#eq? @o "asyncio")
+        (#eq? @m "create_subprocess_exec")
+        (#match? @tool "(^|/)(git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|find|sendmail|ffmpeg|ffprobe|convert|magick|docker|kubectl|npm|npx|pip|openssl|gpg)$")
+        (#not-match? @arr "[\"']--[\"']"))
+    requires_in_scope: |
+      ((function_definition) @f
+        (#match? @f "(?s)(\\b(?P<v>[A-Za-z_]\\w*)\\s*(:\\s*[\\w\\[\\], |.]+)?=\\s*(str\\()?\\s*request\\.(args|form|json|values|data|files|GET|POST|query_params|get_json\\(\\))\\b.*(subprocess\\.\\w+|\\brun|\\bcheck_call|\\bcheck_output|\\bPopen|create_subprocess_exec)\\(\\s*\\[?\\s*[\"'][^\"']*[\"'][^\\]\\)]*?,\\s*(str\\()?(?P=v)\\b(?!\\s*[.(\\[])|(subprocess\\.\\w+|\\brun|\\bcheck_call|\\bcheck_output|\\bPopen|create_subprocess_exec)\\(\\s*\\[?\\s*[\"'][^\"']*[\"'][^\\]\\)]*?,\\s*(str\\()?request\\.(args|form|json|values|data|GET|POST|query_params|get_json\\(\\))\\b)"))
+    # A check that the value cannot start with `-` is the other fix.
+    unless_in_scope: |
+      ((call function: (attribute attribute: (identifier) @m)
+         arguments: (argument_list . (string (string_content) @s)))
+        (#eq? @m "startswith") (#eq? @s "-"))
+    description: >-
+      The program is run without a shell, so `;` and `$(...)` are inert,
+      but the program reads its own options. A request value such as
+      `--upload-pack=touch /tmp/x` (git), `-o /etc/cron.d/x` (curl) or
+      `-oProxyCommand=...` (ssh) is taken as an option, which can run a
+      command or overwrite a file.
+    remediation: "Put `\"--\"` before the first value argument (`[\"git\", \"clone\", \"--\", url, dest]`) and validate the value (scheme check with `urlparse`, or reject a leading `-`)."
+    # One-hop data flow (Milestone 3): the request value reaches the argv
+    # list through a local or a helper; the list itself may be hoisted.
+    taint:
+      sources: &py_request_sources |
+        ((attribute object: (identifier) @r attribute: (identifier) @a) @source
+         (#match? @r "^(request|req)$")
+         (#match? @a "^(args|form|json|values|data|files|cookies|headers|GET|POST|FILES|COOKIES|META|body|query_params|path_params|match_info|get_json|query)$"))
+      sinks: |
+        ((call function: (attribute object: (identifier) @o attribute: (identifier) @m)
+          arguments: (argument_list . (_) @sink)) @hit
+         (#eq? @o "subprocess") (#match? @m "^(run|call|check_call|check_output|Popen)$"))
+        ((call function: (identifier) @m arguments: (argument_list . (_) @sink)) @hit
+         (#match? @m "^(run|check_call|check_output|Popen)$"))
+      # a number, or an element bound to its option (`f"--branch={b}"`)
+      sanitizers: |
+        ((call function: (identifier) @f) @sanitizer (#match? @f "^(int|float)$"))
+        ((string (interpolation)) @sanitizer (#match? @sanitizer "^[fFrRbB]*[\"']-"))
+      element0: "(^|/)(git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|find|sendmail|ffmpeg|ffprobe|convert|magick|docker|kubectl|npm|npx|pip|openssl|gpg)$"
+      unless_element: "^--$"
+
+  - id: upload-client-filename
+    requirements: [ARB-062]
+    title: "Upload stored under the client's filename: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-434]
+    controls: [NIST-800-53r5:SI-10, OWASP-ASVS:12.2.1]
+    tags: [upload, file, security]
+    # Flask/Werkzeug `FileStorage.filename`, FastAPI/Starlette
+    # `UploadFile.filename` and Django `UploadedFile.name` in the path of a
+    # save or a write, in a function that handles an upload.
+    query: |
+      ((call function: (attribute attribute: (identifier) @m)
+         arguments: (argument_list . (_) @a)) @hit
+        (#eq? @m "save")
+        (#match? @a "\\.filename\\b|^\\w+\\.name$"))
+      ((call function: [(identifier) (attribute)] @m
+         arguments: (argument_list . (_) @a . (string) @mode)) @hit
+        (#match? @m "^(open|aiofiles\\.open|io\\.open)$")
+        (#match? @a "\\.filename\\b|\\b\\w+\\.name\\b")
+        (#match? @mode "^[rbuf]*[\"'][rbt]*[wax]"))
+      ((call function: [(identifier) (attribute)] @m
+         arguments: (argument_list . (_) @a (keyword_argument name: (identifier) @k value: (string) @mode))) @hit
+        (#match? @m "^(open|aiofiles\\.open|io\\.open)$")
+        (#eq? @k "mode")
+        (#match? @a "\\.filename\\b|\\b\\w+\\.name\\b")
+        (#match? @mode "^[rbuf]*[\"'][rbt]*[wax]"))
+      ((call function: (attribute object: (_) @p attribute: (identifier) @m)) @hit
+        (#match? @m "^(write_bytes|write_text)$")
+        (#match? @p "\\.filename\\b"))
+      ((call function: (attribute object: (identifier) @o attribute: (identifier) @m)
+         arguments: (argument_list (_) @a)) @hit
+        (#match? @o "^(shutil|os)$")
+        (#match? @m "^(move|copy|copyfile|rename|replace)$")
+        (#match? @a "\\.filename\\b"))
+    requires_in_scope: |
+      ((function_definition) @f
+        (#match? @f "\\brequest\\.(files|FILES)\\b|\\bUploadFile\\b|\\bFileStorage\\b|\\bUploadedFile\\b"))
+    unless_in_scope: |
+      ((identifier) @i
+        (#match? @i "(?i)^(secure_filename|basename|get_valid_filename|get_valid_name|uuid\\d?|token_hex|token_urlsafe|splitext|imghdr|filetype|magic|allowed_file|\\w*allowed\\w*|\\w*allow_?list\\w*|\\w*whitelist\\w*|validate_\\w*)$"))
+      ((attribute attribute: (identifier) @a)
+        (#match? @a "^(mimetype|content_type|suffix|endswith)$"))
+    description: >-
+      The file is written under the name the client sent. The client picks
+      the extension, so a file meant to be an image is stored as `.html`,
+      `.svg` or `.py` and served back or run from the upload directory; a
+      name with `../` (where the framework does not strip it) writes
+      outside it, and the same name overwrites another user's upload.
+      Nothing in the function checks the type or cleans the name.
+    remediation: "Name the stored file yourself (`uuid4().hex` plus an extension from an allowlist checked against the content type), or at least `werkzeug.utils.secure_filename`, and cap the size (`MAX_CONTENT_LENGTH`)."
+    # One-hop data flow (Milestone 3): the client's file name reaches the
+    # write through a local or a same-file helper.
+    taint:
+      sources: |
+        ((attribute attribute: (identifier) @a) @source (#eq? @a "filename"))
+        ((attribute object: (identifier) @u attribute: (identifier) @a) @source
+         (#match? @u "(?i)(upload|file|doc|avatar|attachment|image)") (#eq? @a "name"))
+      sinks: |
+        ((call function: (attribute attribute: (identifier) @m) arguments: (argument_list . (_) @sink)) @hit
+         (#eq? @m "save"))
+        ((call function: [(identifier) (attribute)] @m arguments: (argument_list . (_) @sink . (string) @mode)) @hit
+         (#match? @m "^(open|aiofiles\\.open|io\\.open)$") (#match? @mode "^[rbuf]*[\"'][rbt]*[wax]"))
+        ((call function: [(identifier) (attribute)] @m
+          arguments: (argument_list . (_) @sink (keyword_argument name: (identifier) @k value: (string) @mode))) @hit
+         (#match? @m "^(open|aiofiles\\.open|io\\.open)$") (#eq? @k "mode") (#match? @mode "^[rbuf]*[\"'][rbt]*[wax]"))
+        ((call function: (attribute object: (identifier) @o attribute: (identifier) @m) arguments: (argument_list (_) @sink)) @hit
+         (#match? @o "^(shutil|os)$") (#match? @m "^(move|copy|copyfile|rename|replace)$"))
+      requires: true
+
+  - id: debug-mode-enabled
+    requirements: [ARB-062]
+    title: "Debug mode switched on in code: `{text}`"
+    severity: medium
+    confidence: high
+    dimension: security
+    cwe: [CWE-200, CWE-489]
+    controls: [NIST-800-53r5:CM-7, OWASP-ASVS:14.3.2]
+    tags: [information-exposure, debug, flask, fastapi, security]
+    # Only the literal `True`: `debug=os.environ.get(...)` is configuration.
+    # Django's `DEBUG = True` in settings is already
+    # `authored.security-check-disabled`.
+    query: |
+      ((call function: (attribute attribute: (identifier) @m)
+         arguments: (argument_list (keyword_argument name: (identifier) @k value: (true)) @hit))
+        (#eq? @m "run")
+        (#match? @k "^(debug|use_debugger)$"))
+      ((call function: [(identifier) (attribute)] @c
+         arguments: (argument_list (keyword_argument name: (identifier) @k value: (true)) @hit))
+        (#match? @c "^(\\w+\\.)*(FastAPI|Starlette)$")
+        (#eq? @k "debug"))
+      ((assignment left: (attribute object: (identifier) @o attribute: (identifier) @k) right: (true)) @hit
+        (#match? @o "^(app|application)$")
+        (#eq? @k "debug"))
+      ((assignment left: (subscript value: (attribute object: (identifier) @o attribute: (identifier) @cfg)
+                                  subscript: (string (string_content) @k))
+                   right: (true)) @hit
+        (#match? @o "^(app|application)$")
+        (#eq? @cfg "config")
+        (#eq? @k "DEBUG"))
+    requires_file: |
+      ((identifier) @i (#match? @i "^(Flask|FastAPI|Starlette|flask|fastapi|starlette)$"))
+    description: >-
+      Flask's debug mode serves the Werkzeug debugger: an interactive
+      Python console in the browser behind a PIN that leaks through the
+      same tracebacks, and full tracebacks with local values on every
+      error. FastAPI and Starlette with `debug=True` return the traceback
+      to the client. Left in code, it ships.
+    remediation: "Read the flag from configuration (`debug=os.environ.get(\"FLASK_DEBUG\") == \"1\"`) and run behind gunicorn/uvicorn in production."
+
+  # --------------------------------------------------------------------------
+  # Defect classes found in AI-written code (ARB-083)
+  # --------------------------------------------------------------------------
+  # Each shape below is one a reviewer labelled in model-written services
+  # (fixtures/ai-corpus) that no earlier rule covered. All start advisory.
+  - id: mail-tls-unverified
+    requirements: [ARB-083]
+    title: "`{text}` negotiates TLS without verifying the server certificate"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-295]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-8]
+    tags: [tls, smtp, ai-code]
+    # smtplib, imaplib and poplib build `ssl._create_stdlib_context()` when
+    # no context is passed: CERT_NONE, no hostname check. HTTPS clients
+    # verify by default since 3.4.3; these mail clients still do not.
+    query: |
+      (call function: (attribute attribute: (identifier) @m) @fn
+        (#eq? @m "starttls")) @hit
+      (call function: [(attribute) (identifier)] @fn
+        (#match? @fn "^(smtplib\\.)?SMTP_SSL$|^(imaplib\\.)?IMAP4_SSL$|^(poplib\\.)?POP3_SSL$")) @hit
+    unless_inside: |
+      (call arguments: (argument_list (keyword_argument name: (identifier) @k
+        (#match? @k "^(context|ssl_context)$")))) @x
+      (call arguments: (argument_list (dictionary_splat))) @x
+    requires_file: |
+      (import_statement name: (dotted_name) @m (#match? @m "^(smtplib|imaplib|poplib)$")) @x
+      (import_from_statement module_name: (dotted_name) @m (#match? @m "^(smtplib|imaplib|poplib)$")) @x
+    description: >-
+      With no `context`, smtplib's `starttls()` and `SMTP_SSL` (and
+      imaplib/poplib's SSL classes) encrypt the connection but accept any
+      certificate. Anyone on the path can present their own, read the mail,
+      and capture the password sent by `login()` straight after.
+    remediation: "Pass `context=ssl.create_default_context()` to `starttls()` / `SMTP_SSL(...)` (`ssl_context=` for IMAP4_SSL)."
+
+  - id: retry-constant-delay
+    requirements: [ARB-083]
+    title: "`{text}` retries after the same fixed delay every time"
+    severity: low
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [retry, backoff, reliability, ai-code]
+    # A retry path (the function names a retry or an attempt) that waits a
+    # configured delay used as is: no multiplication by the attempt, no
+    # exponent, no jitter. retry-loop-no-backoff is the no-delay case.
+    query: |
+      ((call function: (attribute) @fn
+         arguments: (argument_list . [(identifier) (attribute)] @d .))
+        (#match? @fn "^(time|asyncio)\\.sleep$")
+        (#match? @d "(?i)(^|\\.)_?retry_?(delay|interval|wait|pause|sleep)(_?(ms|millis|s|secs|seconds))?$")) @hit
+      ((call function: (attribute) @fn
+         arguments: (argument_list . [(integer) (float)] .))
+        (#match? @fn "^(time|asyncio)\\.sleep$")) @hit
+      ((call function: [(attribute) (identifier)] @fn
+         arguments: (argument_list . [(identifier) (attribute)] @d))
+        (#match? @fn "^(threading\\.)?Timer$")
+        (#match? @d "(?i)(^|\\.)_?retry_?(delay|interval|wait|pause|sleep)(_?(ms|millis|s|secs|seconds))?$")) @hit
+    requires_in_scope: |
+      ((identifier) @r (#match? @r "(?i)retr|attempt"))
+    requires_file: |
+      ([(identifier) (attribute)] @r (#match? @r "(?i)(^|\\.)_?max_?(retries|retry|attempts?|tries)$|(^|\\.)_?retry_?(count|limit)$"))
+    unless_in_scope: |
+      ((binary_operator operator: ["*" "**" "<<"]) @b (#match? @b "(?i)delay|interval|wait|backoff|pause|attempt|retr|tries"))
+      ((augmented_assignment operator: ["*=" "**=" "<<="]) @b)
+      ((call function: [(attribute) (identifier)] @f) (#match? @f "(?i)random|jitter|uniform|backoff|expovariate|pow$"))
+    # A file that has backoff somewhere is taken to apply it on the outer loop.
+    unless_in_file: |
+      ([(identifier) (attribute)] @b (#match? @b "(?i)backoff|jitter"))
+    description: >-
+      Every retry waits the same interval. When a dependency fails, every
+      caller retries in lock-step on that interval, so the recovering
+      service is hit by the whole backlog at once and each retry is as
+      likely to fail as the last.
+    remediation: "Grow the delay with the attempt (`base * 2 ** attempt`, capped) and add jitter, or use tenacity/backoff."
+
+  - id: ssrf-stored-callback
+    requirements: [ARB-083]
+    title: "`{text}` delivers to a stored callback URL with no internal-address block"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-918]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-7]
+    tags: [ssrf, webhook, ai-code]
+    # A literal key or column (`"callback_url"`) means the URL comes from
+    # a client or the database; a callback map read from the environment is
+    # operator configuration and is not matched.
+    query: |
+      ((call function: (attribute attribute: (identifier) @m) @f
+         arguments: (argument_list . [(identifier) (attribute) (subscript)]))
+        (#match? @f "^(requests|httpx|client|session|self\\.(client|session|_client|_session|http))\\.post$")) @hit
+    requires_file: |
+      ((string (string_content) @s) (#match? @s "(?i)callback_?url|webhook_?url|notify_?url|hook_?url|callback_?uri|redirect_?hook"))
+    unless_in_file: |
+      ((attribute attribute: (identifier) @m) (#match? @m "^(is_private|is_loopback|is_link_local|is_global|is_reserved|is_multicast|is_unspecified)$"))
+      ((identifier) @m (#match? @m "(?i)ssrf|private_?(ip|addr|net|range)|is_?internal|is_?public|blocked_?(ip|addr|host)|allowed_?(host|ip)"))
+    description: >-
+      The URL was stored by a client (a merchant, a subscriber) and the server
+      later sends a request to it. Nothing in the file refuses loopback,
+      private, link-local or cloud-metadata addresses, so whoever can set
+      the URL can make the server reach internal services
+      (169.254.169.254, localhost admin ports) and learn from the delivery
+      status whether they answered.
+    remediation: "Resolve the host with `socket.getaddrinfo`, refuse any address that is not `ipaddress.ip_address(a).is_global`, and connect to the checked address; or keep an allowlist of callback hosts."
+
+  - id: image-bomb-check-disabled
+    requirements: [ARB-083]
+    title: "`{text}` switches off Pillow's decompression-bomb check"
+    severity: high
+    confidence: high
+    dimension: quality
+    cwe: [CWE-409, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, decompression-bomb, ai-code]
+    query: |
+      ((assignment left: (attribute) @a right: (none)) @hit
+        (#match? @a "^(PIL\\.)?Image\\.MAX_IMAGE_PIXELS$"))
+    description: >-
+      Pillow refuses images above ~179 million pixels because a small file
+      can declare a huge canvas. With the limit set to None a few-kilobyte
+      upload makes the decoder allocate gigabytes.
+    remediation: "Keep the default, or set `Image.MAX_IMAGE_PIXELS` to the largest image the service really accepts; check `img.size` before `load()`/`thumbnail()`."
+
+  - id: decompress-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` decompresses with no limit on the output"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-409, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, decompression-bomb, ai-code]
+    # One-shot decompression of a non-literal: the whole output is built in
+    # memory. A scope that checks a size (max_length, a length comparison
+    # against a named limit) is not reported.
+    query: |
+      ((call function: (attribute) @fn arguments: (argument_list . [(identifier) (attribute) (call) (subscript)]))
+        (#match? @fn "^(gzip|zlib|bz2|lzma|brotli|zstd|zstandard)\\.decompress$")) @hit
+      ((call function: (attribute object: (_) @o attribute: (identifier) @m) arguments: (argument_list))
+        (#eq? @m "extractall") (#match? @o "(?i)zip|archive|zf|^z$")) @hit
+    # Only data from a request in the same function: Django decompresses
+    # its own signed values and cache files, which an attacker cannot shape.
+    requires_in_scope: |
+      ((identifier) @i (#match? @i "^(request|req|upload|uploaded|uploaded_file|files)$"))
+    unless_in_scope: |
+      ((keyword_argument name: (identifier) @k) (#match? @k "^(max_length|max_output_size|bufsize)$"))
+      ((identifier) @i (#match? @i "(?i)^max_|_max$|limit|file_size|infolist"))
+    description: >-
+      Compressed data expands by ~1000x (gzip) or far more (nested
+      archives). Decompressing a client's payload in one call, or extracting
+      a client's zip without totalling the entry sizes, lets a 1 MB upload
+      become gigabytes of memory or disk.
+    remediation: "Use `zlib.decompressobj().decompress(data, max_length)` and refuse more; for zips sum `ZipInfo.file_size` (and check the ratio) before extracting."
+
+  - id: request-body-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` reads the request body with no size limit configured"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-770, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, unbounded-input, ai-code]
+    # Flask: an app created in a file that reads request bodies and never
+    # sets MAX_CONTENT_LENGTH. Starlette/FastAPI: `await request.body()` in
+    # a function that checks no content length.
+    query: |
+      ((call function: (identifier) @fn arguments: (argument_list . (identifier) @n)) @hit
+        (#eq? @fn "Flask") (#eq? @n "__name__"))
+      ((await (call function: (attribute object: (identifier) @o attribute: (identifier) @m) arguments: (argument_list))) @hit
+        (#eq? @o "request") (#match? @m "^(body|json|form)$"))
+    requires_file: |
+      ((attribute object: (identifier) @o attribute: (identifier) @m)
+        (#eq? @o "request") (#match? @m "^(get_json|json|data|get_data|files|form|stream|body)$"))
+    # aiohttp caps a body at client_max_size (1 MiB) by default.
+    unless_in_file: |
+      ((string (string_content) @s) (#eq? @s "MAX_CONTENT_LENGTH"))
+      ((identifier) @s (#eq? @s "MAX_CONTENT_LENGTH"))
+      (import_statement name: (dotted_name) @m (#match? @m "^aiohttp")) @x
+      (import_from_statement module_name: (dotted_name) @m (#match? @m "^aiohttp")) @x
+    unless_in_scope: |
+      ((string (string_content) @s) (#match? @s "(?i)^content-length$"))
+      ((identifier) @i (#match? @i "(?i)^max_?(body|request|content|payload|upload)|body_?limit"))
+    description: >-
+      Neither Flask nor Starlette limits a request body by default, so the
+      server reads whatever the client sends into memory before any
+      validation runs. A few concurrent multi-gigabyte requests exhaust it.
+    remediation: "Flask: set `app.config[\"MAX_CONTENT_LENGTH\"]`. Starlette/FastAPI: refuse on Content-Length and read `request.stream()` up to a limit (or cap it at the proxy)."

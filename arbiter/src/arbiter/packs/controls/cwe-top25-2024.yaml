@@ -1,0 +1,411 @@
+# 2024 CWE Top 25, per IDE language. Generated from the matrix in
+# docs/cwe-top25.md, and held to it by tests/test_controls_cwe_top25.py: edit
+# both together.
+#
+# Unlike the framework packs, each control here carries `languages:`, one
+# cell per language pack, because whether a weakness can occur at all, and
+# whether a single-file check can see it, depends on the language:
+#
+#   status: applies         the native rules tagged with the control's `cwe`
+#                           ids (and `satisfied_by`) assess it; none = a gap
+#   status: not_applicable  cannot occur in this language (`reason` says why)
+#   status: out_of_reach    applies, but no single-file check can establish it
+#   measured:               the cell's mark in docs/cwe-top25.md (N native,
+#                           S semgrep, B bandit, gap, OOR, n/a)
+#
+# Checks are not listed per cell: a cell is assessed by every rule in its
+# language pack whose `cwe:` includes one of the control's ids, so a new rule
+# tagged CWE-22 assesses CWE-22 the day it lands. Only the native checks count;
+# semgrep and bandit cells (S, B) read as gaps here, because the pack says what
+# Arbiter itself establishes.
+framework:
+  id: CWE-Top25-2024
+  title: 2024 CWE Top 25 Most Dangerous Software Weaknesses, per language
+  version: "2024"
+  authority: https://cwe.mitre.org/top25/archive/2024/2024_top25_list.html
+  baseline: All 25 weaknesses, assessed per IDE language
+  declared_controls: 25
+  declared_source: >-
+    MITRE 2024 CWE Top 25 Most Dangerous Software Weaknesses (25 entries).
+  notes: >-
+    A weakness is reported per language as assessed (a native check ran),
+    a gap (it applies and no native check covers it), out of reach (it
+    applies and needs more than one file to establish), or not applicable
+    (it cannot occur in that language). A control is not_applicable only
+    when every language of the scanned codebase is n/a for it.
+
+controls:
+  - id: CWE-79
+    title: "Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')"
+    family: "rank 1"
+    automatable: partial
+    machine_scope: "A request value written into HTML without escaping, in the same function."
+    residual: "Stored and DOM XSS across components, template auto-escaping switched off elsewhere, and Content-Security-Policy."
+    cwe: [CWE-79]
+    satisfied_by: []
+    languages:
+      python: {status: applies, measured: "S"}
+      typescript: {status: applies, measured: "N+S †"}
+      go: {status: applies, measured: "S"}
+      java: {status: applies, measured: "N"}
+      ruby: {status: applies, measured: "S"}
+
+  - id: CWE-787
+    title: "Out-of-bounds Write"
+    family: "rank 2"
+    automatable: partial
+    machine_scope: "No single-file native check: see the language cells."
+    residual: "Native extensions and FFI code, which are not scanned."
+    cwe: [CWE-787]
+    satisfied_by: []
+    languages:
+      python: {status: not_applicable, measured: "n/a", reason: "Memory-safe runtime: no pointer arithmetic or manual frees. Occurs only through unsafe, JNI, FFI or a C extension, which the packs do not parse."}
+      typescript: {status: not_applicable, measured: "n/a", reason: "Memory-safe runtime: no pointer arithmetic or manual frees. Occurs only through unsafe, JNI, FFI or a C extension, which the packs do not parse."}
+      go: {status: not_applicable, measured: "n/a", reason: "Memory-safe runtime: no pointer arithmetic or manual frees. Occurs only through unsafe, JNI, FFI or a C extension, which the packs do not parse."}
+      java: {status: not_applicable, measured: "n/a", reason: "Memory-safe runtime: no pointer arithmetic or manual frees. Occurs only through unsafe, JNI, FFI or a C extension, which the packs do not parse."}
+      ruby: {status: not_applicable, measured: "n/a", reason: "Memory-safe runtime: no pointer arithmetic or manual frees. Occurs only through unsafe, JNI, FFI or a C extension, which the packs do not parse."}
+
+  - id: CWE-89
+    title: "Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"
+    family: "rank 3"
+    automatable: partial
+    machine_scope: "Query text built from a non-constant value at the database call."
+    residual: "Queries built through helpers in other files, and stored procedures."
+    cwe: [CWE-89]
+    satisfied_by: []
+    languages:
+      python: {status: applies, measured: "N+S+B †"}
+      typescript: {status: applies, measured: "N+S †"}
+      go: {status: applies, measured: "N+S †"}
+      java: {status: applies, measured: "N+S †"}
+      ruby: {status: applies, measured: "N+S †"}
+
+  - id: CWE-352
+    title: "Cross-Site Request Forgery (CSRF)"
+    family: "rank 4"
+    automatable: partial
+    machine_scope: "Framework CSRF protection switched off on a session-authenticated view or configuration."
+    residual: "Whether every state-changing route sits behind the protection, and SameSite cookie settings."
+    cwe: [CWE-352]
+    satisfied_by: []
+    languages:
+      python: {status: applies, measured: "N+S"}
+      typescript: {status: applies, measured: "N"}
+      go: {status: out_of_reach, measured: "OOR", reason: "net/http has no CSRF protection to switch off. Protection is middleware (gorilla/csrf, http.CrossOriginProtection) and its absence only shows in the whole router set-up."}
+      java: {status: applies, measured: "N+S"}
+      ruby: {status: applies, measured: "N"}
+
+  - id: CWE-22
+    title: "Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')"
+    family: "rank 5"
+    automatable: partial
+    machine_scope: "No single-file native check: see the language cells."
+    residual: "Paths assembled across functions, and symlinks in the served tree."
+    cwe: [CWE-22]
+    satisfied_by: []
+    languages:
+      python: {status: applies, measured: "S"}
+      typescript: {status: applies, measured: "S"}
+      go: {status: applies, measured: "N"}
+      java: {status: applies, measured: "S"}
+      ruby: {status: applies, measured: "N"}
+
+  - id: CWE-125
+    title: "Out-of-bounds Read"
+    family: "rank 6"
+    automatable: partial
+    machine_scope: "No single-file native check: see the language cells."
+    residual: "Native extensions and FFI code, which are not scanned."
+    cwe: [CWE-125]
+    satisfied_by: []
+    languages:
+      python: {status: not_applicable, measured: "n/a", reason: "Memory-safe runtime: no pointer arithmetic or manual frees. Occurs only through unsafe, JNI, FFI or a C extension, which the packs do not parse."}
+      typescript: {status: not_applicable, measured: "n/a", reason: "Memory-safe runtime: no pointer arithmetic or manual frees. Occurs only through unsafe, JNI, FFI or a C extension, which the packs do not parse."}
+      go: {status: not_applicable, measured: "n/a", reason: "Memory-safe runtime: no pointer arithmetic or manual frees. Occurs only through unsafe, JNI, FFI or a C extension, which the packs do not parse."}
+      java: {status: not_applicable, measured: "n/a", reason: "Memory-safe runtime: no pointer arithmetic or manual frees. Occurs only through unsafe, JNI, FFI or a C extension, which the packs do not parse."}
+      ruby: {status: not_applicable, measured: "n/a", reason: "Memory-safe runtime: no pointer arithmetic or manual frees. Occurs only through unsafe, JNI, FFI or a C extension, which the packs do not parse."}
+
+  - id: CWE-78
+    title: "Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+    family: "rank 7"
+    automatable: partial
+    machine_scope: "A shell command string built from a non-constant value at the call."
+    residual: "Commands assembled across functions, and argument injection (CWE-77)."
+    cwe: [CWE-78]
+    satisfied_by: []
+    languages:
+      python: {status: applies, measured: "N+S+B †"}
+      typescript: {status: applies, measured: "N+S †"}
+      go: {status: applies, measured: "N+S †"}
+      java: {status: applies, measured: "N+S †"}
+      ruby: {status: applies, measured: "N+S †"}
+
+  - id: CWE-416
+    title: "Use After Free"
+    family: "rank 8"
+    automatable: partial
+    machine_scope: "No single-file native check: see the language cells."
+    residual: "Native extensions and FFI code, which are not scanned."
+    cwe: [CWE-416]
+    satisfied_by: []
+    languages:
+      python: {status: not_applicable, measured: "n/a", reason: "Memory-safe runtime: no pointer arithmetic or manual frees. Occurs only through unsafe, JNI, FFI or a C extension, which the packs do not parse."}
+      typescript: {status: not_applicable, measured: "n/a", reason: "Memory-safe runtime: no pointer arithmetic or manual frees. Occurs only through unsafe, JNI, FFI or a C extension, which the packs do not parse."}
+      go: {status: not_applicable, measured: "n/a", reason: "Memory-safe runtime: no pointer arithmetic or manual frees. Occurs only through unsafe, JNI, FFI or a C extension, which the packs do not parse."}
+      java: {status: not_applicable, measured: "n/a", reason: "Memory-safe runtime: no pointer arithmetic or manual frees. Occurs only through unsafe, JNI, FFI or a C extension, which the packs do not parse."}
+      ruby: {status: not_applicable, measured: "n/a", reason: "Memory-safe runtime: no pointer arithmetic or manual frees. Occurs only through unsafe, JNI, FFI or a C extension, which the packs do not parse."}
+
+  - id: CWE-862
+    title: "Missing Authorization"
+    family: "rank 9"
+    automatable: partial
+    machine_scope: "No single-file native check: see the language cells."
+    residual: "The authorization model: which routes need which roles, and who owns which object."
+    cwe: [CWE-862]
+    satisfied_by: []
+    languages:
+      python: {status: out_of_reach, measured: "OOR", reason: "Telling a missing or wrong permission check from a correct one needs the application's authorization model (which routes need which roles, who owns which object), which no single file states."}
+      typescript: {status: out_of_reach, measured: "OOR", reason: "Telling a missing or wrong permission check from a correct one needs the application's authorization model (which routes need which roles, who owns which object), which no single file states."}
+      go: {status: out_of_reach, measured: "OOR", reason: "Telling a missing or wrong permission check from a correct one needs the application's authorization model (which routes need which roles, who owns which object), which no single file states."}
+      java: {status: out_of_reach, measured: "OOR", reason: "Telling a missing or wrong permission check from a correct one needs the application's authorization model (which routes need which roles, who owns which object), which no single file states."}
+      ruby: {status: out_of_reach, measured: "OOR", reason: "Telling a missing or wrong permission check from a correct one needs the application's authorization model (which routes need which roles, who owns which object), which no single file states."}
+
+  - id: CWE-434
+    title: "Unrestricted Upload of File with Dangerous Type"
+    family: "rank 10"
+    automatable: partial
+    machine_scope: "No single-file native check: see the language cells."
+    residual: "Type and extension allowlists, where uploads are stored and whether they are served."
+    cwe: [CWE-434]
+    satisfied_by: []
+    languages:
+      python: {status: applies, measured: "N"}
+      typescript: {status: applies, measured: "N"}
+      go: {status: applies, measured: "N"}
+      java: {status: applies, measured: "N+S"}
+      ruby: {status: applies, measured: "N"}
+
+  - id: CWE-94
+    title: "Improper Control of Generation of Code ('Code Injection')"
+    family: "rank 11"
+    automatable: partial
+    machine_scope: "eval-style calls (CWE-95) on a non-constant value."
+    residual: "Expression languages and template engines evaluated elsewhere."
+    cwe: [CWE-94, CWE-95]
+    satisfied_by: []
+    languages:
+      python: {status: applies, measured: "N+S+B †"}
+      typescript: {status: applies, measured: "N+S †"}
+      go: {status: not_applicable, measured: "n/a", reason: "No runtime code evaluation. text/template injection is CWE-1336 and reaches template data, not code."}
+      java: {status: applies, measured: "S"}
+      ruby: {status: applies, measured: "N+S †"}
+
+  - id: CWE-20
+    title: "Improper Input Validation"
+    family: "rank 12"
+    automatable: partial
+    machine_scope: "No single-file native check: see the language cells."
+    residual: "Validation of every input against its specification."
+    cwe: [CWE-20]
+    satisfied_by: []
+    languages:
+      python: {status: out_of_reach, measured: "OOR", reason: "A pillar: every concrete instance is a more specific CWE with its own row (22, 79, 89, 434). A missing validation with no specific sink has no single-file signature."}
+      typescript: {status: out_of_reach, measured: "OOR", reason: "A pillar: every concrete instance is a more specific CWE with its own row (22, 79, 89, 434). A missing validation with no specific sink has no single-file signature."}
+      go: {status: out_of_reach, measured: "OOR", reason: "A pillar: every concrete instance is a more specific CWE with its own row (22, 79, 89, 434). A missing validation with no specific sink has no single-file signature."}
+      java: {status: out_of_reach, measured: "OOR", reason: "A pillar: every concrete instance is a more specific CWE with its own row (22, 79, 89, 434). A missing validation with no specific sink has no single-file signature."}
+      ruby: {status: out_of_reach, measured: "OOR", reason: "A pillar: every concrete instance is a more specific CWE with its own row (22, 79, 89, 434). A missing validation with no specific sink has no single-file signature."}
+
+  - id: CWE-77
+    title: "Improper Neutralization of Special Elements used in a Command ('Command Injection')"
+    family: "rank 13"
+    automatable: partial
+    machine_scope: "No single-file native check: see the language cells."
+    residual: "Argument injection into git, curl, ssh and similar tools."
+    cwe: [CWE-77]
+    satisfied_by: []
+    languages:
+      python: {status: applies, measured: "N"}
+      typescript: {status: applies, measured: "N"}
+      go: {status: applies, measured: "N"}
+      java: {status: applies, measured: "N"}
+      ruby: {status: applies, measured: "N"}
+
+  - id: CWE-287
+    title: "Improper Authentication"
+    family: "rank 14"
+    automatable: partial
+    machine_scope: "JWTs decoded without verification, and verification switched off by option."
+    residual: "Session handling, password storage, MFA, and the authentication flow as a whole."
+    cwe: [CWE-287]
+    satisfied_by: []
+    languages:
+      python: {status: applies, measured: "N+S"}
+      typescript: {status: applies, measured: "N"}
+      go: {status: applies, measured: "N"}
+      java: {status: applies, measured: "N+S"}
+      ruby: {status: applies, measured: "N+S"}
+
+  - id: CWE-269
+    title: "Improper Privilege Management"
+    family: "rank 15"
+    automatable: partial
+    machine_scope: "No single-file native check: see the language cells."
+    residual: "Role design, and the privileges the deployment grants."
+    cwe: [CWE-269]
+    satisfied_by: []
+    languages:
+      python: {status: out_of_reach, measured: "OOR", reason: "A deployment and role-design property. Its single-file signals (running as root, broad IAM) sit in Dockerfiles, Kubernetes and IaC, not application code."}
+      typescript: {status: out_of_reach, measured: "OOR", reason: "A deployment and role-design property. Its single-file signals (running as root, broad IAM) sit in Dockerfiles, Kubernetes and IaC, not application code."}
+      go: {status: out_of_reach, measured: "OOR", reason: "A deployment and role-design property. Its single-file signals (running as root, broad IAM) sit in Dockerfiles, Kubernetes and IaC, not application code."}
+      java: {status: out_of_reach, measured: "OOR", reason: "A deployment and role-design property. Its single-file signals (running as root, broad IAM) sit in Dockerfiles, Kubernetes and IaC, not application code."}
+      ruby: {status: out_of_reach, measured: "OOR", reason: "A deployment and role-design property. Its single-file signals (running as root, broad IAM) sit in Dockerfiles, Kubernetes and IaC, not application code."}
+
+  - id: CWE-502
+    title: "Deserialization of Untrusted Data"
+    family: "rank 16"
+    automatable: partial
+    machine_scope: "Unsafe deserializers (pickle, ObjectInputStream, Marshal, YAML full load) called on data."
+    residual: "Where the serialized data comes from, and allowlist-based deserializers configured elsewhere."
+    cwe: [CWE-502]
+    satisfied_by: []
+    languages:
+      python: {status: applies, measured: "N+S+B †"}
+      typescript: {status: applies, measured: "S"}
+      go: {status: not_applicable, measured: "n/a", reason: "The stdlib decoders (encoding/json, gob, xml) fill declared types. There is no gadget chain or code execution path."}
+      java: {status: applies, measured: "N+S †"}
+      ruby: {status: applies, measured: "N †"}
+
+  - id: CWE-200
+    title: "Exposure of Sensitive Information to an Unauthorized Actor"
+    family: "rank 17"
+    automatable: partial
+    machine_scope: "Error detail (stack traces, exception messages) returned in a response; debug endpoints exposed."
+    residual: "Every other path by which data reaches a caller, and logging of sensitive values."
+    cwe: [CWE-200]
+    satisfied_by: []
+    languages:
+      python: {status: applies, measured: "N+S+B"}
+      typescript: {status: applies, measured: "N"}
+      go: {status: applies, measured: "N"}
+      java: {status: applies, measured: "N"}
+      ruby: {status: applies, measured: "N"}
+
+  - id: CWE-863
+    title: "Incorrect Authorization"
+    family: "rank 18"
+    automatable: partial
+    machine_scope: "No single-file native check: see the language cells."
+    residual: "The authorization model and every check against it."
+    cwe: [CWE-863]
+    satisfied_by: []
+    languages:
+      python: {status: out_of_reach, measured: "OOR", reason: "Telling a missing or wrong permission check from a correct one needs the application's authorization model (which routes need which roles, who owns which object), which no single file states."}
+      typescript: {status: out_of_reach, measured: "OOR", reason: "Telling a missing or wrong permission check from a correct one needs the application's authorization model (which routes need which roles, who owns which object), which no single file states."}
+      go: {status: out_of_reach, measured: "OOR", reason: "Telling a missing or wrong permission check from a correct one needs the application's authorization model (which routes need which roles, who owns which object), which no single file states. go.stub-on-security-path reports a stubbed-out check; its silence is not evidence."}
+      java: {status: out_of_reach, measured: "OOR", reason: "Telling a missing or wrong permission check from a correct one needs the application's authorization model (which routes need which roles, who owns which object), which no single file states."}
+      ruby: {status: out_of_reach, measured: "OOR", reason: "Telling a missing or wrong permission check from a correct one needs the application's authorization model (which routes need which roles, who owns which object), which no single file states."}
+
+  - id: CWE-918
+    title: "Server-Side Request Forgery (SSRF)"
+    family: "rank 19"
+    automatable: partial
+    machine_scope: "No single-file native check: see the language cells."
+    residual: "URLs that pass through helpers or other files (interprocedural, out of reach), and egress controls."
+    cwe: [CWE-918]
+    satisfied_by: []
+    languages:
+      python: {status: applies, measured: "N+S"}
+      typescript: {status: applies, measured: "N"}
+      go: {status: applies, measured: "N"}
+      java: {status: applies, measured: "N"}
+      ruby: {status: applies, measured: "N"}
+
+  - id: CWE-119
+    title: "Improper Restriction of Operations within the Bounds of a Memory Buffer"
+    family: "rank 20"
+    automatable: partial
+    machine_scope: "No single-file native check: see the language cells."
+    residual: "Native extensions and FFI code, which are not scanned."
+    cwe: [CWE-119]
+    satisfied_by: []
+    languages:
+      python: {status: not_applicable, measured: "n/a", reason: "Memory-safe runtime: no pointer arithmetic or manual frees. Occurs only through unsafe, JNI, FFI or a C extension, which the packs do not parse."}
+      typescript: {status: not_applicable, measured: "n/a", reason: "Memory-safe runtime: no pointer arithmetic or manual frees. Occurs only through unsafe, JNI, FFI or a C extension, which the packs do not parse."}
+      go: {status: not_applicable, measured: "n/a", reason: "Memory-safe runtime: no pointer arithmetic or manual frees. Occurs only through unsafe, JNI, FFI or a C extension, which the packs do not parse."}
+      java: {status: not_applicable, measured: "n/a", reason: "Memory-safe runtime: no pointer arithmetic or manual frees. Occurs only through unsafe, JNI, FFI or a C extension, which the packs do not parse."}
+      ruby: {status: not_applicable, measured: "n/a", reason: "Memory-safe runtime: no pointer arithmetic or manual frees. Occurs only through unsafe, JNI, FFI or a C extension, which the packs do not parse."}
+
+  - id: CWE-476
+    title: "NULL Pointer Dereference"
+    family: "rank 21"
+    automatable: partial
+    machine_scope: "No single-file native check: see the language cells."
+    residual: "Nullness across calls."
+    cwe: [CWE-476]
+    satisfied_by: []
+    languages:
+      python: {status: not_applicable, measured: "n/a", reason: "None access raises a catchable exception, not a pointer dereference (error handling, CWE-703)."}
+      typescript: {status: not_applicable, measured: "n/a", reason: "undefined/null access raises a catchable TypeError, not a pointer dereference (error handling, CWE-703)."}
+      go: {status: out_of_reach, measured: "OOR", reason: "A nil dereference is a real panic, but proving a value is nil at its use needs nullness flow analysis across calls."}
+      java: {status: out_of_reach, measured: "OOR", reason: "A null dereference is a real NPE, but proving a value is null at its use needs nullness flow analysis across calls."}
+      ruby: {status: not_applicable, measured: "n/a", reason: "nil access raises a catchable NoMethodError, not a pointer dereference (error handling, CWE-703)."}
+
+  - id: CWE-798
+    title: "Use of Hard-coded Credentials"
+    family: "rank 22"
+    automatable: partial
+    machine_scope: "Credentials assigned to credential-named variables, credentialed URLs, and literal signing keys or passwords passed to known APIs."
+    residual: "Secrets held outside the repository, rotation, and literals no rule recognizes."
+    cwe: [CWE-798]
+    satisfied_by: [arbiter/secrets.assigned-credential, arbiter/secrets.pg-url]
+    languages:
+      python: {status: applies, measured: "N+S+B"}
+      typescript: {status: applies, measured: "N+S"}
+      go: {status: applies, measured: "N"}
+      java: {status: applies, measured: "N"}
+      ruby: {status: applies, measured: "N+S"}
+
+  - id: CWE-190
+    title: "Integer Overflow or Wraparound"
+    family: "rank 23"
+    automatable: partial
+    machine_scope: "No single-file native check: see the language cells."
+    residual: "Arithmetic on sizes and indexes from untrusted input."
+    cwe: [CWE-190]
+    satisfied_by: []
+    languages:
+      python: {status: not_applicable, measured: "n/a", reason: "Integers are arbitrary-precision and cannot wrap."}
+      typescript: {status: not_applicable, measured: "n/a", reason: "number is a double, so overflow is lost precision (CWE-1339), not wraparound; bigint is arbitrary-precision."}
+      go: {status: applies, measured: "N"}
+      java: {status: applies, measured: "N"}
+      ruby: {status: not_applicable, measured: "n/a", reason: "Integers are arbitrary-precision and cannot wrap."}
+
+  - id: CWE-400
+    title: "Uncontrolled Resource Consumption"
+    family: "rank 24"
+    automatable: partial
+    machine_scope: "Network calls without a timeout, and retry loops without backoff."
+    residual: "Request size limits, rate limiting, and capacity under load."
+    cwe: [CWE-400]
+    satisfied_by: []
+    languages:
+      python: {status: applies, measured: "N+S+B †"}
+      typescript: {status: applies, measured: "N †"}
+      go: {status: applies, measured: "N †"}
+      java: {status: applies, measured: "N †"}
+      ruby: {status: applies, measured: "N †"}
+
+  - id: CWE-306
+    title: "Missing Authentication for Critical Function"
+    family: "rank 25"
+    automatable: partial
+    machine_scope: "No single-file native check: see the language cells."
+    residual: "Which functions are critical, and that each sits behind authentication."
+    cwe: [CWE-306]
+    satisfied_by: []
+    languages:
+      python: {status: out_of_reach, measured: "OOR", reason: "Needs the route and middleware topology across files, plus knowing which functions are critical."}
+      typescript: {status: out_of_reach, measured: "OOR", reason: "Needs the route and middleware topology across files, plus knowing which functions are critical."}
+      go: {status: out_of_reach, measured: "OOR", reason: "Needs the route and middleware topology across files, plus knowing which functions are critical."}
+      java: {status: out_of_reach, measured: "OOR", reason: "Needs the route and middleware topology across files, plus knowing which functions are critical."}
+      ruby: {status: out_of_reach, measured: "OOR", reason: "Needs the route and middleware topology across files, plus knowing which functions are critical."}

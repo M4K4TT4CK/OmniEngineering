@@ -162,6 +162,44 @@ def parse_file(path: str, language: str):
         return None
 
 
+def _new_api(lang) -> bool:
+    """tree-sitter moved queries around between 0.21 and 0.26. Support both:
+    new  -> Query(language, source) + QueryCursor(query).captures(node)
+    old  -> language.query(source).captures(node)"""
+    import tree_sitter as _ts
+    return hasattr(_ts, "Query") and not hasattr(lang, "query")
+
+
+@functools.lru_cache(maxsize=4096)
+def _compiled(lang, query_src: str):
+    """The compiled query for (grammar, query text), built once per process.
+
+    Compiling is the expensive step: building `Query(lang, src)` inside
+    `run_query` made a scan pay N files x R rules compilations where R
+    would do (ARB-076). A `Language` is hashable and compares equal across
+    trees parsed with the same grammar, so the key is the grammar itself:
+    `tsx` and `typescript` get separate entries. A compiled query is
+    read-only while it runs (the per-run state lives in the cursor), so the
+    probe threads share it. Failures raise and are not cached.
+    """
+    import tree_sitter as _ts
+    if _new_api(lang):
+        return _ts.Query(lang, query_src)
+    return lang.query(query_src)
+
+
+def compile_query(ts_lang: str, query_src: str) -> None:
+    """Compile `query_src` against grammar `ts_lang` (a tree-sitter name, e.g.
+    "tsx"), raising ValueError with tree-sitter's reason when it does not.
+    Callers check `cached_grammars()` first: this never downloads one. The
+    result is kept in the per-process cache that `run_query` reads."""
+    lang = _language(ts_lang)
+    try:
+        _compiled(lang, query_src)
+    except Exception as exc:
+        raise ValueError(" ".join(str(exc).split()) or type(exc).__name__) from exc
+
+
 def run_query(language: str, query_src: str, tree_and_src) -> list[dict]:
     """Run a tree-sitter query. Returns one dict per capture."""
     ts = ts_name(language)
@@ -171,19 +209,15 @@ def run_query(language: str, query_src: str, tree_and_src) -> list[dict]:
     # Compile against the grammar the tree was parsed with (tsx for a .tsx
     # file), not the inventory language's default grammar.
     lang = getattr(tree, "language", None) or _language(ts)
-    # tree-sitter moved queries around between 0.21 and 0.26. Support both:
-    # new  -> Query(language, source) + QueryCursor(query).captures(node)
-    # old  -> language.query(source).captures(node)
     try:
-        import tree_sitter as _ts
-        if hasattr(_ts, "Query") and not hasattr(lang, "query"):
-            query = _ts.Query(lang, query_src)
-            runner = _ts.QueryCursor(query)
-        else:
-            query = lang.query(query_src)
-            runner = query
+        query = _compiled(lang, query_src)
     except Exception as exc:
         raise ValueError(f"invalid tree-sitter query for {language}: {exc}") from exc
+    if _new_api(lang):
+        import tree_sitter as _ts
+        runner = _ts.QueryCursor(query)  # cheap, and holds the per-run state
+    else:
+        runner = query
 
     out: list[dict] = []
     try:
@@ -205,6 +239,35 @@ def run_query(language: str, query_src: str, tree_and_src) -> list[dict]:
             "text": src[node.start_byte:node.end_byte].decode("utf-8", "replace"),
             "node": node,
         })
+    return out
+
+
+def run_matches(language: str, query_src: str, tree_and_src) -> list[dict[str, list]]:
+    """Run a tree-sitter query and return one {capture: [nodes]} per match,
+    so captures that belong together (a sink and the literal beside it)
+    stay together. Used by the data-flow engine (`dataflow.py`)."""
+    ts = ts_name(language)
+    if not ts or tree_and_src is None:
+        return []
+    tree, _src = tree_and_src
+    lang = getattr(tree, "language", None) or _language(ts)
+    try:
+        query = _compiled(lang, query_src)
+    except Exception as exc:
+        raise ValueError(f"invalid tree-sitter query for {language}: {exc}") from exc
+    if _new_api(lang):
+        import tree_sitter as _ts
+        runner = _ts.QueryCursor(query)
+    else:
+        runner = query
+    try:
+        found = runner.matches(tree.root_node)
+    except Exception:  # noqa: BLE001 - as run_query: a match-time rejection is no matches
+        return []
+    out: list[dict[str, list]] = []
+    for _pattern, caps in found:
+        if isinstance(caps, dict):
+            out.append({k: (v if isinstance(v, list) else [v]) for k, v in caps.items()})
     return out
 
 

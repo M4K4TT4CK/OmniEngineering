@@ -1,0 +1,24 @@
+{
+  "name": "tenant-notes",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Multi-tenant notes service with role-based access, backed by SQLite",
+  "main": "server.ts",
+  "engines": {
+    "node": ">=18.18"
+  },
+  "scripts": {
+    "start": "node --import tsx server.ts",
+    "test": "node --import tsx --test server.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

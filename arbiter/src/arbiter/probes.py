@@ -331,6 +331,43 @@ _ASSIGNED_SECRET = re.compile(
     """
 )
 
+# The words `_ASSIGNED_SECRET` requires inside its symbol, and the most word
+# characters it allows before them. Every match starts at most this far before
+# one of these words, so the scan below tries the full pattern only there
+# instead of at every character: the same matches, about five times faster
+# (secrets was 31 s of regex on keycloak). Keep the three in step with the
+# pattern; tests/test_secrets_scan_equivalence.py fails when they drift.
+_ASSIGNED_SECRET_WORD = re.compile(
+    r"""(?ix)password|passwd|pwd|secret|token|api[._-]?key|access[._-]?key|
+         client[._-]?secret|private[._-]?key|credential""")
+_ASSIGNED_SECRET_PREFIX = 24
+
+
+def _assigned_secret_matches(text: str):
+    """Exactly `_ASSIGNED_SECRET.finditer(text)`, tried only near a keyword.
+
+    The pattern has no anchors or lookbehind, so whether it matches at a
+    position depends on the text from there on alone, and `match` at each
+    candidate start, leftmost first, finds what `finditer` finds. A match
+    cannot be empty, so the next search resumes at its end, as finditer does.
+    """
+    pos = 0
+    while True:
+        k = _ASSIGNED_SECRET_WORD.search(text, pos)
+        if k is None:
+            return
+        found = None
+        for start in range(max(pos, k.start() - _ASSIGNED_SECRET_PREFIX), k.start() + 1):
+            found = _ASSIGNED_SECRET.match(text, start)
+            if found:
+                break
+        if found:
+            yield found
+            pos = found.end()
+        else:
+            pos = k.start() + 1
+
+
 # Unquoted values. A .env file, a Kubernetes Secret, a docker-compose file, a
 # `export` line and a Dockerfile `ENV` all write secrets without quotes, and
 # those are the places secrets most commonly leak. The quoted pattern above saw
@@ -357,11 +394,63 @@ _ASSIGNED_SECRET_BARE = re.compile(
 # A symbol whose name ends this way holds a reference to a secret, not a
 # secret: `secretName`, `access_key_status`, `tokenUrl`, `secretKeyRef`.
 _NON_SECRET_SUFFIX = re.compile(
-    r"(_(?:status|state|id|name|arn|path|file|url|uri|type|enabled|required|"
-    r"expiry|expires|rotation|algorithm|version|ref|class|provider|manager|store|hash|selector|policy|config|template|format|scope|prefix|suffix)"
+    # The underscore spelling is matched in either case: `TOKEN_URL` and
+    # `PASSWORD_FIELD` are constants named for what they hold (ARB-065).
+    r"((?i:_(?:status|state|id|name|arn|path|file|url|uri|type|enabled|required|"
+    r"expiry|expires|rotation|algorithm|version|ref|class|provider|manager|store|hash|selector|policy|config|template|format|scope|prefix|suffix|"
+    r"endpoint|header|field|param|parameter|property|attribute|attr|label|key_name|lifespan|length|size|timeout|ttl|count))"
     r"|(?:Status|State|Id|Name|Arn|Path|File|Url|Uri|Type|Enabled|Required|"
-    r"Expiry|Expires|Rotation|Algorithm|Version|Ref|Class|Provider|Manager|Store|Hash|Selector|Policy|Config|Template|Format|Scope|Prefix|Suffix))$"
+    r"Expiry|Expires|Rotation|Algorithm|Version|Ref|Class|Provider|Manager|Store|Hash|Selector|Policy|Config|Template|Format|Scope|Prefix|Suffix|"
+    r"Endpoint|Header|Field|Param|Parameter|Property|Attribute|Attr|Label|Lifespan|Length|Size|Timeout|Ttl|Count))$"
 )
+
+# Languages in which an unquoted right-hand side is never a string literal: it
+# is a variable, a call or an expression. `self.key_password = key_password`
+# (urllib3's connection.py) and `this.accessTokenLifespan = realm.get...` were
+# about 630 of 1,696 assigned-credential reports on gold (ARB-065). The bare
+# pattern exists for .env, YAML, shell, Dockerfile and properties files, where
+# values are written without quotes; in source code it only ever saw names.
+_EXPRESSION_LANGUAGES = frozenset({
+    "python", "javascript", "typescript", "go", "ruby", "java", "kotlin", "c",
+    "cpp", "csharp", "rust", "php",
+})
+
+# A quoted value that names something rather than being something. Constants
+# like `PASSWORD_KEY = "password"`, `TOKEN_HEADER = "X-Auth-Token"`,
+# `KEY_PASSWORD_KEY = "keyPassword"` and OpenTelemetry's
+# `ATTR_GEN_AI_USAGE_INPUT_TOKENS = "gen_ai.usage.input_tokens"` hold the NAME
+# of a config key, header or attribute. Three shapes, all letters only (a digit
+# anywhere and the value is judged as a credential as before):
+#   - a dotted, colon or slash path of words: `spring.security.user.password`,
+#     `gen_ai.usage.input_tokens`; `oauth2.client-secret` fails on the digit;
+#   - a Title-Case header name: `X-Auth-Token`, `Proxy-Authorization`. Plain
+#     lower-case kebab (`super-secret-key`) is how weak secrets are written,
+#     and stays reported;
+#   - a short lowerCamelCase identifier, two to four words: `keyPassword`,
+#     `accessToken`. A longer camel phrase is a passphrase: WebGoat's
+#     password for Tom in ResetLinkAssignment.java is one ("somethingVery
+#     RandomWhich..."), so it is still reported.
+_KEY_NAME_VALUE = re.compile(
+    r"^(?:[A-Za-z][A-Za-z_-]*(?:[.:/][A-Za-z][A-Za-z_-]*)+"
+    # Three or more segments may each carry one run of digits: tomcat's
+    # `org.apache.tomcat.manager2.CsrfFilter.token`, keycloak's
+    # `picketlink.wstrust.base64_encode_wstrust_secret_key`, grpc's
+    # `type.googleapis.com/envoy...access_token.v3.AccessTokenCredentials`
+    # (ARB-065). A JWT has three segments too, but each is base64 with digits
+    # scattered through it, so no segment of one matches.
+    r"|[A-Za-z][A-Za-z_-]*(?:\d+[A-Za-z_-]*)?(?:[.:/][A-Za-z][A-Za-z_-]*(?:\d+[A-Za-z_-]*)?){2,}"
+    r"|[A-Z][a-z]*(?:-[A-Z][a-z]*)+"
+    r"|(?=.{0,32}$)[a-z]+(?:[A-Z][a-z]+){1,3})$")
+# A URL without user-info is an endpoint (`TOKEN_URL = "https://oauth2...`).
+# Credentials embedded in a URL are the pg-url pattern's business.
+_PLAIN_URL_VALUE = re.compile(r"^[a-z][a-z0-9+.-]*://[^\s@]*$|^/[^\s]*$", re.IGNORECASE)
+
+# Java i18n message bundles: `messages.properties`, `messages_de.properties`,
+# `ValidationMessages_pt_BR.properties`, tomcat's `LocalStrings.properties`. Their keys say `emptyPassword` and
+# their values are translated text, sometimes without a space (67 on gold).
+_MESSAGE_BUNDLE = re.compile(
+    r"(^|/)(?:[\w-]*(?i:messages?|localstrings)[\w-]*|[\w-]+_[a-z]{2}(?:_[A-Z]{2}|_[A-Z][a-z]{3})?)\.properties$"
+    r"|(^|/)(?i:i18n|l10n|locales?|messages|translations?)/[^/]+\.properties$")
 
 _PLACEHOLDER = re.compile(
     r"(?i)^(|x{3,}|\*{3,}|\.{3,}|changeme|todo|none|null|test|dummy|"
@@ -384,9 +473,37 @@ _TEST_MATERIAL = re.compile(
     # under integration/resources/tls -- material committed on purpose so the
     # integration suite has something to serve. Same category as the keys under
     # psf/requests' tests/certs, different word for the directory.
-    r"|integration|e2e|acceptance|conformance|hack|scripts?/dev)(/|$)"
+    r"|integration|e2e|acceptance|conformance|hack|scripts?/dev"
+    # Test vectors: pyca/cryptography ships its key corpus as the
+    # `vectors/cryptography_vectors` package.
+    r"|vectors|test[-_]?vectors"
+    # Suites in a directory the inventory does not call a test (ARB-065):
+    # keycloak's `testsuite/`, urllib3's `dummyserver/certs`, celery's `t/`.
+    # Their keys were reported as critical, high-confidence leaks.
+    r"|testsuite|test[-_]suites?|dummyserver|t)(/|$)"
     r"|(^|/)[^/]*\.(test|spec)\.[a-z]+$"
+    # A module named for fixtures: jose's tap/fixtures.ts, cryptography's
+    # fixtures_rsa.py.
+    r"|(^|/)fixtures?(?:[_-][^/]*)?\.[a-z]+$"
+    # A key issued for `localhost` identifies no deployed host: caddy's
+    # caddytest/caddy.localhost.key, keycloak's test-user@localhost.key.pem.
+    r"|(^|/)[^/]*localhost[^/]*\.(?:key|pem)$"
 )
+
+# Directories that hold fixture DATA, by name: testdata/, fixtures/, test
+# vectors. A data file there (a .pem, .key or .txt the inventory gives no
+# language) exists to be the fixture -- grpc-go's testdata/x509, etcd's
+# tests/fixtures/*.key.insecure, cryptography's vectors and its RFC 8032
+# SECRET lines, coredns's testdata/*.private. 146 of 260 private-key and 18 of
+# 210 assigned-credential gold reports (ARB-065). It is not reported. A key
+# under any other test path (tests/certs, integration/.../tls, examples/), or
+# a key written into test source code, is still reported, at low.
+_FIXTURE_DATA_DIR = re.compile(
+    r"(^|/)(testdata|test[-_]data|fixtures?(?:-[\w-]+)?|__fixtures__|vectors|test[-_]?vectors)/")
+
+
+def _fixture_data_file(f) -> bool:
+    return f.language == "unknown" and bool(_FIXTURE_DATA_DIR.search(f.path))
 
 # A PEM header with nothing behind it. Argo CD's operator manual shows how to
 # register a repository credential, and the key body in that example is three
@@ -487,6 +604,81 @@ _ENV_VAR_NAME = re.compile(r"^[A-Z][A-Z0-9_]{2,}$")
 # A symbol that says it holds the NAME of something (`API_KEY_ENV`,
 # `token_env_var`, `secret_name`), not the thing itself.
 _NAME_HOLDER_SUFFIX = re.compile(r"(?i)(?:_env|_env_var|_envvar|_var|_name|_key_name)$")
+# A constant whose PREFIX says it holds a name: spring-security's XML parsers
+# write `ATT_USER_PASSWORD = "password-attribute"` and
+# `ELT_ENCRYPTION_CREDENTIAL = "encryption-credential"` (ARB-065).
+_NAME_HOLDER_PREFIX = re.compile(
+    r"^(?:ATTR?|ELT|ELEM|ELEMENT|PARAM|HEADER|PROP|PROPERTY|FIELD|COL|COLUMN|CLAIM|OPT|OPTION)_")
+# A password HASH is the safe way to store one; a test of the encoder holds
+# many. bcrypt/argon2/crypt(3) modular format, and Spring's `{id}` prefix for
+# a hashing encoder (not `{noop}`, which is plaintext).
+_PASSWORD_HASH = re.compile(
+    r"^\$(?:2[abxy]?|argon2(?:id|i|d)|pbkdf2[\w-]*|scrypt|[1356])\$"
+    r"|^\{(?:bcrypt|ssha|sha(?:-?\d+)?|md[45]|ldap|pbkdf2|scrypt|argon2|sha256)\}", re.IGNORECASE)
+
+
+# The Fetch API's `credentials` option takes a mode, not a credential:
+# `credentials: 'same-origin'` (tomcat's manager webapp, axios, undici, the
+# Turbo bundle in Rails' guides).
+_FETCH_CREDENTIALS_MODES = frozenset({"same-origin", "include", "omit"})
+# A symbol named for a digest of a password holds the hash, which is how a
+# password is meant to be stored: spring-security's Pbkdf2PasswordEncoderTests
+# `encodedPassword = "ab1146a8..."`, tomcat's TestRealmBase `PWD_MD5`.
+# Not `hash` or `digest` alone: `HASH_SECRET` and an HTTP digest password are
+# secrets used for hashing, not hashes. `encoded` only beside `password`: a
+# password encoder's output is a hash, but spring-security's
+# `DEFAULT_ENCODED_SECRET_KEY` is a base64-encoded key and stays reported.
+_HASH_NAME_WORDS = frozenset({"hashed", "md5", "sha", "sha1", "sha256", "sha512", "bcrypt"})
+_PASSWORD_WORDS = frozenset({"password", "passwd", "pwd"})
+
+
+def _holds_password_hash(name: str) -> bool:
+    words = _words(name)
+    return bool(words & _HASH_NAME_WORDS) or ("encoded" in words and bool(words & _PASSWORD_WORDS))
+# The words a key or message id adds to the symbol it is named after: keycloak's
+# `EXPIRED_ACTION_TOKEN_NO_SESSION = "expiredActionTokenNoSessionMessage"`.
+_NAMING_WORDS = frozenset({"message", "msg", "key", "name", "id", "attr", "attribute",
+                           "param", "header", "field", "error", "exp", "type", "claim",
+                           "label", "property", "prop"})
+# A snake_case identifier of letters only, which is how form fields, claims
+# and map keys are spelled (`j_password`, `_password_reset_token`).
+_SNAKE_IDENTIFIER = re.compile(r"^_?[a-z]+(?:_[a-z]+)+$")
+# A string built by interpolation is computed, not a constant: rubygems'
+# s3_uri_signer.rb builds its `credential_info` from `#{date}` and
+# `#{s3_config.region}` (reported at high).
+_INTERPOLATION = re.compile(r"#\{[^}]*\}|\$\{[^}]*\}")
+# A value that is a variable reference: openssl.cnf's `private_key =
+# $dir/private/ca.key.pem`, Maven's `token="$${project.version}"`.
+_VARIABLE_REFERENCE = re.compile(r"^\$+(?:\{|\(|[A-Za-z_]\w*(?:/|$))")
+
+
+def _full_name(text: str, offset: int, name: str) -> str:
+    """The whole symbol, when the pattern's 24-character prefix cut it short.
+
+    `LOGOUT_TRIGGERED_BY_ACTION_TOKEN` was matched as `OUT_TRIGGERED_BY_ACTION_
+    TOKEN`, so its value `"logout_triggered_by_action_token"` no longer echoed it.
+    """
+    j = offset
+    while j > 0 and (text[j - 1].isalnum() or text[j - 1] == "_"):
+        j -= 1
+    return text[j:offset] + name
+
+
+def _names_the_symbol(name: str, val_s: str) -> bool:
+    """The value is the symbol's own name as a key, message id or field name."""
+    name_words, value_words = _words(name), _words(val_s)
+    if not value_words or any(c.isdigit() for c in val_s):
+        return False
+    extra = value_words - name_words
+    if name_words <= value_words and len(extra) <= 1 and extra <= _NAMING_WORDS:
+        return True
+    return bool(_SNAKE_IDENTIFIER.match(val_s) and value_words & name_words)
+
+
+def _words(s: str) -> set[str]:
+    """Lower-case words of an identifier or value: camelCase and separators split."""
+    spaced = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", s)
+    return {w for w in re.split(r"[^A-Za-z0-9]+", spaced.lower()) if w}
 
 
 def _credential_finding(f, text: str, offset: int, name: str, value: str,
@@ -500,20 +692,47 @@ def _credential_finding(f, text: str, offset: int, name: str, value: str,
     val_s = (value or "").strip()
     if not val_s or _PLACEHOLDER.match(val_s):
         return None
+    name = _full_name(text, offset, name)
+    if _VARIABLE_REFERENCE.match(val_s) or (quoted and _INTERPOLATION.search(val_s)):
+        return None
+    # An unquoted value ending in `;` is a statement: `token: CancelToken;` is
+    # a property type in axios's index.d.cts.
+    if not quoted and val_s.endswith(";"):
+        return None
+    if val_s.lower() in _FETCH_CREDENTIALS_MODES or _holds_password_hash(name):
+        return None
     # `SEMANTIC_API_KEY_ENV = "OMNI_GRAPH_SEMANTIC_API_KEY"` names the variable
     # the key is read FROM; the value is an identifier, not a credential
     # (FAIL-050: reported as a hardcoded credential on OmniEngineering's own
     # scan). An upper-case identifier with underscores has two character
     # classes and enough entropy to pass the gates below, so it is excluded by
     # shape, and so is a symbol whose suffix says it holds a name, not a value.
-    if _ENV_VAR_NAME.match(val_s) or _NAME_HOLDER_SUFFIX.search(name):
+    if _ENV_VAR_NAME.match(val_s) or _NAME_HOLDER_SUFFIX.search(name) \
+            or _NAME_HOLDER_PREFIX.match(name):
+        return None
+    if _PASSWORD_HASH.match(val_s):
+        return None
+    # `"CredentialsNonExpired=").append(this.credentialsNonExpired).append(";"`:
+    # the "value" is the code between two string literals.
+    if quoted and (val_s[0] in ")+,;" or ").append(" in val_s or '" +' in val_s):
         return None
     # `access_key_status = "Inactive"` and `secretName: tls-cert` hold a status
     # and a reference. The keyword matched; the suffix says what it holds.
     if _NON_SECRET_SUFFIX.search(name):
         return None
-    # `secret_key = "secret_key"` — a literal echoing its own symbol.
+    if quoted and (_KEY_NAME_VALUE.match(val_s) or _PLAIN_URL_VALUE.match(val_s)):
+        return None
+    # `secret_key = "secret_key"` — a literal echoing its own symbol. Echoing
+    # part of it counts too: `ELT_ENCRYPTION_CREDENTIAL = "encryption-credential"`
+    # and `INVALID_ID_TOKEN_ERROR_CODE = "invalid_id_token"` name an XML element
+    # and an error code (spring-security, ARB-065). A value with a word of its
+    # own (a JWT secret of "super-secret-key") is still judged below.
     if re.sub(r"[^a-z0-9]", "", val_s.lower()) == re.sub(r"[^a-z0-9]", "", name.lower()):
+        return None
+    value_words = _words(val_s)
+    if value_words and value_words <= _words(name):
+        return None
+    if quoted and _names_the_symbol(name, val_s):
         return None
     # Real credentials do not contain spaces. Values that do are example
     # passphrases ("keyboard cat") or prose, and were the largest source of
@@ -549,6 +768,16 @@ def _credential_finding(f, text: str, offset: int, name: str, value: str,
     ent = _entropy(val_s)
     if ent < 2.6 or classes < 2:
         return None
+    # Under a test or fixture path a credential-named literal is test data by
+    # design (django's auth tests pass "some-gibbberish" as a password, and
+    # "test-token" as a token) -- about 600 of
+    # the gold reports. Only a value that looks generated is reported there:
+    # three character classes and the entropy of a real password, or a long
+    # high-entropy blob (juice-shop's hex wallet keys in checkKeys.test.ts). A
+    # live key pasted into a test is still caught; `admin123` is not.
+    generated = (classes >= 3 and ent >= 3.3) or (len(val_s) >= 32 and ent >= 3.5)
+    if test_material and not generated:
+        return None
     strong = ent >= 4.2 and classes >= 3 and not test_material
     where = "unquoted " if not quoted else ""
     return Finding(
@@ -583,10 +812,12 @@ def probe_secrets(ctx: ProbeContext) -> list[Finding]:
         # operator manual is the case: real-looking YAML, placeholder values.
         test_material = (bool(_TEST_MATERIAL.search(f.path))
                          or f.role in ("test", "docs"))
+        fixture_data = test_material and _fixture_data_file(f)
         for suffix, title, sev, pattern in SECRET_PATTERNS:
             for m in re.finditer(pattern, text):
                 val = m.group(0)
-                if suffix == "private-key" and not _pem_has_key_material(text, m.start()):
+                if suffix == "private-key" and (fixture_data
+                                                or not _pem_has_key_material(text, m.start())):
                     continue
                 eff_sev, eff_conf = sev, "high"
                 note = ""
@@ -597,6 +828,13 @@ def probe_secrets(ctx: ProbeContext) -> list[Finding]:
                             "than a leaked credential.")
                 elif test_material:
                     eff_sev = "medium" if sev in ("critical", "high") else sev
+                    # A key under a test or fixture path is almost always the
+                    # TLS or crypto library's own test material: grpc-go's
+                    # testdata/x509, cryptography's vectors (240 on gold,
+                    # ARB-065). Still reported, never silenced, but low, and
+                    # tagged so a budget or a policy can treat it on its own.
+                    if suffix == "private-key":
+                        eff_sev = "low"
                     eff_conf = "low"
                     note = (" This file sits under a test or fixture path, so the material is "
                             "probably deliberate — confirm it is not a production credential.")
@@ -614,14 +852,20 @@ def probe_secrets(ctx: ProbeContext) -> list[Finding]:
                     remediation="Remove the literal, rotate the credential, and load it from a secret store at runtime.",
                     evidence=f"{suffix}:{_mask(val)}",
                     controls=["NIST-800-53r5:IA-5", "NIST-800-53r5:SC-28"],
-                    tags=["secret"],
+                    tags=["secret"] + (["test-fixture"] if test_material else []),
                 ))
-        for m in _ASSIGNED_SECRET.finditer(text):
+        # The name heuristic is for code and configuration. In documentation
+        # (`docs/`, `.adoc`, release notes) a credential-named assignment is an
+        # illustration; the provider-token patterns above still run there.
+        if _MESSAGE_BUNDLE.search(f.path) or f.role == "docs" or fixture_data:
+            continue
+        for m in _assigned_secret_matches(text):
             found = _credential_finding(f, text, m.start(), m.group(1), m.group(3),
                                         test_material, quoted=True)
             if found:
                 out.append(found)
-        for m in _ASSIGNED_SECRET_BARE.finditer(text):
+        for m in ([] if f.language in _EXPRESSION_LANGUAGES
+                  else _ASSIGNED_SECRET_BARE.finditer(text)):
             found = _credential_finding(f, text, m.start(1), m.group(1), m.group(2),
                                         test_material, quoted=False)
             if found:
@@ -1118,7 +1362,10 @@ register(Probe(
 # ===========================================================================
 
 _UNPINNED_PY = re.compile(r"^\s*([A-Za-z0-9._-]+)\s*(?:[><~!]=|>|<)?\s*([0-9][^\s;#]*)?\s*$")
-_ACTION_USES = re.compile(r"^\s*-?\s*uses:\s*([^\s@]+)@([^\s#]+)", re.M)
+# `[ \t]`, not `\s`: with re.M, `^\s*` also matched from a blank line above
+# and swallowed its newline, so the finding was reported on the blank line
+# (round 4: all 3 `v3` FP labels of supply.unpinned-action).
+_ACTION_USES = re.compile(r"^[ \t]*-?[ \t]*uses:[ \t]*([^\s@]+)@([^\s#]+)", re.M)
 _SHA40 = re.compile(r"^[0-9a-f]{40}$")
 
 
@@ -1450,10 +1697,14 @@ def probe_doc_drift(ctx: ProbeContext) -> list[Finding]:
     # missing. Existence is a question about disk.
     roots = {r.id: Path(r.path) for r in ctx.repos if getattr(r, "path", "")}
 
-    code_blobs: dict[str, str] = {}
+    # Joined once per repository. Concatenating file by file copied the whole
+    # blob for every file -- quadratic, 37 s on keycloak `services/` (ARB-076).
+    blob_parts: dict[str, list[str]] = {}
     for f in ctx.inventory.text_files():
         if f.role in ("source", "iac", "config", "ci"):
-            code_blobs[f.repo_id] = code_blobs.get(f.repo_id, "") + "\n" + _read(f)
+            blob_parts.setdefault(f.repo_id, []).append(_read(f))
+    code_blobs: dict[str, str] = {
+        rid: "".join("\n" + t for t in parts) for rid, parts in blob_parts.items()}
 
     for f in ctx.inventory.text_files():
         if f.language != "markdown":
@@ -2307,5 +2558,15 @@ _register_lang_rules()
 try:
     from .contract import register_contract as _register_contract
     _register_contract()
+except Exception:  # noqa: BLE001 - an optional probe module must not break the registry import
+    pass
+
+
+# App-level defects found in AI-written services (ARB-083): destructive or
+# mail-sending routes in an app that authenticates nobody, and per-request
+# stores that are never evicted.
+try:
+    from .aiapp import register_aiapp as _register_aiapp
+    _register_aiapp()
 except Exception:  # noqa: BLE001 - an optional probe module must not break the registry import
     pass

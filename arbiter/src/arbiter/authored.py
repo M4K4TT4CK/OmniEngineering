@@ -98,6 +98,105 @@ _MODULE_TO_PACKAGE = {
 # dependency. Its absence from the manifest is the point, not a defect.
 _OPTIONAL_IMPORT_BLOCK = re.compile(r"^[ \t]*try:[^\n]*\n(?:[ \t]+[^\n]*\n|\s*\n)*", re.M)
 
+# Imports that are not runtime requirements of the module (round 2, ARB-065):
+#   * under `if TYPE_CHECKING:` -- read by the type checker only; urllib3's
+#     `typing_extensions` (8 of its 11 findings);
+#   * under `if sys.version_info ...:` or its `else:` -- the backport for an
+#     older interpreter, celery's `from backports.zoneinfo import ZoneInfo`;
+#   * inside a function, in a module that handles ImportError -- a lazily
+#     tried optional tool, as Django's and celery's `shell` commands try
+#     IPython, then bpython, then the plain console.
+_HANDLES_IMPORT_ERROR = re.compile(r"\bexcept\b[^\n:]*\b(?:ImportError|ModuleNotFoundError)\b")
+_TYPE_CHECKING_IF = re.compile(r"^\s*if\s+(?:typing\.)?TYPE_CHECKING\s*:")
+_VERSION_IF = re.compile(r"^\s*(?:if|elif)\s+[^\n]*\bsys\.version_info\b")
+_DEF_LINE = re.compile(r"^\s*(?:async\s+)?def\s")
+
+
+def _indent(line: str) -> int:
+    return len(line) - len(line.lstrip())
+
+
+def _openers(lines: list[str], idx: int) -> list[int]:
+    """Line numbers of the blocks enclosing line `idx`, innermost first."""
+    out, level = [], _indent(lines[idx])
+    for j in range(idx - 1, -1, -1):
+        if level == 0:
+            break
+        line = lines[j]
+        if line.strip() and _indent(line) < level:
+            out.append(j)
+            level = _indent(line)
+    return out
+
+
+def _version_branch(lines: list[str], j: int) -> bool:
+    """True when the block opened at line `j` is a branch of a version check."""
+    if _VERSION_IF.match(lines[j]):
+        return True
+    if not re.match(r"^\s*(?:else|elif\b)", lines[j]):
+        return False
+    level = _indent(lines[j])
+    for k in range(j - 1, -1, -1):
+        line = lines[k]
+        if not line.strip() or _indent(line) > level:
+            continue
+        if _indent(line) < level:
+            return False
+        if _VERSION_IF.match(line):
+            return True
+        if not re.match(r"^\s*elif\b", line):
+            return False
+    return False
+
+
+def _guarded_import(lines: list[str], idx: int, handles_absence: bool) -> bool:
+    for j in _openers(lines, idx):
+        if _TYPE_CHECKING_IF.match(lines[j]) or _version_branch(lines, j):
+            return True
+        if handles_absence and _DEF_LINE.match(lines[j]):
+            return True
+    return False
+
+
+# Modules a declared package guarantees, used directly. Each entry is a
+# documented install requirement of the provider (round 2 gold, celery): gevent
+# and eventlet require greenlet; pymongo ships `bson` and `gridfs`; boto3
+# requires botocore; Sphinx requires docutils; the google-cloud-* clients share
+# the `google` namespace; pytest-celery's `all` extra (celery's t/smoke
+# workers) requires pytest-docker-tools. A provider ending in `-` is a name prefix.
+_PY_TRANSITIVE = {
+    "greenlet": ("gevent", "eventlet"),
+    "bson": ("pymongo",),
+    "gridfs": ("pymongo",),
+    "botocore": ("boto3", "aiobotocore"),
+    "docutils": ("sphinx", "sphinx-"),
+    "google": ("google-",),
+    "pytest_docker_tools": ("pytest-celery",),
+    # Frameworks' own install requirements, which model-written apps import
+    # beside them (harness agent, round 2): FastAPI requires Starlette and
+    # Pydantic; Flask requires Werkzeug, Jinja2, itsdangerous, click and
+    # blinker (and Jinja2 MarkupSafe); Django requires asgiref and sqlparse;
+    # requests requires urllib3, idna, certifi and charset-normalizer.
+    "pydantic": ("fastapi",),
+    "pydantic_core": ("fastapi", "pydantic"),
+    "starlette": ("fastapi",),
+    "werkzeug": ("flask",),
+    "jinja2": ("flask",),
+    "itsdangerous": ("flask",),
+    "click": ("flask",),
+    "blinker": ("flask",),
+    "markupsafe": ("flask", "jinja2"),
+    "asgiref": ("django",),
+    "sqlparse": ("django",),
+    "urllib3": ("requests",),
+    "idna": ("requests", "httpx"),
+    "certifi": ("requests", "httpx"),
+    "charset_normalizer": ("requests",),
+}
+# Modules the runtime provides rather than an installed package: Pyodide's
+# `js` bridge and `pyodide` itself (urllib3's emscripten backend).
+_PY_RUNTIME_PROVIDED = frozenset({"js", "pyodide"})
+
 # Build scripts declare their own build-time requirements elsewhere (PEP 518),
 # so an import here says nothing about the runtime manifest.
 _BUILD_SCRIPT = re.compile(r"(^|/)(setup\.py|conftest\.py|noxfile\.py|tasks\.py)$")
@@ -107,11 +206,77 @@ _JS_IMPORT = re.compile(
     re.M,
 )
 
+# Node's built-in modules, which may be imported with or without the `node:`
+# scheme. Only the scheme was recognised, so nest's `import * as http from
+# 'http'` was an undeclared package 79 times on gold (ARB-065). This is
+# `require('module').builtinModules` for Node 22, written out so the check stays
+# offline and does not depend on which Node (if any) is installed. A subpath
+# (`fs/promises`, `stream/web`, `util/types`) belongs to its head.
+NODE_BUILTINS = frozenset({
+    "assert", "async_hooks", "buffer", "child_process", "cluster", "console",
+    "constants", "crypto", "dgram", "diagnostics_channel", "dns", "domain",
+    "events", "fs", "http", "http2", "https", "inspector", "module", "net", "os",
+    "path", "perf_hooks", "process", "punycode", "querystring", "readline",
+    "repl", "stream", "string_decoder", "sys", "timers", "tls", "trace_events",
+    "tty", "url", "util", "v8", "vm", "wasi", "worker_threads", "zlib",
+})
+
 _MANIFESTS = {
     "requirements.txt", "requirements-dev.txt", "pyproject.toml", "setup.py",
     "setup.cfg", "Pipfile", "environment.yml", "constraints.txt",
     "package.json", "package-lock.json", "yarn.lock", "pnpm-lock.yaml",
 } | _eco.MANIFESTS
+
+# Python requirement files outside the one conventional name. Celery keeps its
+# runtime dependencies in `requirements/default.txt` and its extras under
+# `requirements/extras/`, so `click` and `vine` -- declared on lines 3 and 4 --
+# were reported 88 times on gold (ARB-065). pip-tools' `requirements.in`,
+# `requirements-test.txt`, `test-requirements.txt` and `constraints-*.txt` are
+# the same thing under other spellings. A name alone cannot say that
+# `default.txt` is a requirement file; its directory can.
+_PY_REQUIREMENT_FILE = re.compile(
+    r"(?i)^(?:requirements|constraints)[\w.-]*\.(?:txt|in)$"
+    r"|^[\w.-]+[-_.]requirements\.(?:txt|in)$")
+_PY_REQUIREMENT_DIR = re.compile(r"(?i)(^|/)requirements(/|$)")
+
+
+def is_manifest_path(path: str) -> bool:
+    """True when the file at `path` is one the dependency check reads.
+
+    Path, not name: a `.txt` or `.in` file anywhere under a `requirements/`
+    directory is a requirement file whatever it is called.
+    """
+    name = path.rsplit("/", 1)[-1]
+    if name in _MANIFESTS or _PY_REQUIREMENT_FILE.match(name) \
+            or name.endswith((_eco.GEMSPEC_SUFFIX, *_eco.GRADLE_SUFFIXES)) \
+            or _eco.ruby_is_gemfile(name):
+        return True
+    parent = path[: -len(name)]
+    return name.lower().endswith((".txt", ".in")) and bool(_PY_REQUIREMENT_DIR.search(parent))
+
+
+# TypeScript and JavaScript path aliases: `"paths": {"@app/*": ["src/*"]}` in a
+# tsconfig makes `@app/config` a local import. Not a manifest -- it declares no
+# dependency -- but it decides whether an import is local, so it is read beside
+# the manifests and folded into the cache context with them.
+_ALIAS_CONFIG = re.compile(r"^(?:tsconfig[\w.-]*|jsconfig[\w.-]*)\.json$")
+
+
+def is_context_path(path: str) -> bool:
+    """A file whose content decides what the import check concludes elsewhere."""
+    return is_manifest_path(path) or bool(_ALIAS_CONFIG.match(path.rsplit("/", 1)[-1]))
+
+
+def _jsonc(text: str):
+    """Parse a tsconfig: JSON with comments and trailing commas. None if not."""
+    import json as _json
+    code = re.sub(r'("(?:\\.|[^"\\])*")|//[^\n]*|/\*.*?\*/',
+                  lambda m: m.group(1) or "", text, flags=re.DOTALL)
+    code = re.sub(r",(\s*[}\]])", r"\1", code)
+    try:
+        return _json.loads(code)
+    except ValueError:
+        return None
 
 # Names that look like third-party imports and are not: the repository's own
 # packages, and the conventional local-source roots.
@@ -165,6 +330,35 @@ _DISABLED_CHECK = [
 # deliberate. It is still reported, downgraded, exactly as fixture secrets are.
 _DEV_CONTEXT = re.compile(r"(^|/)(tests?|testing|fixtures?|examples?|samples?|"
                           r"local|dev|development|docker-compose\.(?:dev|local))")
+
+# In a test file, two shapes are the fixture itself rather than a check
+# switched off (gold triage, 2026-10-21: 246 of the 297 test-path findings
+# after ARB-080 counted each site). A TLS check turned off for a connection
+# to the test's own local server -- undici's `https://localhost:${
+# server.address().port}` with `rejectUnauthorized: false`, Go's
+# `httptest.NewTLSServer` -- because that server's certificate is
+# self-signed by construction. And Django's `override_settings(DEBUG=True)` /
+# `self.settings(DEBUG=True)`, which is how a test exercises the debug pages.
+# Neither can reach production. Anything else under a test path is still
+# reported, downgraded: a test disabling verification against a real host
+# is the same mistake as in source.
+_LOCAL_TEST_SERVER = re.compile(
+    r"\blocalhost\b|\b127\.0\.0\.1\b|\[::1\]|\.address\(\)|\bhttptest\."
+    r"|\bNew(?:TLS|Unstarted)Server\b|\.StartTLS\(")
+_LOCAL_WINDOW = (12, 6)   # lines before and after the setting
+_SETTINGS_OVERRIDE = re.compile(r"\b(?:override_settings|settings|modify_settings)\s*\(")
+
+
+def _test_fixture_setting(lines: list[str], n: int, title: str) -> bool:
+    """True when a disabled check on line `n` (1-based) of a test file is
+    the test's own fixture: local TLS server, or a Django settings override."""
+    if title == "Debug mode enabled":
+        return bool(_SETTINGS_OVERRIDE.search("\n".join(lines[max(0, n - 4): n])))
+    if "TLS" not in title:
+        return False
+    before, after = _LOCAL_WINDOW
+    return bool(_LOCAL_TEST_SERVER.search("\n".join(lines[max(0, n - 1 - before): n + after])))
+
 
 # Comments, in every syntax these patterns can appear in. Without this, code
 # that has been commented OUT still reports, and so does a comment DISCUSSING
@@ -239,6 +433,51 @@ _COMPENSATING_TLS = re.compile(
 )
 _COMPENSATION_WINDOW = 8   # lines after the finding
 
+# Verification REPLACED, not removed. Go's crypto/tls only lets a program run
+# its own chain check (SPIFFE IDs, pinned peers) by setting InsecureSkipVerify
+# and supplying VerifyPeerCertificate or VerifyConnection; with either beside it
+# the flag is how custom verification is spelled, and it is not reported.
+# PeerCertSANs / PeerCertURI are the declarative form of the same thing:
+# Traefik's TLS client config turns them into a VerifyPeerCertificate callback
+# (pkg/server/service/transport.go), and its Consul Connect transport
+# (consulcatalog/connect_tls.go) pins the SPIFFE ID that way. Only the struct
+# literal holding the flag counts, or an assignment to the field shortly after.
+_CUSTOM_VERIFIER_FIELD = re.compile(
+    r"\b(?:VerifyPeerCertificate|VerifyConnection|PeerCertSANs|PeerCertURI)\s*:")
+_CUSTOM_VERIFIER_ASSIGN = re.compile(r"\.(?:VerifyPeerCertificate|VerifyConnection)\s*=[^=]")
+
+
+def _enclosing_braces(code: str, pos: int) -> str:
+    """The innermost `{...}` around `pos`, or "" when there is none."""
+    depth, start = 0, -1
+    for i in range(pos - 1, -1, -1):
+        c = code[i]
+        if c == "}":
+            depth += 1
+        elif c == "{":
+            if depth == 0:
+                start = i
+                break
+            depth -= 1
+    if start < 0:
+        return ""
+    depth = 0
+    for j in range(start, len(code)):
+        if code[j] == "{":
+            depth += 1
+        elif code[j] == "}":
+            depth -= 1
+            if depth == 0:
+                return code[start:j + 1]
+    return code[start:]
+
+
+def _custom_verification(code: str, lines: list[str], pos: int, line: int) -> bool:
+    if _CUSTOM_VERIFIER_FIELD.search(_enclosing_braces(code, pos)):
+        return True
+    return bool(_CUSTOM_VERIFIER_ASSIGN.search(
+        "\n".join(lines[line: line + _COMPENSATION_WINDOW])))
+
 # ---------------------------------------------------------------------------
 # 4. Prose describing absent code
 # ---------------------------------------------------------------------------
@@ -265,13 +504,15 @@ def _declared_dependencies(ctx: ProbeContext, repo_id: str) -> tuple[set[str], b
     names: set[str] = set()
     seen_manifest = False
     for f in ctx.inventory.text_files():
-        if f.repo_id != repo_id or Path(f.path).name not in _MANIFESTS:
+        if f.repo_id != repo_id or not is_manifest_path(f.path):
             continue
         text = _read(f)
         if not text:
             continue
         seen_manifest = True
-        for m in re.finditer(r"^\s*\"?([A-Za-z0-9_.@/-]{2,})\"?\s*[:=<>~^\s\"]", text, re.M):
+        # `[` and `;` end a name too: `pytest-celery[all]>=1.3.0` and
+        # `uvloop; sys_platform != "win32"` are requirement lines (ARB-065).
+        for m in re.finditer(r"^\s*\"?([A-Za-z0-9_.@/-]{2,})\"?\s*[:=<>~^\s\"\[;]", text, re.M):
             raw = m.group(1).strip().strip('"')
             names.add(raw.lower().replace("_", "-"))
             names.add(raw.lower().split("/")[-1].replace("_", "-"))
@@ -283,6 +524,9 @@ def _declared_dependencies(ctx: ProbeContext, repo_id: str) -> tuple[set[str], b
         # undeclared (FAIL-049).
         for m in re.finditer(r"[\"']([A-Za-z0-9_.-]{2,})(?:\[[^\]]*\])?\s*(?:[<>=~!;]|[\"'])", text):
             names.add(m.group(1).lower().replace("_", "-"))
+    # A namespace distribution (`backports.zoneinfo`, `zope.interface`) is
+    # imported by its first segment.
+    names |= {n.split(".")[0] for n in names if "." in n and "/" not in n}
     return names, seen_manifest
 
 
@@ -313,12 +557,37 @@ def _workspace_packages(ctx: ProbeContext, repo_id: str) -> set[str]:
             if head and "*" not in head:
                 out.add(head.lower())
                 out.add(f"@{head.lower()}")
+    for f in ctx.inventory.text_files():
+        if f.repo_id != repo_id or not _ALIAS_CONFIG.match(Path(f.path).name):
+            continue
+        doc = _jsonc(_read(f) or "")
+        opts = doc.get("compilerOptions") if isinstance(doc, dict) else None
+        paths = opts.get("paths") if isinstance(opts, dict) else None
+        for alias in paths if isinstance(paths, dict) else ():
+            head = str(alias).split("*")[0].rstrip("/").lower()
+            if head:
+                out.add(head)
+    # A bundler plugin can serve a module that exists nowhere on disk:
+    # keycloak's admin-ui imports "message-bundle", which its vite.config.ts
+    # resolves (`if (source === "message-bundle")`). A specifier compared
+    # with `===` or given as an alias key in a bundler config is local.
+    for f in ctx.inventory.text_files():
+        if f.repo_id != repo_id or not _BUNDLER_CONFIG.match(Path(f.path).name):
+            continue
+        for m in _BUNDLER_VIRTUAL.finditer(_read(f) or ""):
+            out.add((m.group(1) or m.group(2) or m.group(3)).lower())
     # An organisation scope used by any local package is local for all of them,
     # in both the bare and the @-scoped spelling: a package.json named
     # "juice-shop" is the sibling that `@juice-shop/models` refers to.
     out |= {n.split("/")[0] for n in list(out) if n.startswith("@")}
     out |= {f"@{n}" for n in list(out) if not n.startswith("@")}
     return out
+
+
+_BUNDLER_CONFIG = re.compile(r"^(?:vite|rollup|webpack|esbuild|rspack)\.config\.[cm]?[jt]s$")
+_BUNDLER_VIRTUAL = re.compile(
+    r"""===\s*['"]([^'"./][^'"]*)['"]|['"]([^'"./][^'"]*)['"]\s*===|"""
+    r"""\balias\s*:\s*\{[^}]*?['"]([^'"./][^'"]*)['"]\s*:""")
 
 
 def _local_modules(ctx: ProbeContext, repo_id: str) -> set[str]:
@@ -353,6 +622,8 @@ def probe_authored(ctx: ProbeContext) -> list[Finding]:
         declared, has_manifest = _declared_dependencies(ctx, repo.id)
         local = _local_modules(ctx, repo.id)
         workspace = _workspace_packages(ctx, repo.id)
+        node_manifest = any(f.repo_id == repo.id and Path(f.path).name == "package.json"
+                            for f in ctx.inventory.text_files())
         facts: dict = {}
         for f in ctx.inventory.text_files():
             if f.repo_id != repo.id or f.role in ("generated", "data", "docs"):
@@ -361,11 +632,17 @@ def probe_authored(ctx: ProbeContext) -> list[Finding]:
             if not text:
                 continue
             if f.language in _eco.ECOSYSTEM_OF:
-                out.extend(_undeclared_other(f, text, facts.setdefault(
-                    (repo.id, f.language), _ecosystem_facts(ctx, repo.id, f.language))))
+                # Computed once per (repository, language). `setdefault` with
+                # the call as its argument rebuilt the facts -- every manifest
+                # and every Java file's package -- for each file, which was
+                # 88 s of keycloak `services/` alone (ARB-076).
+                key = (repo.id, f.language)
+                if key not in facts:
+                    facts[key] = _ecosystem_facts(ctx, repo.id, f.language)
+                out.extend(_undeclared_other(f, text, facts[key]))
             else:
                 out.extend(_undeclared_imports(f, text, declared, local, has_manifest,
-                                               workspace, online))
+                                               workspace, online, node_manifest))
             out.extend(_stubs(f, text))
             out.extend(_disabled_checks(f, text))
             out.extend(_unkept_promises(f, text))
@@ -373,7 +650,8 @@ def probe_authored(ctx: ProbeContext) -> list[Finding]:
 
 
 def _undeclared_imports(f, text, declared, local, has_manifest,
-                        workspace=frozenset(), online=False) -> list[Finding]:
+                        workspace=frozenset(), online=False,
+                        node_manifest=True) -> list[Finding]:
     # With no manifest at all there is nothing to be missing from, and every
     # import would be reported. That is a repository shape, not a defect.
     if not has_manifest or _NOT_SHIPPED.search(f.path):
@@ -382,18 +660,34 @@ def _undeclared_imports(f, text, declared, local, has_manifest,
     if f.language == "python":
         if _BUILD_SCRIPT.search(f.path):
             return []
-        stdlib = set(getattr(sys, "stdlib_module_names", ()))
+        if f.role == "test":
+            return []   # as for Go, Java and Ruby: `t/` (celery) is not `tests/`
+        stdlib = set(getattr(sys, "stdlib_module_names", ())) | _PY_RUNTIME_PROVIDED
         clean = _strip_prose(text)
         # Spans covered by a try: block, where an absent package is deliberate.
         optional = [(m.start(), m.end()) for m in _OPTIONAL_IMPORT_BLOCK.finditer(clean)]
-        for m in _PY_IMPORT.finditer(clean):
-            name = m.group(1) or m.group(2)
+        imports = [(m, m.group(1) or m.group(2)) for m in _PY_IMPORT.finditer(clean)]
+        # A module imported under try anywhere in the file is optional in all
+        # of it: celery's mongodb backend tries `import pymongo` and later,
+        # under `if pymongo:`, imports `from pymongo import uri_parser`.
+        tried = {n for m, n in imports if n and any(a <= m.start() < b for a, b in optional)}
+        handles_absence = bool(_HANDLES_IMPORT_ERROR.search(clean))
+        lines = clean.split("\n")
+        for m, name in imports:
             if not name or name.startswith("_"):
                 continue
-            if any(a <= m.start() < b for a, b in optional):
+            if any(a <= m.start() < b for a, b in optional) or name in tried:
+                continue
+            # From the name, not the match: `^\s*` also takes the blank lines above.
+            if _guarded_import(lines, clean.count("\n", 0, m.start(m.lastindex)),
+                               handles_absence):
                 continue
             low = name.lower().replace("_", "-")
             alias = _MODULE_TO_PACKAGE.get(name.lower(), _MODULE_TO_PACKAGE.get(name))
+            providers = _PY_TRANSITIVE.get(name.lower(), ())
+            if any(p in declared or (p.endswith("-") and any(d.startswith(p) for d in declared))
+                   for p in providers):
+                continue
             if (low in declared or name in stdlib or low in local
                     or name.lower() in local or (alias and alias in declared)
                     or (alias and alias not in declared and alias == low)):
@@ -405,9 +699,16 @@ def _undeclared_imports(f, text, declared, local, has_manifest,
             out.append(_import_finding(f, text, name, "python",
                                        package_exists("python", name) if online else None))
     elif f.language in ("javascript", "typescript"):
+        # A Python project's lone `eslint.config.cjs` (urllib3) has no
+        # package.json to be missing from, the same as a repository with no
+        # manifest at all.
+        if not node_manifest:
+            return []
         names = {(m.group(1) or m.group(2)) for m in _JS_IMPORT.finditer(text)}
         for spec in sorted(n for n in names if n):
             if spec.startswith((".", "/", "#", "node:")):
+                continue
+            if spec.split("/")[0] in NODE_BUILTINS:
                 continue
             pkg = "/".join(spec.split("/")[:2]) if spec.startswith("@") else spec.split("/")[0]
             low = pkg.lower()
@@ -430,17 +731,22 @@ def _ecosystem_facts(ctx: ProbeContext, repo_id: str, language: str) -> dict:
     whole = getattr(ctx.inventory, "whole", None) or ctx.inventory
     files = [f for f in whole.text_files() if f.repo_id == repo_id]
     wanted = _eco.MANIFESTS_OF[language]
-    manifests = [f for f in files if Path(f.path).name in wanted]
+    manifests = [f for f in files if Path(f.path).name in wanted
+                 or (language == "ruby" and (f.path.endswith(_eco.GEMSPEC_SUFFIX)
+                                             or _eco.ruby_is_gemfile(Path(f.path).name)))
+                 or (language == "java" and f.path.endswith(_eco.GRADLE_SUFFIXES))]
     declared: set[str] = set()
     local: set[str] = set()
+    per_module: dict[str, set[str]] = {}
     for m in manifests:
         text = _read(m) or ""
         if language == "go":
             req, own = _eco.go_declared(text)
             declared |= req
             local |= own
+            per_module[m.path.rpartition("/")[0]] = req
         elif language == "java":
-            declared |= _eco.java_declared(text)
+            declared |= _eco.java_declared(text, m.path)
         else:
             declared |= _eco.ruby_declared(text)
     if language == "java":
@@ -451,25 +757,50 @@ def _ecosystem_facts(ctx: ProbeContext, repo_id: str, language: str) -> dict:
                     local.add(pkg)
     elif language == "ruby":
         local |= _eco.ruby_local([f.path for f in files])
-    return {"declared": declared, "local": local, "has_manifest": bool(manifests)}
+    return {"declared": declared, "local": local, "has_manifest": bool(manifests),
+            "per_module": per_module}
+
+
+# A Go file excluded from every build: `//go:build ignore` (or the legacy
+# `// +build ignore`) before the package clause. These are `go run` scripts --
+# client_golang's collector code generators -- and may import modules the
+# go.mod deliberately does not declare, because nothing ever compiles them in.
+_GO_BUILD_IGNORE = re.compile(r"(?m)^//(?:go:build|\s*\+build)\s+ignore\s*$")
+_GO_PACKAGE_CLAUSE = re.compile(r"(?m)^package\s")
+
+
+def _go_build_ignored(text: str) -> bool:
+    m = _GO_PACKAGE_CLAUSE.search(text)
+    return bool(_GO_BUILD_IGNORE.search(text[:m.start()] if m else text))
 
 
 def _undeclared_other(f, text, facts: dict) -> list[Finding]:
     """Go, Java and Ruby imports nothing declares (see ecosystems.py)."""
     if not facts["has_manifest"] or _NOT_SHIPPED.search(f.path) or f.role == "test":
         return []
+    if f.language == "go" and _go_build_ignored(text):
+        return []
     lang, eco = f.language, _eco.ECOSYSTEM_OF[f.language]
     declared, local = facts["declared"], facts["local"]
     out: list[Finding] = []
     seen: set[str] = set()
     if lang == "go":
+        # Each Go module declares its own requirements; a file answers to the
+        # go.mod nearest above it, not to the union of every go.mod in the tree.
+        per_module = facts.get("per_module") or {}
+        home = _eco.nearest_manifest(f.path, list(per_module))
+        if home is not None:
+            declared = per_module[home]
         names = [(n, n) for n in _eco.go_imports(text) if not _eco.go_resolves(n, declared, local)]
     elif lang == "java":
         names = [(n, ".".join(n.split(".")[:3])) for n in _eco.java_imports(text)
                  if not _eco.java_resolves(n, declared, local)]
     else:
-        names = [(n, n.split("/")[0]) for n in _eco.ruby_imports(text)
-                 if not _eco.ruby_resolves(n, declared, local)]
+        declared = declared | _eco.ruby_inline_declared(text)
+        rescued = _eco.ruby_optional_spans(text)
+        names = [(n, n.split("/")[0]) for n, pos in _eco.ruby_import_sites(text)
+                 if not any(a <= pos < b for a, b in rescued)
+                 and not _eco.ruby_resolves(n, declared, local)]
     for raw, key in names:
         if key in seen:
             continue
@@ -626,13 +957,120 @@ def _stub_marker_at_body_level(body: str) -> bool:
             return True
     return False
 
+# A stub by design. Celery's backends override `save_group` with
+# `raise NotImplementedError('save_group is not supported by this backend.')`,
+# and its `BasePool` has `on_apply(...): pass` hooks for subclasses to fill in;
+# those were 309 reports on gold (ARB-065). The structural signals, any one of
+# which makes an empty or raising body a declaration rather than a gap:
+#   - `raise NotImplementedError(<message>)`: the message is the decision;
+#   - a comment in the body explaining why it is empty;
+#   - an `on_*` / `before_*` / `after_*` hook, empty by convention;
+#   - `@abstractmethod`, or a docstring saying subclasses must or should
+#     implement or override it;
+#   - the enclosing class is a base: named Base*/Abstract*/*Base/*Mixin/
+#     *Interface/*Protocol, deriving from ABC, ABCMeta or Protocol, or
+#     subclassed by another class in the same file.
+# A `return True  # TODO` is never excused: that is a hardcoded answer, not an
+# abstract method, and it is the always-yes this check exists for.
+_NOT_IMPLEMENTED_WITH_MESSAGE = re.compile(r"\braise\s+NotImplementedError\s*\(\s*[^)\s]")
+# Hook methods, which exist to be overridden and do nothing by default:
+# celery's `on_consumer_ready`, `on_init_blueprint`.
+_HOOK_NAME = re.compile(r"^_?(?:on|before|after)_[a-z]")
+# A comment in the body says the emptiness was decided: `# results messages
+# on reply queue, nothing stored server-side` above a `pass`, or `pass  # unused`.
+# A TODO is the opposite of an explanation, and stays a stub.
+_BODY_COMMENT = re.compile(r"#\s*(\S[^\n]*)")
+_UNFINISHED = re.compile(r"(?i)\b(?:todo|fixme|xxx|hack|stub|placeholder|implement|for now|temporar)")
+
+
+def _explained(body: str) -> bool:
+    return any(len(c) >= 5 and not _UNFINISHED.search(c)
+               for c in _BODY_COMMENT.findall(_strip_strings(body)))
+
+
+def _strip_strings(code: str) -> str:
+    return re.sub(r"(['\"])(?:\\.|(?!\1).)*\1", "''", code)
+_HARDCODED_RETURN = re.compile(
+    r"\breturn\s+(?:True|False|None|\[\]|\{\}|0|\"\"|'')\s*#", re.IGNORECASE)
+_ABSTRACT_DOC = re.compile(
+    r"(?i)\b(?:subclass(?:es)?|child classes|implementations?|backends?)\s+(?:must|should|need to|may)"
+    r"|\b(?:must|should|to)\s+be\s+(?:implemented|overridden|overriden)"
+    r"|\boverride\s+(?:this|in)\b|\babstract\b")
+_BASE_CLASS_NAME = re.compile(
+    r"^(?:Base|Abstract)[A-Z_]|(?:Base|Mixin|Interface|Protocol|ABC)$")
+_ABSTRACT_BASES = re.compile(r"\b(?:ABC|ABCMeta|Protocol|abc\.ABC|typing\.Protocol)\b")
+_CLASS_DEF = re.compile(r"^(?P<indent>[ \t]*)class\s+(?P<name>\w+)\s*(?:\((?P<bases>[^)]*)\))?\s*:", re.MULTILINE)
+
+
+def _enclosing_class(text: str, pos: int, indent: str) -> re.Match | None:
+    """The `class` statement a def at `pos` with `indent` is a method of, or None.
+
+    The first code line above it that is indented less decides: a `class`
+    line makes it a method, anything else (a `def`, an `if`) means it is not.
+    """
+    width = len(indent.expandtabs())
+    for line in reversed(text[:pos].split("\n")):
+        stripped = line.strip()
+        if not stripped or stripped.startswith(("#", "@")):
+            continue
+        if len(line.expandtabs()) - len(line.expandtabs().lstrip()) < width:
+            return _CLASS_DEF.match(line)
+    return None
+
+
+def _stub_by_design(text: str, m: re.Match, body: str, subclassed: set[str]) -> bool:
+    if _HARDCODED_RETURN.search(body):
+        return False
+    if _NOT_IMPLEMENTED_WITH_MESSAGE.search(body) or _explained(body):
+        return True
+    if _HOOK_NAME.match(m.group("name")) and not _SENSITIVE_NAME.search(m.group("name")):
+        return True
+    head = "\n".join(text[:m.start()].split("\n")[-4:])
+    if re.search(r"@(?:abc\.)?abstract(?:method|property|classmethod|staticmethod)\b", head):
+        return True
+    doc = re.match(r'\s*(?:[rbu]?)("""|\'\'\')(.*?)\1', body, re.DOTALL)
+    if doc and _ABSTRACT_DOC.search(doc.group(2)):
+        return True
+    indent = m.group("indent")
+    if not indent:
+        return False
+    cls = _enclosing_class(text, m.start(), indent)
+    if cls is None:
+        return False
+    return bool(_BASE_CLASS_NAME.search(cls.group("name"))
+                or _ABSTRACT_BASES.search(cls.group("bases") or "")
+                or cls.group("name") in subclassed)
+
+
+def _subclassed_names(text: str) -> set[str]:
+    out: set[str] = set()
+    for c in _CLASS_DEF.finditer(text):
+        for base in (c.group("bases") or "").split(","):
+            name = base.strip().split("[")[0].split(".")[-1]
+            if name.isidentifier():
+                out.add(name)
+    return out
+
+
 def _stubs(f, text) -> list[Finding]:
     if f.language != "python" or f.role in ("test", "docs"):
         return []
     out: list[Finding] = []
-    for m in _STUB_BODY.finditer(text):
+    subclassed: set[str] | None = None
+    # Match on the text with docstrings blanked, so a `def my_view(request):`
+    # inside a docstring's example (django/views/decorators/debug.py) is not a
+    # function; read the body from the original, which has the same offsets.
+    blanked = _PY_DOCSTRING.sub(lambda d: re.sub(r"[^\n]", " ", d.group(0)), text)
+    for mb in _STUB_BODY.finditer(blanked):
+        m = _STUB_BODY.match(text, mb.start())
+        if m is None:
+            continue
         name, body = m.group("name"), m.group("body")
         if not _stub_marker_at_body_level(body):
+            continue
+        if subclassed is None:
+            subclassed = _subclassed_names(text)
+        if _stub_by_design(text, m, body, subclassed):
             continue
         sensitive = bool(_SENSITIVE_NAME.search(name))
         out.append(Finding(
@@ -667,10 +1105,18 @@ def _disabled_checks(f, text) -> list[Finding]:
     dev = bool(_DEV_CONTEXT.search(f.path)) or f.role == "test"
     code = _blank_comments(text, getattr(f, "language", "unknown"))
     lines = code.split("\n")
+    raw_lines = text.split("\n")
     out: list[Finding] = []
     for pattern, title, sev in _DISABLED_CHECK:
         for m in pattern.finditer(code):
             n = _line_of(code, m.start())
+            if "InsecureSkipVerify" in m.group(0) and _custom_verification(
+                    code, lines, m.start(), n):
+                continue
+            # The raw text, not `code`: comment blanking reads the `//` of
+            # `https://localhost` as a trailing comment.
+            if f.role == "test" and _test_fixture_setting(raw_lines, n, title):
+                continue
             window = "\n".join(lines[max(0, n - 1 - _GUARD_WINDOW): n])
             guarded = bool(_OPT_IN_GUARD.search(window))
             after = "\n".join(lines[n: n + _COMPENSATION_WINDOW])
@@ -779,5 +1225,5 @@ def register_authored() -> None:
         # paths exist, so both are folded into the cache key. An unchanged
         # file is served from the cache only while neither has moved.
         cacheable=True,
-        cache_context=make_context_digest(_MANIFESTS),
+        cache_context=make_context_digest(is_context_path),
     ))

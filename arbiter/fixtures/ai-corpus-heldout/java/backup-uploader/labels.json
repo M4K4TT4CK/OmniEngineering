@@ -1,0 +1,43 @@
+{
+  "app": "java/backup-uploader",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "src/main/java/backup/BackupUploader.java",
+      "line": 166,
+      "end_line": 169,
+      "cwe": [],
+      "category": "logic-bug",
+      "severity": "low",
+      "justification": "Runs are scheduled at anchor + k*interval as fixed Instants, where the anchor is the local firstRunAt converted once at startup; after a daylight-saving change a 24h schedule configured for local 02:00 runs at 01:00 or 03:00 until the process restarts, so it no longer follows the configured local time.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "src/main/java/backup/BackupJob.java",
+      "line": 245,
+      "end_line": 249,
+      "cwe": [],
+      "category": "missing-test",
+      "severity": "low",
+      "justification": "S3Store (single vs multipart upload, part sizing, abort on failure, paginated listing) has no tests at all; the tests only use an in-memory FakeStore, so the real upload/abort logic is never exercised.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "src/main/java/backup/BackupUploader.java",
+      "line": 173,
+      "end_line": 177,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "server-no-timeout",
+      "severity": "low",
+      "justification": "The status HttpServer uses the default single-threaded executor with no read or idle timeout, so one client that opens a connection and never finishes its request blocks the status endpoint for everyone.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

@@ -1,5 +1,14 @@
 # OmniEngineering Trademark And Identity Policy
 
+> **In this repository.** Arbiter is licensed under the Apache License,
+> Version 2.0, which grants no trademark rights (§6). This file is the
+> OmniEngineering identity policy, carried with the OmniEngineering workspace
+> that Arbiter includes (`.ai/`, `omni` and its tooling; see `NOTICE`), and it
+> governs the OmniEngineering and OmniContext names only. "Project owner" below
+> means the OmniEngineering project owner. No separate policy for the name
+> "Arbiter" has been adopted; until one is, §6 is the whole of what the licence
+> says about it.
+
 This policy protects the project identity while keeping the code, docs,
 templates, diagrams, and workspace structure broadly reusable under the Apache
 License, Version 2.0.

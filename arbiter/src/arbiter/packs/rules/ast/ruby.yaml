@@ -13,6 +13,7 @@ languages: [ruby]
 rules:
   # --- Concurrency -----------------------------------------------------------
   - id: check-then-act-unlocked
+    requirements: [ARB-065]
     title: "Check-then-act on a shared collection with no lock: `{text}`"
     severity: medium
     confidence: medium
@@ -43,19 +44,30 @@ rules:
          body: (assignment left: (element_reference object: (_) @a))
          condition: (call receiver: (element_reference object: (_) @b)))
         @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
-      ; `@tasks.shift unless @tasks.empty?` / `@seen << k unless @seen.include?(k)`
+      ; `@tasks.shift unless @tasks.empty?` / `@seen << k unless @seen.include?(k)`.
+      ; The check must ask the collection about its contents (`include?`,
+      ; `key?`, `empty?`, `size`, ...): `@io.flush unless @io.sync`,
+      ; `x.freeze if x.is_a?(String)` and `respond_to?` probes are not a race
+      ; on shared state, and the act must change it (`shift`, `delete`, `<<`):
+      ; `hooks.each { ... } unless hooks.empty?` only reads (gold benchmark,
+      ; ARB-065).
       ((unless_modifier
-         body: (call receiver: (_) @a)
-         condition: (call receiver: (_) @b))
-        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
+         body: (call receiver: (_) @a method: (identifier) @w)
+         condition: (call receiver: (_) @b method: (identifier) @q))
+        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])")
+        (#match? @q "^(include\\?|key\\?|has_key\\?|member\\?|empty\\?|any\\?|none\\?|nil\\?|value\\?|has_value\\?|size|length|count|fetch|find|detect)$")
+        (#match? @w "^(push|append|prepend|unshift|shift|pop|delete|delete_at|delete_if|reject!|select!|keep_if|store|insert|add|add\\?|clear|concat|merge!|update|replace|compact!|uniq!|transform_values!|compare_and_set)$"))
       ((unless_modifier
          body: (binary left: (_) @a)
-         condition: (call receiver: (_) @b))
-        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
+         condition: (call receiver: (_) @b method: (identifier) @q))
+        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])")
+        (#match? @q "^(include\\?|key\\?|has_key\\?|member\\?|empty\\?|any\\?|none\\?|nil\\?|value\\?|has_value\\?|size|length|count|fetch|find|detect)$"))
       ((if_modifier
-         body: (call receiver: (_) @a)
-         condition: (call receiver: (_) @b))
-        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
+         body: (call receiver: (_) @a method: (identifier) @w)
+         condition: (call receiver: (_) @b method: (identifier) @q))
+        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])")
+        (#match? @q "^(include\\?|key\\?|has_key\\?|member\\?|empty\\?|any\\?|none\\?|nil\\?|value\\?|has_value\\?|size|length|count|fetch|find|detect)$")
+        (#match? @w "^(push|append|prepend|unshift|shift|pop|delete|delete_at|delete_if|reject!|select!|keep_if|store|insert|add|add\\?|clear|concat|merge!|update|replace|compact!|uniq!|transform_values!|compare_and_set)$"))
       ; the same shapes as block `if`/`unless`
       ((if
          condition: (binary left: (element_reference object: (_) @b))
@@ -70,27 +82,52 @@ rules:
          consequence: (then . (assignment left: (element_reference object: (_) @a))))
         @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
       ((if
-         condition: (call receiver: (_) @b)
-         consequence: (then . (call receiver: (_) @a)))
-        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
+         condition: (call receiver: (_) @b method: (identifier) @q)
+         consequence: (then . (call receiver: (_) @a method: (identifier) @w)))
+        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])")
+        (#match? @q "^(include\\?|key\\?|has_key\\?|member\\?|empty\\?|any\\?|none\\?|nil\\?|value\\?|has_value\\?|size|length|count|fetch|find|detect)$")
+        (#match? @w "^(push|append|prepend|unshift|shift|pop|delete|delete_at|delete_if|reject!|select!|keep_if|store|insert|add|add\\?|clear|concat|merge!|update|replace|compact!|uniq!|transform_values!|compare_and_set)$"))
       ((unless
-         condition: (call receiver: (_) @b)
-         consequence: (then . (call receiver: (_) @a)))
-        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
+         condition: (call receiver: (_) @b method: (identifier) @q)
+         consequence: (then . (call receiver: (_) @a method: (identifier) @w)))
+        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])")
+        (#match? @q "^(include\\?|key\\?|has_key\\?|member\\?|empty\\?|any\\?|none\\?|nil\\?|value\\?|has_value\\?|size|length|count|fetch|find|detect)$")
+        (#match? @w "^(push|append|prepend|unshift|shift|pop|delete|delete_at|delete_if|reject!|select!|keep_if|store|insert|add|add\\?|clear|concat|merge!|update|replace|compact!|uniq!|transform_values!|compare_and_set)$"))
       ((unless
-         condition: (call receiver: (_) @b)
+         condition: (call receiver: (_) @b method: (identifier) @q)
          consequence: (then . (binary left: (_) @a)))
-        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])"))
+        @hit (#eq? @a @b) (#match? @a "^(@|[A-Z])")
+        (#match? @q "^(include\\?|key\\?|has_key\\?|member\\?|empty\\?|any\\?|none\\?|nil\\?|value\\?|has_value\\?|size|length|count|fetch|find|detect)$"))
       ; `CACHE[k] ||= compute(k)` on a module-level constant. The same on an
       ; instance variable (`@routes[verb] ||= []`) is nearly always class-body
       ; setup or request-scoped memoisation, so it is not reported.
-      (operator_assignment
-        left: (element_reference object: (constant))
+      ; `CACHE[k] ||= compute(k)` on a module-level constant. ENV and the
+      ; per-thread / per-fiber stores (`IsolatedExecutionState[:k] ||= []`,
+      ; `Ractor[:k]`, `Fiber[:k]`) are not shared between threads this way.
+      ((operator_assignment
+        left: (element_reference object: (constant) @c)
         "||=") @hit
+        (#not-match? @c "^(ENV|IsolatedExecutionState|Ractor|Fiber)$"))
     unless_inside: |
       (call method: (identifier) @m
         (#match? @m "^(synchronize|mon_synchronize|with_lock|with_write_lock|with_read_lock)$")
         block: [(do_block) (block)]) @lock
+      ; Gold benchmark (ARB-065), Rails' quoting caches: the constant is a
+      ; `Concurrent::Map` (or `Concurrent::Hash`) declared beside the methods
+      ; that use it, so `QUOTED_COLUMN_NAMES[name] ||= ...` is thread-safe.
+      ; A query cannot follow a name across the file, so the declaration must
+      ; sit in the same class or module body as the method, or one nested
+      ; module above it (`module ClassMethods`).
+      (body_statement
+        (assignment left: (constant) @k right: (call receiver: (scope_resolution scope: (constant) @cc name: (constant) @ct) method: (identifier) @new))
+        [(method body: (body_statement (operator_assignment left: (element_reference object: (constant) @o) "||=") @safe))
+         (singleton_method body: (body_statement (operator_assignment left: (element_reference object: (constant) @o) "||=") @safe))]
+        (#eq? @cc "Concurrent") (#match? @ct "^(Map|Hash|Array)$") (#eq? @new "new") (#eq? @k @o))
+      (body_statement
+        (assignment left: (constant) @k right: (call receiver: (scope_resolution scope: (constant) @cc name: (constant) @ct) method: (identifier) @new))
+        [(module body: (body_statement [(method body: (body_statement (operator_assignment left: (element_reference object: (constant) @o) "||=") @safe)) (singleton_method body: (body_statement (operator_assignment left: (element_reference object: (constant) @o) "||=") @safe))]))
+         (class body: (body_statement [(method body: (body_statement (operator_assignment left: (element_reference object: (constant) @o) "||=") @safe)) (singleton_method body: (body_statement (operator_assignment left: (element_reference object: (constant) @o) "||=") @safe))]))]
+        (#eq? @cc "Concurrent") (#match? @ct "^(Map|Hash|Array)$") (#eq? @new "new") (#eq? @k @o))
     description: >-
       The collection is read and then changed as two steps, in a file that
       runs threads, with no Mutex#synchronize around them. Two threads can
@@ -103,6 +140,7 @@ rules:
       return).
 
   - id: unsynchronised-counter
+    requirements: [ARB-061]
     title: "`{text}` on a shared counter with no lock in a threaded file"
     severity: medium
     confidence: medium
@@ -132,6 +170,7 @@ rules:
       Hold a Mutex around the update, or use Concurrent::AtomicFixnum#increment.
 
   - id: endless-worker-loop
+    requirements: [ARB-061]
     title: "Thread runs `{text}` with no stop signal"
     severity: medium
     confidence: medium
@@ -180,6 +219,7 @@ rules:
 
   # --- Outbound calls --------------------------------------------------------
   - id: http-no-timeout
+    requirements: [ARB-060]
     title: "`{text}` makes an outbound call with no timeout set"
     severity: medium
     confidence: medium
@@ -220,6 +260,7 @@ rules:
 
   # --- Retries ---------------------------------------------------------------
   - id: retry-unbounded
+    requirements: [ARB-061]
     title: "`retry` with no attempt counter: retries forever"
     severity: medium
     confidence: high
@@ -259,6 +300,7 @@ rules:
       return a failure the caller can see.
 
   - id: retry-without-backoff
+    requirements: [ARB-061]
     title: "`retry` with no sleep: hammers the failing dependency"
     severity: medium
     confidence: medium
@@ -293,6 +335,7 @@ rules:
 
   # --- Error handling --------------------------------------------------------
   - id: swallowed-error
+    requirements: [ARB-065]
     title: "`{text}` swallows the error: empty rescue"
     severity: medium
     confidence: high
@@ -318,6 +361,15 @@ rules:
       ; there, and `x = foo rescue nil`, are still reported.
       (assignment right: (begin (rescue body: (then . (nil) .)) @fallback))
       (operator_assignment right: (begin (rescue body: (then . (nil) .)) @fallback))
+      ; Gold benchmark (ARB-065): a comment in the empty rescue says why it is
+      ; empty (`# Ignored`, `# the query already failed; keep its error`).
+      ; RuboCop's Lint/SuppressedException allows the same by default. A
+      ; TODO there is not a reason and is still reported, nor is a planted
+      ; corpus marker (`# expect: ...`).
+      ((rescue !body (comment) @c) @explained (#not-match? @c "(?i)\\b(todo|fixme|xxx)\\b|^#\\s*expect(-ext)?:"))
+      ; `rescue => @setup_exception` keeps the error for later (Rails'
+      ; parallel test worker reports it after the fork).
+      (rescue (exception_variable (instance_variable))) @stored
     description: >-
       The rescue body is empty or `nil`, so the failure is dropped with no
       log, no metric and no re-raise. The caller sees `nil` where it expected
@@ -327,6 +379,7 @@ rules:
       re-raise or return an explicit failure for anything else.
 
   - id: rescue-exception
+    requirements: [ARB-065]
     title: "`rescue Exception` catches interrupts, SystemExit and NoMemoryError"
     severity: medium
     confidence: high
@@ -358,6 +411,23 @@ rules:
          (then (call method: (identifier) @m arguments: (argument_list (identifier) @a)))) @handoff
         (#match? @m "^(call|handle_exception|handle_error|on_error|report_exception|notify)$")
         (#eq? @a @v))
+      ; Gold benchmark (ARB-065), Puma and Rails: the exception goes to a
+      ; method named for error handling (`@log_writer.unknown_error(e, ...)`),
+      ; into a collection that is raised later (`exceptions << e`), or out
+      ; wrapped (`WrappedException.new(e)`). A logger level call
+      ; (`logger.error`, `warn`) or `STDERR.puts` is still reported.
+      ((rescue (exception_variable (identifier) @v)
+         (then (call method: (identifier) @m arguments: (argument_list . (identifier) @a)))) @handoff
+        (#match? @m "(?i)(error|exception)") (#not-match? @m "^(error|warn|info|debug|fatal)$")
+        (#eq? @a @v))
+      ((rescue (exception_variable (identifier) @v)
+         (then (binary operator: "<<" right: (identifier) @a))) @collected
+        (#eq? @a @v))
+      ((rescue (exception_variable (identifier) @v)
+         (then . (call receiver: (_) method: (identifier) @n arguments: (argument_list . (identifier) @a .)) .)) @wrapped
+        (#eq? @n "new") (#eq? @a @v))
+      ; RuboCop's own cop disabled on the line, which a reviewer has accepted.
+      ((rescue (comment) @c) @accepted (#match? @c "rubocop:(disable|todo)[^\\n]*Lint/RescueException"))
     description: >-
       Exception is the root of Interrupt, SignalException, SystemExit and
       NoMemoryError. Rescuing it makes Ctrl-C and `exit` no-ops inside this
@@ -368,6 +438,7 @@ rules:
 
   # --- Injection -------------------------------------------------------------
   - id: sql-injection
+    requirements: [ARB-065]
     title: "SQL built by string interpolation: `{text}`"
     severity: high
     confidence: high
@@ -375,23 +446,39 @@ rules:
     cwe: [CWE-89]
     controls: [NIST-800-218:PW.5, NIST-800-53r5:SI-10]
     tags: [injection, sql]
+    # An interpolation that quotes or escapes its value (`quote_table_name`,
+    # `sanitize_sql`, `pg_conn.escape_identifier`, `escape_string`), converts
+    # it to a number (`.to_i`, `Integer(...)`) or splices a constant or a
+    # schema name is not reported; each raw interpolation in the string is
+    # matched on its own, so one raw value beside escaped ones still is
+    # (gold benchmark, ARB-065: Action Cable's PostgreSQL adapter).
     query: |
       ; where("name = '#{name}'"), find_by_sql("... #{id}"), db.execute("... #{id}")
       ((call method: (identifier) @m
          (#match? @m "^(where|rewhere|not|find_by_sql|count_by_sql|execute|exec_query|exec_update|exec_delete|exec_insert|select_all|select_one|select_value|select_values|select_rows|query|exec|exec_params|prepare|order|reorder|group|having|joins|select|pluck|update_all|delete_all|async_exec|exec_prepared|execute_batch)$")
          arguments: (argument_list . (string (interpolation) @i)))
-        @hit (#not-match? @i "^#\\{[A-Z]|table_name|primary_key|quote|sanitize|connection\\.|_column|arel"))
+        @hit (#not-match? @i "^#\\{[A-Z]|table_name|primary_key|quote|sanitize|escape|connection\\.|_column|arel|\\.to_i\\s*\\}$|\\.to_f\\s*\\}$|^#\\{\\s*(Integer|Float)\\("))
       ; where(<<~SQL) with an interpolation inside the heredoc body
       (((call method: (identifier) @m
           (#match? @m "^(where|find_by_sql|count_by_sql|execute|exec_query|select_all|select_one|select_value|select_values|query|exec|prepare|update_all|delete_all)$")
           arguments: (argument_list . (heredoc_beginning))) @hit
         (heredoc_body (interpolation) @i))
-        (#not-match? @i "^#\\{[A-Z]|table_name|primary_key|quote|sanitize|connection\\.|_column|arel"))
+        (#not-match? @i "^#\\{[A-Z]|table_name|primary_key|quote|sanitize|escape|connection\\.|_column|arel|\\.to_i\\s*\\}$|\\.to_f\\s*\\}$|^#\\{\\s*(Integer|Float)\\("))
       ; order(params[:sort]), pluck(params[:field]): the column name comes straight from the request
       ((call method: (identifier) @m
          (#match? @m "^(order|reorder|group|select|pluck|joins|having|where|execute|query)$")
          arguments: (argument_list . (element_reference object: (identifier) @p)))
         @hit (#eq? @p "params"))
+    # Round 4: a call is also skipped when every interpolation is safe by
+    # structure (lang_rules._rb_splices_safe): a literal chosen by a
+    # condition (`#{enforced ? 'ENFORCED' : 'NOT ENFORCED'}`, `#{' IF
+    # EXISTS' if if_exists}`), a `quote_*` / `sanitize_*` / `escape_*` call,
+    # or a local assigned only such values or a PRAGMA setting read back
+    # from the database (`old = query_value("PRAGMA foreign_keys")`). All
+    # 19 `v3` gold labels were FPs of this kind or of internal identifiers.
+    safe_splice_text: "^#\\{[A-Z]|table_name|primary_key|quote|sanitize|escape|connection\\.|_column|arel|\\.to_i\\s*\\}$|\\.to_f\\s*\\}$|^#\\{\\s*(Integer|Float)\\("
+    safe_splice_calls: "quote\\w*|sanitize_sql\\w*|escape_\\w+|to_i|to_f|Integer|Float"
+    safe_splice_values: "(?:\\w+\\.)*(?:query_value|select_value)\\(?\\s*([\"'])PRAGMA \\w+\\1(?:\\s*,\\s*(?:nil|[\"'][\\w ]*[\"']))?\\s*\\)?"
     description: >-
       The SQL text is assembled from a runtime value. Whoever controls that
       value controls the query: a quote in a name reads or deletes other
@@ -401,8 +488,27 @@ rules:
       Bind values: `where("name = ?", name)` or `where(name: name)`; whitelist
       column names for `order`; use prepared statements (`db.execute(sql,
       [id])`, `conn.exec_params`) for raw drivers.
+    # One-hop data flow (Milestone 3): the interpolated SQL (same exclusions
+    # as above) reaches the call through a local or a same-file helper, or
+    # is concatenated with `+`.
+    taint:
+      sources: |
+        ((string (interpolation) @i) @source
+         (#not-match? @i "^#\\{[A-Z]|table_name|primary_key|quote|sanitize|escape|connection\\.|_column|arel|\\.to_i\\s*\\}$|\\.to_f\\s*\\}$|^#\\{\\s*(Integer|Float)\\("))
+        ((heredoc_body (interpolation) @i) @source
+         (#not-match? @i "^#\\{[A-Z]|table_name|primary_key|quote|sanitize|escape|connection\\.|_column|arel|\\.to_i\\s*\\}$|\\.to_f\\s*\\}$|^#\\{\\s*(Integer|Float)\\("))
+        ((binary operator: "+") @source
+         (#match? @source "^\\(*[\"'](?i:\\s*(select|insert|update|delete|notify|with|where|order|create|drop|alter)\\b)"))
+      sinks: |
+        ((call method: (identifier) @m arguments: (argument_list . (_) @sink)) @hit
+         (#match? @m "^(where|rewhere|not|find_by_sql|count_by_sql|execute|exec_query|exec_update|exec_delete|exec_insert|select_all|select_one|select_value|select_values|select_rows|query|exec|exec_params|prepare|order|reorder|group|having|joins|update_all|delete_all)$")
+         (#not-match? @hit "^(::)?(Kernel|Process|IO|Open3)\\."))
+      sanitizers: |
+        ((call method: (identifier) @m) @sanitizer
+         (#match? @m "^(to_i|to_f|quote\\w*|sanitize_sql\\w*|escape_string|escape_literal)$"))
 
   - id: command-injection
+    requirements: [ARB-061]
     title: "Shell command built by string interpolation: `{text}`"
     severity: high
     confidence: high
@@ -419,14 +525,14 @@ rules:
         (#match? @hit "#\\{(?![^}]*(\\.to_i|\\bpid)\\s*\\})"))
       ; system("ls #{dir}") / exec / spawn: one string goes through /bin/sh
       ((call !receiver method: (identifier) @m (#match? @m "^(system|exec|spawn)$")
-         arguments: (argument_list . (string (interpolation)) (pair)* .))
+         arguments: (argument_list . (string (interpolation)) @cmd (pair)* .))
         @hit (#not-match? @hit "Shellwords|shellescape|shelljoin|\\.escape\\(")
         (#match? @hit "#\\{(?![^}]*(\\.to_i|\\bpid)\\s*\\})"))
       ; Open3.capture2("ls #{dir}"), IO.popen("..."), Kernel.system, Process.spawn
       ((call receiver: (constant) @r method: (identifier) @m
          (#match? @r "^(Open3|IO|Kernel|Process)$")
          (#match? @m "^(capture2|capture2e|capture3|popen|popen2|popen2e|popen3|pipeline|pipeline_r|pipeline_w|system|spawn|exec)$")
-         arguments: (argument_list . (string (interpolation)) (pair)* .))
+         arguments: (argument_list . (string (interpolation)) @cmd (pair)* .))
         @hit (#not-match? @hit "Shellwords|shellescape|shelljoin|\\.escape\\(")
         (#match? @hit "#\\{(?![^}]*(\\.to_i|\\bpid)\\s*\\})"))
     description: >-
@@ -437,8 +543,25 @@ rules:
       Use the multi-argument form, which bypasses the shell:
       `system("ls", dir)`, `Open3.capture2("git", "log", path)`; or escape
       with `Shellwords.escape` if a single string is unavoidable.
+    # One-hop data flow (Milestone 3): the interpolated command reaches the
+    # shell call through a local or a helper, or is concatenated with `+`.
+    taint:
+      mode: nonconst
+      sinks: |
+        ((call !receiver method: (identifier) @m arguments: (argument_list . (_) @sink (pair)* .)) @hit
+         (#match? @m "^(system|exec|spawn)$") (#not-match? @sink "^\\*"))
+        ((call receiver: (constant) @r method: (identifier) @m arguments: (argument_list . (_) @sink (pair)* .)) @hit
+         (#match? @r "^(Open3|IO|Kernel|Process)$")
+         (#match? @m "^(capture2|capture2e|capture3|popen|popen2|popen2e|popen3|pipeline|pipeline_r|pipeline_w|system|spawn|exec)$")
+         (#not-match? @sink "^\\*"))
+      sanitizers: |
+        ((call method: (identifier) @m) @sanitizer (#match? @m "^(shellescape|shelljoin|escape|to_i|to_f|pid)$"))
+        ((call receiver: (constant) @c method: (identifier) @m) @sanitizer (#eq? @c "Shellwords"))
+      value: [cmd]
+      built: true
 
   - id: code-injection
+    requirements: [ARB-065]
     title: "Runtime value reaches `{text}`"
     severity: high
     confidence: high
@@ -467,6 +590,7 @@ rules:
       write yourself.
 
   - id: dynamic-eval
+    requirements: [ARB-061]
     title: "`{text}` runs a string as code"
     severity: medium
     confidence: medium
@@ -491,6 +615,7 @@ rules:
 
   # --- Deserialization -------------------------------------------------------
   - id: marshal-load
+    requirements: [ARB-060]
     title: "`Marshal.load` deserializes untrusted bytes"
     severity: high
     confidence: high
@@ -511,6 +636,7 @@ rules:
     remediation: "Use JSON.parse, or YAML.safe_load with permitted classes."
 
   - id: yaml-unsafe-load
+    requirements: [ARB-061]
     title: "`{text}` can instantiate arbitrary classes from the document"
     severity: high
     confidence: medium
@@ -537,6 +663,7 @@ rules:
 
   # --- Stubs -----------------------------------------------------------------
   - id: stub-method
+    requirements: [ARB-065]
     title: "Method body is only `{text}`"
     severity: low
     confidence: medium
@@ -552,11 +679,43 @@ rules:
       ; raise "TODO" / raise NotImplementedError, "TODO: later"
       ([(method body: (body_statement . (call method: (identifier) @r (#eq? @r "raise")) @hit))
         (singleton_method body: (body_statement . (call method: (identifier) @r (#eq? @r "raise")) @hit))] @meth
-        (#match? @meth "(?i)^def [^\\n]*\\n\\s*raise (NotImplementedError, )?[\"'][^\"'\\n]*(todo|fixme|not (yet )?implemented|implement me|stub|later|placeholder)[^\"'\\n]*[\"']\\s*(#[^\\n]*)?\\n\\s*end$"))
+        (#match? @meth "(?i)^def [^\\n]*\\n\\s*raise ([\"'][^\"'\\n]*(todo|fixme|not (yet )?implemented|implement me|stub|later|placeholder)|NotImplementedError, [\"'][^\"'\\n]*(todo|fixme|not yet implemented|implement me|stub|later|placeholder))[^\"'\\n]*[\"']\\s*(#[^\\n]*)?\\n\\s*end$"))
       ; def x; nil # TODO; end  /  true # stub
       ([(method body: (body_statement . [(nil) (true) (false)] @hit))
         (singleton_method body: (body_statement . [(nil) (true) (false)] @hit))] @meth
         (#match? @meth "(?i)^def [^\\n]*\\n\\s*(nil|true|false)\\s*#\\s*(todo|fixme|stub|placeholder|for now|temporary|later)[^\\n]*\\n\\s*end$"))
+    # Gold benchmark (ARB-065), Rails and RubyGems: the abstract-method
+    # convention is mostly a bare `raise NotImplementedError`. Such a method
+    # is an interface, not a stub, when (1) its class, module or `class <<
+    # self` declares two or more of them (ActiveStorage::Service,
+    # DatabaseConfig, Key, Gem::BasicSpecification), (2) it is a private
+    # hook below `private` that a subclass overrides (StatementPool#dealloc),
+    # or (3) its class is named for it (`AbstractRenderer`, `Base`). Only the
+    # raising methods are captured, so a `nil # TODO` stub beside them is
+    # still reported. `raise NotImplementedError, "rename_table is not
+    # implemented"` says an adapter lacks a feature and is not reported;
+    # "TODO" and "not yet implemented" still are. One bare raise in an
+    # ordinary class is still reported.
+    unless_inside: |
+      (class body: (body_statement
+        [(method) (singleton_method)] @a (#match? @a "^def [^\\n]*\\n\\s*raise NotImplementedError\\b")
+          (#not-match? @a "(?i)todo|fixme|not yet implemented|implement me|placeholder")
+        [(method) (singleton_method)] @b (#match? @b "^def [^\\n]*\\n\\s*raise NotImplementedError\\b")
+          (#not-match? @b "(?i)todo|fixme|not yet implemented|implement me|placeholder")))
+      (module body: (body_statement
+        [(method) (singleton_method)] @a (#match? @a "^def [^\\n]*\\n\\s*raise NotImplementedError\\b")
+          (#not-match? @a "(?i)todo|fixme|not yet implemented|implement me|placeholder")
+        [(method) (singleton_method)] @b (#match? @b "^def [^\\n]*\\n\\s*raise NotImplementedError\\b")
+          (#not-match? @b "(?i)todo|fixme|not yet implemented|implement me|placeholder")))
+      (singleton_class body: (body_statement
+        (method) @a (#match? @a "^def [^\\n]*\\n\\s*raise NotImplementedError\\b")
+          (#not-match? @a "(?i)todo|fixme|not yet implemented|implement me|placeholder")
+        (method) @b (#match? @b "^def [^\\n]*\\n\\s*raise NotImplementedError\\b")
+          (#not-match? @b "(?i)todo|fixme|not yet implemented|implement me|placeholder")))
+      (body_statement (identifier) @p (#match? @p "^(private|protected)$")
+        (method) @hook (#match? @hook "^def [^\\n]*\\n\\s*raise NotImplementedError\\b"))
+      (class name: (_) @n (#match? @n "(^|::)(Abstract|Base)[A-Z]|(Abstract|Base)$")
+        body: (body_statement [(method) (singleton_method)] @m (#match? @m "^def [^\\n]*\\n\\s*raise NotImplementedError\\b")))
     description: >-
       The method does nothing but raise or return a constant marked
       temporary. In a scaffold that is fine; shipped, every caller is
@@ -567,6 +726,7 @@ rules:
 
   # --- Tests (spec/*_spec.rb) ------------------------------------------------
   - id: vacuous-spec
+    requirements: [ARB-065]
     title: "Example `{text}` has no expectation"
     severity: low
     confidence: medium
@@ -576,19 +736,41 @@ rules:
     tags: [assurance, test, rspec]
     roles: [test]
     files: "*_spec.rb"
+    # Gold benchmark (ARB-065), Bundler: a call to an assertion helper,
+    # `should_be_ruby_version_incorrect`, `expect_no_output`,
+    # `mock_confirm_message` (sets a message expectation), `check_commands!`
+    # or `gem_skeleton_assertions`, is an assertion.
     query: |
       ((call method: (identifier) @m (#match? @m "^(it|specify|example|scenario)$")
          arguments: (argument_list)
          block: (do_block) @b)
-        @hit (#not-match? @b "\\bexpect\\s*[({]|\\bexpect_any_instance_of\\b|\\bis_expected\\b|\\bshould\\b|\\bassert|\\.to\\b|\\.not_to\\b|\\.to_not\\b|\\bverify|raise_error|aggregate_failures|\\bpending\\b|\\bskip\\b|\\bflunk\\b|\\bfail\\b"))
+        @hit (#not-match? @b "\\bexpect\\s*[({]|\\bexpect_any_instance_of\\b|\\bis_expected\\b|\\bshould\\b|\\bassert|\\.to\\b|\\.not_to\\b|\\.to_not\\b|\\bverify|raise_error|aggregate_failures|\\bpending\\b|\\bskip\\b|\\bflunk\\b|\\bfail\\b|\\b(should|expect|assert|verify|must|mock|check)_\\w+|\\w_assertions?\\b"))
       ((call method: (identifier) @m (#match? @m "^(it|specify|example|scenario)$")
          block: (block) @b)
-        @hit (#not-match? @b "\\bexpect\\s*[({]|\\bexpect_any_instance_of\\b|\\bis_expected\\b|\\bshould\\b|\\bassert|\\.to\\b|\\.not_to\\b|\\.to_not\\b|\\bverify|raise_error|aggregate_failures|\\bpending\\b|\\bskip\\b|\\bflunk\\b|\\bfail\\b"))
+        @hit (#not-match? @b "\\bexpect\\s*[({]|\\bexpect_any_instance_of\\b|\\bis_expected\\b|\\bshould\\b|\\bassert|\\.to\\b|\\.not_to\\b|\\.to_not\\b|\\bverify|raise_error|aggregate_failures|\\bpending\\b|\\bskip\\b|\\bflunk\\b|\\bfail\\b|\\b(should|expect|assert|verify|must|mock|check)_\\w+|\\w_assertions?\\b"))
     unless_inside: |
       ((call method: (identifier) @m (#match? @m "^(it|specify|example|scenario)$")
          block: (do_block body: (body_statement (call !receiver method: (identifier) @h) .)))
         @delegated
         (#not-match? @h "^(get|post|put|patch|delete|head|options|visit|click|fill_in|sleep|puts|p|pp|print|run|call|subject|described_class|send|request|follow_redirect!)$"))
+      ; Gold benchmark (ARB-065), Bundler's specs: the helper call is followed
+      ; by its heredoc (`install_gemfile <<-G ... G`, which raises on a
+      ; failed install), or is a bare helper name (`should_not_resolve`,
+      ; `gem_skeleton_assertions`).
+      ((call method: (identifier) @m (#match? @m "^(it|specify|example|scenario)$")
+         block: (do_block body: (body_statement (call !receiver method: (identifier) @h) . (heredoc_body) .)))
+        @delegated
+        (#not-match? @h "^(get|post|put|patch|delete|head|options|visit|click|fill_in|sleep|puts|p|pp|print|run|call|subject|described_class|send|request|follow_redirect!)$"))
+      ((call method: (identifier) @m (#match? @m "^(it|specify|example|scenario)$")
+         block: (do_block body: (body_statement (identifier) @h .)))
+        @delegated
+        (#not-match? @h "^(get|post|put|patch|delete|head|options|visit|click|fill_in|sleep|puts|p|pp|print|run|call|subject|described_class|send|request|follow_redirect!)$"))
+      ; the example is named for not raising: "doesn't blow up when the config
+      ; is empty", "does not raise". The body is the assertion.
+      ((call method: (identifier) @m (#match? @m "^(it|specify|example|scenario)$")
+         arguments: (argument_list . (string) @d))
+        @no_raise
+        (#match? @d "(?i)\\b(does not|doesn't|do not|don't|should not|shouldn't|will not|won't|never)\\s+(raise|blow up|explode|crash|error|hang|break)"))
       ; the group's `after { expect(...) }` / `after { stubs.verify_stubbed_calls }`
       ; asserts for every example in it (faraday connection_spec.rb)
       ((call method: (identifier) @g
@@ -605,6 +787,7 @@ rules:
     remediation: "Assert the behaviour, or state the no-raise expectation explicitly."
 
   - id: skipped-spec
+    requirements: [ARB-061]
     title: "Example is skipped unconditionally: `{text}`"
     severity: low
     confidence: high
@@ -645,6 +828,7 @@ rules:
 
   # --- TLS -------------------------------------------------------------------
   - id: tls-verify-off
+    requirements: [ARB-061]
     title: "TLS certificate verification disabled: `{text}`"
     severity: high
     confidence: high
@@ -669,6 +853,7 @@ rules:
 
   # --- Randomness ------------------------------------------------------------
   - id: insecure-random
+    requirements: [ARB-061]
     title: "`{text}` uses the predictable Kernel#rand for a secret"
     severity: medium
     confidence: medium
@@ -698,3 +883,691 @@ rules:
     remediation: >-
       Use SecureRandom: `SecureRandom.hex(16)`, `SecureRandom.urlsafe_base64`,
       `SecureRandom.random_number(range)`, `SecureRandom.alphanumeric`.
+
+  # --- Authentication, CSRF and error disclosure (CWE Top 25, ARB-062) ------
+  - id: jwt-unverified-decode
+    requirements: [ARB-062]
+    title: "JWT decoded without checking its signature: `{text}`"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-287, CWE-347]
+    controls: [NIST-800-53r5:IA-2, OWASP-ASVS:3.5.3]
+    tags: [auth, jwt, security-check-disabled]
+    # ruby-jwt's `JWT.decode(token, key, verify = true, options)`: a literal
+    # `false` third argument skips the signature, and an algorithm list that
+    # admits "none" accepts an unsigned token.
+    query: |
+      (call receiver: [(constant) (scope_resolution)] @r (#match? @r "^(::)?JWT$")
+        method: (identifier) @m (#eq? @m "decode")
+        arguments: (argument_list . (_) . (_) . (false))) @hit
+      ((call receiver: [(constant) (scope_resolution)] @r (#match? @r "^(::)?JWT$")
+         method: (identifier) @m (#eq? @m "decode")
+         arguments: (argument_list (pair key: (hash_key_symbol) @k (#match? @k "^algorithms?$") value: (_) @v)))
+        @hit (#match? @v "(?i)^\\[?\\s*[\"']none[\"']"))
+    # Peek, then verify: a method that also calls `JWT.decode(..., true, ...)`
+    # read an unverified claim (`iss`, `kid`) to choose the key.
+    unless_in_scope: |
+      ((call receiver: [(constant) (scope_resolution)] @r (#match? @r "^(::)?JWT$")
+         method: (identifier) @m (#eq? @m "decode")
+         arguments: (argument_list . (_) . (_) . (true))) @x
+        (#not-match? @x "(?i)[\"']none[\"']"))
+    description: >-
+      The payload is trusted without checking that the issuer signed it.
+      Anyone can write `{"sub": 1}`, base64 it and be that user. Model-drafted
+      code reaches for this to "just read the user id" from a bearer token.
+    remediation: >-
+      `JWT.decode(token, ENV.fetch("JWT_SECRET"), true, algorithm: "HS256")`
+      with a fixed algorithm, and `aud`/`iss` checks where the token has them.
+
+  - id: jwt-literal-signing-key
+    requirements: [ARB-062]
+    title: "JWT key is a string literal in the source: `{text}`"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-798, CWE-321]
+    controls: [NIST-800-53r5:IA-5, OWASP-ASVS:2.10.4]
+    tags: [secrets, jwt, crypto]
+    # The literal is the key argument of `JWT.encode(payload, key, alg)` or
+    # `JWT.decode(token, key, ...)`, or a constant of the same class, module
+    # or file that is passed there. The secrets probe misses both: the
+    # literal sits in an argument, and `SIGNING_KEY` is not a
+    # credential-shaped name. The hit is the call or the constant's name,
+    # never the literal, so the key stays out of the report's evidence.
+    query: |
+      ((call receiver: [(constant) (scope_resolution)] @hit (#match? @hit "^(::)?JWT$")
+         method: (identifier) @m (#match? @m "^(encode|decode)$")
+         arguments: (argument_list . (_) . (string (string_content) @s)))
+        (#not-match? @s "^(.{0,7}|(?i:.*(changeme|change[-_]me|your[-_]|placeholder|example|dummy|xxx|replace[-_]?me|not[-_]?(a[-_])?secret).*)|-----BEGIN.*)$"))
+      ; `SIGNING_KEY = "..."` in a class or module body that passes it to
+      ; JWT.encode/decode (the backreference ties the constant to the call).
+      ((body_statement (assignment left: (constant) @hit (#match? @hit "^[A-Z][A-Z0-9_]*(KEY|SECRET)$")
+          right: (string (string_content) @s)
+          (#not-match? @s "^(.{0,7}|(?i:.*(changeme|change[-_]me|your[-_]|placeholder|example|dummy|xxx|replace[-_]?me|not[-_]?(a[-_])?secret).*)|-----BEGIN.*)$"))) @body
+        (#match? @body "(?ms)^\\s*([A-Z][A-Z0-9_]*(KEY|SECRET))\\s*=\\s*[\"'](?!(?i:[^\"'\\n]*(changeme|change[-_]me|your[-_]|placeholder|example|dummy|xxx|replace[-_]?me|not[-_]?(a[-_])?secret)))[^\"'\\n]{8,}[\"'].*\\bJWT\\.(encode|decode)\\((?:[^()]|\\([^()]*\\))*?,\\s*\\1\\b"))
+      ((program (assignment left: (constant) @hit (#match? @hit "^[A-Z][A-Z0-9_]*(KEY|SECRET)$")
+          right: (string (string_content) @s)
+          (#not-match? @s "^(.{0,7}|(?i:.*(changeme|change[-_]me|your[-_]|placeholder|example|dummy|xxx|replace[-_]?me|not[-_]?(a[-_])?secret).*)|-----BEGIN.*)$"))) @body
+        (#match? @body "(?ms)^\\s*([A-Z][A-Z0-9_]*(KEY|SECRET))\\s*=\\s*[\"'](?!(?i:[^\"'\\n]*(changeme|change[-_]me|your[-_]|placeholder|example|dummy|xxx|replace[-_]?me|not[-_]?(a[-_])?secret)))[^\"'\\n]{8,}[\"'].*\\bJWT\\.(encode|decode)\\((?:[^()]|\\([^()]*\\))*?,\\s*\\1\\b"))
+    description: >-
+      Whoever can read the repository can mint a valid token for any user,
+      and rotating the key means a code change and a deploy. A placeholder
+      secret like this is the classic generated default that ships.
+    remediation: "`ENV.fetch(\"JWT_SECRET\")` or `Rails.application.credentials.jwt_secret`, read once at boot."
+
+  - id: csrf-protection-disabled
+    requirements: [ARB-062]
+    title: "CSRF protection switched off: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-352]
+    controls: [NIST-800-53r5:SC-23, OWASP-ASVS:4.2.2]
+    tags: [csrf, rails, security-check-disabled]
+    # `skip_before_action :verify_authenticity_token` and
+    # `skip_forgery_protection` in a controller that has a state-changing
+    # action of its own. Not reported:
+    # * ActionController::API / Metal controllers, which have no CSRF check;
+    # * GET-only controllers (Rails' WelcomeController and PwaController);
+    # * an abstract base with no actions (ActionMailbox::BaseController);
+    # * webhook and ingress endpoints, and controllers that authenticate the
+    #   request itself (a signed token or URL, an HMAC signature, a bearer
+    #   token): no ambient cookie authority, so nothing to forge
+    #   (ActiveStorage::DiskController checks a signed token).
+    # `protect_from_forgery with: :null_session` is not reported: it is a
+    # protection strategy (an unverified request runs with no session and no
+    # cookies), and Rails' own documentation recommends it for APIs.
+    query: |
+      (call !receiver method: (identifier) @m (#eq? @m "skip_before_action")
+        arguments: (argument_list (simple_symbol) @s (#eq? @s ":verify_authenticity_token"))) @hit
+      (call !receiver method: (identifier) @m (#eq? @m "skip_forgery_protection")) @hit
+      ((identifier) @hit (#eq? @hit "skip_forgery_protection"))
+    requires_file: |
+      (method name: (identifier) @n
+        (#match? @n "^(create|update|destroy|delete|remove|upload|import|submit|approve|reject|transfer|cancel|confirm|charge|pay|purchase|checkout|subscribe|unsubscribe|reset|change|save|publish|vote|follow|unfollow|invite|accept|decline|grant|revoke|enable|disable|archive|restore|send|post|toggle)(_\\w+)?$")) @x
+    unless_in_file: |
+      (class superclass: (superclass (scope_resolution) @s (#match? @s "^(::)?ActionController::(API|Metal)$"))) @x
+      (class name: (_) @n (#match? @n "(?i)(webhook|ingress|inbound|callback|hook|notification|stripe|twilio|github|slack)")) @x
+      ((call method: (identifier) @a) @x
+        (#match? @a "^(authenticate_with_http_token|authenticate_or_request_with_http_token|secure_compare|construct_event|verify_signature|verify_webhook\\w*|valid_signature\\?|verified_request\\?|decode_verified_\\w+|doorkeeper_authorize!|authenticate_api\\w*)$"))
+      ((scope_resolution) @x (#match? @x "^(::)?OpenSSL::HMAC$"))
+      ; a helper called without arguments parses as a bare identifier:
+      ; `if token = decode_verified_token` (ActiveStorage::DiskController)
+      ((identifier) @x (#match? @x "^(decode_verified_\\w+|verified_request\\?|valid_signature\\?|verify_signature|verify_webhook\\w*|authenticate_api\\w*|doorkeeper_authorize!)$"))
+    description: >-
+      Rails checks an authenticity token on every non-GET request so that a
+      page on another site cannot submit a form as the logged-in user. Turning
+      the check off is the usual generated "fix" for an
+      `InvalidAuthenticityToken` error on a form or fetch; it makes every
+      state-changing action here forgeable from any website the user visits.
+    remediation: >-
+      Keep the check and send the token (`form_with` does; for fetch, read
+      `csrf_meta_tags`'s value into an `X-CSRF-Token` header). An endpoint
+      that is really an API should inherit ActionController::API and
+      authenticate each request with a token, not a cookie.
+
+  - id: csrf-protection-off-in-production
+    requirements: [ARB-062]
+    title: "CSRF protection switched off in the production environment: `{text}`"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-352]
+    controls: [NIST-800-53r5:SC-23, OWASP-ASVS:4.2.2]
+    tags: [csrf, rails, security-check-disabled, config]
+    # `config.action_controller.allow_forgery_protection = false` turns the
+    # authenticity-token check off for every controller. Rails' generated
+    # config/environments/test.rb does exactly that, so only the production
+    # environment file is read (`files:`); test.rb and development.rb are
+    # never reported, nor `= true`.
+    files: [config/environments/production.rb, "*/config/environments/production.rb"]
+    query: |
+      (assignment
+        left: (call
+          receiver: (call method: (identifier) @ac (#eq? @ac "action_controller"))
+          method: (identifier) @m (#eq? @m "allow_forgery_protection"))
+        right: (false)) @hit
+    description: >-
+      With `allow_forgery_protection = false` in production, no controller
+      checks the authenticity token, whatever `protect_from_forgery` says:
+      any site the user visits can submit a form or a fetch as the logged-in
+      user. The line is the generated test-environment setting, copied or
+      left behind when an `InvalidAuthenticityToken` error appeared.
+    remediation: >-
+      Delete the line (Rails defaults it to true outside the test
+      environment) and send the token from forms and fetches instead. A
+      token-authenticated API should inherit ActionController::API rather
+      than turn the check off application-wide.
+
+  - id: error-backtrace-to-client
+    requirements: [ARB-062]
+    title: "Exception backtrace returned to the client: `{text}`"
+    severity: medium
+    confidence: high
+    dimension: security
+    cwe: [CWE-209, CWE-200]
+    controls: [NIST-800-53r5:SI-11, OWASP-ASVS:7.4.1]
+    tags: [error-handling, information-exposure]
+    # A response sink whose arguments hold an exception's backtrace or
+    # `full_message` (which includes it): `render json:/plain:/html:`,
+    # Sinatra's `halt` and `body`, Grape's `error!`, or a Rack triple
+    # `[500, headers, [e.full_message]]` returned from `call`.
+    query: |
+      ((call !receiver method: (identifier) @m (#match? @m "^(render|halt|body|json|error!|respond_with)$")
+         arguments: (argument_list) @a) @hit
+        (#match? @a "\\.(backtrace|full_message|backtrace_locations)\\b"))
+      ((array . (integer) . (_) . (array) @b .) @hit
+        (#match? @b "\\.(backtrace|full_message|backtrace_locations)\\b"))
+    description: >-
+      The client receives the stack: file paths, gem names and versions,
+      the line that failed. It is a map of the application for whoever
+      triggers the error, and Rails' own error pages hide it outside
+      development for that reason.
+    remediation: >-
+      Log the backtrace with an incident id (`Rails.logger.error`) and return
+      a generic message with that id; `rescue_from` in ApplicationController
+      is the place to do it once.
+
+  - id: error-message-to-client
+    requirements: [ARB-062]
+    title: "Exception message returned to the client: `{text}`"
+    severity: low
+    confidence: medium
+    dimension: security
+    cwe: [CWE-209, CWE-200]
+    controls: [NIST-800-53r5:SI-11, OWASP-ASVS:7.4.1]
+    tags: [error-handling, information-exposure]
+    # `e.message` in a response sink, where `e`
+    # is the variable of a catch-all handler in the same method or block:
+    # `rescue => e`, `rescue StandardError, Exception => e`, or
+    # `rescue_from StandardError do |e|`. A backreference ties the rescued
+    # variable to a `.message` in the handler. A handler for a specific class
+    # (`rescue ActiveRecord::RecordInvalid => e`) is not reported: its
+    # message is usually written for the user. A sink that also returns
+    # the backtrace is error-backtrace-to-client's.
+    query: |
+      ((rescue (exception_variable) (then (call !receiver method: (identifier) @m (#match? @m "^(render|halt|body|json|error!|respond_with)$")
+          arguments: (argument_list) @a) @hit)) @r
+        (#match? @a "\\b\\w+\\.message\\b")
+        (#match? @r "(?s)^rescue(\\s+(::)?(StandardError|Exception)(\\s*,\\s*(::)?(StandardError|Exception))*)?\\s*=>\\s*(?P<v>\\w+)\\b.*\\b(?P=v)\\.message\\b")
+        (#not-match? @a "\\.(backtrace|full_message|backtrace_locations)\\b"))
+      ((call !receiver method: (identifier) @rf (#eq? @rf "rescue_from")
+         arguments: (argument_list . (_) @c (#match? @c "^(::)?(StandardError|Exception)$"))
+         block: [(do_block body: (body_statement (call !receiver method: (identifier) @m (#match? @m "^(render|halt|body|json|error!|respond_with)$")
+                                                  arguments: (argument_list) @a) @hit))
+                 (block body: (block_body (call !receiver method: (identifier) @m (#match? @m "^(render|halt|body|json|error!|respond_with)$")
+                                            arguments: (argument_list) @a) @hit))] @blk)
+        (#match? @a "\\b\\w+\\.message\\b")
+        (#match? @blk "(?s)^(do|\\{)\\s*\\|(?P<v>\\w+)\\|.*\\b(?P=v)\\.message\\b")
+        (#not-match? @a "\\.(backtrace|full_message|backtrace_locations)\\b"))
+    description: >-
+      A catch-all handler hands whatever exception it caught back to the
+      client. For a database, file or network error that text carries table
+      and column names, paths, host names and sometimes the offending input,
+      none of which was meant to leave the server.
+    remediation: >-
+      Return a fixed message (and an incident id you log alongside the
+      exception); keep `e.message` for errors you raised for the user, and
+      rescue those by their own class.
+
+  # --- CWE Top 25 round 2 (ARB-062): request values reaching a sink --------
+  # Same-method source to sink. The source is `params[...]`,
+  # `params.require/fetch/dig(...)` or `request.params/query_parameters/...`,
+  # written in the sink call or assigned to a local that a later sibling
+  # statement passes to the sink (matched zero to five levels below it and
+  # tied with #eq?). A value through `.to_i`, `Integer()` or `File.basename`
+  # is not reported.
+
+  - id: path-traversal-request
+    requirements: [ARB-062]
+    title: "File path built from a request parameter: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-22]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SI-10]
+    tags: [path-traversal, injection, rails]
+    # A `.join` receiver is File, Rails.root, a Pathname, or a
+    # *_DIR/*_ROOT/*_PATH constant or *_dir/_root/_path local (not an
+    # Array). An upload's original_filename is upload-client-filename's.
+    query: |
+      ; send_file File.join(DIR, params[:name]), File.read(params[:path]), Rails.root.join("x", params[:f])
+      ((call receiver: (_) @r method: (identifier) @m arguments: (argument_list) @a) @hit (#eq? @m "join") (#match? @r "^(?:::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(?:DIR|ROOT|PATH|PATHS|FOLDER)$|(?:_dir|_root|_path|_folder|^dir|^root|^base|^folder)$") (#match? @a "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @a "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\("))
+      ((call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (_) @a)) @hit (#match? @r "^(?:::)?(?:File|IO)$") (#match? @m "^(?:read|binread|readlines|foreach|open|new|delete|unlink|write|binwrite)$") (#match? @a "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @a "\\.join\\b") (#not-match? @a "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\("))
+      ((call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (_) @a)) @hit (#match? @r "^(::)?FileUtils$") (#match? @m "^(?:rm|rm_f|rm_r|rm_rf|remove|remove_file|cp|mv|copy|move)$") (#match? @a "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @a "\\.join\\b") (#not-match? @a "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\("))
+      ((call !receiver method: (identifier) @m arguments: (argument_list . (_) @a)) @hit (#eq? @m "send_file") (#match? @a "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @a "\\.join\\b") (#not-match? @a "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\("))
+      ((call !receiver method: (identifier) @m arguments: (argument_list (pair key: (hash_key_symbol) @k value: (_) @a))) @hit (#eq? @m "render") (#eq? @k "file") (#match? @a "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b"))
+      ; name = params[:name] ... File.join(DIR, name), at up to five levels below the assignment's sibling
+      ((_ (assignment left: (identifier) @v right: (_) @src) (call receiver: (_) @r method: (identifier) @m arguments: (argument_list (identifier) @u)) @hit) (#eq? @u @v) (#eq? @m "join") (#match? @r "^(?:::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(?:DIR|ROOT|PATH|PATHS|FOLDER)$|(?:_dir|_root|_path|_folder|^dir|^root|^base|^folder)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list (identifier) @u)) @hit)) (#eq? @u @v) (#eq? @m "join") (#match? @r "^(?:::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(?:DIR|ROOT|PATH|PATHS|FOLDER)$|(?:_dir|_root|_path|_folder|^dir|^root|^base|^folder)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list (identifier) @u)) @hit))) (#eq? @u @v) (#eq? @m "join") (#match? @r "^(?:::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(?:DIR|ROOT|PATH|PATHS|FOLDER)$|(?:_dir|_root|_path|_folder|^dir|^root|^base|^folder)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list (identifier) @u)) @hit)))) (#eq? @u @v) (#eq? @m "join") (#match? @r "^(?:::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(?:DIR|ROOT|PATH|PATHS|FOLDER)$|(?:_dir|_root|_path|_folder|^dir|^root|^base|^folder)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list (identifier) @u)) @hit))))) (#eq? @u @v) (#eq? @m "join") (#match? @r "^(?:::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(?:DIR|ROOT|PATH|PATHS|FOLDER)$|(?:_dir|_root|_path|_folder|^dir|^root|^base|^folder)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list (identifier) @u)) @hit)))))) (#eq? @u @v) (#eq? @m "join") (#match? @r "^(?:::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(?:DIR|ROOT|PATH|PATHS|FOLDER)$|(?:_dir|_root|_path|_folder|^dir|^root|^base|^folder)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit) (#eq? @u @v) (#match? @r "^(?:::)?(?:File|IO)$") (#match? @m "^(?:read|binread|readlines|foreach|open|new|delete|unlink|write|binwrite)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit)) (#eq? @u @v) (#match? @r "^(?:::)?(?:File|IO)$") (#match? @m "^(?:read|binread|readlines|foreach|open|new|delete|unlink|write|binwrite)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit))) (#eq? @u @v) (#match? @r "^(?:::)?(?:File|IO)$") (#match? @m "^(?:read|binread|readlines|foreach|open|new|delete|unlink|write|binwrite)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit)))) (#eq? @u @v) (#match? @r "^(?:::)?(?:File|IO)$") (#match? @m "^(?:read|binread|readlines|foreach|open|new|delete|unlink|write|binwrite)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit))))) (#eq? @u @v) (#match? @r "^(?:::)?(?:File|IO)$") (#match? @m "^(?:read|binread|readlines|foreach|open|new|delete|unlink|write|binwrite)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit)))))) (#eq? @u @v) (#match? @r "^(?:::)?(?:File|IO)$") (#match? @m "^(?:read|binread|readlines|foreach|open|new|delete|unlink|write|binwrite)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (call !receiver method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit) (#eq? @u @v) (#eq? @m "send_file") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (call !receiver method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit)) (#eq? @u @v) (#eq? @m "send_file") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (call !receiver method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit))) (#eq? @u @v) (#eq? @m "send_file") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (call !receiver method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit)))) (#eq? @u @v) (#eq? @m "send_file") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (call !receiver method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit))))) (#eq? @u @v) (#eq? @m "send_file") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (_ (call !receiver method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit)))))) (#eq? @u @v) (#eq? @m "send_file") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (call receiver: (_) @r method: (identifier) @m arguments: (argument_list (string (interpolation (identifier) @u)))) @hit) (#eq? @u @v) (#eq? @m "join") (#match? @r "^(?:::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(?:DIR|ROOT|PATH|PATHS|FOLDER)$|(?:_dir|_root|_path|_folder|^dir|^root|^base|^folder)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list (string (interpolation (identifier) @u)))) @hit)) (#eq? @u @v) (#eq? @m "join") (#match? @r "^(?:::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(?:DIR|ROOT|PATH|PATHS|FOLDER)$|(?:_dir|_root|_path|_folder|^dir|^root|^base|^folder)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list (string (interpolation (identifier) @u)))) @hit))) (#eq? @u @v) (#eq? @m "join") (#match? @r "^(?:::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(?:DIR|ROOT|PATH|PATHS|FOLDER)$|(?:_dir|_root|_path|_folder|^dir|^root|^base|^folder)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list (string (interpolation (identifier) @u)))) @hit)))) (#eq? @u @v) (#eq? @m "join") (#match? @r "^(?:::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(?:DIR|ROOT|PATH|PATHS|FOLDER)$|(?:_dir|_root|_path|_folder|^dir|^root|^base|^folder)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list (string (interpolation (identifier) @u)))) @hit))))) (#eq? @u @v) (#eq? @m "join") (#match? @r "^(?:::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(?:DIR|ROOT|PATH|PATHS|FOLDER)$|(?:_dir|_root|_path|_folder|^dir|^root|^base|^folder)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list (string (interpolation (identifier) @u)))) @hit)))))) (#eq? @u @v) (#eq? @m "join") (#match? @r "^(?:::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(?:DIR|ROOT|PATH|PATHS|FOLDER)$|(?:_dir|_root|_path|_folder|^dir|^root|^base|^folder)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (string (interpolation (identifier) @u)))) @hit) (#eq? @u @v) (#match? @r "^(?:::)?(?:File|IO)$") (#match? @m "^(?:read|binread|readlines|foreach|open|new|delete|unlink|write|binwrite)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (string (interpolation (identifier) @u)))) @hit)) (#eq? @u @v) (#match? @r "^(?:::)?(?:File|IO)$") (#match? @m "^(?:read|binread|readlines|foreach|open|new|delete|unlink|write|binwrite)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (string (interpolation (identifier) @u)))) @hit))) (#eq? @u @v) (#match? @r "^(?:::)?(?:File|IO)$") (#match? @m "^(?:read|binread|readlines|foreach|open|new|delete|unlink|write|binwrite)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (string (interpolation (identifier) @u)))) @hit)))) (#eq? @u @v) (#match? @r "^(?:::)?(?:File|IO)$") (#match? @m "^(?:read|binread|readlines|foreach|open|new|delete|unlink|write|binwrite)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (string (interpolation (identifier) @u)))) @hit))))) (#eq? @u @v) (#match? @r "^(?:::)?(?:File|IO)$") (#match? @m "^(?:read|binread|readlines|foreach|open|new|delete|unlink|write|binwrite)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (string (interpolation (identifier) @u)))) @hit)))))) (#eq? @u @v) (#match? @r "^(?:::)?(?:File|IO)$") (#match? @m "^(?:read|binread|readlines|foreach|open|new|delete|unlink|write|binwrite)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (call !receiver method: (identifier) @m arguments: (argument_list . (string (interpolation (identifier) @u)))) @hit) (#eq? @u @v) (#eq? @m "send_file") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (call !receiver method: (identifier) @m arguments: (argument_list . (string (interpolation (identifier) @u)))) @hit)) (#eq? @u @v) (#eq? @m "send_file") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (call !receiver method: (identifier) @m arguments: (argument_list . (string (interpolation (identifier) @u)))) @hit))) (#eq? @u @v) (#eq? @m "send_file") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (call !receiver method: (identifier) @m arguments: (argument_list . (string (interpolation (identifier) @u)))) @hit)))) (#eq? @u @v) (#eq? @m "send_file") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (call !receiver method: (identifier) @m arguments: (argument_list . (string (interpolation (identifier) @u)))) @hit))))) (#eq? @u @v) (#eq? @m "send_file") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (_ (call !receiver method: (identifier) @m arguments: (argument_list . (string (interpolation (identifier) @u)))) @hit)))))) (#eq? @u @v) (#eq? @m "send_file") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b|Integer\\(|basename|\\.join\\b"))
+    unless_in_scope: |
+      ((call method: (identifier) @g) @x
+        (#match? @g "^(basename|start_with\\?|include\\?|match\\?|sanitize_filename|sanitize|fnmatch\\?)$"))
+      ((binary operator: "=~") @x)
+    description: >-
+      `File.join` and `Pathname#join` keep `..` segments, and an absolute
+      second part replaces the base in `Pathname#join`: `?name=../../config/master.key`
+      sends the Rails master key. `send_file` has no traversal check of
+      its own.
+    remediation: "Keep `File.basename(name)` and check the result is in an allowlist or exists, or expand the joined path and require it to `start_with?` the base directory plus a separator."
+    # One-hop data flow (Milestone 3): the request value reaches the path
+    # call through locals or a same-file helper.
+    taint:
+      sources: &rb_request_sources |
+        ((identifier) @source (#match? @source "^(params|cookies)$"))
+        ((call receiver: (identifier) @r method: (identifier) @m) @source
+         (#eq? @r "request")
+         (#match? @m "^(params|query_parameters|request_parameters|GET|POST|query_string|body|raw_post|headers|cookies|path_parameters|url|fullpath|referer)$"))
+      sinks: |
+        ((call receiver: (_) @r method: (identifier) @m arguments: (argument_list (_) @sink)) @hit
+         (#eq? @m "join")
+         (#match? @r "^(::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(DIR|ROOT|PATH|PATHS|FOLDER)$|(_dir|_root|_path|_folder|^dir|^root|^base|^folder)$"))
+        ((call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (_) @sink)) @hit
+         (#match? @r "^(::)?(File|IO)$")
+         (#match? @m "^(read|binread|readlines|foreach|open|new|delete|unlink|write|binwrite)$"))
+        ((call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (_) @sink)) @hit
+         (#match? @r "^(::)?FileUtils$") (#match? @m "^(rm|rm_f|rm_r|rm_rf|remove|remove_file|cp|mv|copy|move)$"))
+        ((call !receiver method: (identifier) @m arguments: (argument_list . (_) @sink)) @hit
+         (#eq? @m "send_file"))
+      sanitizers: &rb_path_sanitizers |
+        ((call method: (identifier) @m) @sanitizer
+         (#match? @m "^(basename|to_i|to_f|sanitize_filename|sanitize|parameterize|original_filename)$"))
+        ((element_reference (simple_symbol) @k) @sanitizer (#eq? @k ":filename"))
+
+  - id: upload-client-filename
+    requirements: [ARB-062]
+    title: "Upload stored under the client's file name: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-434, CWE-22]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SI-10]
+    tags: [upload, injection, rails]
+    # ActiveStorage and CarrierWave store under a generated key and are not
+    # sinks; `attach(filename: upload.original_filename)` is not reported.
+    query: |
+      ; File.binwrite(Rails.root.join("public", upload.original_filename), ...), File.open(File.join(dir, f.original_filename), "wb")
+      ((call receiver: (_) @r method: (identifier) @m arguments: (argument_list) @a) @hit (#eq? @m "join") (#match? @r "^(?:::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(?:DIR|ROOT|PATH|PATHS|FOLDER)$|(?:_dir|_root|_path|_folder|^dir|^root|^base|^folder)$") (#match? @a "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]"))
+      ((call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (_) @a)) @hit (#match? @r "^(::)?File$") (#match? @m "^(?:write|binwrite|open|new)$") (#match? @a "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]") (#not-match? @a "\\.join\\b"))
+      ((call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (_) . (_) @a)) @hit (#match? @r "^(::)?(FileUtils|IO)$") (#match? @m "^(?:cp|mv|copy|move|install|copy_file)$|^copy_stream$") (#match? @a "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]") (#not-match? @a "\\.join\\b"))
+      ; name = upload.original_filename ... File.join(dir, name)
+      ((_ (assignment left: (identifier) @v right: (_) @src) (call receiver: (_) @r method: (identifier) @m arguments: (argument_list (identifier) @u)) @hit) (#eq? @u @v) (#eq? @m "join") (#match? @r "^(?:::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(?:DIR|ROOT|PATH|PATHS|FOLDER)$|(?:_dir|_root|_path|_folder|^dir|^root|^base|^folder)$") (#match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]") (#not-match? @src "basename|sanitize|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list (identifier) @u)) @hit)) (#eq? @u @v) (#eq? @m "join") (#match? @r "^(?:::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(?:DIR|ROOT|PATH|PATHS|FOLDER)$|(?:_dir|_root|_path|_folder|^dir|^root|^base|^folder)$") (#match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]") (#not-match? @src "basename|sanitize|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list (identifier) @u)) @hit))) (#eq? @u @v) (#eq? @m "join") (#match? @r "^(?:::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(?:DIR|ROOT|PATH|PATHS|FOLDER)$|(?:_dir|_root|_path|_folder|^dir|^root|^base|^folder)$") (#match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]") (#not-match? @src "basename|sanitize|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list (identifier) @u)) @hit)))) (#eq? @u @v) (#eq? @m "join") (#match? @r "^(?:::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(?:DIR|ROOT|PATH|PATHS|FOLDER)$|(?:_dir|_root|_path|_folder|^dir|^root|^base|^folder)$") (#match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]") (#not-match? @src "basename|sanitize|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list (identifier) @u)) @hit))))) (#eq? @u @v) (#eq? @m "join") (#match? @r "^(?:::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(?:DIR|ROOT|PATH|PATHS|FOLDER)$|(?:_dir|_root|_path|_folder|^dir|^root|^base|^folder)$") (#match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]") (#not-match? @src "basename|sanitize|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list (identifier) @u)) @hit)))))) (#eq? @u @v) (#eq? @m "join") (#match? @r "^(?:::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(?:DIR|ROOT|PATH|PATHS|FOLDER)$|(?:_dir|_root|_path|_folder|^dir|^root|^base|^folder)$") (#match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]") (#not-match? @src "basename|sanitize|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit) (#eq? @u @v) (#match? @r "^(::)?File$") (#match? @m "^(?:write|binwrite|open|new)$") (#match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]") (#not-match? @src "basename|sanitize|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit)) (#eq? @u @v) (#match? @r "^(::)?File$") (#match? @m "^(?:write|binwrite|open|new)$") (#match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]") (#not-match? @src "basename|sanitize|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit))) (#eq? @u @v) (#match? @r "^(::)?File$") (#match? @m "^(?:write|binwrite|open|new)$") (#match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]") (#not-match? @src "basename|sanitize|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit)))) (#eq? @u @v) (#match? @r "^(::)?File$") (#match? @m "^(?:write|binwrite|open|new)$") (#match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]") (#not-match? @src "basename|sanitize|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit))))) (#eq? @u @v) (#match? @r "^(::)?File$") (#match? @m "^(?:write|binwrite|open|new)$") (#match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]") (#not-match? @src "basename|sanitize|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit)))))) (#eq? @u @v) (#match? @r "^(::)?File$") (#match? @m "^(?:write|binwrite|open|new)$") (#match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]") (#not-match? @src "basename|sanitize|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (call receiver: (_) @r method: (identifier) @m arguments: (argument_list (string (interpolation (identifier) @u)))) @hit) (#eq? @u @v) (#eq? @m "join") (#match? @r "^(?:::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(?:DIR|ROOT|PATH|PATHS|FOLDER)$|(?:_dir|_root|_path|_folder|^dir|^root|^base|^folder)$") (#match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]") (#not-match? @src "basename|sanitize|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list (string (interpolation (identifier) @u)))) @hit)) (#eq? @u @v) (#eq? @m "join") (#match? @r "^(?:::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(?:DIR|ROOT|PATH|PATHS|FOLDER)$|(?:_dir|_root|_path|_folder|^dir|^root|^base|^folder)$") (#match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]") (#not-match? @src "basename|sanitize|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list (string (interpolation (identifier) @u)))) @hit))) (#eq? @u @v) (#eq? @m "join") (#match? @r "^(?:::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(?:DIR|ROOT|PATH|PATHS|FOLDER)$|(?:_dir|_root|_path|_folder|^dir|^root|^base|^folder)$") (#match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]") (#not-match? @src "basename|sanitize|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list (string (interpolation (identifier) @u)))) @hit)))) (#eq? @u @v) (#eq? @m "join") (#match? @r "^(?:::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(?:DIR|ROOT|PATH|PATHS|FOLDER)$|(?:_dir|_root|_path|_folder|^dir|^root|^base|^folder)$") (#match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]") (#not-match? @src "basename|sanitize|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list (string (interpolation (identifier) @u)))) @hit))))) (#eq? @u @v) (#eq? @m "join") (#match? @r "^(?:::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(?:DIR|ROOT|PATH|PATHS|FOLDER)$|(?:_dir|_root|_path|_folder|^dir|^root|^base|^folder)$") (#match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]") (#not-match? @src "basename|sanitize|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list (string (interpolation (identifier) @u)))) @hit)))))) (#eq? @u @v) (#eq? @m "join") (#match? @r "^(?:::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(?:DIR|ROOT|PATH|PATHS|FOLDER)$|(?:_dir|_root|_path|_folder|^dir|^root|^base|^folder)$") (#match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]") (#not-match? @src "basename|sanitize|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (string (interpolation (identifier) @u)))) @hit) (#eq? @u @v) (#match? @r "^(::)?File$") (#match? @m "^(?:write|binwrite|open|new)$") (#match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]") (#not-match? @src "basename|sanitize|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (string (interpolation (identifier) @u)))) @hit)) (#eq? @u @v) (#match? @r "^(::)?File$") (#match? @m "^(?:write|binwrite|open|new)$") (#match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]") (#not-match? @src "basename|sanitize|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (string (interpolation (identifier) @u)))) @hit))) (#eq? @u @v) (#match? @r "^(::)?File$") (#match? @m "^(?:write|binwrite|open|new)$") (#match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]") (#not-match? @src "basename|sanitize|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (string (interpolation (identifier) @u)))) @hit)))) (#eq? @u @v) (#match? @r "^(::)?File$") (#match? @m "^(?:write|binwrite|open|new)$") (#match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]") (#not-match? @src "basename|sanitize|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (string (interpolation (identifier) @u)))) @hit))))) (#eq? @u @v) (#match? @r "^(::)?File$") (#match? @m "^(?:write|binwrite|open|new)$") (#match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]") (#not-match? @src "basename|sanitize|\\.join\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (string (interpolation (identifier) @u)))) @hit)))))) (#eq? @u @v) (#match? @r "^(::)?File$") (#match? @m "^(?:write|binwrite|open|new)$") (#match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]") (#not-match? @src "basename|sanitize|\\.join\\b"))
+    unless_in_scope: |
+      ((call method: (identifier) @g) @x
+        (#match? @g "^(extname|basename|content_type|sanitize|sanitize_filename|mime_type)$"))
+      ((scope_resolution) @x (#match? @x "^(::)?(Marcel|MimeMagic|MIME|ActiveStorage::Filename)\\b"))
+      ((constant) @x (#match? @x "(ALLOWED|PERMITTED|ALLOWLIST|WHITELIST|VALID_(TYPES|EXTENSIONS|MIME))"))
+      ((identifier) @x (#match? @x "(?i)^(allowed|permitted|valid)_(types|extensions|exts|mimes|mime_types|content_types)$"))
+    description: >-
+      The file is written under the name the client sent. A name with
+      `../` writes outside the upload directory, an `.html` or `.svg` in
+      public/ is stored cross-site scripting, and two users' uploads with
+      the same name overwrite each other.
+    remediation: "Store through ActiveStorage, or name the file yourself (`SecureRandom.uuid` plus an extension from an allowlist of `Marcel::MimeType.for` types), cap the size, and keep it outside public/."
+    # One-hop data flow (Milestone 3): the client's file name reaches the
+    # write through a local or a same-file helper.
+    taint:
+      sources: |
+        ((call method: (identifier) @m) @source (#eq? @m "original_filename"))
+        ((element_reference (simple_symbol) @k) @source (#eq? @k ":filename"))
+      sinks: |
+        ((call receiver: (_) @r method: (identifier) @m arguments: (argument_list (_) @sink)) @hit
+         (#eq? @m "join")
+         (#match? @r "^(::)?File$|^Rails\\.root$|^Pathname\\b|^[A-Z][A-Z0-9_]*(DIR|ROOT|PATH|PATHS|FOLDER)$|(_dir|_root|_path|_folder|^dir|^root|^base|^folder)$"))
+        ((call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (_) @sink)) @hit
+         (#match? @r "^(::)?File$") (#match? @m "^(write|binwrite|open|new)$"))
+        ((call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (_) . (_) @sink)) @hit
+         (#match? @r "^(::)?(FileUtils|IO)$") (#match? @m "^(cp|mv|copy|move|install|copy_file|copy_stream)$"))
+
+  - id: ssrf-request-url
+    requirements: [ARB-062]
+    title: "HTTP request to a URL taken from the request: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-918]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-7]
+    tags: [ssrf, injection]
+    # Clients: Net::HTTP, HTTParty, Faraday, RestClient, HTTP (http.rb),
+    # HTTPX, Excon, Typhoeus, URI.open, and a local named conn/client/http
+    # (`conn = Faraday.new`). A string whose scheme and host are literal
+    # ("https://api.x.com/#{params[:id]}") only chooses a path.
+    query: |
+      ; Net::HTTP.get(URI(params[:url])), Faraday.get(params[:url]), conn.get(params.require(:url)), URI.open(params[:url])
+      ((call receiver: [(constant) (scope_resolution)] @r method: (identifier) @m arguments: (argument_list . (_) @a)) @hit (#match? @r "^(?:::)?(?:Net::HTTP|HTTParty|Faraday|RestClient|HTTP|HTTPX|Excon|Typhoeus)$") (#match? @m "^(?:get|post|put|patch|delete|head|get_response|post_form|request|new|start)$") (#match? @a "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @a "^[\"']https?://[^/\"'#]+/|^\"#\\{[A-Z]") (#not-match? @a "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b"))
+      ((call receiver: (constant) @r method: (identifier) @m arguments: (argument_list . (_) @a)) @hit (#eq? @r "URI") (#eq? @m "open") (#match? @a "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @a "^[\"']https?://[^/\"'#]+/|^\"#\\{[A-Z]") (#not-match? @a "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b"))
+      ((call receiver: (identifier) @r method: (identifier) @m arguments: (argument_list . (_) @a)) @hit (#match? @r "^(?:conn|connection|client|http|faraday|agent|\\w+_(?:conn|connection|client|http))$") (#match? @m "^(?:get|post|put|patch|delete|head|request|get_response|run_request)$") (#match? @a "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @a "^[\"']https?://[^/\"'#]+/|^\"#\\{[A-Z]") (#not-match? @a "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b"))
+      ; url = params[:url] (or uri = URI(params[:url])) ... Net::HTTP.get(uri)
+      ((_ (assignment left: (identifier) @v right: (_) @src) (call receiver: [(constant) (scope_resolution)] @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit) (#eq? @u @v) (#match? @r "^(?:::)?(?:Net::HTTP|HTTParty|Faraday|RestClient|HTTP|HTTPX|Excon|Typhoeus)$") (#match? @m "^(?:get|post|put|patch|delete|head|get_response|post_form|request|new|start)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "^[\"']https?://[^/\"'#]+/|^\"#\\{[A-Z]") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (call receiver: [(constant) (scope_resolution)] @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit)) (#eq? @u @v) (#match? @r "^(?:::)?(?:Net::HTTP|HTTParty|Faraday|RestClient|HTTP|HTTPX|Excon|Typhoeus)$") (#match? @m "^(?:get|post|put|patch|delete|head|get_response|post_form|request|new|start)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "^[\"']https?://[^/\"'#]+/|^\"#\\{[A-Z]") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (call receiver: [(constant) (scope_resolution)] @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit))) (#eq? @u @v) (#match? @r "^(?:::)?(?:Net::HTTP|HTTParty|Faraday|RestClient|HTTP|HTTPX|Excon|Typhoeus)$") (#match? @m "^(?:get|post|put|patch|delete|head|get_response|post_form|request|new|start)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "^[\"']https?://[^/\"'#]+/|^\"#\\{[A-Z]") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (call receiver: [(constant) (scope_resolution)] @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit)))) (#eq? @u @v) (#match? @r "^(?:::)?(?:Net::HTTP|HTTParty|Faraday|RestClient|HTTP|HTTPX|Excon|Typhoeus)$") (#match? @m "^(?:get|post|put|patch|delete|head|get_response|post_form|request|new|start)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "^[\"']https?://[^/\"'#]+/|^\"#\\{[A-Z]") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (call receiver: [(constant) (scope_resolution)] @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit))))) (#eq? @u @v) (#match? @r "^(?:::)?(?:Net::HTTP|HTTParty|Faraday|RestClient|HTTP|HTTPX|Excon|Typhoeus)$") (#match? @m "^(?:get|post|put|patch|delete|head|get_response|post_form|request|new|start)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "^[\"']https?://[^/\"'#]+/|^\"#\\{[A-Z]") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (_ (call receiver: [(constant) (scope_resolution)] @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit)))))) (#eq? @u @v) (#match? @r "^(?:::)?(?:Net::HTTP|HTTParty|Faraday|RestClient|HTTP|HTTPX|Excon|Typhoeus)$") (#match? @m "^(?:get|post|put|patch|delete|head|get_response|post_form|request|new|start)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "^[\"']https?://[^/\"'#]+/|^\"#\\{[A-Z]") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (call receiver: (constant) @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit) (#eq? @u @v) (#eq? @r "URI") (#eq? @m "open") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "^[\"']https?://[^/\"'#]+/|^\"#\\{[A-Z]") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (call receiver: (constant) @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit)) (#eq? @u @v) (#eq? @r "URI") (#eq? @m "open") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "^[\"']https?://[^/\"'#]+/|^\"#\\{[A-Z]") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (call receiver: (constant) @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit))) (#eq? @u @v) (#eq? @r "URI") (#eq? @m "open") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "^[\"']https?://[^/\"'#]+/|^\"#\\{[A-Z]") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (call receiver: (constant) @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit)))) (#eq? @u @v) (#eq? @r "URI") (#eq? @m "open") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "^[\"']https?://[^/\"'#]+/|^\"#\\{[A-Z]") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (call receiver: (constant) @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit))))) (#eq? @u @v) (#eq? @r "URI") (#eq? @m "open") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "^[\"']https?://[^/\"'#]+/|^\"#\\{[A-Z]") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (_ (call receiver: (constant) @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit)))))) (#eq? @u @v) (#eq? @r "URI") (#eq? @m "open") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "^[\"']https?://[^/\"'#]+/|^\"#\\{[A-Z]") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (call receiver: (identifier) @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit) (#eq? @u @v) (#match? @r "^(?:conn|connection|client|http|faraday|agent|\\w+_(?:conn|connection|client|http))$") (#match? @m "^(?:get|post|put|patch|delete|head|request|get_response|run_request)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "^[\"']https?://[^/\"'#]+/|^\"#\\{[A-Z]") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (call receiver: (identifier) @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit)) (#eq? @u @v) (#match? @r "^(?:conn|connection|client|http|faraday|agent|\\w+_(?:conn|connection|client|http))$") (#match? @m "^(?:get|post|put|patch|delete|head|request|get_response|run_request)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "^[\"']https?://[^/\"'#]+/|^\"#\\{[A-Z]") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (call receiver: (identifier) @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit))) (#eq? @u @v) (#match? @r "^(?:conn|connection|client|http|faraday|agent|\\w+_(?:conn|connection|client|http))$") (#match? @m "^(?:get|post|put|patch|delete|head|request|get_response|run_request)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "^[\"']https?://[^/\"'#]+/|^\"#\\{[A-Z]") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (call receiver: (identifier) @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit)))) (#eq? @u @v) (#match? @r "^(?:conn|connection|client|http|faraday|agent|\\w+_(?:conn|connection|client|http))$") (#match? @m "^(?:get|post|put|patch|delete|head|request|get_response|run_request)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "^[\"']https?://[^/\"'#]+/|^\"#\\{[A-Z]") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (call receiver: (identifier) @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit))))) (#eq? @u @v) (#match? @r "^(?:conn|connection|client|http|faraday|agent|\\w+_(?:conn|connection|client|http))$") (#match? @m "^(?:get|post|put|patch|delete|head|request|get_response|run_request)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "^[\"']https?://[^/\"'#]+/|^\"#\\{[A-Z]") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (_ (call receiver: (identifier) @r method: (identifier) @m arguments: (argument_list . (identifier) @u)) @hit)))))) (#eq? @u @v) (#match? @r "^(?:conn|connection|client|http|faraday|agent|\\w+_(?:conn|connection|client|http))$") (#match? @m "^(?:get|post|put|patch|delete|head|request|get_response|run_request)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "^[\"']https?://[^/\"'#]+/|^\"#\\{[A-Z]") (#not-match? @src "\\.original_filename\\b|\\[\\s*(?::filename|[\"']filename[\"'])\\s*\\]|\\.to_i\\b"))
+    unless_in_scope: |
+      ((call method: (identifier) @g) @x
+        (#match? @g "^(host|hostname|private\\?|loopback\\?|link_local\\?)$"))
+      ((constant) @x (#match? @x "(ALLOWED|PERMITTED|TRUSTED|ALLOWLIST|WHITELIST)"))
+      ((identifier) @x (#match? @x "(?i)allowed_hosts|allowlist|whitelist|ssrf"))
+      ((scope_resolution) @x (#match? @x "(?i)ssrf|PrivateAddressCheck"))
+    description: >-
+      The server requests whatever URL the caller names: the cloud
+      metadata endpoint, localhost admin ports, or internal services.
+      Faraday also lets an absolute URL override the connection's base
+      URL, so a base URL alone does not pin the host.
+    remediation: "Parse with URI, require https and a host from an allowlist, refuse private and loopback addresses after resolving (the ssrf_filter gem does this), and don't follow redirects blindly."
+    # One-hop data flow (Milestone 3): the request value reaches the client
+    # call through locals (`URI(...)`, `URI.parse`) or a same-file helper. A
+    # URL with a fixed scheme and host is the sanitizer.
+    taint:
+      sources: *rb_request_sources
+      sinks: |
+        ((call receiver: [(constant) (scope_resolution)] @r method: (identifier) @m arguments: (argument_list . (_) @sink)) @hit
+         (#match? @r "^(::)?(Net::HTTP|HTTParty|Faraday|RestClient|HTTP|HTTPX|Excon|Typhoeus)$")
+         (#match? @m "^(get|post|put|patch|delete|head|get_response|start|new|request|options)$"))
+        ((call receiver: (constant) @r method: (identifier) @m arguments: (argument_list . (_) @sink)) @hit
+         (#eq? @r "URI") (#eq? @m "open"))
+        ((call receiver: (identifier) @r method: (identifier) @m arguments: (argument_list . (_) @sink)) @hit
+         (#match? @r "^(conn|connection|client|http|faraday|agent|\\w+_(conn|connection|client|http))$")
+         (#match? @m "^(get|post|put|patch|delete|head|request)$"))
+      sanitizers: |
+        ((string) @sanitizer (#match? @sanitizer "^\"https?://[^/\"#]+/"))
+        ((call method: (identifier) @m) @sanitizer (#match? @m "^(to_i|escape|encode_www_form_component|encode_uri_component)$"))
+
+  - id: argument-injection
+    requirements: [ARB-062]
+    title: "Request value passed to a command with no `--` before it: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-77, CWE-88]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SI-10]
+    tags: [injection, argument-injection]
+    # The multi-argument form skips the shell (command-injection is the
+    # single-string form), but git, curl, ssh, rsync and tar still read a
+    # value that starts with `-` as an option.
+    query: |
+      ; system("git", "clone", params[:repo], dir), Open3.capture2("curl", params[:url]), IO.popen(["git", ..., x])
+      ((call !receiver method: (identifier) @m arguments: (argument_list . (string (string_content) @tool) . (_)) @args) @hit (#match? @m "^(system|spawn|exec)$") (#match? @args "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#match? @tool "^(?:/usr/local/bin/|/usr/bin/|/bin/)?(?:git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|ffmpeg|ffprobe|convert|magick|gs|pandoc|wkhtmltopdf|psql|mysql|mysqldump|pg_dump|docker|kubectl|helm|openssl|find|grep|sed|awk)$") (#not-match? @args "[\"']--(?:end-of-options)?[\"']"))
+      ((call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (string (string_content) @tool) . (_)) @args) @hit (#match? @r "^(?:::)?(?:Open3|Kernel|Process)$") (#match? @m "^(?:capture2|capture2e|capture3|popen2|popen2e|popen3|system|spawn|exec)$") (#match? @args "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#match? @tool "^(?:/usr/local/bin/|/usr/bin/|/bin/)?(?:git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|ffmpeg|ffprobe|convert|magick|gs|pandoc|wkhtmltopdf|psql|mysql|mysqldump|pg_dump|docker|kubectl|helm|openssl|find|grep|sed|awk)$") (#not-match? @args "[\"']--(?:end-of-options)?[\"']"))
+      ((call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (array . (string (string_content) @tool) . (_)) @args)) @hit (#match? @r "^(::)?IO$") (#eq? @m "popen") (#match? @args "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#match? @tool "^(?:/usr/local/bin/|/usr/bin/|/bin/)?(?:git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|ffmpeg|ffprobe|convert|magick|gs|pandoc|wkhtmltopdf|psql|mysql|mysqldump|pg_dump|docker|kubectl|helm|openssl|find|grep|sed|awk)$") (#not-match? @args "[\"']--(?:end-of-options)?[\"']"))
+      ; repo = params[:repo_url] ... system("git", "clone", repo, dir)
+      ((_ (assignment left: (identifier) @v right: (_) @src) (call !receiver method: (identifier) @m arguments: (argument_list . (string (string_content) @tool) (identifier) @u) @args) @hit) (#eq? @u @v) (#match? @m "^(system|spawn|exec)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.to_i\\b|Integer\\(") (#match? @tool "^(?:/usr/local/bin/|/usr/bin/|/bin/)?(?:git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|ffmpeg|ffprobe|convert|magick|gs|pandoc|wkhtmltopdf|psql|mysql|mysqldump|pg_dump|docker|kubectl|helm|openssl|find|grep|sed|awk)$") (#not-match? @args "[\"']--(?:end-of-options)?[\"']"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (call !receiver method: (identifier) @m arguments: (argument_list . (string (string_content) @tool) (identifier) @u) @args) @hit)) (#eq? @u @v) (#match? @m "^(system|spawn|exec)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.to_i\\b|Integer\\(") (#match? @tool "^(?:/usr/local/bin/|/usr/bin/|/bin/)?(?:git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|ffmpeg|ffprobe|convert|magick|gs|pandoc|wkhtmltopdf|psql|mysql|mysqldump|pg_dump|docker|kubectl|helm|openssl|find|grep|sed|awk)$") (#not-match? @args "[\"']--(?:end-of-options)?[\"']"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (call !receiver method: (identifier) @m arguments: (argument_list . (string (string_content) @tool) (identifier) @u) @args) @hit))) (#eq? @u @v) (#match? @m "^(system|spawn|exec)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.to_i\\b|Integer\\(") (#match? @tool "^(?:/usr/local/bin/|/usr/bin/|/bin/)?(?:git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|ffmpeg|ffprobe|convert|magick|gs|pandoc|wkhtmltopdf|psql|mysql|mysqldump|pg_dump|docker|kubectl|helm|openssl|find|grep|sed|awk)$") (#not-match? @args "[\"']--(?:end-of-options)?[\"']"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (call !receiver method: (identifier) @m arguments: (argument_list . (string (string_content) @tool) (identifier) @u) @args) @hit)))) (#eq? @u @v) (#match? @m "^(system|spawn|exec)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.to_i\\b|Integer\\(") (#match? @tool "^(?:/usr/local/bin/|/usr/bin/|/bin/)?(?:git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|ffmpeg|ffprobe|convert|magick|gs|pandoc|wkhtmltopdf|psql|mysql|mysqldump|pg_dump|docker|kubectl|helm|openssl|find|grep|sed|awk)$") (#not-match? @args "[\"']--(?:end-of-options)?[\"']"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (call !receiver method: (identifier) @m arguments: (argument_list . (string (string_content) @tool) (identifier) @u) @args) @hit))))) (#eq? @u @v) (#match? @m "^(system|spawn|exec)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.to_i\\b|Integer\\(") (#match? @tool "^(?:/usr/local/bin/|/usr/bin/|/bin/)?(?:git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|ffmpeg|ffprobe|convert|magick|gs|pandoc|wkhtmltopdf|psql|mysql|mysqldump|pg_dump|docker|kubectl|helm|openssl|find|grep|sed|awk)$") (#not-match? @args "[\"']--(?:end-of-options)?[\"']"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (_ (call !receiver method: (identifier) @m arguments: (argument_list . (string (string_content) @tool) (identifier) @u) @args) @hit)))))) (#eq? @u @v) (#match? @m "^(system|spawn|exec)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.to_i\\b|Integer\\(") (#match? @tool "^(?:/usr/local/bin/|/usr/bin/|/bin/)?(?:git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|ffmpeg|ffprobe|convert|magick|gs|pandoc|wkhtmltopdf|psql|mysql|mysqldump|pg_dump|docker|kubectl|helm|openssl|find|grep|sed|awk)$") (#not-match? @args "[\"']--(?:end-of-options)?[\"']"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (string (string_content) @tool) (identifier) @u) @args) @hit) (#eq? @u @v) (#match? @r "^(?:::)?(?:Open3|Kernel|Process)$") (#match? @m "^(?:capture2|capture2e|capture3|popen2|popen2e|popen3|system|spawn|exec)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.to_i\\b|Integer\\(") (#match? @tool "^(?:/usr/local/bin/|/usr/bin/|/bin/)?(?:git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|ffmpeg|ffprobe|convert|magick|gs|pandoc|wkhtmltopdf|psql|mysql|mysqldump|pg_dump|docker|kubectl|helm|openssl|find|grep|sed|awk)$") (#not-match? @args "[\"']--(?:end-of-options)?[\"']"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (string (string_content) @tool) (identifier) @u) @args) @hit)) (#eq? @u @v) (#match? @r "^(?:::)?(?:Open3|Kernel|Process)$") (#match? @m "^(?:capture2|capture2e|capture3|popen2|popen2e|popen3|system|spawn|exec)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.to_i\\b|Integer\\(") (#match? @tool "^(?:/usr/local/bin/|/usr/bin/|/bin/)?(?:git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|ffmpeg|ffprobe|convert|magick|gs|pandoc|wkhtmltopdf|psql|mysql|mysqldump|pg_dump|docker|kubectl|helm|openssl|find|grep|sed|awk)$") (#not-match? @args "[\"']--(?:end-of-options)?[\"']"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (string (string_content) @tool) (identifier) @u) @args) @hit))) (#eq? @u @v) (#match? @r "^(?:::)?(?:Open3|Kernel|Process)$") (#match? @m "^(?:capture2|capture2e|capture3|popen2|popen2e|popen3|system|spawn|exec)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.to_i\\b|Integer\\(") (#match? @tool "^(?:/usr/local/bin/|/usr/bin/|/bin/)?(?:git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|ffmpeg|ffprobe|convert|magick|gs|pandoc|wkhtmltopdf|psql|mysql|mysqldump|pg_dump|docker|kubectl|helm|openssl|find|grep|sed|awk)$") (#not-match? @args "[\"']--(?:end-of-options)?[\"']"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (string (string_content) @tool) (identifier) @u) @args) @hit)))) (#eq? @u @v) (#match? @r "^(?:::)?(?:Open3|Kernel|Process)$") (#match? @m "^(?:capture2|capture2e|capture3|popen2|popen2e|popen3|system|spawn|exec)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.to_i\\b|Integer\\(") (#match? @tool "^(?:/usr/local/bin/|/usr/bin/|/bin/)?(?:git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|ffmpeg|ffprobe|convert|magick|gs|pandoc|wkhtmltopdf|psql|mysql|mysqldump|pg_dump|docker|kubectl|helm|openssl|find|grep|sed|awk)$") (#not-match? @args "[\"']--(?:end-of-options)?[\"']"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (string (string_content) @tool) (identifier) @u) @args) @hit))))) (#eq? @u @v) (#match? @r "^(?:::)?(?:Open3|Kernel|Process)$") (#match? @m "^(?:capture2|capture2e|capture3|popen2|popen2e|popen3|system|spawn|exec)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.to_i\\b|Integer\\(") (#match? @tool "^(?:/usr/local/bin/|/usr/bin/|/bin/)?(?:git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|ffmpeg|ffprobe|convert|magick|gs|pandoc|wkhtmltopdf|psql|mysql|mysqldump|pg_dump|docker|kubectl|helm|openssl|find|grep|sed|awk)$") (#not-match? @args "[\"']--(?:end-of-options)?[\"']"))
+      ((_ (assignment left: (identifier) @v right: (_) @src) (_ (_ (_ (_ (_ (call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (string (string_content) @tool) (identifier) @u) @args) @hit)))))) (#eq? @u @v) (#match? @r "^(?:::)?(?:Open3|Kernel|Process)$") (#match? @m "^(?:capture2|capture2e|capture3|popen2|popen2e|popen3|system|spawn|exec)$") (#match? @src "\\bparams\\s*(?:\\[|\\.(?:require|fetch|dig|values_at)\\b)|\\brequest\\.(?:params|query_parameters|request_parameters|GET|POST|query_string)\\b") (#not-match? @src "\\.to_i\\b|Integer\\(") (#match? @tool "^(?:/usr/local/bin/|/usr/bin/|/bin/)?(?:git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|ffmpeg|ffprobe|convert|magick|gs|pandoc|wkhtmltopdf|psql|mysql|mysqldump|pg_dump|docker|kubectl|helm|openssl|find|grep|sed|awk)$") (#not-match? @args "[\"']--(?:end-of-options)?[\"']"))
+    unless_in_scope: |
+      ((call method: (identifier) @g arguments: (argument_list (string (string_content) @s))) @x
+        (#eq? @g "start_with?") (#eq? @s "-"))
+      ((scope_resolution) @x (#match? @x "^(::)?URI::HTTPS?$"))
+    description: >-
+      No shell is involved, so `;` and `$()` are harmless, but the program
+      parses a value that begins with `-` as an option:
+      `git clone --upload-pack='touch /tmp/x'` runs a command, and curl,
+      ssh and tar have options that read or write any file.
+    remediation: "Put \"--\" before the first value argument (`system(\"git\", \"clone\", \"--\", url, dir)`), and validate the value (`URI.parse(url).is_a?(URI::HTTPS)`, a ref-name pattern) first."
+    # One-hop data flow (Milestone 3): the request value reaches the argv
+    # through a local or a helper; the tool name may be hoisted.
+    taint:
+      sources: *rb_request_sources
+      sinks: |
+        ((call !receiver method: (identifier) @m arguments: (argument_list . (_) . (_)) @sink) @hit
+         (#match? @m "^(system|spawn|exec)$"))
+        ((call receiver: (_) @r method: (identifier) @m arguments: (argument_list . (_) . (_)) @sink) @hit
+         (#match? @r "^(::)?(Open3|Kernel|Process)$")
+         (#match? @m "^(capture2|capture2e|capture3|popen2|popen2e|popen3|system|spawn)$"))
+      # a number, or an element whose literal start is not an option
+      sanitizers: |
+        ((call method: (identifier) @m) @sanitizer (#match? @m "^(to_i|to_f)$"))
+        ((string . (string_content) @c) @sanitizer (#not-match? @c "^-"))
+      element0: "(^|/)(git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|find|sendmail|ffmpeg|ffprobe|convert|magick|docker|kubectl|npm|npx|yarn|pip|openssl|gpg|gem|bundle)$"
+      unless_element: "^--$"
+
+
+  # --- Defect classes found in AI-written code (ARB-083) ----------------------
+  # Each shape below is one a reviewer labelled in model-written services
+  # (fixtures/ai-corpus) that no earlier rule covered. All start advisory.
+  - id: mail-tls-verify-none
+    requirements: [ARB-083]
+    title: "SMTP certificate verification off: `{text}`"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-295]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-8]
+    tags: [tls, smtp, ai-code]
+    # The constant form (`OpenSSL::SSL::VERIFY_NONE`) is tls-verify-off;
+    # this is the string or symbol ActionMailer and the mail gem also take.
+    query: |
+      (pair key: (hash_key_symbol) @k value: [(string) (simple_symbol)] @v
+        (#eq? @k "openssl_verify_mode") (#match? @v "^(:none|['\"]none['\"])$")) @hit
+      (pair key: (simple_symbol) @k value: [(string) (simple_symbol)] @v
+        (#eq? @k ":openssl_verify_mode") (#match? @v "^(:none|['\"]none['\"])$")) @hit
+      (pair key: (string) @k value: [(string) (simple_symbol)] @v
+        (#match? @k "^['\"]openssl_verify_mode['\"]$") (#match? @v "^(:none|['\"]none['\"])$")) @hit
+    description: >-
+      `openssl_verify_mode: "none"` makes ActionMailer (and the mail gem's
+      SMTP delivery) accept any certificate. The session is encrypted to
+      whoever answers, and the SMTP user name and password go to them.
+    remediation: "Remove it (the default verifies the peer); for a private CA, set `ca_file` or `ca_path` instead."
+
+  - id: retry-constant-delay
+    requirements: [ARB-083]
+    title: "`{text}` retries after the same fixed delay every time"
+    severity: low
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [retry, backoff, reliability, ai-code]
+    # Retry scheduling with a constant: the wait is a value named as the
+    # retry delay (`@retry_delay`, RETRY_DELAY) used as is, in a file that
+    # caps attempts, with no growth or jitter on it.
+    query: |
+      ((call method: (identifier) @m
+         arguments: (argument_list . [(identifier) (instance_variable) (constant) (call)] @d .))
+        (#eq? @m "sleep")
+        (#match? @d "(?i)(^|[.@:])retry_?(delay|interval|wait|pause|backoff)(_?(ms|millis|seconds|secs))?$")) @hit
+    requires_file: |
+      ([(identifier) (instance_variable) (constant)] @r (#match? @r "(?i)^@?_?max_?(retries|retry|attempts?|tries)$|^@?_?retry_?(count|limit)$"))
+    unless_in_file: |
+      ([(identifier) (instance_variable) (constant)] @b (#match? @b "(?i)backoff|jitter"))
+      ((binary operator: ["*" "**" "<<"]) @b (#match? @b "(?i)retry_?(delay|interval)"))
+    description: >-
+      Every retry waits the same interval. When a dependency fails, every
+      caller retries in lock-step on that interval, so the recovering
+      service is hit by the whole backlog at once and each retry is as
+      likely to fail as the last.
+    remediation: "Grow the delay with the attempt (`base * 2**attempt`, capped) and add jitter (`rand`)."
+
+  - id: requeue-without-delay
+    requirements: [ARB-083]
+    title: "`{text}` puts the failed job straight back on the queue"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [retry, backoff, reliability, ai-code]
+    # In a rescue: a branch guarded by an attempt count pushes the job back
+    # onto a queue (`@pending << job.id`, `queue.push(job)`) with nothing
+    # that waits. The worker pops it again at once, so every retry of a
+    # failing dependency happens within milliseconds.
+    query: |
+      (rescue body: (then (if condition: (_) @c consequence: (then
+        (binary left: [(instance_variable) (identifier) (call)] @q operator: "<<") @hit))
+        (#match? @c "(?i)attempt|retr|tries")
+        (#match? @q "(?i)(queue|pending|jobs|work|inbox|backlog)$")))
+      (rescue body: (then (if condition: (_) @c consequence: (then
+        (call receiver: [(instance_variable) (identifier) (call)] @q method: (identifier) @m) @hit))
+        (#match? @c "(?i)attempt|retr|tries")
+        (#match? @q "(?i)(queue|pending|jobs|work|inbox|backlog)$")
+        (#match? @m "^(push|enq|enqueue|unshift)$")))
+    unless_in_scope: |
+      (call method: (identifier) @m (#match? @m "(?i)^(sleep|wait|backoff|perform_in|perform_at|set|schedule|in|at)$|delay|backoff|jitter")) @x
+    description: >-
+      The job is retried by enqueueing it again with no delay. The next
+      free worker takes it immediately, so a transient outage in the
+      dependency is retried at full speed, all attempts are used up in
+      milliseconds, and the job fails anyway.
+    remediation: "Schedule the retry after a growing delay (a timer, `perform_in`, or a delayed queue keyed by next-attempt time) with jitter."
+
+  - id: ssrf-stored-callback
+    requirements: [ARB-083]
+    title: "`{text}` delivers to a stored callback URL with no internal-address block"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-918]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-7]
+    tags: [ssrf, webhook, ai-code]
+    query: |
+      ((call receiver: [(identifier) (instance_variable)] @r method: (identifier) @m)
+        (#match? @r "(?i)^@?(http|conn|connection|client)$") (#match? @m "^(post|request)$")) @hit
+      ((call receiver: (scope_resolution) @r method: (identifier) @m)
+        (#match? @r "^(Net::HTTP|HTTParty|Faraday|RestClient)$") (#match? @m "^(post|post_form)$")) @hit
+    requires_file: |
+      ((string_content) @s (#match? @s "(?i)callback_?url|webhook_?url|notify_?url|hook_?url|callback_?uri|redirect_?hook"))
+    unless_in_file: |
+      ((identifier) @m (#match? @m "^(private\\?|loopback\\?|link_local\\?|ipv4_private\\?)$"))
+      ([(identifier) (constant)] @m (#match? @m "(?i)ssrf|private_?(ip|addr|net|range)|is_?internal|blocked_?(ip|addr|host)|allowed_?(host|ip)"))
+    description: >-
+      The URL was stored by a client (a merchant, a subscriber) and the server
+      later sends a request to it. Nothing in the file refuses loopback,
+      private, link-local or cloud-metadata addresses, so whoever can set
+      the URL can make the server reach internal services
+      (169.254.169.254, localhost admin ports) and learn from the delivery
+      status whether they answered.
+    remediation: "Resolve the host, refuse addresses where `IPAddr#private?`, `#loopback?` or `#link_local?` holds, and connect to the checked address (or use ssrf_filter); or keep an allowlist of callback hosts."
+
+  - id: decompress-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` decompresses with no limit on the output"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-409, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, decompression-bomb, ai-code]
+    # Only data from the request in the same method: a library inflating
+    # its own files is not an attacker-shaped input.
+    query: |
+      ((call receiver: (scope_resolution) @r method: (identifier) @m)
+        (#match? @r "^Zlib::(Inflate|GzipReader)$") (#match? @m "^(inflate|zcat)$")) @hit
+      ((call receiver: (constant) @r method: (identifier) @m)
+        (#eq? @r "Zlib") (#match? @m "^(gunzip|inflate)$")) @hit
+      ((call receiver: (call receiver: (scope_resolution) @r method: (identifier) @n) method: (identifier) @m arguments: (argument_list) ?) @hit
+        (#eq? @r "Zlib::GzipReader") (#eq? @n "new") (#eq? @m "read"))
+    requires_in_scope: |
+      ((identifier) @i (#match? @i "^(request|params|upload|uploaded_file|tempfile)$"))
+    unless_in_scope: |
+      ((identifier) @i (#match? @i "(?i)^max_|_max$|limit|bytesize"))
+      ((constant) @i (#match? @i "^MAX_|LIMIT"))
+    description: >-
+      Compressed data expands by ~1000x or more. Inflating a client's
+      payload in one call builds the whole output in memory, so a 1 MB
+      request can become gigabytes.
+    remediation: "Inflate in chunks (`Zlib::Inflate#inflate` with a block, or `GzipReader#readpartial`) counting bytes, and stop past a limit."
+
+  - id: request-body-read-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` reads the whole request body with no size limit"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-770, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, unbounded-input, ai-code]
+    # `request.body.read` with no length. Puma and WEBrick put no limit on
+    # a body; `read(MAX + 1)` or a Content-Length check is the fix.
+    query: |
+      ((call receiver: (call receiver: (identifier) @r method: (identifier) @b) method: (identifier) @m !arguments) @hit
+        (#eq? @r "request") (#eq? @b "body") (#eq? @m "read"))
+    unless_in_scope: |
+      ((identifier) @i (#match? @i "^(content_length|bytesize)$"))
+      ((string_content) @s (#match? @s "^(CONTENT_LENGTH|HTTP_CONTENT_LENGTH)$"))
+    unless_in_file: |
+      ((constant) @c (#match? @c "^(MAX_BODY|MAX_BODY_BYTES|MAX_REQUEST_BYTES|MAX_PAYLOAD_BYTES|BODY_LIMIT)$"))
+    description: >-
+      Rack servers (Puma, WEBrick) do not limit a request body. Reading it
+      whole puts whatever the client sends into one string, so a few
+      concurrent multi-gigabyte requests exhaust the process.
+    remediation: "Refuse on `request.content_length` above a limit and read at most `request.body.read(MAX + 1)`, or cap the body at the proxy."

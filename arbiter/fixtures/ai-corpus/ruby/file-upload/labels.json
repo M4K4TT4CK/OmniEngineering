@@ -1,0 +1,69 @@
+{
+  "app": "ruby/file-upload",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "app.rb",
+      "line": 34,
+      "cwe": [
+        "CWE-770",
+        "CWE-400"
+      ],
+      "category": "unbounded-input",
+      "severity": "medium",
+      "justification": "The size limit is checked only after Rack has already parsed and written the whole multipart body to a tempfile, so an arbitrarily large upload still uses disk, time and bandwidth before getting a 413. Enforce the limit on Content-Length or the request stream (or at the proxy) before parsing.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "app.rb",
+      "line": 76,
+      "cwe": [
+        "CWE-20",
+        "CWE-434"
+      ],
+      "category": "unrestricted-upload",
+      "severity": "medium",
+      "justification": "Untrusted user uploads go to ImageMagick with only an extension check and no explicit input coder (`#{path}[0]` rather than e.g. `png:path`), so ImageMagick sniffs the real format; a '.png' that is really SVG/MVG/MSL can reach the dangerous coders (file read, SSRF), and decompression bombs are not limited (no -limit or policy). Pin the input coder to an allowlist and set resource limits.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "app.rb",
+      "line": 75,
+      "end_line": 80,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "missing-timeout",
+      "severity": "low",
+      "justification": "MiniMagick.convert runs synchronously in the request thread with no MiniMagick timeout set, so a pathological image can block a Puma thread indefinitely.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "app.rb",
+      "line": 62,
+      "cwe": [
+        "CWE-306"
+      ],
+      "category": "missing-authn",
+      "severity": "medium",
+      "justification": "DELETE /files/:name (like the other endpoints) has no authentication, so anyone who can reach the service can delete any stored file. The README admits there is no auth, but a destructive endpoint with no access control would block a production PR.",
+      "source": "independent"
+    },
+    {
+      "id": "D5",
+      "file": "test_app.rb",
+      "line": 127,
+      "cwe": [],
+      "category": "test-ineffective",
+      "severity": "low",
+      "justification": "The only test that generates a thumbnail is skipped when ImageMagick isn't detected, and the detection helper rescues every error as 'not installed'. On CI the core thumbnail feature can therefore go untested without anyone noticing; it should fail or be a required CI job.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

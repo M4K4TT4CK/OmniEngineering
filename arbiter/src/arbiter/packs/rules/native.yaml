@@ -1,0 +1,133 @@
+# Rules coded in Python: metadata only (src/arbiter/rule_meta.py). The logic
+# lives in the probes; this file says what each rule id traces to.
+#
+#   requirements  the ARB ids the rule was built or fixed under (ARB-064),
+#                 proposed by tools/rule_requirements.py and reviewed by hand
+#   tier          verified | advisory (default advisory: on probation until the
+#                 precision ledger admits it; see docs/precision.md)
+#   note          optional free text; it never stands in for `requirements`
+#
+# Every rule has at least one requirement. Rules shipped before the registry
+# existed (2026-09-12/13) trace to the group requirements ARB-084..ARB-090.
+#
+# tests/test_rule_requirements.py holds this list to the rule ids the source
+# can emit, in both directions.
+rules:
+  - id: arbiter/aiapp.open-mail-relay
+    requirements: [ARB-083]
+  - id: arbiter/aiapp.store-never-evicted
+    requirements: [ARB-083]
+  - id: arbiter/aiapp.unauthenticated-destructive-route
+    requirements: [ARB-083]
+  - id: arbiter/assurance.analysis-excluded
+    requirements: [ARB-090]
+  - id: arbiter/assurance.blanket-suppression
+    requirements: [ARB-033, ARB-065]
+  - id: arbiter/assurance.cache-divergence
+    requirements: [ARB-041, ARB-047]
+  - id: arbiter/assurance.permanently-skipped-test
+    requirements: [ARB-065, ARB-080]
+  - id: arbiter/assurance.suppression-census
+    requirements: [ARB-049, ARB-065, ARB-090]
+  - id: arbiter/assurance.test-asserts-nothing
+    requirements: [ARB-065]
+  - id: arbiter/ast.deep-nesting
+    requirements: [ARB-084]
+  - id: arbiter/ast.function-too-long
+    requirements: [ARB-084]
+  - id: arbiter/ast.high-complexity
+    requirements: [ARB-084]
+  - id: arbiter/authored.docstring-promises-absent-behaviour
+    requirements: [ARB-089]
+  - id: arbiter/authored.import-of-nonexistent-package
+    requirements: [ARB-087]
+  - id: arbiter/authored.security-check-disabled
+    requirements: [ARB-065, ARB-080]
+  - id: arbiter/authored.stub-on-production-path
+    requirements: [ARB-048, ARB-065]
+  - id: arbiter/authored.undeclared-import
+    requirements: [ARB-065]
+  - id: arbiter/concurrency.check-then-act-unlocked
+    requirements: [ARB-053]
+  - id: arbiter/concurrency.unsynchronised-counter
+    requirements: [ARB-054]
+  - id: arbiter/contract.documented-route-not-registered
+    requirements: [ARB-088]
+  - id: arbiter/contract.dropped-column-still-referenced
+    requirements: [ARB-088]
+  - id: arbiter/contract.spec-not-compared
+    requirements: [ARB-088]
+  - id: arbiter/drift.broken-doc-link
+    requirements: [ARB-013, ARB-048]
+  - id: arbiter/drift.doc-references-missing-file
+    requirements: [ARB-033]
+  - id: arbiter/drift.documented-env-var-absent
+    requirements: [ARB-089]
+  - id: arbiter/governance.open-failure-untested
+    requirements: [ARB-038]
+  - id: arbiter/governance.regression-test-missing
+    requirements: [ARB-038]
+  - id: arbiter/interface.constant-disagreement
+    requirements: [ARB-088]
+  - id: arbiter/interface.env-var-never-provided
+    requirements: [ARB-088]
+  - id: arbiter/interface.env-var-provided-but-unused
+    requirements: [ARB-088]
+  - id: arbiter/interface.permission-not-granted
+    requirements: [ARB-088]
+  - id: arbiter/interface.permission-unused
+    requirements: [ARB-088]
+  - id: arbiter/interface.port-not-exposed
+    requirements: [ARB-088]
+  - id: arbiter/judgement.claim-contradicts-code
+    requirements: [ARB-065, ARB-089]
+  - id: arbiter/quality.file-too-long
+    requirements: [ARB-084]
+  - id: arbiter/quality.no-tests
+    requirements: [ARB-084]
+  - id: arbiter/quality.todo-density
+    requirements: [ARB-084]
+  - id: arbiter/resource.source-is-literal-hcl
+    requirements: [ARB-085]
+  - id: arbiter/resource.unknown-until-apply
+    requirements: [ARB-085]
+  - id: arbiter/secrets.anthropic-key
+    requirements: [ARB-086]
+  - id: arbiter/secrets.assigned-credential
+    requirements: [ARB-065]
+  - id: arbiter/secrets.aws-access-key
+    requirements: [ARB-086]
+  - id: arbiter/secrets.gh-token
+    requirements: [ARB-086]
+  - id: arbiter/secrets.gitlab-token
+    requirements: [ARB-086]
+  - id: arbiter/secrets.google-api-key
+    requirements: [ARB-086]
+  - id: arbiter/secrets.jwt
+    requirements: [ARB-086]
+  - id: arbiter/secrets.npm-token
+    requirements: [ARB-086]
+  - id: arbiter/secrets.openai-key
+    requirements: [ARB-086]
+  - id: arbiter/secrets.pg-url
+    requirements: [ARB-086]
+  - id: arbiter/secrets.private-key
+    requirements: [ARB-065]
+  - id: arbiter/secrets.pypi-token
+    requirements: [ARB-086]
+  - id: arbiter/secrets.sendgrid-key
+    requirements: [ARB-086]
+  - id: arbiter/secrets.slack-token
+    requirements: [ARB-086]
+  - id: arbiter/secrets.slack-webhook
+    requirements: [ARB-086]
+  - id: arbiter/secrets.stripe-key
+    requirements: [ARB-086]
+  - id: arbiter/supply.pull-request-target
+    requirements: [ARB-087]
+  - id: arbiter/supply.unpinned-action
+    requirements: [ARB-087]
+  - id: arbiter/supply.unpinned-npm-dep
+    requirements: [ARB-087]
+  - id: arbiter/supply.unpinned-python-dep
+    requirements: [ARB-087]

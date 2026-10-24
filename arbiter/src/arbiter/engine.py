@@ -17,7 +17,14 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from .core import Finding, ProbeOutcome, RepoInfo, Report
+from .core import (
+    FINGERPRINT_SCHEME,
+    Finding,
+    ProbeOutcome,
+    RepoInfo,
+    Report,
+    assign_occurrences,
+)
 from .graph import build_graph
 from .inventory import acquire_one, build_inventory
 from .policy import (
@@ -72,29 +79,108 @@ def _dedupe(findings: list[Finding]) -> list[Finding]:
     return final
 
 
+# Baseline formats. 1.0 ids were line-free fingerprints only, so same-evidence
+# repeats in one file shared one id. 1.1 ids carry the occurrence ordinal
+# (ARB-080) and the file says so with `fingerprint: "occurrence-v1"`.
+BASELINE_SCHEMA = "1.1"
+BASELINE_FINGERPRINT = FINGERPRINT_SCHEME
+
+
+def _read_baseline(path: str | None) -> dict | None:
+    if not path:
+        return None
+    p = Path(path)
+    if not p.is_file():
+        return None
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+        ids = data.get("ids", [])
+    except (OSError, ValueError, AttributeError, TypeError):
+        return None
+    if not isinstance(ids, list):
+        return None
+    return data
+
+
+def baseline_is_legacy(data: dict) -> bool:
+    """True for a baseline cut before occurrence ordinals (schema 1.0)."""
+    return data.get("fingerprint") != BASELINE_FINGERPRINT
+
+
+def baseline_matches(f: Finding, known: set[str], legacy: bool) -> bool:
+    """Whether `f` is a finding the baseline already accepted.
+
+    A legacy baseline recorded one id for every same-evidence repeat in a
+    file, because they all collapsed into it. Each of those repeats was in
+    the accepted state, so each still matches: an upgrade must not turn a
+    green gate red on code nobody touched. A current baseline lists every
+    occurrence, so a repeat added after it was cut is new.
+    """
+    return f.id in known or (legacy and f.fingerprint_base in known)
+
+
 def apply_baseline(findings: list[Finding], baseline_path: str | None) -> None:
     """Label each finding new / existing against a stored baseline."""
-    if not baseline_path:
+    data = _read_baseline(baseline_path)
+    if data is None:
         return
-    p = Path(baseline_path)
-    if not p.is_file():
-        return
-    try:
-        known = set(json.loads(p.read_text(encoding="utf-8")).get("ids", []))
-    except (OSError, ValueError, AttributeError, TypeError):
-        return
+    known = {str(x) for x in data.get("ids", [])}
+    legacy = baseline_is_legacy(data)
     for f in findings:
-        f.status = "existing" if f.id in known else "new"
+        f.status = "existing" if baseline_matches(f, known, legacy) else "new"
 
 
-def write_baseline(report: Report, path: str) -> int:
-    ids = sorted({f.id for f in report.findings if not f.suppressed})
+def _now() -> str:
+    return _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")
+
+
+def write_baseline(report: Report, path: str, migrate_from: str | None = None) -> int:
+    """Write the ids of `report`'s active findings as a baseline.
+
+    With `migrate_from` (an earlier baseline, legacy or current), the result
+    is that baseline carried into the current id format instead of a re-cut:
+    a finding in `report` is kept when the old baseline accepted it, by the
+    rule in `baseline_matches`, and everything else stays out, so whatever
+    was new against the old baseline is still new against the migrated one.
+    Old ids with no finding in `report` are kept too: migrating changes the
+    id format, never what was accepted, so `created` keeps the old date (omni
+    doctor reads it to tell whether the baseline predates a fix).
+    """
+    active = [f for f in report.findings if not f.suppressed]
+    extra: dict = {}
+    old: dict = {}
+    if migrate_from:
+        old = _read_baseline(migrate_from)
+        if old is None:
+            raise ValueError(f"{migrate_from}: not a readable baseline")
+        known = {str(x) for x in old.get("ids", [])}
+        legacy = baseline_is_legacy(old)
+        kept = {f.id for f in active if baseline_matches(f, known, legacy)}
+        matched = kept | {f.fingerprint_base for f in active if f.id in kept}
+        ids = sorted(kept | (known - matched))
+        extra = {"migrated_from": {"schema_version": old.get("schema_version", "1.0"),
+                                   "ids": len(known), "at": _now()}}
+        # Carry what omni records beside the ids (commit, config_hash).
+        extra.update({k: v for k, v in old.items()
+                      if k not in {"schema_version", "fingerprint", "created", "system",
+                                   "ids", "migrated_from"}})
+    else:
+        ids = sorted({f.id for f in active})
+    # A report from before ARB-080 has collapsed ids; cutting it as 1.1 would
+    # make every repeat it hid read as new on the next run.
+    current = report.fingerprint == FINGERPRINT_SCHEME
+    if migrate_from and not current:
+        raise ValueError("migrating a baseline needs a report from this version "
+                         "(its findings carry occurrence ids); re-run the scan first")
+    marker = {"schema_version": BASELINE_SCHEMA, "fingerprint": BASELINE_FINGERPRINT} \
+        if current else {"schema_version": "1.0"}
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     Path(path).write_text(json.dumps({
-        "schema_version": "1.0",
-        "created": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
+        **marker,
+        "created": (old.get("created") if migrate_from else None) or _now(),
         "system": report.system,
         "ids": ids,
+        **extra,
     }, indent=2), encoding="utf-8")
     return len(ids)
 
@@ -268,6 +354,7 @@ def run_scan(
     cache_path: str | None = None,
     verify_cache: bool = False,
     verify_sample: float = 0.05,
+    model_verify: bool | None = None,
 ) -> Report:
     started = time.time()
     if use_adapters:
@@ -466,6 +553,7 @@ def run_scan(
         scan_scope["cache"] = {**cache.stats(), "path": str(cache.path)}
         cache.save()
 
+    assign_occurrences(findings)
     findings = _dedupe(findings)
     if scan_scope["mode"] == "partial":
         for f in findings:
@@ -488,9 +576,21 @@ def run_scan(
     from .cwe import apply as apply_cwe
     apply_cwe(findings)
 
+    # The model verification pass (verify.py) runs last among the finding
+    # passes, so it sees each finding's final severity and suppression and
+    # never spends a call on one policy has already silenced. It annotates;
+    # it never removes. Off unless the profile or config asks for it, and
+    # never under a profile that forbids model calls.
+    from . import verify as _verify
+    if _verify.wanted(config, caps, model_verify):
+        scan_scope["verification"] = _verify.run(
+            findings, inv, config,
+            repo_root=(repos[0].path if repos else None))
+
     report = Report(
         system=system_name,
         arbiter_version=ARBITER_VERSION,
+        fingerprint=FINGERPRINT_SCHEME,
         profile=profile_name,
         started_at=_dt.datetime.fromtimestamp(started, _dt.timezone.utc).isoformat(timespec="seconds"),
         repos=repos,
@@ -547,11 +647,12 @@ def run_scan(
     # Control coverage. Summary only; the per-control detail is one command
     # away. Failing to evaluate frameworks must never fail a scan.
     try:
-        from .controls import evaluate_all
+        from .controls import evaluate_all, house_rule_types
         wanted = (config.get("controls") or {}).get("frameworks") or []
         extra = (config.get("controls") or {}).get("packs") or []
-        for res in evaluate_all(report.findings, outcomes, only=wanted, extra_dirs=extra):
-            report.controls.append({
+        for res in evaluate_all(report.findings, outcomes, only=wanted, extra_dirs=extra,
+                                house=house_rule_types(config)):
+            summary = {
                 "framework": res["framework"]["id"],
                 "title": res["framework"]["title"],
                 "baseline": res["framework"]["baseline"],
@@ -559,9 +660,21 @@ def run_scan(
                 "declared_total": res["declared_total"],
                 "not_enumerated": res["not_enumerated"],
                 "assessed_fraction": res["assessed_fraction"],
-            })
+            }
+            if "languages" in res:
+                summary["languages"] = res["languages"]
+            report.controls.append(summary)
     except Exception:  # noqa: BLE001 - control coverage is a summary; a broken pack must not fail the scan
         pass
+
+    # Precision tiers and rule requirements (precision.py). After every pass
+    # that can change a finding -- the model verification pass included --
+    # and before the gate, which in tier_mode: tiered reads only the tiers
+    # it is told to.
+    from .precision import annotate as annotate_tiers
+    from .precision import rules_block
+    report.scan_scope["tiers"] = annotate_tiers(report.findings, config, profile_name)
+    report.rules = rules_block(report.findings)
 
     report.gate = evaluate_gate(report, config)
 

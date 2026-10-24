@@ -2,29 +2,36 @@
 
 **Arbiter is not accepting external contributions at this time.**
 
-## Why this is stated rather than left unsaid
+## The licence that applies
 
-Inbound contribution terms have to be settled *before* a project takes outside
-patches. Retrofitting them afterwards means tracing every contribution already
-merged and asking each author to re-license it, and any author who cannot be
-reached leaves code that cannot be cleanly relicensed.
+Arbiter is licensed under the Apache License, Version 2.0 ([LICENSE](LICENSE)).
+Section 5 of that licence says that, unless explicitly stated otherwise, any
+contribution intentionally submitted for inclusion in the Work is offered under
+the terms of the licence — inbound terms match outbound. That is the basis on
+which a contribution would be offered if this policy changes.
 
-Requirement **L-8** in [docs/licensing.md](docs/licensing.md) records this, and
-it is tracked as ARB-005. Until an operative licence exists and inbound terms
-are chosen — a CLA, a DCO, or a standing grant — a pull request cannot be
-merged, because there would be no agreed basis on which the contribution was
-offered.
+## Why contributions are still not taken
+
+Whether to rely on §5 alone, or also to ask for a Developer Certificate of
+Origin sign-off or a contributor licence agreement, has not been decided, and
+neither has whether to take outside patches at all. Settling that *before*
+taking patches is cheaper than retrofitting it afterwards, which means tracing
+every contribution already merged back to its author. Requirement **L-8** in
+[docs/licensing.md](docs/licensing.md) records this. Until it is decided, a
+pull request is not merged.
 
 ## What is welcome
 
 Defect reports, reproductions and documentation corrections, filed as issues.
 
-Please do not attach patches, diffs or code suggestions. Not because they would
-be unwelcome as engineering, but because reading them creates exactly the
-ambiguity this file exists to prevent.
+Please do not attach patches, diffs or code suggestions to issues while this
+policy stands.
+
+Forks need no permission: Apache-2.0 allows them. Keep `LICENSE` and `NOTICE`,
+mark the files you change (§4), and see [TRADEMARKS.md](TRADEMARKS.md) on
+naming.
 
 ## If this changes
 
 This file is the record. When inbound terms are settled they will be stated
-here, and [NOTICE.md](NOTICE.md) will reflect them. Do not assume a different
-arrangement from any other source.
+here. Do not assume a different arrangement from any other source.

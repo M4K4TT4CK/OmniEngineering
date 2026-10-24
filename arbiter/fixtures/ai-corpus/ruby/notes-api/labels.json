@@ -1,0 +1,51 @@
+{
+  "app": "ruby/notes-api",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "Gemfile",
+      "line": 4,
+      "cwe": [
+        "CWE-1104"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "`gem 'sqlite3', '>= 1.7'` has no upper bound, so any future major release (with breaking API changes) is accepted; use a pessimistic `~>` constraint.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "Gemfile",
+      "line": 6,
+      "cwe": [
+        "CWE-1104"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "`gem 'puma', '>= 6.0'` has no upper bound, so a future Puma major version can be picked up silently; use `~> 6.0`.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "app.rb",
+      "line": 184,
+      "cwe": [
+        "CWE-770"
+      ],
+      "category": "rate-limit-bypass",
+      "severity": "low",
+      "justification": "The fixed-window counter (now / 60) lets a client send 60 requests at the end of one window and 60 more at the start of the next, i.e. 120 in about a second, which breaks the stated '60 requests per minute' rule. The README discloses the fixed window, so this is a fix comment rather than a blocker; use a sliding window or token bucket.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": [
+    {
+      "rule": "arbiter/ruby.sql-injection",
+      "file": "app.rb",
+      "line": 252,
+      "reason": "the interpolated `sql` is assembled from literal fragments only (app.rb:244-249); the search term and every other value are bound through ? placeholders"
+    }
+  ]
+}

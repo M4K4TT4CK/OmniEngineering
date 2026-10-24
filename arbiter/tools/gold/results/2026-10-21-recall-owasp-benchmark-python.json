@@ -1,0 +1,300 @@
+{
+ "per_cwe": [
+  {
+   "cwe": "CWE-22",
+   "categories": [
+    "pathtraver"
+   ],
+   "real": 65,
+   "safe": 103,
+   "tp": 0,
+   "fn": 65,
+   "fp": 0,
+   "tn": 103,
+   "recall": 0.0,
+   "false_positive_rate": 0.0,
+   "score": 0.0,
+   "caught_examples": [],
+   "in_scope": false
+  },
+  {
+   "cwe": "CWE-78",
+   "categories": [
+    "cmdi"
+   ],
+   "real": 13,
+   "safe": 7,
+   "tp": 7,
+   "fn": 6,
+   "fp": 7,
+   "tn": 0,
+   "recall": 0.538,
+   "false_positive_rate": 1.0,
+   "score": -0.462,
+   "caught_examples": [
+    "BenchmarkTest00166",
+    "BenchmarkTest00167",
+    "BenchmarkTest00168"
+   ],
+   "in_scope": true
+  },
+  {
+   "cwe": "CWE-79",
+   "categories": [
+    "xss"
+   ],
+   "real": 31,
+   "safe": 58,
+   "tp": 0,
+   "fn": 31,
+   "fp": 0,
+   "tn": 58,
+   "recall": 0.0,
+   "false_positive_rate": 0.0,
+   "score": 0.0,
+   "caught_examples": [],
+   "in_scope": false
+  },
+  {
+   "cwe": "CWE-89",
+   "categories": [
+    "sqli"
+   ],
+   "real": 5,
+   "safe": 11,
+   "tp": 5,
+   "fn": 0,
+   "fp": 0,
+   "tn": 11,
+   "recall": 1.0,
+   "false_positive_rate": 0.0,
+   "score": 1.0,
+   "caught_examples": [
+    "BenchmarkTest00099",
+    "BenchmarkTest00283",
+    "BenchmarkTest00284"
+   ],
+   "in_scope": true
+  },
+  {
+   "cwe": "CWE-90",
+   "categories": [
+    "ldapi"
+   ],
+   "real": 16,
+   "safe": 13,
+   "tp": 0,
+   "fn": 16,
+   "fp": 0,
+   "tn": 13,
+   "recall": 0.0,
+   "false_positive_rate": 0.0,
+   "score": 0.0,
+   "caught_examples": [],
+   "in_scope": false
+  },
+  {
+   "cwe": "CWE-94",
+   "categories": [
+    "codeinj"
+   ],
+   "real": 20,
+   "safe": 33,
+   "tp": 20,
+   "fn": 0,
+   "fp": 33,
+   "tn": 0,
+   "recall": 1.0,
+   "false_positive_rate": 1.0,
+   "score": 0.0,
+   "caught_examples": [
+    "BenchmarkTest00074",
+    "BenchmarkTest00159",
+    "BenchmarkTest00160"
+   ],
+   "in_scope": true
+  },
+  {
+   "cwe": "CWE-328",
+   "categories": [
+    "hash"
+   ],
+   "real": 71,
+   "safe": 80,
+   "tp": 0,
+   "fn": 71,
+   "fp": 0,
+   "tn": 80,
+   "recall": 0.0,
+   "false_positive_rate": 0.0,
+   "score": 0.0,
+   "caught_examples": [],
+   "in_scope": true
+  },
+  {
+   "cwe": "CWE-330",
+   "categories": [
+    "weakrand"
+   ],
+   "real": 99,
+   "safe": 227,
+   "tp": 0,
+   "fn": 99,
+   "fp": 0,
+   "tn": 227,
+   "recall": 0.0,
+   "false_positive_rate": 0.0,
+   "score": 0.0,
+   "caught_examples": [],
+   "in_scope": true
+  },
+  {
+   "cwe": "CWE-501",
+   "categories": [
+    "trustbound"
+   ],
+   "real": 18,
+   "safe": 19,
+   "tp": 0,
+   "fn": 18,
+   "fp": 0,
+   "tn": 19,
+   "recall": 0.0,
+   "false_positive_rate": 0.0,
+   "score": 0.0,
+   "caught_examples": [],
+   "in_scope": false
+  },
+  {
+   "cwe": "CWE-502",
+   "categories": [
+    "deserialization"
+   ],
+   "real": 18,
+   "safe": 36,
+   "tp": 18,
+   "fn": 0,
+   "fp": 12,
+   "tn": 24,
+   "recall": 1.0,
+   "false_positive_rate": 0.333,
+   "score": 0.667,
+   "caught_examples": [
+    "BenchmarkTest00078",
+    "BenchmarkTest00164",
+    "BenchmarkTest00269"
+   ],
+   "in_scope": true
+  },
+  {
+   "cwe": "CWE-601",
+   "categories": [
+    "redirect"
+   ],
+   "real": 13,
+   "safe": 21,
+   "tp": 0,
+   "fn": 13,
+   "fp": 0,
+   "tn": 21,
+   "recall": 0.0,
+   "false_positive_rate": 0.0,
+   "score": 0.0,
+   "caught_examples": [],
+   "in_scope": false
+  },
+  {
+   "cwe": "CWE-611",
+   "categories": [
+    "xxe"
+   ],
+   "real": 8,
+   "safe": 20,
+   "tp": 0,
+   "fn": 8,
+   "fp": 0,
+   "tn": 20,
+   "recall": 0.0,
+   "false_positive_rate": 0.0,
+   "score": 0.0,
+   "caught_examples": [],
+   "in_scope": false
+  },
+  {
+   "cwe": "CWE-614",
+   "categories": [
+    "securecookie"
+   ],
+   "real": 24,
+   "safe": 15,
+   "tp": 0,
+   "fn": 24,
+   "fp": 0,
+   "tn": 15,
+   "recall": 0.0,
+   "false_positive_rate": 0.0,
+   "score": 0.0,
+   "caught_examples": [],
+   "in_scope": false
+  },
+  {
+   "cwe": "CWE-643",
+   "categories": [
+    "xpathi"
+   ],
+   "real": 51,
+   "safe": 135,
+   "tp": 0,
+   "fn": 51,
+   "fp": 0,
+   "tn": 135,
+   "recall": 0.0,
+   "false_positive_rate": 0.0,
+   "score": 0.0,
+   "caught_examples": [],
+   "in_scope": false
+  }
+ ],
+ "overall": {
+  "cwe": "all",
+  "categories": [],
+  "real": 452,
+  "safe": 778,
+  "tp": 50,
+  "fn": 402,
+  "fp": 52,
+  "tn": 726,
+  "recall": 0.111,
+  "false_positive_rate": 0.067,
+  "score": 0.044,
+  "caught_examples": []
+ },
+ "other_cwes_in_test_files": {},
+ "in_scope": {
+  "cwe": "in-scope",
+  "categories": [],
+  "real": 226,
+  "safe": 394,
+  "tp": 50,
+  "fn": 176,
+  "fp": 52,
+  "tn": 342,
+  "recall": 0.221,
+  "false_positive_rate": 0.132,
+  "score": 0.089,
+  "caught_examples": []
+ },
+ "schema_version": 1,
+ "kind": "recall",
+ "benchmark": "owasp-benchmark-python",
+ "arbiter_commit": "d57e479",
+ "adapters": false,
+ "seconds": 99.1,
+ "source": {
+  "url": "https://github.com/OWASP-Benchmark/BenchmarkPython.git",
+  "sha": "f1291485808b66e20ddb6b01b10dc71b3df8c8ba",
+  "head": "f1291485808b66e20ddb6b01b10dc71b3df8c8ba",
+  "license": "GPL-3.0 (fetched at a pinned commit, never redistributed or run)"
+ },
+ "cases": 1230
+}

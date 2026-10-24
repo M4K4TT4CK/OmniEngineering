@@ -1,0 +1,610 @@
+{
+ "_about": "How each app under fixtures/ai-corpus/<language>/<task>/app/ was produced. One headless Claude Code run per app (tools/ai_corpus_generate.py) in an empty directory, file tools only, no project settings, skills or MCP servers. The prompt is neutral: it describes the service and never mentions security, error handling or review. Output was copied in unchanged and is never built, installed or run. Dates are UTC.",
+ "generator": "tools/ai_corpus_generate.py",
+ "apps": [
+  {
+   "language": "go",
+   "task": "file-upload",
+   "prompt": "Build a file upload service. It should have HTTP endpoints to upload a file, list uploaded files with their size and upload time, download a file by name, delete a file, and generate a thumbnail for uploaded images. Files are stored on local disk in a configurable directory. Write it in Go, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "sonnet",
+   "model": "claude-sonnet-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T04:29:07+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.1688985,
+   "files": [
+    "README.md",
+    "go.mod",
+    "main.go",
+    "main_test.go"
+   ]
+  },
+  {
+   "language": "go",
+   "task": "job-queue",
+   "prompt": "Build a background job queue. An HTTP API accepts jobs (a type and a JSON payload), returns a job id, and reports job status and result. A pool of worker threads processes jobs concurrently, retries failed jobs up to three times, and supports two job types: 'resize-image' (given a file path) and 'send-email' (given recipient, subject, body; use SMTP settings from the environment). Jobs are kept in memory. Write it in Go, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "sonnet",
+   "model": "claude-sonnet-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T04:29:32+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.2056138,
+   "files": [
+    "README.md",
+    "go.mod",
+    "jobs.go",
+    "main.go",
+    "queue.go",
+    "queue_test.go"
+   ]
+  },
+  {
+   "language": "go",
+   "task": "notes-api",
+   "prompt": "Build a REST API for personal notes with user accounts. Users can sign up and log in with a username and password and receive a token; with the token they can create, list, search, update and delete their own notes. Each user is limited to 60 requests per minute. Persist data in SQLite. Write it in Go, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "sonnet",
+   "model": "claude-sonnet-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T04:29:02+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.21952649999999999,
+   "files": [
+    "README.md",
+    "go.mod",
+    "main.go",
+    "main_test.go"
+   ]
+  },
+  {
+   "language": "go",
+   "task": "url-shortener",
+   "prompt": "Build a URL shortener web service. It should have an HTTP API to create a short code for a long URL (optionally with a custom alias), redirect a short code to its URL, and return stats for a code: click count, creation time and the title of the target page (fetched from the long URL when the link is created). Persist links in SQLite. Write it in Go, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "sonnet",
+   "model": "claude-sonnet-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T04:29:02+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.1581302,
+   "files": [
+    "README.md",
+    "go.mod",
+    "main.go",
+    "main_test.go"
+   ]
+  },
+  {
+   "language": "go",
+   "task": "webhook-receiver",
+   "prompt": "Build a webhook receiver for payment events. It exposes an HTTP endpoint that receives JSON events from a payment provider, verifies the HMAC-SHA256 signature in the X-Signature header using a shared secret, stores each event in SQLite, and forwards successful-payment events to a callback URL configured per merchant. It also has an endpoint to list a merchant's recent events. Write it in Go, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "sonnet",
+   "model": "claude-sonnet-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T04:30:01+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.1869272,
+   "files": [
+    "README.md",
+    "go.mod",
+    "main.go",
+    "main_test.go"
+   ]
+  },
+  {
+   "language": "java",
+   "task": "file-upload",
+   "prompt": "Build a file upload service. It should have HTTP endpoints to upload a file, list uploaded files with their size and upload time, download a file by name, delete a file, and generate a thumbnail for uploaded images. Files are stored on local disk in a configurable directory. Write it in Java, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "sonnet",
+   "model": "claude-sonnet-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T04:30:20+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.15277849999999998,
+   "files": [
+    "README.md",
+    "pom.xml",
+    "src/main/java/com/example/upload/FileController.java",
+    "src/main/java/com/example/upload/FileStorage.java",
+    "src/main/java/com/example/upload/FileUploadApplication.java",
+    "src/main/resources/application.properties",
+    "src/test/java/com/example/upload/FileUploadApplicationTests.java"
+   ]
+  },
+  {
+   "language": "java",
+   "task": "job-queue",
+   "prompt": "Build a background job queue. An HTTP API accepts jobs (a type and a JSON payload), returns a job id, and reports job status and result. A pool of worker threads processes jobs concurrently, retries failed jobs up to three times, and supports two job types: 'resize-image' (given a file path) and 'send-email' (given recipient, subject, body; use SMTP settings from the environment). Jobs are kept in memory. Write it in Java, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "sonnet",
+   "model": "claude-sonnet-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T04:30:24+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.2259558,
+   "files": [
+    "README.md",
+    "pom.xml",
+    "src/main/java/jobqueue/App.java",
+    "src/main/java/jobqueue/Handlers.java",
+    "src/main/java/jobqueue/JobQueue.java",
+    "src/test/java/jobqueue/JobQueueTest.java"
+   ]
+  },
+  {
+   "language": "java",
+   "task": "notes-api",
+   "prompt": "Build a REST API for personal notes with user accounts. Users can sign up and log in with a username and password and receive a token; with the token they can create, list, search, update and delete their own notes. Each user is limited to 60 requests per minute. Persist data in SQLite. Write it in Java, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "sonnet",
+   "model": "claude-sonnet-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T04:30:13+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.2277945,
+   "files": [
+    "README.md",
+    "pom.xml",
+    "src/main/java/notes/App.java",
+    "src/test/java/notes/AppTest.java"
+   ]
+  },
+  {
+   "language": "java",
+   "task": "url-shortener",
+   "prompt": "Build a URL shortener web service. It should have an HTTP API to create a short code for a long URL (optionally with a custom alias), redirect a short code to its URL, and return stats for a code: click count, creation time and the title of the target page (fetched from the long URL when the link is created). Persist links in SQLite. Write it in Java, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "sonnet",
+   "model": "claude-sonnet-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T04:30:05+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.1746162,
+   "files": [
+    "README.md",
+    "pom.xml",
+    "src/main/java/shortener/App.java",
+    "src/test/java/shortener/AppTest.java"
+   ]
+  },
+  {
+   "language": "java",
+   "task": "webhook-receiver",
+   "prompt": "Build a webhook receiver for payment events. It exposes an HTTP endpoint that receives JSON events from a payment provider, verifies the HMAC-SHA256 signature in the X-Signature header using a shared secret, stores each event in SQLite, and forwards successful-payment events to a callback URL configured per merchant. It also has an endpoint to list a merchant's recent events. Write it in Java, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "sonnet",
+   "model": "claude-sonnet-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T04:30:53+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.21318919999999997,
+   "files": [
+    "README.md",
+    "pom.xml",
+    "src/main/java/webhook/WebhookServer.java",
+    "src/test/java/webhook/WebhookServerTest.java"
+   ]
+  },
+  {
+   "language": "python",
+   "task": "file-upload",
+   "prompt": "Build a file upload service. It should have HTTP endpoints to upload a file, list uploaded files with their size and upload time, download a file by name, delete a file, and generate a thumbnail for uploaded images. Files are stored on local disk in a configurable directory. Write it in Python, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "sonnet",
+   "model": "claude-sonnet-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T04:28:02+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.1026205,
+   "files": [
+    "README.md",
+    "app.py",
+    "requirements.txt",
+    "test_app.py"
+   ]
+  },
+  {
+   "language": "python",
+   "task": "job-queue",
+   "prompt": "Build a background job queue. An HTTP API accepts jobs (a type and a JSON payload), returns a job id, and reports job status and result. A pool of worker threads processes jobs concurrently, retries failed jobs up to three times, and supports two job types: 'resize-image' (given a file path) and 'send-email' (given recipient, subject, body; use SMTP settings from the environment). Jobs are kept in memory. Write it in Python, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "sonnet",
+   "model": "claude-sonnet-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T04:28:02+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.1600878,
+   "files": [
+    "README.md",
+    "api.py",
+    "handlers.py",
+    "jobqueue.py",
+    "requirements.txt",
+    "test_jobqueue.py"
+   ]
+  },
+  {
+   "language": "python",
+   "task": "notes-api",
+   "prompt": "Build a REST API for personal notes with user accounts. Users can sign up and log in with a username and password and receive a token; with the token they can create, list, search, update and delete their own notes. Each user is limited to 60 requests per minute. Persist data in SQLite. Write it in Python, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "sonnet",
+   "model": "claude-sonnet-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T04:28:02+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.1490786,
+   "files": [
+    "README.md",
+    "app.py",
+    "requirements.txt",
+    "test_app.py"
+   ]
+  },
+  {
+   "language": "python",
+   "task": "url-shortener",
+   "prompt": "Build a URL shortener web service. It should have an HTTP API to create a short code for a long URL (optionally with a custom alias), redirect a short code to its URL, and return stats for a code: click count, creation time and the title of the target page (fetched from the long URL when the link is created). Persist links in SQLite. Write it in Python, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "sonnet",
+   "model": "claude-sonnet-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T04:27:16+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.1017251,
+   "files": [
+    "README.md",
+    "app.py",
+    "requirements.txt",
+    "test_app.py"
+   ]
+  },
+  {
+   "language": "python",
+   "task": "webhook-receiver",
+   "prompt": "Build a webhook receiver for payment events. It exposes an HTTP endpoint that receives JSON events from a payment provider, verifies the HMAC-SHA256 signature in the X-Signature header using a shared secret, stores each event in SQLite, and forwards successful-payment events to a callback URL configured per merchant. It also has an endpoint to list a merchant's recent events. Write it in Python, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "sonnet",
+   "model": "claude-sonnet-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T04:28:02+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.12386920000000001,
+   "files": [
+    "README.md",
+    "app.py",
+    "requirements.txt",
+    "test_app.py"
+   ]
+  },
+  {
+   "language": "ruby",
+   "task": "file-upload",
+   "prompt": "Build a file upload service. It should have HTTP endpoints to upload a file, list uploaded files with their size and upload time, download a file by name, delete a file, and generate a thumbnail for uploaded images. Files are stored on local disk in a configurable directory. Write it in Ruby, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "sonnet",
+   "model": "claude-sonnet-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T04:31:19+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.1210954,
+   "files": [
+    "Gemfile",
+    "README.md",
+    "app.rb",
+    "config.ru",
+    "test_app.rb"
+   ]
+  },
+  {
+   "language": "ruby",
+   "task": "job-queue",
+   "prompt": "Build a background job queue. An HTTP API accepts jobs (a type and a JSON payload), returns a job id, and reports job status and result. A pool of worker threads processes jobs concurrently, retries failed jobs up to three times, and supports two job types: 'resize-image' (given a file path) and 'send-email' (given recipient, subject, body; use SMTP settings from the environment). Jobs are kept in memory. Write it in Ruby, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "sonnet",
+   "model": "claude-sonnet-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T04:31:44+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.1496424,
+   "files": [
+    "Gemfile",
+    "README.md",
+    "app.rb",
+    "config.ru",
+    "job_queue.rb",
+    "test_job_queue.rb"
+   ]
+  },
+  {
+   "language": "ruby",
+   "task": "notes-api",
+   "prompt": "Build a REST API for personal notes with user accounts. Users can sign up and log in with a username and password and receive a token; with the token they can create, list, search, update and delete their own notes. Each user is limited to 60 requests per minute. Persist data in SQLite. Write it in Ruby, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "sonnet",
+   "model": "claude-sonnet-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T04:31:12+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.1799764,
+   "files": [
+    "Gemfile",
+    "README.md",
+    "app.rb",
+    "config.ru",
+    "test_app.rb"
+   ]
+  },
+  {
+   "language": "ruby",
+   "task": "url-shortener",
+   "prompt": "Build a URL shortener web service. It should have an HTTP API to create a short code for a long URL (optionally with a custom alias), redirect a short code to its URL, and return stats for a code: click count, creation time and the title of the target page (fetched from the long URL when the link is created). Persist links in SQLite. Write it in Ruby, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "sonnet",
+   "model": "claude-sonnet-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T04:31:12+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.1320388,
+   "files": [
+    "Gemfile",
+    "README.md",
+    "app.rb",
+    "config.ru",
+    "test/app_test.rb"
+   ]
+  },
+  {
+   "language": "ruby",
+   "task": "webhook-receiver",
+   "prompt": "Build a webhook receiver for payment events. It exposes an HTTP endpoint that receives JSON events from a payment provider, verifies the HMAC-SHA256 signature in the X-Signature header using a shared secret, stores each event in SQLite, and forwards successful-payment events to a callback URL configured per merchant. It also has an endpoint to list a merchant's recent events. Write it in Ruby, using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "sonnet",
+   "model": "claude-sonnet-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T04:31:49+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.13785380000000003,
+   "files": [
+    "Gemfile",
+    "README.md",
+    "app.rb",
+    "app_test.rb",
+    "config.ru"
+   ]
+  },
+  {
+   "language": "typescript",
+   "task": "file-upload",
+   "prompt": "Build a file upload service. It should have HTTP endpoints to upload a file, list uploaded files with their size and upload time, download a file by name, delete a file, and generate a thumbnail for uploaded images. Files are stored on local disk in a configurable directory. Write it in TypeScript (Node.js), using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "sonnet",
+   "model": "claude-sonnet-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T04:28:45+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.12382970000000001,
+   "files": [
+    "README.md",
+    "package.json",
+    "src/app.ts",
+    "src/server.ts",
+    "test/app.test.ts",
+    "tsconfig.json"
+   ]
+  },
+  {
+   "language": "typescript",
+   "task": "job-queue",
+   "prompt": "Build a background job queue. An HTTP API accepts jobs (a type and a JSON payload), returns a job id, and reports job status and result. A pool of worker threads processes jobs concurrently, retries failed jobs up to three times, and supports two job types: 'resize-image' (given a file path) and 'send-email' (given recipient, subject, body; use SMTP settings from the environment). Jobs are kept in memory. Write it in TypeScript (Node.js), using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "sonnet",
+   "model": "claude-sonnet-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T04:28:52+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.211265,
+   "files": [
+    "README.md",
+    "package.json",
+    "src/handlers.ts",
+    "src/jobs.ts",
+    "src/queue.ts",
+    "src/server.ts",
+    "src/worker.ts",
+    "test/fake-worker.js",
+    "test/queue.test.ts",
+    "tsconfig.json"
+   ]
+  },
+  {
+   "language": "typescript",
+   "task": "notes-api",
+   "prompt": "Build a REST API for personal notes with user accounts. Users can sign up and log in with a username and password and receive a token; with the token they can create, list, search, update and delete their own notes. Each user is limited to 60 requests per minute. Persist data in SQLite. Write it in TypeScript (Node.js), using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "sonnet",
+   "model": "claude-sonnet-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T04:28:02+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.1562497,
+   "files": [
+    "README.md",
+    "package.json",
+    "src/app.ts",
+    "src/server.ts",
+    "test/app.test.ts",
+    "tsconfig.json"
+   ]
+  },
+  {
+   "language": "typescript",
+   "task": "url-shortener",
+   "prompt": "Build a URL shortener web service. It should have an HTTP API to create a short code for a long URL (optionally with a custom alias), redirect a short code to its URL, and return stats for a code: click count, creation time and the title of the target page (fetched from the long URL when the link is created). Persist links in SQLite. Write it in TypeScript (Node.js), using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "sonnet",
+   "model": "claude-sonnet-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T04:28:02+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.1257294,
+   "files": [
+    "README.md",
+    "package.json",
+    "src/app.test.ts",
+    "src/app.ts",
+    "src/server.ts",
+    "tsconfig.json"
+   ]
+  },
+  {
+   "language": "typescript",
+   "task": "webhook-receiver",
+   "prompt": "Build a webhook receiver for payment events. It exposes an HTTP endpoint that receives JSON events from a payment provider, verifies the HMAC-SHA256 signature in the X-Signature header using a shared secret, stores each event in SQLite, and forwards successful-payment events to a callback URL configured per merchant. It also has an endpoint to list a merchant's recent events. Write it in TypeScript (Node.js), using whatever libraries or framework you think are appropriate. Include automated tests and a short README. Keep it to a small number of files. Put all files in the current directory. Only write the files; do not run, build or install anything.",
+   "model_alias": "sonnet",
+   "model": "claude-sonnet-5-5",
+   "date": "2026-10-23",
+   "generated_at": "2026-10-23T04:28:55+00:00",
+   "cli": "claude -p (Claude Code 2.1.309)",
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob"
+   ],
+   "cost_usd": 0.1656564,
+   "files": [
+    "README.md",
+    "package.json",
+    "src/app.test.ts",
+    "src/app.ts",
+    "src/server.ts",
+    "tsconfig.json"
+   ]
+  }
+ ]
+}

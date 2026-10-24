@@ -1,0 +1,98 @@
+{
+  "app": "java/thumbnail-service",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "ThumbnailService.java",
+      "line": 253,
+      "end_line": 256,
+      "cwe": [
+        "CWE-918"
+      ],
+      "category": "ssrf",
+      "severity": "high",
+      "justification": "The private-address check resolves the host once with InetAddress.getAllByName and then http.send (line 224) resolves it again, so DNS rebinding bypasses it; the denylist also misses IPv6 unique-local fc00::/7, IPv4-mapped/NAT64 forms and CGNAT 100.64/10, leaving internal services reachable from a client-supplied URL.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "ThumbnailService.java",
+      "line": 206,
+      "end_line": 207,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "unbounded-memory",
+      "severity": "medium",
+      "justification": "Output height is derived from the source aspect ratio with no cap, and upscaling to 4096 is allowed; a tiny 1x100 source requested at width 4096 allocates a 4096x409600 ARGB BufferedImage (~6.7 GB), and up to 10 widths x 8 threads can run at once, so the MAX_PIXELS input check does not bound memory.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "ThumbnailService.java",
+      "line": 235,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "missing-timeout",
+      "severity": "medium",
+      "justification": "HttpRequest.timeout (line 221) only bounds the wait for response headers; with BodyHandlers.ofInputStream the body is then read by readLimited with no deadline, so a remote server that trickles bytes ties up one of the 8 worker threads indefinitely.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "ThumbnailService.java",
+      "line": 170,
+      "end_line": 174,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "unbounded-disk",
+      "severity": "medium",
+      "justification": "Every distinct uploaded image or URL creates a new cache directory of PNGs (up to 10 widths of 4096 px) and nothing ever evicts them; unauthenticated clients can fill the disk by posting varied inputs.",
+      "source": "independent"
+    },
+    {
+      "id": "D5",
+      "file": "ThumbnailService.java",
+      "line": 174,
+      "end_line": 176,
+      "cwe": [
+        "CWE-362"
+      ],
+      "category": "race-condition",
+      "severity": "low",
+      "justification": "The missing-width check (line 164) and the render/move are not synchronised per id, so concurrent requests for the same source both render; Files.move with only ATOMIC_MOVE and no REPLACE_EXISTING may throw FileAlreadyExistsException on platforms that do not replace, turning a valid request into a 500.",
+      "source": "independent"
+    },
+    {
+      "id": "D6",
+      "file": "ThumbnailService.java",
+      "line": 346,
+      "end_line": 348,
+      "cwe": [
+        "CWE-644"
+      ],
+      "category": "host-header-injection",
+      "severity": "low",
+      "justification": "Returned thumbnail URLs are built from the client-controlled Host header and hard-coded http://, so a forged Host yields links to an attacker domain (and links are wrong behind TLS or a proxy).",
+      "source": "independent"
+    },
+    {
+      "id": "D7",
+      "file": "ThumbnailService.java",
+      "line": 87,
+      "end_line": 89,
+      "cwe": [
+        "CWE-400"
+      ],
+      "category": "server-no-timeout",
+      "severity": "low",
+      "justification": "The HttpServer runs on a fixed pool of 8 threads with no read/idle timeout, and uploads of up to 20 MB are read synchronously; a handful of slow-upload clients exhausts the pool.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": []
+}

@@ -17,6 +17,7 @@ languages: [java]
 rules:
   # ---------------------------------------------------------------- races --
   - id: check-then-act-unsynchronized
+    requirements: [ARB-061]
     title: "Check-then-act on a shared collection with no lock held: `{text}`"
     severity: high
     confidence: medium
@@ -76,6 +77,7 @@ rules:
       `ReentrantLock`) around both the check and the act.
 
   - id: unsynchronized-counter
+    requirements: [ARB-061]
     title: "`{text}` on a shared field from worker code with no lock or atomic"
     severity: medium
     confidence: medium
@@ -130,6 +132,7 @@ rules:
 
   # ------------------------------------------------------------- timeouts --
   - id: http-client-no-timeout
+    requirements: [ARB-061]
     title: "`{text}` builds an HttpClient with no connect timeout"
     severity: medium
     confidence: medium
@@ -155,6 +158,7 @@ rules:
       `.timeout(...)` on each `HttpRequest`.
 
   - id: http-request-no-timeout
+    requirements: [ARB-061]
     title: "`HttpRequest.newBuilder` with no `.timeout(...)`"
     severity: medium
     confidence: medium
@@ -174,6 +178,7 @@ rules:
     remediation: "Add `.timeout(Duration.ofSeconds(n))` to the request builder."
 
   - id: url-connection-no-timeout
+    requirements: [ARB-061]
     title: "`openConnection()` with neither connect nor read timeout set"
     severity: medium
     confidence: medium
@@ -194,6 +199,7 @@ rules:
       before reading from it.
 
   - id: rest-template-no-timeout
+    requirements: [ARB-061]
     title: "`new RestTemplate()` uses a request factory with no timeouts"
     severity: medium
     confidence: medium
@@ -216,6 +222,7 @@ rules:
 
   # ------------------------------------------------------ retries & loops --
   - id: retry-without-backoff
+    requirements: [ARB-061]
     title: "Retry loop with no backoff and no attempt cap"
     severity: medium
     confidence: medium
@@ -246,6 +253,7 @@ rules:
       jitter, then fail with the last error.
 
   - id: worker-loop-no-stop
+    requirements: [ARB-061]
     title: "`while (true)` worker loop with no stop signal"
     severity: medium
     confidence: medium
@@ -288,6 +296,7 @@ rules:
 
   # ----------------------------------------------------------- exceptions --
   - id: swallowed-exception
+    requirements: [ARB-061]
     title: "Empty `catch` swallows the error: `{text}`"
     severity: medium
     confidence: high
@@ -337,6 +346,7 @@ rules:
 
   # ------------------------------------------------------------ injection --
   - id: sql-string-built
+    requirements: [ARB-061]
     title: "SQL built from a string expression reaches `{text}`"
     severity: high
     confidence: medium
@@ -347,37 +357,57 @@ rules:
     query: |
       ; executeQuery("... " + name + " ...")  /  executeQuery(String.format(...))
       ; A built string is one that splices in a lower-case name, field or
-      ; call next to a `+`, or is a String.format; literal + literal and
-      ; CONSTANT + literal are not reported.
-      (method_invocation name: (identifier) @n arguments: (argument_list . (binary_expression) @val)
-        (#match? @val "^String\\.format\\s*\\(|\\+\\s*[a-z_][\\w.]*\\s*(\\(|\\[|\\+|$)|^\\s*[a-z_][\\w.]*\\s*\\+") (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|queryForObject|queryForList|queryForMap|queryForRowSet|batchUpdate|nativeQuery)$")) @hit
-      (method_invocation name: (identifier) @n
-        arguments: (argument_list . (method_invocation object: (identifier) @so name: (identifier) @sf))
-        (#eq? @so "String") (#eq? @sf "format") (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|queryForObject|queryForList|queryForMap|queryForRowSet|batchUpdate|nativeQuery)$")) @hit
-      ; String sql = "... " + name; ... executeQuery(sql) in the same block,
-      ; one pattern per statement shape the sink can sit in
+      ; call next to a `+`, or is a String.format, and that reads as SQL; literal +
+      ; literal and CONSTANT + literal are not reported, and neither is a string
+      ; whose only splices are identifiers (`" FROM " + tableName + " WHERE id = ?"`,
+      ; `getTableName("REALM")`, keycloak and tomcat), which cannot be bound as `?`.
+      ; Every sink has a receiver: Ant's inherited `execute(String)` is not JDBC.
+      (method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (binary_expression) @val)
+        (#match? @val "^String\\.format\\s*\\(|\\+\\s*[a-z_][\\w.]*\\s*(\\(|\\[|\\+|$)|^\\s*[a-z_][\\w.]*\\s*\\+") (#match? @val "(?i)\\b(select|insert|update|delete|from|where|into|values|call|drop|create|alter|truncate|merge|join|order\\s+by|set|grant|revoke|schema|table)\\b") (#not-match? @val "^(?:\\s|\\+|\"(?:[^\"\\\\]|\\\\.)*\"|\\b(?:[A-Z]\\w*\\.)*[A-Z][A-Z0-9_]*\\b|(?:this\\.)?(?:[\\w.]*?[a-z0-9](?:Table|Column|Col|Schema|Catalog|Index|Identifier|Sequence)s?(?:Name|Names)?|(?:table|column|schema|catalog|sequence)(?:Name|Names))\\b|(?:[\\w.]*\\.)?(?:get|quote|escape)\\w*?(?:Table|Column|Schema|Identifier|Index)\\w*\\x28[^\\x28\\x29]*\\x29)+$")
+        (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|query|queryForObject|queryForList|queryForMap|queryForRowSet|queryForLong|queryForInt|queryForStream|batchUpdate|update|nativeQuery)$")) @hit
+      (method_invocation object: (_) name: (identifier) @n
+        arguments: (argument_list . (method_invocation object: (identifier) @so name: (identifier) @sf arguments: (argument_list) @fa))
+        (#eq? @so "String") (#eq? @sf "format") (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|query|queryForObject|queryForList|queryForMap|queryForRowSet|queryForLong|queryForInt|queryForStream|batchUpdate|update|nativeQuery)$")
+        (#match? @fa "(?i)\\b(select|insert|update|delete|from|where|into|values|call|drop|create|alter|truncate|merge|join|order\\s+by|set|grant|revoke|schema|table)\\b") (#not-match? @fa "^\\x28(?:\\s|,|\\+|\"(?:[^\"\\\\]|\\\\.)*\"|\\b(?:[A-Z]\\w*\\.)*[A-Z][A-Z0-9_]*\\b|(?:this\\.)?(?:[\\w.]*?[a-z0-9](?:Table|Column|Col|Schema|Catalog|Index|Identifier|Sequence)s?(?:Name|Names)?|(?:table|column|schema|catalog|sequence)(?:Name|Names))\\b|(?:[\\w.]*\\.)?(?:get|quote|escape)\\w*?(?:Table|Column|Schema|Identifier|Index)\\w*\\x28[^\\x28\\x29]*\\x29)+\\x29$")) @hit
+      ; String sql = "... " + name; ... executeQuery(sql), later in the same
+      ; block, or inside a `try` / try-with-resources that follows it there
+      ; (OWASP Benchmark declares the query and executes it inside `try { }`)
       (block
         (local_variable_declaration declarator: (variable_declarator name: (identifier) @v value: (_) @val))
-        (expression_statement (method_invocation name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit)
-        (#eq? @v @a) (#match? @val "^String\\.format\\s*\\(|\\+\\s*[a-z_][\\w.]*\\s*(\\(|\\[|\\+|$)|^\\s*[a-z_][\\w.]*\\s*\\+")
-        (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|queryForObject|queryForList|queryForMap|queryForRowSet|batchUpdate|nativeQuery)$"))
+        [
+          (expression_statement (method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit)
+          (expression_statement (assignment_expression right: (method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit))
+          (local_variable_declaration declarator: (variable_declarator value: (method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit))
+          (return_statement (method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit)
+        ]
+        (#eq? @v @a) (#match? @val "^String\\.format\\s*\\(|\\+\\s*[a-z_][\\w.]*\\s*(\\(|\\[|\\+|$)|^\\s*[a-z_][\\w.]*\\s*\\+") (#match? @val "(?i)\\b(select|insert|update|delete|from|where|into|values|call|drop|create|alter|truncate|merge|join|order\\s+by|set|grant|revoke|schema|table)\\b") (#not-match? @val "^(?:\\s|\\+|\"(?:[^\"\\\\]|\\\\.)*\"|\\b(?:[A-Z]\\w*\\.)*[A-Z][A-Z0-9_]*\\b|(?:this\\.)?(?:[\\w.]*?[a-z0-9](?:Table|Column|Col|Schema|Catalog|Index|Identifier|Sequence)s?(?:Name|Names)?|(?:table|column|schema|catalog|sequence)(?:Name|Names))\\b|(?:[\\w.]*\\.)?(?:get|quote|escape)\\w*?(?:Table|Column|Schema|Identifier|Index)\\w*\\x28[^\\x28\\x29]*\\x29)+$")
+        (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|query|queryForObject|queryForList|queryForMap|queryForRowSet|queryForLong|queryForInt|queryForStream|batchUpdate|update|nativeQuery)$"))
       (block
         (local_variable_declaration declarator: (variable_declarator name: (identifier) @v value: (_) @val))
-        (return_statement (method_invocation name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit)
-        (#eq? @v @a) (#match? @val "^String\\.format\\s*\\(|\\+\\s*[a-z_][\\w.]*\\s*(\\(|\\[|\\+|$)|^\\s*[a-z_][\\w.]*\\s*\\+")
-        (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|queryForObject|queryForList|queryForMap|queryForRowSet|batchUpdate|nativeQuery)$"))
-      (block
-        (local_variable_declaration declarator: (variable_declarator name: (identifier) @v value: (_) @val))
-        (local_variable_declaration declarator: (variable_declarator
-            value: (method_invocation name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit))
-        (#eq? @v @a) (#match? @val "^String\\.format\\s*\\(|\\+\\s*[a-z_][\\w.]*\\s*(\\(|\\[|\\+|$)|^\\s*[a-z_][\\w.]*\\s*\\+")
-        (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|queryForObject|queryForList|queryForMap|queryForRowSet|batchUpdate|nativeQuery)$"))
+        (try_statement body: (block [
+            (expression_statement (method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit)
+            (expression_statement (assignment_expression right: (method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit))
+            (local_variable_declaration declarator: (variable_declarator value: (method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit))
+            (return_statement (method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit)
+          ]))
+        (#eq? @v @a) (#match? @val "^String\\.format\\s*\\(|\\+\\s*[a-z_][\\w.]*\\s*(\\(|\\[|\\+|$)|^\\s*[a-z_][\\w.]*\\s*\\+") (#match? @val "(?i)\\b(select|insert|update|delete|from|where|into|values|call|drop|create|alter|truncate|merge|join|order\\s+by|set|grant|revoke|schema|table)\\b") (#not-match? @val "^(?:\\s|\\+|\"(?:[^\"\\\\]|\\\\.)*\"|\\b(?:[A-Z]\\w*\\.)*[A-Z][A-Z0-9_]*\\b|(?:this\\.)?(?:[\\w.]*?[a-z0-9](?:Table|Column|Col|Schema|Catalog|Index|Identifier|Sequence)s?(?:Name|Names)?|(?:table|column|schema|catalog|sequence)(?:Name|Names))\\b|(?:[\\w.]*\\.)?(?:get|quote|escape)\\w*?(?:Table|Column|Schema|Identifier|Index)\\w*\\x28[^\\x28\\x29]*\\x29)+$")
+        (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|query|queryForObject|queryForList|queryForMap|queryForRowSet|queryForLong|queryForInt|queryForStream|batchUpdate|update|nativeQuery)$"))
       (block
         (local_variable_declaration declarator: (variable_declarator name: (identifier) @v value: (_) @val))
         (try_with_resources_statement resources: (resource_specification (resource
-            value: (method_invocation name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit)))
-        (#eq? @v @a) (#match? @val "^String\\.format\\s*\\(|\\+\\s*[a-z_][\\w.]*\\s*(\\(|\\[|\\+|$)|^\\s*[a-z_][\\w.]*\\s*\\+")
-        (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|queryForObject|queryForList|queryForMap|queryForRowSet|batchUpdate|nativeQuery)$"))
+            value: (method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit)))
+        (#eq? @v @a) (#match? @val "^String\\.format\\s*\\(|\\+\\s*[a-z_][\\w.]*\\s*(\\(|\\[|\\+|$)|^\\s*[a-z_][\\w.]*\\s*\\+") (#match? @val "(?i)\\b(select|insert|update|delete|from|where|into|values|call|drop|create|alter|truncate|merge|join|order\\s+by|set|grant|revoke|schema|table)\\b") (#not-match? @val "^(?:\\s|\\+|\"(?:[^\"\\\\]|\\\\.)*\"|\\b(?:[A-Z]\\w*\\.)*[A-Z][A-Z0-9_]*\\b|(?:this\\.)?(?:[\\w.]*?[a-z0-9](?:Table|Column|Col|Schema|Catalog|Index|Identifier|Sequence)s?(?:Name|Names)?|(?:table|column|schema|catalog|sequence)(?:Name|Names))\\b|(?:[\\w.]*\\.)?(?:get|quote|escape)\\w*?(?:Table|Column|Schema|Identifier|Index)\\w*\\x28[^\\x28\\x29]*\\x29)+$")
+        (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|query|queryForObject|queryForList|queryForMap|queryForRowSet|queryForLong|queryForInt|queryForStream|batchUpdate|update|nativeQuery)$"))
+      (block
+        (local_variable_declaration declarator: (variable_declarator name: (identifier) @v value: (_) @val))
+        (try_with_resources_statement body: (block [
+            (expression_statement (method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit)
+            (expression_statement (assignment_expression right: (method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit))
+            (local_variable_declaration declarator: (variable_declarator value: (method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit))
+            (return_statement (method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (identifier) @a)) @hit)
+          ]))
+        (#eq? @v @a) (#match? @val "^String\\.format\\s*\\(|\\+\\s*[a-z_][\\w.]*\\s*(\\(|\\[|\\+|$)|^\\s*[a-z_][\\w.]*\\s*\\+") (#match? @val "(?i)\\b(select|insert|update|delete|from|where|into|values|call|drop|create|alter|truncate|merge|join|order\\s+by|set|grant|revoke|schema|table)\\b") (#not-match? @val "^(?:\\s|\\+|\"(?:[^\"\\\\]|\\\\.)*\"|\\b(?:[A-Z]\\w*\\.)*[A-Z][A-Z0-9_]*\\b|(?:this\\.)?(?:[\\w.]*?[a-z0-9](?:Table|Column|Col|Schema|Catalog|Index|Identifier|Sequence)s?(?:Name|Names)?|(?:table|column|schema|catalog|sequence)(?:Name|Names))\\b|(?:[\\w.]*\\.)?(?:get|quote|escape)\\w*?(?:Table|Column|Schema|Identifier|Index)\\w*\\x28[^\\x28\\x29]*\\x29)+$")
+        (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|query|queryForObject|queryForList|queryForMap|queryForRowSet|queryForLong|queryForInt|queryForStream|batchUpdate|update|nativeQuery)$"))
     description: >
       The statement text includes a value spliced in at run time, so whoever
       controls that value controls the query. Concatenating constants or
@@ -385,8 +415,37 @@ rules:
     remediation: >
       Use a `PreparedStatement` (or JPA `setParameter`) with `?`/`:name`
       placeholders, and keep identifiers (table, column) to an allow-list.
+    # One-hop data flow (Milestone 3). The built SQL (same test as the first
+    # pattern above) reaches the call through a local or a same-file helper;
+    # a hit whose spliced values are provably constant, or derived only from
+    # constants in a method that reads request input (OWASP Benchmark's
+    # tricks), is dropped.
+    taint:
+      sources: |
+        ((binary_expression) @val
+        (#match? @val "^String\\.format\\s*\\(|\\+\\s*[a-z_][\\w.]*\\s*(\\(|\\[|\\+|$)|^\\s*[a-z_][\\w.]*\\s*\\+") (#match? @val "(?i)\\b(select|insert|update|delete|from|where|into|values|call|drop|create|alter|truncate|merge|join|order\\s+by|set|grant|revoke|schema|table)\\b") (#not-match? @val "^(?:\\s|\\+|\"(?:[^\"\\\\]|\\\\.)*\"|\\b(?:[A-Z]\\w*\\.)*[A-Z][A-Z0-9_]*\\b|(?:this\\.)?(?:[\\w.]*?[a-z0-9](?:Table|Column|Col|Schema|Catalog|Index|Identifier|Sequence)s?(?:Name|Names)?|(?:table|column|schema|catalog|sequence)(?:Name|Names))\\b|(?:[\\w.]*\\.)?(?:get|quote|escape)\\w*?(?:Table|Column|Schema|Identifier|Index)\\w*\\x28[^\\x28\\x29]*\\x29)+$")) @source
+        ((method_invocation object: (identifier) @so name: (identifier) @sf arguments: (argument_list) @fa)
+         (#eq? @so "String") (#eq? @sf "format")
+        (#match? @fa "(?i)\\b(select|insert|update|delete|from|where|into|values|call|drop|create|alter|truncate|merge|join|order\\s+by|set|grant|revoke|schema|table)\\b") (#not-match? @fa "^\\x28(?:\\s|,|\\+|\"(?:[^\"\\\\]|\\\\.)*\"|\\b(?:[A-Z]\\w*\\.)*[A-Z][A-Z0-9_]*\\b|(?:this\\.)?(?:[\\w.]*?[a-z0-9](?:Table|Column|Col|Schema|Catalog|Index|Identifier|Sequence)s?(?:Name|Names)?|(?:table|column|schema|catalog|sequence)(?:Name|Names))\\b|(?:[\\w.]*\\.)?(?:get|quote|escape)\\w*?(?:Table|Column|Schema|Identifier|Index)\\w*\\x28[^\\x28\\x29]*\\x29)+\\x29$")) @source
+      # the identifier helpers the query above already trusts
+      sanitizers: |
+        ((method_invocation name: (identifier) @n) @sanitizer
+         (#match? @n "^(get|quote|escape)\\w*?(Table|Column|Schema|Identifier|Index)\\w*$"))
+      inputs: &java_request_inputs |
+        ((method_invocation object: (identifier) @rq name: (identifier) @m) @input
+         (#match? @m "^(getParameter|getParameterValues|getParameterMap|getParameterNames|getHeader|getHeaders|getHeaderNames|getQueryString|getCookies|getPathInfo|getRequestURI|getRequestURL|getInputStream|getReader|getPart|getParts)$"))
+        ((formal_parameter (modifiers [(annotation name: (identifier) @a) (marker_annotation name: (identifier) @a)]) name: (identifier) @input)
+         (#match? @a "^(RequestParam|PathVariable|RequestHeader|CookieValue|RequestBody|RequestPart|MatrixVariable|QueryParam|PathParam|FormParam|HeaderParam|CookieParam)$"))
+      sinks: |
+        ((method_invocation object: (_) name: (identifier) @n arguments: (argument_list . (_) @sink)) @hit
+         (#match? @n "^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|query|queryForObject|queryForList|queryForMap|queryForRowSet|queryForLong|queryForInt|queryForStream|batchUpdate|update|nativeQuery)$"))
+      types: &java_request_types
+        rq: "^(javax\\.servlet\\.http\\.|jakarta\\.servlet\\.http\\.)?(Http)?Servlet(Request|RequestWrapper)$|^(HttpServletRequest|ServletRequest|ServerHttpRequest|WebRequest|NativeWebRequest|Request)$"
+      value: [val, fa]
+      kill: derived
 
   - id: command-injection
+    requirements: [ARB-061]
     title: "Shell command built from a run-time value: `{text}`"
     severity: high
     confidence: medium
@@ -401,11 +460,31 @@ rules:
         name: (identifier) @x
         arguments: (argument_list . (_) @a)
         (#eq? @r "Runtime") (#eq? @g "getRuntime") (#eq? @x "exec")
-        (#not-match? @a "(?s)^(\"|[A-Z][A-Z0-9_]*$|new\\s+String\\s*\\[\\s*\\]\\s*\\{\\s*(\"[^\"]*\"\\s*,?\\s*)*\\}$)")) @hit
+        (#not-match? @a "(?s)^(\"([^\"\\\\]|\\\\.)*\"|[A-Z][A-Z0-9_]*|new\\s+String\\s*\\[\\s*\\]\\s*\\{\\s*(\"[^\"]*\"\\s*,?\\s*)*\\})$")) @hit
+      ; Runtime r = Runtime.getRuntime(); ... r.exec(cmd + arg): the local or
+      ; field is tied to the Runtime by requires_file below
+      (method_invocation object: (identifier) @r name: (identifier) @x
+        arguments: (argument_list . (_) @a)
+        (#match? @r "^[a-z]\\w*$") (#eq? @x "exec")
+        (#not-match? @a "(?s)^(\"([^\"\\\\]|\\\\.)*\"|[A-Z][A-Z0-9_]*|new\\s+String\\s*\\[\\s*\\]\\s*\\{\\s*(\"[^\"]*\"\\s*,?\\s*)*\\})$")) @hit
       ; new ProcessBuilder("sh", "-c", <non-literal>)  /  ("cmd", "/c", <non-literal>)
       (object_creation_expression type: (type_identifier) @t
         arguments: (argument_list (string_literal) @c . (_) @a)
         (#eq? @t "ProcessBuilder") (#match? @c "^\"(-c|/c|-e)\"$") (#not-match? @a "^\"")) @hit
+      ; new ProcessBuilder(argList) / pb.command(argList), where the same method
+      ; puts a shell's `-c` (or `/c`) into the list: see unless_inside
+      (object_creation_expression type: (_) @t arguments: (argument_list . (identifier) .)
+        (#match? @t "(^|\\.)ProcessBuilder$")) @hit
+      (method_invocation object: (identifier) name: (identifier) @x arguments: (argument_list . (identifier) .)
+        (#eq? @x "command")) @hit
+    # One of: Runtime.getRuntime().exec, a variable bound to Runtime.getRuntime()
+    # whose exec is called, or a ProcessBuilder.
+    requires_file: |
+      ((program) @p (#match? @p "(?s)getRuntime\\x28\\x29\\s*\\.\\s*exec\\b|\\bProcessBuilder\\b|\\bRuntime\\s+(\\w+)\\s*=\\s*(java\\.lang\\.)?Runtime\\.getRuntime\\x28\\x29.*\\b\\1\\.exec\\s*\\x28"))
+    # A ProcessBuilder given a list in a method with no shell flag and no
+    # exec runs a program with its own arguments: no shell parses them.
+    unless_inside: |
+      ((method_declaration) @m (#not-match? @m "\"(-c|/c|-e)\"|\\.exec\\s*\\x28"))
     description: >
       `Runtime.exec(String)` splits on whitespace and `sh -c` interprets
       metacharacters, so a value that reaches either from outside runs
@@ -414,9 +493,20 @@ rules:
       Pass the program and each argument as separate array elements with no
       shell, validate against an allow-list, and prefer a library call over
       a child process.
+    # One-hop data flow (Milestone 3): a command whose every part is
+    # provably constant, or derived only from constants (a helper given a
+    # literal) in a method that reads request input, is dropped: OWASP
+    # Benchmark's constant tricks.
+    taint:
+      inputs: *java_request_inputs
+      types: *java_request_types
+      value: [a]
+      kill: derived
 
   # ------------------------------------------------------ deserialization --
+
   - id: object-input-stream
+    requirements: [ARB-060]
     title: "`ObjectInputStream.readObject` deserializes untrusted bytes"
     severity: high
     confidence: medium
@@ -435,6 +525,7 @@ rules:
     remediation: "Use a data format (JSON) with an explicit schema, or an ObjectInputFilter allow-list."
 
   - id: xml-decoder
+    requirements: [ARB-061]
     title: "`XMLDecoder.readObject` instantiates whatever classes the XML names"
     severity: high
     confidence: medium
@@ -454,6 +545,7 @@ rules:
     remediation: "Parse the XML with a schema-bound binder (JAXB, Jackson XML) into known types."
 
   - id: jackson-default-typing
+    requirements: [ARB-061]
     title: "Jackson default typing lets the JSON choose the class to instantiate"
     severity: high
     confidence: high
@@ -476,6 +568,7 @@ rules:
 
   # ---------------------------------------------------------------- stubs --
   - id: stub-method
+    requirements: [ARB-061]
     title: "Method body is a placeholder: `{text}`"
     severity: medium
     confidence: medium
@@ -519,9 +612,13 @@ rules:
 
   # ---------------------------------------------------------------- tests --
   - id: test-without-assertion
+    requirements: [ARB-062, ARB-065]
     title: "`@Test {text}` asserts nothing"
     severity: low
-    confidence: medium
+    # low, not medium: on the gold set most hits are deliberate "does not
+    # throw" tests (2026-10-21 triage), so the rule is a prompt to look, not a
+    # claim. Chosen over raising its gold budget (tools/gold/budgets.json).
+    confidence: low
     dimension: assurance
     cwe: [CWE-1164]
     controls: [NIST-800-218:PW.8]
@@ -532,7 +629,7 @@ rules:
         name: (identifier) @hit)
     unless_in_scope: |
       (method_invocation name: (identifier) @n
-        (#match? @n "^(assert\\w*|verify\\w*|fail|expect\\w*|andExpect\\w*|should\\w*|then\\w*|check\\w*|validate\\w*|assume\\w*|is[A-Z]\\w*|has[A-Z]\\w*|contains\\w*|doesNotContain\\w*|isEqualTo|isNotEqualTo|matches|satisfies|inOrder|andDo|expectStatus|exchange)$"))
+        (#match? @n "^(assert\\w*|verify\\w*|ensure\\w*|fail|expect\\w*|andExpect\\w*|should\\w*|then\\w*|check\\w*|validate\\w*|assume\\w*|is[A-Z]\\w*|has[A-Z]\\w*|contains\\w*|doesNotContain\\w*|isEqualTo|isNotEqualTo|matches|satisfies|inOrder|andDo|expectStatus|exchange)$"))
       (method_invocation object: (identifier) @o
         (#match? @o "^(Assertions|Assert|Mockito|BDDMockito|MatcherAssert|Truth|StepVerifier|Verify|Awaitility|SoftAssertions)$"))
       ; delegates to a helper of this class (`checkRoundTrip(x)`) or a
@@ -540,16 +637,65 @@ rules:
       ; assertion lives: seen across commons-lang, gson and caffeine
       (method_invocation !object name: (identifier) @n (#not-match? @n "^(println|print|printf)$"))
       (method_invocation name: (identifier) @n (#match? @n "^(test[A-Z]\\w*|await\\w*|run[A-Z]\\w*Test\\w*)$"))
+      ; hands one of its own methods to a runner, where the assertions are:
+      ; keycloak `runOnServer.run(UPConfigParserTest::validate)` and
+      ; `testingClient.server().run(PolicyEvaluationTest::testX)`
+      (method_invocation name: (identifier) @n arguments: (argument_list (method_reference))
+        (#match? @n "^(run\\w*|execute|call|invoke)$"))
+      ; `if (cause != null) throw cause;` fails the test on a condition
+      ; (netty DefaultChannelPipelineTest): a hand-written assertion
+      (method_declaration body: (block (if_statement consequence: (throw_statement)) @t))
+      (method_declaration body: (block (if_statement consequence: (block (throw_statement))) @t))
+      ; switched off: `@Disabled`/`@Ignore` is assurance.permanently-skipped-test's
+      ; finding. An `@Override` test replaces an inherited one: empty, it
+      ; switches the parent's test off (netty AbstractAdaptiveByteBufTest);
+      ; otherwise it narrows the parent's check to what this subclass
+      ; supports (tomcat's `testNoArgConstructor` overrides). The parent
+      ; owns the assertion, so neither is reported.
+      ((method_declaration (modifiers) @m) @d (#match? @m "@(Disabled|Ignore)\\b"))
+      ; (anchored on the @Test method: an anonymous class's `@Override`
+      ; inside the test body is not one)
+      ((method_declaration (modifiers (marker_annotation name: (identifier) @t (#eq? @t "Test"))) @m) @d (#match? @m "@Override\\b"))
+      ; a comment in the body says that not throwing is the check:
+      ; `// no exception` (spring-security Issue50Tests)
+      ((method_declaration (modifiers (marker_annotation name: (identifier) @t (#eq? @t "Test"))) body: (block (line_comment) @c)) @d
+        (#match? @c "(?i)//\\s*(no exception|does(n't| not) throw|should(n't| not) (throw|fail))"))
+      ; the name or @DisplayName says that not throwing is the check, the
+      ; same as a "does not throw" title in the TypeScript rule
+      ; (`buildWhenScopesIsNullThenDoesNotThrowAnyException`, `contextLoads`,
+      ; spring-security's `...WhenRoleAdminThenPasses`)
+      ; Also the outcome words for "the call completes": spring-security's
+      ; `...ThenCreated`, `...AccessGranted`, `...ShouldAllow...` (an
+      ; authorization test passes when AccessDeniedException is not thrown),
+      ; `...ThenScopeNotRequired`, `...DoesNotCauseCircularReference`.
+      ((method_declaration (modifiers (marker_annotation name: (identifier) @t (#eq? @t "Test"))) name: (identifier) @n) @d
+        (#match? @n "(?i:(doesnt|dont|didnt|wont|cant|not|never|no)_?(throw|crash|fail|blow)|no_?(exception|error)s?(_?thrown)?$|none_?exception|no_?assert(ion)?_?error|exception_?not_?thrown|without_?(exception|error|throwing)|starts_?cleanly|(does|do)_?not_?cause|not_?required$|can_?(both_?)?be_?(instanced|instantiated|loaded|created)|is_?serializable$|compiles)|(Succeeds|Passes|Loads|Success|Successful|SuccessFul|Created|Granted|GrantsAccess|Wires|Autowires)$|(^allow|Allow)(s|ed)?([A-Z_]|$)"))
+      ((method_declaration (modifiers (annotation name: (identifier) @a arguments: (annotation_argument_list) @s))) @d
+        (#eq? @a "DisplayName")
+        (#match? @s "(?i)(\\bnot|\\bnever|n't|\\bwithout|\\bno) (throw|exception|error|fail|crash|hang)"))
+    # A performance harness measures time, not results: tomcat's
+    # `Tester*Performance` classes (not run by its default test target) and
+    # `Benchmarks`, JMH-style `*Benchmark` classes.
+    unless_in_file: |
+      (class_declaration name: (identifier) @c
+        (#match? @c "(Performance|Benchmarks?|PerformanceTest|PerfTest)$")) @x
     description: >
       The test passes as long as nothing throws, which is not what it looks
       like it checks. A method that only calls the code under test proves
-      the call does not crash on this input and nothing else.
+      the call does not crash on this input and nothing else. A test whose
+      name, `@DisplayName` or a body comment says it checks that nothing
+      throws (or that the call is allowed, created or completes), one that
+      throws on a condition itself, one that delegates to an
+      `assert*`/`verify*`/`check*`/`expect*`/`ensure*` helper, an
+      `@Override` of an inherited test, one switched off with `@Disabled` or
+      `@Ignore`, and a performance harness class are not reported.
     remediation: >
       Assert the outcome (`assertEquals`, `assertThat`, `verify(...)`), or
       name it `...DoesNotThrow` and wrap it in `assertDoesNotThrow`.
 
   # ------------------------------------------------------------------ TLS --
   - id: trust-all-certificates
+    requirements: [ARB-061]
     title: "`checkServerTrusted` is empty: every certificate is accepted"
     severity: high
     confidence: high
@@ -572,6 +718,7 @@ rules:
       from that.
 
   - id: hostname-verifier-disabled
+    requirements: [ARB-061]
     title: "HostnameVerifier that always returns true"
     severity: high
     confidence: high
@@ -600,6 +747,7 @@ rules:
 
   # ----------------------------------------------------------- randomness --
   - id: weak-random-for-secret
+    requirements: [ARB-061]
     title: "`{text}` is not a cryptographic source, but this value is a secret"
     severity: medium
     confidence: medium
@@ -609,8 +757,9 @@ rules:
     tags: [crypto, randomness]
     query: |
       (object_creation_expression type: (type_identifier) @t (#eq? @t "Random")) @hit
-      (method_invocation object: (identifier) @o name: (identifier) @n
-        (#eq? @o "Math") (#eq? @n "random")) @hit
+      (object_creation_expression type: (scoped_type_identifier) @t (#eq? @t "java.util.Random")) @hit
+      (method_invocation object: (_) @o name: (identifier) @n
+        (#match? @o "^(java\\.lang\\.)?Math$") (#eq? @n "random")) @hit
       ; RANDOM.nextLong() where RANDOM is a java.util.Random field of this file
       ((method_invocation object: (identifier) @o name: (identifier) @n
         (#match? @o "^[A-Z][A-Z0-9_]*$") (#not-match? @o "SECURE")
@@ -618,21 +767,887 @@ rules:
         (#match? @o "RAND|RNG"))
     requires_file: |
       (object_creation_expression type: (type_identifier) @t (#eq? @t "Random")) @x
+      (object_creation_expression type: (scoped_type_identifier) @t (#eq? @t "java.util.Random")) @x
+      (method_invocation object: (_) @o name: (identifier) @n
+        (#match? @o "^(java\\.lang\\.)?Math$") (#eq? @n "random")) @x
     # Skip unless the enclosing method is about a secret: by its name, or
-    # because the random value is assigned to a secret-shaped variable.
+    # because the random value is assigned to a secret-shaped variable,
+    # directly or through one local (`float rand = new Random().nextFloat();
+    # String rememberMeKey = Float.toString(rand)`, or a buffer filled by
+    # `nextBytes(bytes)` and then encoded), the way OWASP Benchmark's
+    # remember-me cookies are made.
     unless_in_scope: |
       ((method_declaration name: (identifier) @n
-         (#not-match? @n "(?i)token|secret|password|passwd|nonce|key|session|salt|otp|csrf|credential|verif")) @m
-        (#not-match? @m "(?s)(?i)\\w*(token|secret|password|passwd|nonce|salt|otp|session|api_?key|csrf|credential)\\w*\\s*=[^;]*(Math\\.random|new Random|\\b[A-Z_]*(RAND|RNG)[A-Z_]*\\.next)"))
+         (#not-match? @n "(?i)token|secret|password|passwd|nonce|key|session|salt|otp|csrf|credential|verif|remember")) @m
+        (#not-match? @m "(?s)(?i)\\w*(token|secret|password|passwd|nonce|salt|otp|session|api_?key|csrf|credential|remember\\w*|(reset|verif|invite|confirm|auth|activation|recovery|magic|unlock)\\w*(code|key|id|link))\\w*\\s*=[^;]*(Math\\.random|new\\s+(java\\.util\\.)?Random\\b|\\b[A-Z_]*(RAND|RNG)[A-Z_]*\\.next)|\\b(?P<v>\\w+)\\s*=[^;]*(Math\\.random|new\\s+(java\\.util\\.)?Random\\b|\\b[A-Z_]*(RAND|RNG)[A-Z_]*\\.next)[^;]*;.*\\b\\w*(token|secret|password|passwd|nonce|salt|otp|session|api_?key|csrf|credential|remember\\w*|(reset|verif|invite|confirm|auth|activation|recovery|magic|unlock)\\w*(code|key|id|link))\\w*\\s*=[^;]*\\b(?P=v)\\b|(Math\\.random|new\\s+(java\\.util\\.)?Random\\b|\\b[A-Z_]*(RAND|RNG)[A-Z_]*\\.next)[^;]*\\.nextBytes\\s*\\x28\\s*(?P<b>\\w+)\\s*\\x29.*\\b\\w*(token|secret|password|passwd|nonce|salt|otp|session|api_?key|csrf|credential|remember\\w*|(reset|verif|invite|confirm|auth|activation|recovery|magic|unlock)\\w*(code|key|id|link))\\w*\\s*=[^;]*\\b(?P=b)\\b"))
       ; a constructor or lambda is judged by what it assigns: the caffeine
       ; simulator seeds `this.random = new Random(seed)` in dozens of them
       ((constructor_declaration) @m
-        (#not-match? @m "(?s)(?i)\\w*(token|secret|password|passwd|nonce|salt|otp|session|api_?key|csrf|credential)\\w*\\s*=[^;]*(Math\\.random|new Random|\\b[A-Z_]*(RAND|RNG)[A-Z_]*\\.next)"))
+        (#not-match? @m "(?s)(?i)\\w*(token|secret|password|passwd|nonce|salt|otp|session|api_?key|csrf|credential|remember\\w*|(reset|verif|invite|confirm|auth|activation|recovery|magic|unlock)\\w*(code|key|id|link))\\w*\\s*=[^;]*(Math\\.random|new\\s+(java\\.util\\.)?Random\\b|\\b[A-Z_]*(RAND|RNG)[A-Z_]*\\.next)|\\b(?P<v>\\w+)\\s*=[^;]*(Math\\.random|new\\s+(java\\.util\\.)?Random\\b|\\b[A-Z_]*(RAND|RNG)[A-Z_]*\\.next)[^;]*;.*\\b\\w*(token|secret|password|passwd|nonce|salt|otp|session|api_?key|csrf|credential|remember\\w*|(reset|verif|invite|confirm|auth|activation|recovery|magic|unlock)\\w*(code|key|id|link))\\w*\\s*=[^;]*\\b(?P=v)\\b|(Math\\.random|new\\s+(java\\.util\\.)?Random\\b|\\b[A-Z_]*(RAND|RNG)[A-Z_]*\\.next)[^;]*\\.nextBytes\\s*\\x28\\s*(?P<b>\\w+)\\s*\\x29.*\\b\\w*(token|secret|password|passwd|nonce|salt|otp|session|api_?key|csrf|credential|remember\\w*|(reset|verif|invite|confirm|auth|activation|recovery|magic|unlock)\\w*(code|key|id|link))\\w*\\s*=[^;]*\\b(?P=b)\\b"))
       ((lambda_expression) @m
-        (#not-match? @m "(?s)(?i)\\w*(token|secret|password|passwd|nonce|salt|otp|session|api_?key|csrf|credential)\\w*\\s*=[^;]*(Math\\.random|new Random|\\b[A-Z_]*(RAND|RNG)[A-Z_]*\\.next)"))
+        (#not-match? @m "(?s)(?i)\\w*(token|secret|password|passwd|nonce|salt|otp|session|api_?key|csrf|credential|remember\\w*|(reset|verif|invite|confirm|auth|activation|recovery|magic|unlock)\\w*(code|key|id|link))\\w*\\s*=[^;]*(Math\\.random|new\\s+(java\\.util\\.)?Random\\b|\\b[A-Z_]*(RAND|RNG)[A-Z_]*\\.next)|\\b(?P<v>\\w+)\\s*=[^;]*(Math\\.random|new\\s+(java\\.util\\.)?Random\\b|\\b[A-Z_]*(RAND|RNG)[A-Z_]*\\.next)[^;]*;.*\\b\\w*(token|secret|password|passwd|nonce|salt|otp|session|api_?key|csrf|credential|remember\\w*|(reset|verif|invite|confirm|auth|activation|recovery|magic|unlock)\\w*(code|key|id|link))\\w*\\s*=[^;]*\\b(?P=v)\\b|(Math\\.random|new\\s+(java\\.util\\.)?Random\\b|\\b[A-Z_]*(RAND|RNG)[A-Z_]*\\.next)[^;]*\\.nextBytes\\s*\\x28\\s*(?P<b>\\w+)\\s*\\x29.*\\b\\w*(token|secret|password|passwd|nonce|salt|otp|session|api_?key|csrf|credential|remember\\w*|(reset|verif|invite|confirm|auth|activation|recovery|magic|unlock)\\w*(code|key|id|link))\\w*\\s*=[^;]*\\b(?P=b)\\b"))
     unless_in_file: *test_support
     description: >
       `java.util.Random` is a 48-bit linear congruential generator: a few
       outputs reveal its state and every future value. For a token, key,
       password or session id that means the next one can be predicted.
     remediation: "Use `SecureRandom` (and `UUID.randomUUID()` for ids)."
+
+  # ------------------------------------------------- CWE Top 25, round 1 --
+  # ARB-062: the Java rows of the ranked gap list in docs/cwe-top25.md.
+
+  - id: jwt-unsigned-accepted
+    requirements: [ARB-062]
+    title: "`{text}` accepts a JWT that carries no signature"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-287, CWE-347]
+    controls: [NIST-800-218:PW.5]
+    tags: [auth, jwt]
+    query: |
+      ; jjwt: parseClaimsJwt/parsePlaintextJwt (0.9-0.11) and
+      ; parseUnsecuredClaims/parseUnsecuredContent (0.12) are the UNSIGNED
+      ; variants; the signed ones end in Jws. `.unsecured()` on the parser
+      ; builder lets `parse()` accept `alg: none`.
+      (method_invocation name: (identifier) @hit
+        (#match? @hit "^(parseClaimsJwt|parsePlaintextJwt|parseContentJwt|parseUnsecuredClaims|parseUnsecuredContent)$"))
+      (method_invocation object: (_) @o name: (identifier) @hit arguments: (argument_list) @a
+        (#eq? @hit "unsecured") (#match? @a "^\\(\\s*\\)$") (#match? @o "(?i)parser"))
+    requires_file: |
+      ((program) @p (#match? @p "\\bio\\.jsonwebtoken\\b"))
+    unless_in_file: *test_support
+    description: >
+      These jjwt calls exist to read a token with no signature. Whoever sends
+      the token chooses its claims, so `sub`, `roles` and `exp` read from it
+      prove nothing about who the caller is.
+    remediation: >
+      Parse with a verifying parser: `Jwts.parser().verifyWith(key).build()
+      .parseSignedClaims(token)` (0.12) or `parseClaimsJws` (0.11), and drop
+      `.unsecured()`.
+
+  - id: jwt-decode-without-verify
+    requirements: [ARB-062]
+    title: "`{text}` reads a JWT and nothing in this file verifies its signature"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-287, CWE-347]
+    controls: [NIST-800-218:PW.5]
+    tags: [auth, jwt]
+    query: |
+      ; auth0 java-jwt `JWT.decode(token)`; Nimbus `JWTParser.parse(token)`,
+      ; `SignedJWT.parse(token)`, `PlainJWT.parse(token)`
+      (method_invocation object: (identifier) @o name: (identifier) @n
+        (#eq? @o "JWT") (#eq? @n "decode")) @hit
+      (method_invocation object: (identifier) @o name: (identifier) @n
+        (#match? @o "^(JWTParser|SignedJWT|PlainJWT|EncryptedJWT)$") (#eq? @n "parse")) @hit
+    requires_file: |
+      ((program) @p (#match? @p "\\bcom\\.auth0\\.jwt\\b|\\bcom\\.nimbusds\\.jwt\\b"))
+    # Decoding first to read `kid`, `iss` or `alg` and choose the key is the
+    # normal way to verify; so is decoding a token this file verifies
+    # elsewhere. Either way a verifier is in the file.
+    unless_in_file: |
+      (method_invocation name: (identifier) @n (#match? @n "^(verify|require)$"))
+      (method_invocation object: (_) @o name: (identifier) @n
+        (#eq? @n "process") (#match? @o "(?i)processor"))
+      ((import_declaration) @i
+        (#match? @i "\\b(org\\.junit|junit\\.framework|org\\.testng|org\\.assertj|org\\.hamcrest|org\\.mockito|com\\.google\\.common\\.truth|com\\.google\\.common\\.testing|org\\.openjdk\\.jmh|com\\.code_intelligence\\.jazzer)\\."))
+    # A peek at the issuer or key id to route the token to the right
+    # verifier (spring-security's JwtIssuerAuthenticationManagerResolver and
+    # its reactive twin, `JWTParser.parse(token.getToken()).getJWTClaimsSet()
+    # .getIssuer()`).
+    unless_inside: |
+      ((method_invocation) @m
+        (#match? @m "^(JWT\\.decode|JWTParser\\.parse|SignedJWT\\.parse)\\((?:[^()]|\\([^()]*\\))*\\)(\\.get(JWTClaimsSet|Header)\\(\\))?\\.get(Issuer|KeyId|KeyID|Algorithm|Type|ContentType)\\(\\)$"))
+    description: >
+      `JWT.decode` and Nimbus' `parse` split the token and base64-decode it;
+      they do not check the signature, the expiry or the issuer. A caller
+      can write any subject or role into a token and it is believed.
+    remediation: >
+      Verify before reading claims: `JWT.require(Algorithm.HMAC256(secret))
+      .withIssuer(...).build().verify(token)` (auth0), or a
+      `DefaultJWTProcessor` / `SignedJWT.verify(JWSVerifier)` (Nimbus).
+
+  - id: hardcoded-signing-key
+    requirements: [ARB-062]
+    title: "`{text}` is given a key written in the source"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-798, CWE-321]
+    controls: [NIST-800-218:PW.5]
+    tags: [secret, crypto, jwt]
+    # @hit is the API name, never the literal, so the key itself does not
+    # end up in the report or its fingerprint.
+    query: |
+      ; Algorithm.HMAC256("s3cret")  Algorithm.HMAC512("k".getBytes())
+      ((method_invocation object: (identifier) @o name: (identifier) @hit
+        arguments: (argument_list . [
+          (string_literal) @lit
+          (method_invocation object: (string_literal) @lit name: (identifier) @gb (#match? @gb "^(getBytes|toCharArray)$"))
+          (method_invocation name: (identifier) @d arguments: (argument_list . (string_literal) @lit .) (#match? @d "^(decode|parseBase64Binary|decodeBase64)$"))
+        ] .))
+        (#eq? @o "Algorithm") (#match? @hit "^HMAC(256|384|512)$")
+        (#not-match? @lit "(?i)^\"(|\\s*|x{3,}|\\*{3,}|\\.{3,}|change[-_ ]?me|todo|none|null|dummy|your[-_\\w]*|<[^>]*>|\\$\\{[^}]*\\}|[-_\\w]*(here|placeholder|example|redacted|notreal)[-_\\w]*)\"$"))
+      ; Keys.hmacShaKeyFor("…".getBytes())  Keys.hmacShaKeyFor(Decoders.BASE64.decode("…"))
+      ((method_invocation object: (identifier) @o name: (identifier) @hit
+        arguments: (argument_list . [
+          (method_invocation object: (string_literal) @lit name: (identifier) @gb (#match? @gb "^getBytes$"))
+          (method_invocation name: (identifier) @d arguments: (argument_list . (string_literal) @lit .) (#match? @d "^(decode|parseBase64Binary|decodeBase64)$"))
+        ] .))
+        (#eq? @o "Keys") (#eq? @hit "hmacShaKeyFor")
+        (#not-match? @lit "(?i)^\"(|\\s*|x{3,}|\\*{3,}|\\.{3,}|change[-_ ]?me|todo|none|null|dummy|your[-_\\w]*|<[^>]*>|\\$\\{[^}]*\\}|[-_\\w]*(here|placeholder|example|redacted|notreal)[-_\\w]*)\"$"))
+      ; jjwt 0.9-0.11: .signWith(SignatureAlgorithm.HS256, "secret"), .setSigningKey("secret")
+      ((method_invocation name: (identifier) @hit
+        arguments: (argument_list [
+          (string_literal) @lit
+          (method_invocation object: (string_literal) @lit name: (identifier) @gb (#match? @gb "^getBytes$"))
+        ]))
+        (#match? @hit "^(signWith|setSigningKey)$")
+        (#not-match? @lit "(?i)^\"(|\\s*|x{3,}|\\*{3,}|\\.{3,}|change[-_ ]?me|todo|none|null|dummy|your[-_\\w]*|<[^>]*>|\\$\\{[^}]*\\}|[-_\\w]*(here|placeholder|example|redacted|notreal)[-_\\w]*)\"$"))
+      ; new SecretKeySpec("…".getBytes(), "HmacSHA256")
+      ((object_creation_expression type: (type_identifier) @hit
+        arguments: (argument_list . [
+          (method_invocation object: (string_literal) @lit name: (identifier) @gb (#match? @gb "^getBytes$"))
+          (method_invocation name: (identifier) @d arguments: (argument_list . (string_literal) @lit .) (#match? @d "^(decode|parseBase64Binary|decodeBase64)$"))
+        ]))
+        (#eq? @hit "SecretKeySpec")
+        (#not-match? @lit "(?i)^\"(|\\s*|x{3,}|\\*{3,}|\\.{3,}|change[-_ ]?me|todo|none|null|dummy|your[-_\\w]*|<[^>]*>|\\$\\{[^}]*\\}|[-_\\w]*(here|placeholder|example|redacted|notreal)[-_\\w]*)\"$"))
+    # Test code is skipped, as the secrets probe skips a test credential that
+    # does not look generated: `roles` defaults to source, and test support
+    # outside src/test is recognised by its imports.
+    unless_in_file: *test_support
+    description: >
+      The key that signs tokens or MACs is in the source, so everyone with
+      the repository, a build artifact or a decompiler can mint a token any
+      service that trusts this key will accept. Rotating it means a release.
+    remediation: >
+      Load the key at runtime from a secret manager or the environment
+      (`System.getenv("JWT_SECRET")`, a Spring `@Value` bound to a vault),
+      and rotate the one that was committed.
+
+  - id: hardcoded-db-password
+    requirements: [ARB-062]
+    title: "`{text}` is given a database password written in the source"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-798, CWE-259]
+    controls: [NIST-800-218:PW.5]
+    tags: [secret, database]
+    query: |
+      ; DriverManager.getConnection(url, "user", "pw")
+      ((method_invocation object: (identifier) @o name: (identifier) @hit
+        arguments: (argument_list . (_) . (_) . (string_literal) @lit .))
+        (#eq? @o "DriverManager") (#eq? @hit "getConnection")
+        (#not-match? @lit "(?i)^\"(|\\s*|x{3,}|\\*{3,}|\\.{3,}|change[-_ ]?me|todo|none|null|dummy|your[-_\\w]*|<[^>]*>|\\$\\{[^}]*\\}|[-_\\w]*(here|placeholder|example|redacted|notreal)[-_\\w]*)\"$"))
+      ; DriverManager.getConnection("jdbc:...?user=app&password=pw")
+      ((method_invocation object: (identifier) @o name: (identifier) @hit
+        arguments: (argument_list . (string_literal) @lit))
+        (#eq? @o "DriverManager") (#eq? @hit "getConnection")
+        (#match? @lit "(?i)[?&;:]password=[^&;\"$<{]+"))
+      ; dataSource.setPassword("pw"), hikariConfig.setPassword("pw"),
+      ; DataSourceBuilder.create()...password("pw")
+      ((method_invocation object: (_) @o name: (identifier) @hit
+        arguments: (argument_list . (string_literal) @lit .))
+        (#match? @hit "^(setPassword|password)$")
+        (#match? @o "(?i)(data_?source|hikari|\\bds\\b|pool|DataSourceBuilder)")
+        (#not-match? @lit "(?i)^\"(|\\s*|x{3,}|\\*{3,}|\\.{3,}|change[-_ ]?me|todo|none|null|dummy|your[-_\\w]*|<[^>]*>|\\$\\{[^}]*\\}|[-_\\w]*(here|placeholder|example|redacted|notreal)[-_\\w]*)\"$"))
+    unless_in_file: *test_support
+    description: >
+      The database password is in the source and in every build of it. It
+      cannot be rotated without a release, and it is the same in every
+      environment the build runs in.
+    remediation: >
+      Read the URL, user and password from the environment or a secret
+      manager (`System.getenv("DB_PASSWORD")`, Spring's
+      `spring.datasource.password` bound from a vault), and rotate the
+      committed one.
+
+  # -------------------------------------------------------------- CSRF ----
+  # Spring Security's CSRF protection only matters when the browser sends
+  # the credential by itself: a session cookie. A stateless API that reads a
+  # bearer token from the Authorization header is not CSRF-able, and
+  # switching the filter off there is the documented set-up. So the same
+  # call is two findings: high severity, medium confidence where nothing in
+  # the file says the app is stateless, and low/low where the file declares
+  # SessionCreationPolicy.STATELESS (the token could still sit in a cookie).
+  - id: csrf-disabled
+    requirements: [ARB-062]
+    title: "CSRF protection switched off: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-352]
+    controls: [NIST-800-218:PW.5]
+    tags: [csrf, spring]
+    query: &csrf_disabled |
+      ; @hit is the part that says "off", so two forms in one file stay two
+      ; findings (the fingerprint is the hit text, not the line).
+      ; http.csrf().disable()
+      ((method_invocation object: (method_invocation name: (identifier) @c arguments: (argument_list) @a)
+        name: (identifier) @hit)
+        (#eq? @c "csrf") (#match? @a "^\\(\\s*\\)$") (#eq? @hit "disable"))
+      ; http.csrf(c -> c.disable())   http.csrf(c -> { c.disable(); })
+      (method_invocation name: (identifier) @c
+        arguments: (argument_list . (lambda_expression body: (method_invocation name: (identifier) @n)) .) @hit
+        (#eq? @c "csrf") (#eq? @n "disable"))
+      (method_invocation name: (identifier) @c
+        arguments: (argument_list . (lambda_expression body: (block . (expression_statement (method_invocation name: (identifier) @n)) .)) .) @hit
+        (#eq? @c "csrf") (#eq? @n "disable"))
+      ; http.csrf(AbstractHttpConfigurer::disable)  csrf(CsrfConfigurer::disable)
+      (method_invocation name: (identifier) @c
+        arguments: (argument_list . (method_reference) @hit .)
+        (#eq? @c "csrf") (#match? @hit "::\\s*disable$"))
+    requires_file: &spring_security |
+      ((program) @p (#match? @p "\\borg\\.springframework\\.security\\b|\\bHttpSecurity\\b|\\bServerHttpSecurity\\b"))
+    unless_in_file: &stateless |
+      ((identifier) @s (#eq? @s "STATELESS"))
+      ((import_declaration) @i
+        (#match? @i "\\b(org\\.junit|junit\\.framework|org\\.testng|org\\.assertj|org\\.hamcrest|org\\.mockito|com\\.google\\.common\\.truth|com\\.google\\.common\\.testing|org\\.openjdk\\.jmh|com\\.code_intelligence\\.jazzer)\\."))
+    description: >
+      With the CSRF filter off, any page the user visits can submit a form or
+      `fetch` to this app, and the browser attaches the session cookie: the
+      transfer, password change or delete runs as the user. Turning it off is
+      the usual quick fix for a 403 on POST.
+    remediation: >
+      Keep CSRF on. For a JavaScript client use
+      `csrf(c -> c.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse()))`;
+      exempt only machine-to-machine paths with `ignoringRequestMatchers`.
+      If the API really is stateless (bearer token in a header, no session
+      cookie), declare `SessionCreationPolicy.STATELESS`.
+
+  - id: csrf-disabled-stateless
+    requirements: [ARB-062]
+    title: "CSRF protection switched off in a stateless config: `{text}`"
+    severity: low
+    confidence: low
+    dimension: security
+    cwe: [CWE-352]
+    controls: [NIST-800-218:PW.5]
+    tags: [csrf, spring]
+    query: *csrf_disabled
+    requires_file: |
+      ((program) @p
+        (#match? @p "\\borg\\.springframework\\.security\\b|\\bHttpSecurity\\b|\\bServerHttpSecurity\\b")
+        (#match? @p "\\bSTATELESS\\b"))
+    unless_in_file: *test_support
+    description: >
+      The file declares `SessionCreationPolicy.STATELESS`, which is how an
+      API that authenticates every request with a bearer header is set up,
+      and CSRF does not apply to it. It does apply if the token is kept in a
+      cookie, which browsers send cross-site like a session.
+    remediation: >
+      Confirm the token arrives only in the `Authorization` header. If it is
+      in a cookie, keep CSRF on or make the cookie `SameSite=Strict`.
+
+  # ------------------------------------------------ error detail (CWE-200) --
+  - id: stack-trace-to-client
+    requirements: [ARB-062]
+    title: "Stack trace sent to the client: `{text}`"
+    severity: medium
+    confidence: high
+    dimension: security
+    cwe: [CWE-209, CWE-200]
+    controls: [NIST-800-218:PW.5]
+    tags: [error-handling, information-exposure]
+    query: |
+      ; e.printStackTrace(response.getWriter())
+      ((method_invocation name: (identifier) @n arguments: (argument_list . (_) @a .)) @hit
+        (#eq? @n "printStackTrace") (#match? @a "\\b(getWriter|getOutputStream)\\s*\\(\\s*\\)"))
+      ; a response sink holding a trace: getStackTrace(), a StringWriter the
+      ; trace was printed into, ExceptionUtils/Throwables helpers
+      ((method_invocation name: (identifier) @n) @hit
+        (#match? @n "^(body|bodyValue|ok|sendError|forStatusAndDetail|setDetail)$")
+        (#match? @hit "(?s)\\((.*)(getStackTrace|StackTraceAsString|\\b\\w+\\.toString\\s*\\(\\s*\\))"))
+      ((method_invocation object: (method_invocation name: (identifier) @w) name: (identifier) @n) @hit
+        (#match? @w "^(getWriter|getOutputStream)$") (#match? @n "^(print|println|write|append|printf|format)$")
+        (#match? @hit "(?s)(getStackTrace|StackTraceAsString|\\b\\w+\\.toString\\s*\\(\\s*\\))"))
+      ((object_creation_expression type: (_) @t) @hit
+        (#match? @t "^ResponseEntity\\b")
+        (#match? @hit "(?s)(getStackTrace|StackTraceAsString|\\b\\w+\\.toString\\s*\\(\\s*\\))"))
+    # The method must actually hold a trace: printed into the response, read
+    # with getStackTrace(), or printed into a StringWriter whose text is used.
+    # Hits in a lambda are skipped (the lambda is their scope): the
+    # exception there is a parameter this rule cannot see.
+    unless_in_scope: |
+      ((method_declaration) @m
+        (#not-match? @m "(?s)printStackTrace\\s*\\([^;]*\\b(getWriter|getOutputStream)\\s*\\(|getStackTrace\\s*\\(|getStackTraceAsString\\s*\\(|getFullStackTrace\\s*\\(|printStackTrace\\s*\\(\\s*new\\s+PrintWriter\\s*\\(\\s*(?P<sw>\\w+)\\s*[,)].*\\b(?P=sw)\\.toString\\s*\\("))
+      ((constructor_declaration) @m)
+      ((lambda_expression) @m)
+    unless_in_file: *test_support
+    description: >
+      A stack trace names the classes, libraries and versions behind the
+      endpoint, file paths, and often the SQL or the value that failed. It is
+      the reconnaissance an attacker would otherwise have to guess.
+    remediation: >
+      Log the exception server-side with an incident id and return a fixed
+      message and that id. In Spring, one `@RestControllerAdvice` that
+      returns a `ProblemDetail` without the trace.
+
+  - id: exception-message-to-client
+    requirements: [ARB-062]
+    title: "Exception text sent to the client: `{text}`"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-209, CWE-200]
+    controls: [NIST-800-218:PW.5]
+    tags: [error-handling, information-exposure]
+    # Only a broad or library exception counts: its text was written for a
+    # developer (`ERROR: column "ssn" does not exist`, a path, a host). The
+    # message of a domain exception (`OrderNotFoundException`, an
+    # `IllegalArgumentException` from validation) is usually meant for the
+    # caller and is not reported.
+    # The sink is a statement of the catch block (or of an `if` in it) whose
+    # parameter is a broad or library exception, and that clause reads the
+    # parameter's message; or a statement of an @ExceptionHandler for one.
+    # A message passed into a bundle template the developer wrote
+    # (`sm.getString("coyoteAdapter.invalidURIWithMessage", ioe.getMessage())`)
+    # was chosen for the caller and is not reported.
+    query: |
+      ((catch_clause (catch_formal_parameter (catch_type) @t)
+         body: (block [(expression_statement [(method_invocation) (object_creation_expression)] @hit)
+                     (return_statement [(method_invocation) (object_creation_expression)] @hit)])) @c
+        (#match? @t "(^|\\|)\\s*(java\\.lang\\.)?(Exception|RuntimeException|Throwable|Error|IOException|SQLException|\\w*SQL\\w*Exception|\\w*DataAccessException|NullPointerException|PersistenceException|HibernateException|NamingException|ReflectiveOperationException)\\s*($|\\|)")
+        (#match? @c "(?s)^catch\\s*\\([^)]*?(\\w+)\\s*\\)\\s*\\{.*\\b\\1\\.(getMessage|getLocalizedMessage|toString)\\s*\\(")
+        (#match? @hit "(?s)^(new\\s+ResponseEntity\\b|.*\\b(body|bodyValue|ok|sendError|forStatusAndDetail|setDetail)\\s*\\(|.*\\b(getWriter|getOutputStream)\\s*\\(\\s*\\)\\s*\\.\\s*(print|println|write|append|printf|format)\\s*\\()")
+        (#match? @hit "\\b\\w+\\.(getMessage|getLocalizedMessage|toString)\\s*\\(\\s*\\)")
+        (#not-match? @hit "\\b(getString|getMessage)\\s*\\(\\s*\""))
+      ((catch_clause (catch_formal_parameter (catch_type) @t)
+         body: (block (if_statement consequence: (block [(expression_statement [(method_invocation) (object_creation_expression)] @hit)
+                     (return_statement [(method_invocation) (object_creation_expression)] @hit)])))) @c
+        (#match? @t "(^|\\|)\\s*(java\\.lang\\.)?(Exception|RuntimeException|Throwable|Error|IOException|SQLException|\\w*SQL\\w*Exception|\\w*DataAccessException|NullPointerException|PersistenceException|HibernateException|NamingException|ReflectiveOperationException)\\s*($|\\|)")
+        (#match? @c "(?s)^catch\\s*\\([^)]*?(\\w+)\\s*\\)\\s*\\{.*\\b\\1\\.(getMessage|getLocalizedMessage|toString)\\s*\\(")
+        (#match? @hit "(?s)^(new\\s+ResponseEntity\\b|.*\\b(body|bodyValue|ok|sendError|forStatusAndDetail|setDetail)\\s*\\(|.*\\b(getWriter|getOutputStream)\\s*\\(\\s*\\)\\s*\\.\\s*(print|println|write|append|printf|format)\\s*\\()")
+        (#match? @hit "\\b\\w+\\.(getMessage|getLocalizedMessage|toString)\\s*\\(\\s*\\)")
+        (#not-match? @hit "\\b(getString|getMessage)\\s*\\(\\s*\""))
+      ; @ExceptionHandler(Exception.class) ... return ex.getMessage();  or a
+      ; ResponseEntity built from it
+      ((method_declaration (modifiers [(annotation name: (identifier) @a) (marker_annotation name: (identifier) @a)])
+         parameters: (formal_parameters . (formal_parameter type: (_) @t))
+         body: (block [(return_statement) @hit
+                       (expression_statement [(method_invocation) (object_creation_expression)] @hit)]))
+        (#eq? @a "ExceptionHandler")
+        (#match? @t "^(java\\.lang\\.)?(Exception|RuntimeException|Throwable|Error|IOException|SQLException|\\w*SQL\\w*Exception|\\w*DataAccessException|NullPointerException|PersistenceException|HibernateException|NamingException|ReflectiveOperationException)$")
+        (#match? @hit "\\b\\w+\\.(getMessage|getLocalizedMessage|toString)\\s*\\(\\s*\\)")
+        (#not-match? @hit "\\b(getString|getMessage)\\s*\\(\\s*\""))
+    unless_in_scope: |
+      ; stack-trace-to-client owns a method that also sends the trace
+      ((method_declaration) @m
+        (#match? @m "(?s)printStackTrace\\s*\\([^;]*\\b(getWriter|getOutputStream)\\s*\\(|getStackTrace\\s*\\(|printStackTrace\\s*\\(\\s*new\\s+PrintWriter\\s*\\("))
+    unless_in_file: *test_support
+    description: >
+      The text of a generic or library exception was written for the
+      developer: a SQL error quotes the table and column, an IOException
+      the file path, a connection error the internal host. Sent to the
+      client, it maps the system behind the endpoint.
+    remediation: >
+      Log the exception with an incident id and return a fixed message. Put
+      caller-facing text in your own exception types and return only those.
+    # One-hop data flow (Milestone 3): a broad exception's message reaches
+    # the response through a local or a helper.
+    taint:
+      inputs: |
+        ((method_invocation object: (identifier) @e name: (identifier) @m arguments: (argument_list) @none) @input
+         (#match? @m "^(getMessage|getLocalizedMessage|toString)$") (#eq? @none "()"))
+      sinks: |
+        ((method_invocation name: (identifier) @n arguments: (argument_list . (_) @sink .)) @hit
+         (#match? @n "^(body|bodyValue|ok|setDetail)$"))
+        ((method_invocation name: (identifier) @n arguments: (argument_list . (_) . (_) @sink)) @hit
+         (#match? @n "^(sendError|forStatusAndDetail)$"))
+        ((method_invocation object: (method_invocation name: (identifier) @w)
+            name: (identifier) @n arguments: (argument_list (_) @sink)) @hit
+         (#match? @w "^(getWriter|getOutputStream)$") (#match? @n "^(print|println|write|append|printf|format)$"))
+        ((object_creation_expression type: (_) @t arguments: (argument_list . (_) @sink)) @hit
+         (#match? @t "^ResponseEntity\\b"))
+      sanitizers: |
+        ((method_invocation name: (identifier) @n) @sanitizer
+         (#match? @n "^(encodeForHTML|htmlEscape|escapeHtml\\w*|getString)$"))
+      types:
+        e: "(^|\\|)\\s*(java\\.lang\\.)?(Exception|RuntimeException|Throwable|Error|IOException|SQLException|\\w*SQL\\w*Exception|\\w*DataAccessException|NullPointerException|PersistenceException|HibernateException|NamingException|ReflectiveOperationException)\\s*($|\\|)"
+
+  # ------------------------------------------------- CWE Top 25, round 2 --
+  # ARB-062: the Java gaps left after round 1 (docs/cwe-top25.md): 79, 918,
+  # 77/88, 190 and a native 434. Each is the same-method form: a value bound
+  # from the request (`@RequestParam`, `@PathVariable`, JAX-RS `@QueryParam`
+  # and friends, or `String x = request.getParameter(...)`) reaching the sink
+  # in the method that binds it. The regexes are long because one
+  # `#match?` on the whole method is the only way to tie the bound name to
+  # its use at any nesting depth; a back-reference (\1 / \2) does the tying.
+
+  - id: xss-unescaped-html
+    requirements: [ARB-062]
+    title: "Request value written into HTML without encoding: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-79]
+    controls: [NIST-800-218:PW.5]
+    tags: [injection, xss]
+    query: |
+      ; Spring: return "<h1>" + q + "</h1>";  ResponseEntity.ok(...).body("<p>" + name)
+      ((return_statement (binary_expression) @v) @hit
+        (#match? @v "\"[^\"\\n]*<(?:[a-zA-Z][\\w-]*|/[a-zA-Z])[^\"\\n]*\""))
+      ((method_invocation name: (identifier) @n arguments: (argument_list . (binary_expression) @v .)) @hit
+        (#match? @n "^(ok|body|bodyValue|send|write|append)$")
+        (#match? @v "\"[^\"\\n]*<(?:[a-zA-Z][\\w-]*|/[a-zA-Z])[^\"\\n]*\""))
+      ; servlet: response.getWriter().println(<non-constant>)
+      ((method_invocation object: (method_invocation name: (identifier) @w)
+          name: (identifier) @n arguments: (argument_list) @args) @hit
+        (#eq? @w "getWriter") (#match? @n "^(print|println|write|append|printf|format)$")
+        (#not-match? @args "^\\((?:\\s|,|\\+|\"(?:[^\"\\\\\\n]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)'|(?:[\\w.]*\\.)?[A-Z][A-Z0-9_]*\\b|\\d+|(?:java\\.util\\.)?Locale\\.[A-Z]+|true|false|null)*\\)$"))
+      ; PrintWriter out = response.getWriter(); out.println(<non-constant>)
+      ((method_invocation object: (identifier) @o name: (identifier) @n arguments: (argument_list) @args) @hit
+        (#match? @o "^(out|writer|pw|printWriter|respWriter|responseWriter)$")
+        (#match? @n "^(print|println|write|append|printf|format)$")
+        (#not-match? @args "^\\((?:\\s|,|\\+|\"(?:[^\"\\\\\\n]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)'|(?:[\\w.]*\\.)?[A-Z][A-Z0-9_]*\\b|\\d+|(?:java\\.util\\.)?Locale\\.[A-Z]+|true|false|null)*\\)$"))
+    # The Spring forms need the bound parameter itself spliced next to an
+    # HTML literal; the servlet forms need a request read and an HTML page
+    # (text/html content type or an HTML literal) in the same method.
+    requires_in_scope: |
+      ((method_declaration) @m (#match? @m "(?s)@(?:RequestParam|PathVariable|RequestHeader|CookieValue|MatrixVariable|QueryParam|PathParam|FormParam|HeaderParam|CookieParam)\\b(?:\\s*\\((?:[^()\"]|\"(?:[^\"\\\\\\n]|\\\\.)*\")*\\))?\\s+(?:final\\s+)?(?:@\\w+(?:\\([^()]*\\))?\\s+)*(?:java\\.lang\\.)?(?:String|String\\s*\\[\\s*\\]|(?:List|Optional|Set|Collection)\\s*<\\s*String\\s*>)\\s+(\\w+).*(?:\"[^\"\\n]*<(?:[a-zA-Z][\\w-]*|/[a-zA-Z])[^\"\\n]*\"[^;]*\\+\\s*\\1\\b(?!\\s*\\.\\s*(?:length|size|isEmpty|isBlank|hashCode|equals\\w*|compareTo\\w*|matches|startsWith|endsWith|contains|indexOf)\\s*\\()|\\b\\1\\s*\\+[^;]*\"[^\"\\n]*<(?:[a-zA-Z][\\w-]*|/[a-zA-Z])[^\"\\n]*\")"))
+      ((method_declaration) @m (#match? @m "(?s)^(?=.*getWriter\\s*\\()(?=.*\\b(?:getParameter|getParameterValues|getParameterMap|getParameterNames|getHeader|getHeaders|getQueryString|getCookies|getPathInfo|getRequestURI|getRequestURL)\\s*\\()(?=.*(?:setContentType\\s*\\(\\s*\"text/html|\"[^\"\\n]*<(?:[a-zA-Z][\\w-]*|/[a-zA-Z])[^\"\\n]*\"))"))
+    # An HTML encoder applied anywhere in the file: in the method, or in a
+    # helper the value passes through (`bar = new Test().doSomething(param)`
+    # whose body is `HtmlUtils.htmlEscape(param)`, OWASP Benchmark), which a
+    # method-scoped check cannot follow. Test support is skipped too.
+    unless_in_file: |
+      ((program) @p (#match? @p "\\b(?:htmlEscape\\w*|escapeHtml\\w*|escapeXml\\w*|encodeForHTML\\w*|encodeForXML\\w*|forHtml\\w*|forXml\\w*|htmlEncode\\w*|encodeHtml\\w*|sanitize\\w*|HTMLFilter\\.filter|htmlElementContent|escapeHTML|Jsoup\\.clean|HtmlUtils\\.\\w+|Encode\\.for\\w+)\\s*\\("))
+      ((import_declaration) @i
+        (#match? @i "\\b(org\\.junit|junit\\.framework|org\\.testng|org\\.assertj|org\\.hamcrest|org\\.mockito|com\\.google\\.common\\.truth|com\\.google\\.common\\.testing|org\\.openjdk\\.jmh|com\\.code_intelligence\\.jazzer)\\."))
+    description: >
+      A value from the request is concatenated into an HTML response with
+      no encoding, so `<script>` in a parameter runs in the victim's
+      browser under this site's origin: session theft, actions as the user.
+    remediation: >
+      Render through a template engine that escapes by default (Thymeleaf
+      `th:text`, JSP `<c:out>`), or encode every value with
+      `HtmlUtils.htmlEscape` / OWASP `Encode.forHtml` before writing it.
+      Return JSON from APIs instead of hand-built HTML.
+    # One-hop data flow (Milestone 3): request input reaches the response
+    # through a local or a same-file helper as a built string; a hit whose
+    # values are provably constant (or derived only from constants in a
+    # method that reads request input) is dropped.
+    taint:
+      inputs: *java_request_inputs
+      sinks: |
+        ((method_invocation name: (identifier) @n arguments: (argument_list . (_) @sink .)) @hit
+         (#match? @n "^(ok|body|bodyValue|send)$"))
+        ((method_invocation object: (method_invocation name: (identifier) @w)
+            name: (identifier) @n arguments: (argument_list (_) @sink)) @hit
+         (#eq? @w "getWriter") (#match? @n "^(print|println|write|append|printf|format)$"))
+        ((return_statement (_) @sink) @hit)
+      types: *java_request_types
+      value: [v, args]
+      kill: derived
+      built: true
+      requires: true
+
+  - id: ssrf-request-url
+    requirements: [ARB-062]
+    title: "Server-side request to a URL taken from the request: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-918]
+    controls: [NIST-800-218:PW.5]
+    tags: [injection, ssrf]
+    query: |
+      ; new URL(u)  new URI(u)  new HttpGet(u)
+      ((object_creation_expression type: (_) @t arguments: (argument_list . (_) @a)) @hit
+        (#match? @t "^((java\\.net\\.)?(URL|URI)|Http(Get|Post|Put|Delete|Head|Patch|Options))$")
+        (#match? @a "^(?:[a-z_]\\w*\\s*(?:\\+.*)?|\"(?:https?|ftp|gopher|file)?:?//\"\\s*\\+\\s*[a-z_].*)$"))
+      ; URI.create(u)  Jsoup.connect(u)
+      ((method_invocation object: (identifier) @o name: (identifier) @n arguments: (argument_list . (_) @a)) @hit
+        (#match? @o "^(URI|Jsoup)$") (#match? @n "^(create|connect)$")
+        (#match? @a "^(?:[a-z_]\\w*\\s*(?:\\+.*)?|\"(?:https?|ftp|gopher|file)?:?//\"\\s*\\+\\s*[a-z_].*)$"))
+      ; RestTemplate / WebClient / OkHttp builders: rest.getForObject(u, ...)  .uri(u)  .url(u)
+      ((method_invocation name: (identifier) @n arguments: (argument_list . (_) @a)) @hit
+        (#match? @n "^(getForObject|getForEntity|postForObject|postForEntity|postForLocation|patchForObject|headForHeaders|exchange|uri|url)$")
+        (#match? @a "^(?:[a-z_]\\w*\\s*(?:\\+.*)?|\"(?:https?|ftp|gopher|file)?:?//\"\\s*\\+\\s*[a-z_].*)$"))
+    # The bound parameter itself (or "http://" + it) is the sink's URL, and
+    # the method makes a request (a bare `URI.create` only parses).
+    requires_in_scope: |
+      ((method_declaration) @m (#match? @m "(?s)(?:@(?:RequestParam|PathVariable|RequestHeader|CookieValue|MatrixVariable|QueryParam|PathParam|FormParam|HeaderParam|CookieParam)\\b(?:\\s*\\((?:[^()\"]|\"(?:[^\"\\\\\\n]|\\\\.)*\")*\\))?\\s+(?:final\\s+)?(?:@\\w+(?:\\([^()]*\\))?\\s+)*(?:java\\.lang\\.)?(?:String|String\\s*\\[\\s*\\]|(?:List|Optional|Set|Collection)\\s*<\\s*String\\s*>)\\s+(\\w+)|\\bString\\s+(\\w+)\\s*=\\s*(?:\\w+\\.)*(?:getParameter|getHeader|getQueryString|getPathInfo|getRequestURI|getRequestURL)\\s*\\().*(?:\\bnew\\s+(?:java\\.net\\.)?(?:URL|URI)|\\bnew\\s+Http(?:Get|Post|Put|Delete|Head|Patch|Options)|\\bURI\\.create|\\bJsoup\\.connect|\\.(?:getForObject|getForEntity|postForObject|postForEntity|postForLocation|patchForObject|headForHeaders|exchange|uri|url))\\s*\\(\\s*(?:\"(?:https?|ftp|gopher|file)?:?//\"\\s*\\+\\s*)?(?:\\1|\\2)\\b(?!\\s*[.(\\[])") (#match? @m "(?s)\\.(?:send|sendAsync|openConnection|openStream|execute|executeOpen|retrieve|exchange|exchangeToMono|getForObject|getForEntity|postForObject|postForEntity|postForLocation|patchForObject|headForHeaders|newCall|getContent|get|post)\\s*\\(|\\bJsoup\\.connect\\s*\\(|\\bnew\\s+Http(?:Get|Post|Put|Delete|Head|Patch|Options)\\s*\\("))
+    unless_in_scope: |
+      ; the host is read back and checked, or an allowlist is consulted
+      ((method_declaration) @m (#match? @m "\\.getHost\\s*\\(\\s*\\)|\\.getAuthority\\s*\\(\\s*\\)|(?i:allow(?:ed)?_?(?:hosts?|list|domains?|urls?)|white_?list|safe_?(?:hosts?|domains?))|\\bisAllowed\\w*\\s*\\(|\\bvalidate\\w*(?:Url|Uri|Host)\\w*\\s*\\(|\\bcheck\\w*(?:Url|Uri|Host)\\w*\\s*\\("))
+    unless_in_file: *test_support
+    description: >
+      The server makes a request to a URL its caller chose. The caller
+      reaches what only the server can: cloud metadata
+      (169.254.169.254), admin consoles and databases on the internal
+      network, `file:` URLs.
+    remediation: >
+      Do not take a URL from the caller. Take an id and look the URL up, or
+      parse it, require https and check the host against an allowlist
+      (resolve it and refuse private ranges), and turn redirects off.
+    # One-hop data flow (Milestone 3): request input reaches the URL through
+    # a local or a helper. A URL with a fixed scheme and host is the
+    # sanitizer.
+    taint:
+      inputs: *java_request_inputs
+      sinks: |
+        ((object_creation_expression type: (_) @t arguments: (argument_list . (_) @sink)) @hit
+         (#match? @t "^((java\\.net\\.)?URL|Http(Get|Post|Put|Delete|Head|Patch|Options))$"))
+        ((method_invocation object: (identifier) @o name: (identifier) @n arguments: (argument_list . (_) @sink)) @hit
+         (#match? @o "^(Jsoup|HttpRequest)$") (#match? @n "^(connect|newBuilder)$"))
+        ((method_invocation name: (identifier) @n arguments: (argument_list . (_) @sink)) @hit
+         (#match? @n "^(getForObject|getForEntity|postForObject|postForEntity|postForLocation|patchForObject|headForHeaders|exchange|uri|url)$"))
+      # A bare `URI.create(u)` / `new URI(u)` only parses; the request is the
+      # sink it reaches. A fixed origin (a literal "https://host/" or an
+      # ALL_CAPS constant first) is the sanitizer.
+      sanitizers: |
+        ((binary_expression) @sanitizer (#match? @sanitizer "^(\"https?://[^/\"%]+/|(\\w+\\.)?[A-Z][A-Z0-9_]*\\s*\\+)"))
+        ((method_invocation object: (identifier) @so name: (identifier) @sf arguments: (argument_list . (string_literal) @fm)) @sanitizer
+         (#eq? @so "String") (#eq? @sf "format") (#match? @fm "^\"https?://[^/\"%]+/"))
+        ((method_invocation name: (identifier) @n) @sanitizer (#match? @n "^(encode|parseInt|parseLong|valueOf)$"))
+      types: *java_request_types
+
+  - id: argument-injection
+    requirements: [ARB-062]
+    title: "Request value passed to a program before `--` ends its options: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-88, CWE-77]
+    controls: [NIST-800-218:PW.5]
+    tags: [injection, command]
+    query: |
+      ; new ProcessBuilder("git", "clone", url, dir)  new ProcessBuilder(List.of("rsync", "-a", src, dst))
+      ((object_creation_expression type: (_) @t arguments: (argument_list) @a) @hit
+        (#match? @t "(^|\\.)ProcessBuilder$") (#match? @a "^\\(?\\s*(?:(?:java\\.util\\.)?(?:List\\.of|Arrays\\.asList)\\s*\\(\\s*|new\\s+String\\s*\\[\\s*\\]\\s*\\{\\s*)?\"(?:/usr/bin/|/bin/)?(?:git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|find|xargs|grep|sed|docker|kubectl|helm|ffmpeg|convert|magick|gs|psql|mysql|mysqldump|pg_dump|openssl|gpg|sendmail|mail|tcpdump|nmap|ping|wkhtmltopdf|soffice|libreoffice|pandoc|less|man|java|npm|pip)\"(?:\\s*,\\s*(?:\"(?!--\"|--end-of-options\")(?:[^\"\\\\\\n]|\\\\.)*\"|[A-Z][A-Z0-9_]*))*\\s*,\\s*[a-z_]"))
+      ; Runtime.getRuntime().exec(new String[] {"curl", url})  pb.command("git", ..., x)
+      ((method_invocation name: (identifier) @n arguments: (argument_list) @a) @hit
+        (#match? @n "^(exec|command)$") (#match? @a "^\\(?\\s*(?:(?:java\\.util\\.)?(?:List\\.of|Arrays\\.asList)\\s*\\(\\s*|new\\s+String\\s*\\[\\s*\\]\\s*\\{\\s*)?\"(?:/usr/bin/|/bin/)?(?:git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|find|xargs|grep|sed|docker|kubectl|helm|ffmpeg|convert|magick|gs|psql|mysql|mysqldump|pg_dump|openssl|gpg|sendmail|mail|tcpdump|nmap|ping|wkhtmltopdf|soffice|libreoffice|pandoc|less|man|java|npm|pip)\"(?:\\s*,\\s*(?:\"(?!--\"|--end-of-options\")(?:[^\"\\\\\\n]|\\\\.)*\"|[A-Z][A-Z0-9_]*))*\\s*,\\s*[a-z_]"))
+    # The request-bound name is itself an element, before any "--".
+    requires_in_scope: |
+      ((method_declaration) @m (#match? @m "(?s)(?:@(?:RequestParam|PathVariable|RequestHeader|CookieValue|MatrixVariable|QueryParam|PathParam|FormParam|HeaderParam|CookieParam)\\b(?:\\s*\\((?:[^()\"]|\"(?:[^\"\\\\\\n]|\\\\.)*\")*\\))?\\s+(?:final\\s+)?(?:@\\w+(?:\\([^()]*\\))?\\s+)*(?:java\\.lang\\.)?(?:String|String\\s*\\[\\s*\\]|(?:List|Optional|Set|Collection)\\s*<\\s*String\\s*>)\\s+(\\w+)|\\bString\\s+(\\w+)\\s*=\\s*(?:\\w+\\.)*(?:getParameter|getHeader|getQueryString|getPathInfo|getRequestURI|getRequestURL)\\s*\\().*(?:\\bnew\\s+ProcessBuilder\\s*\\(\\s*(?:(?:java\\.util\\.)?(?:List\\.of|Arrays\\.asList)\\s*\\(\\s*)?|\\.exec\\s*\\(\\s*new\\s+String\\s*\\[\\s*\\]\\s*\\{\\s*|\\.command\\s*\\(\\s*(?:(?:List\\.of|Arrays\\.asList)\\s*\\(\\s*)?)\"(?:/usr/bin/|/bin/)?(?:git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|find|xargs|grep|sed|docker|kubectl|helm|ffmpeg|convert|magick|gs|psql|mysql|mysqldump|pg_dump|openssl|gpg|sendmail|mail|tcpdump|nmap|ping|wkhtmltopdf|soffice|libreoffice|pandoc|less|man|java|npm|pip)\"(?:\\s*,\\s*(?:\"(?!--\"|--end-of-options\")(?:[^\"\\\\\\n]|\\\\.)*\"|[\\w.]+(?:\\(\\s*\\))?))*?\\s*,\\s*(?:\\1|\\2)\\s*[,)}]"))
+    unless_in_file: *test_support
+    description: >
+      No shell is involved, but the program parses its own options: a value
+      starting with `-` is read as one. `--upload-pack=...` to git,
+      `-o ProxyCommand=...` to ssh, `-e` to rsync, `--output` to curl and
+      `--checkpoint-action` to tar all run commands or write files.
+    remediation: >
+      Put `"--"` before the first value the caller controls, and reject
+      values that start with `-` (validate a URL's scheme, a name against an
+      allowlist).
+    # One-hop data flow (Milestone 3): request input reaches a ProcessBuilder
+    # argument through a local or a helper; the tool name may be hoisted.
+    taint:
+      inputs: *java_request_inputs
+      sinks: |
+        ((object_creation_expression type: (_) @t arguments: (argument_list . (_) @tool) @sink) @hit
+         (#match? @t "(^|\\.)ProcessBuilder$"))
+        ((method_invocation name: (identifier) @n arguments: (argument_list . (_) @tool) @sink) @hit
+         (#eq? @n "command"))
+      where:
+        tool: "^\"(/usr/bin/|/bin/)?(git|hg|svn|curl|wget|ssh|scp|sftp|rsync|tar|zip|unzip|7z|find|xargs|grep|sed|docker|kubectl|helm|ffmpeg|convert|magick|gs|psql|mysql|mysqldump|pg_dump|openssl|gpg|sendmail|mail|tcpdump|nmap|ping|wkhtmltopdf)\"$"
+      types: *java_request_types
+      unless_element: "^--$"
+
+  - id: parsed-number-narrowed
+    requirements: [ARB-062]
+    title: "Parsed number cast to a narrower type keeps only its low bits: `{text}`"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-190, CWE-197]
+    controls: [NIST-800-218:PW.5]
+    tags: [integer-overflow]
+    query: |
+      ; (byte) Integer.parseInt(s)   (short) Integer.parseInt(s)   (int) Long.parseLong(s)
+      ; A radix argument is the hex-byte idiom ("ff" -> (byte) 255) and is not reported.
+      ((cast_expression type: (integral_type) @ty
+          value: (method_invocation object: (_) @c name: (identifier) @m arguments: (argument_list . (_) .))) @hit
+        (#match? @ty "^(byte|short)$") (#match? @c "^(java\\.lang\\.)?Integer$") (#eq? @m "parseInt"))
+      ((cast_expression type: (integral_type) @ty
+          value: (method_invocation object: (_) @c name: (identifier) @m arguments: (argument_list . (_) .))) @hit
+        (#match? @ty "^(byte|short|int)$") (#match? @c "^(java\\.lang\\.)?Long$") (#eq? @m "parseLong"))
+    # Number.intValue()/shortValue()/byteValue() narrow by contract (gson's
+    # LazilyParsedNumber), and `buf[i] = (byte) Integer.parseInt(...)` fills a
+    # byte array with 0-255 values on purpose (tomcat's drawboard colours).
+    unless_inside: |
+      ((method_declaration name: (identifier) @n) @m (#match? @n "^(intValue|shortValue|byteValue)$"))
+      ((assignment_expression left: (array_access) right: (cast_expression type: (integral_type) @ty)) @a
+        (#eq? @ty "byte"))
+    unless_in_file: *test_support
+    description: >
+      A number parsed from text is cast to a narrower type, which silently
+      keeps only the low bits: "300" as a byte is 44, "3000000000" as an
+      int is negative. A limit, a port or a timeout read from input becomes
+      a different, valid-looking value instead of an error.
+    remediation: >
+      Parse straight into the type you need (`Byte.parseByte`,
+      `Short.parseShort`, `Integer.parseInt`), or convert with
+      `Math.toIntExact`, so an out-of-range value throws.
+
+  - id: parsed-count-overflow
+    requirements: [ARB-062]
+    title: "Allocation size multiplies a parsed count with no range check: `{text}`"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-190]
+    controls: [NIST-800-218:PW.5]
+    tags: [integer-overflow]
+    query: |
+      ; new byte[count * SIZE]   ByteBuffer.allocate(n * k)
+      ((array_creation_expression dimensions: (dimensions_expr (binary_expression operator: "*"))) @hit)
+      ((array_creation_expression dimensions: (dimensions_expr (parenthesized_expression (binary_expression operator: "*")))) @hit)
+      ((method_invocation name: (identifier) @n arguments: (argument_list . (binary_expression operator: "*") .)) @hit
+        (#match? @n "^(allocate|allocateDirect)$"))
+    # The multiplied count is parsed in this method (`int n = Integer.parseInt(...)`)
+    # and never compared, clamped or checked before the multiply.
+    requires_in_scope: |
+      ((method_declaration) @m (#match? @m "(?s)\\b(?:int|long|var|Integer|Long)\\s+(\\w+)\\s*=\\s*(?:Integer\\.(?:parseInt|valueOf)|Long\\.(?:parseLong|valueOf)|Short\\.parseShort)\\s*\\(.*(?:\\bnew\\s+[\\w.]+\\s*\\[|\\ballocate(?:Direct)?\\s*\\()[^;\\]]*(?:\\b\\1\\s*\\*|\\*\\s*\\(?\\s*\\1\\b)"))
+    unless_in_scope: |
+      ((method_declaration) @m (#match? @m "(?s)\\b(?:int|long|var|Integer|Long)\\s+(\\w+)\\s*=\\s*(?:Integer\\.(?:parseInt|valueOf)|Long\\.(?:parseLong|valueOf)|Short\\.parseShort)\\s*\\(.*(?:\\b\\1\\s*(?:<=?|>=?)(?!<)|(?<![<>])(?:<=?|>=?)\\s*\\1\\b|Math\\.(?:min|max|clamp|multiplyExact|addExact|toIntExact)\\s*\\([^;]*\\b\\1\\b|checkIndex\\s*\\([^;]*\\b\\1\\b|checkArgument\\s*\\([^;]*\\b\\1\\b|Preconditions\\.\\w+\\s*\\([^;]*\\b\\1\\b)"))
+    unless_in_file: *test_support
+    description: >
+      A count parsed from input is multiplied into an allocation size. Past
+      `Integer.MAX_VALUE` the product wraps negative (an exception at best)
+      or to a small positive number, so the buffer is far smaller than the
+      count the rest of the code loops over.
+    remediation: >
+      Range-check the count before using it (`if (n < 0 || n > MAX)`), or
+      compute the size with `Math.multiplyExact`.
+
+  - id: upload-client-filename
+    requirements: [ARB-062]
+    title: "Upload stored under the client's file name: `{text}`"
+    severity: high
+    confidence: medium
+    dimension: security
+    cwe: [CWE-434]
+    controls: [NIST-800-218:PW.5]
+    tags: [upload, path]
+    query: |
+      ; file.transferTo(...)  Files.copy(in, ...)  dir.resolve(name)  Paths.get(dir, name)
+      ; new File(dir, name)  new FileOutputStream(...): naming the client's file name
+      ((method_invocation name: (identifier) @n) @hit
+        (#match? @n "^(transferTo|resolve)$")
+        (#match? @hit "(?s)\\((.*)(?:getOriginalFilename|getSubmittedFileName|(?<![\\w.])(?:[a-z]\\w*(?:File|Original|Upload|Submitted|Client)[Nn]ame|(?:file|original|upload|submitted|client)_?[Nn]ame|filename|fname|name)\\b(?!\\s*\\())"))
+      ((method_invocation object: (_) @o name: (identifier) @n) @hit
+        (#match? @o "^((java\\.nio\\.file\\.)?(Files|Paths|Path)|(org\\.apache\\.commons\\.io\\.)?FileUtils|FileCopyUtils)$")
+        (#match? @n "^(copy|write|move|newOutputStream|createFile|get|of|copyInputStreamToFile|writeByteArrayToFile|copyToFile)$")
+        (#match? @hit "(?s)\\((.*)(?:getOriginalFilename|getSubmittedFileName|(?<![\\w.])(?:[a-z]\\w*(?:File|Original|Upload|Submitted|Client)[Nn]ame|(?:file|original|upload|submitted|client)_?[Nn]ame|filename|fname|name)\\b(?!\\s*\\())"))
+      ((object_creation_expression type: (_) @t) @hit
+        (#match? @t "^((java\\.io\\.)?(File|FileOutputStream|FileWriter))$")
+        (#match? @hit "(?s)\\((.*)(?:getOriginalFilename|getSubmittedFileName|(?<![\\w.])(?:[a-z]\\w*(?:File|Original|Upload|Submitted|Client)[Nn]ame|(?:file|original|upload|submitted|client)_?[Nn]ame|filename|fname|name)\\b(?!\\s*\\())"))
+    # One finding per statement: a sink nested in another sink's arguments
+    # (`transferTo(new File(dir, name))`) is the same write.
+    unless_inside: |
+      (method_invocation name: (identifier) @n arguments: (argument_list) @in
+        (#match? @n "^(transferTo|resolve|copy|write|move|newOutputStream|createFile|get|of|copyInputStreamToFile|writeByteArrayToFile|copyToFile)$"))
+      (object_creation_expression type: (_) @t arguments: (argument_list) @in
+        (#match? @t "^((java\\.io\\.)?(File|FileOutputStream|FileWriter))$"))
+      ; a path that is only logged (`log.debug("saved to {}", new File(dir, name))`)
+      (method_invocation object: (identifier) @o arguments: (argument_list) @in
+        (#match? @o "^(log|logger|LOG|LOGGER|Log|Logger)$"))
+    requires_in_scope: |
+      ((method_declaration) @m (#match? @m "(?s)(?:\\bString\\s+(\\w+)\\s*=\\s*[\\w.]*\\.(?:getOriginalFilename|getSubmittedFileName)\\s*\\(\\s*\\)\\s*;.*(?:transferTo|Files\\.(?:copy|write|move|newOutputStream|createFile)|new\\s+(?:java\\.io\\.)?(?:File|FileOutputStream|FileWriter)|Paths\\.get|Path\\.of|\\.resolve)\\s*\\([^;]*\\b\\1\\b|(?:transferTo|Files\\.(?:copy|write|move|newOutputStream|createFile)|new\\s+(?:java\\.io\\.)?(?:File|FileOutputStream|FileWriter)|Paths\\.get|Path\\.of|\\.resolve)\\s*\\([^;]*\\.(?:getOriginalFilename|getSubmittedFileName)\\s*\\(\\s*\\))") (#match? @m "(?s)\\btransferTo\\s*\\(|\\bFiles\\.(?:copy|write|move|newOutputStream)\\s*\\(|\\bnew\\s+(?:java\\.io\\.)?(?:FileOutputStream|FileWriter)\\s*\\(|\\.write\\s*\\("))
+    unless_in_scope: |
+      ((method_declaration) @m (#match? @m "(?s)FilenameUtils\\.(?:getName|getExtension|getBaseName)\\s*\\(|\\.getFileName\\s*\\(\\s*\\)|(?i:allowed_?(?:ext|types?|suffix)\\w*|white_?list)|\\.endsWith\\s*\\(|lastIndexOf\\s*\\(\\s*(?:\"\\.\"|'\\.')|\\bgetExtension\\s*\\("))
+    unless_in_file: *test_support
+    description: >
+      The file is written under the name the client sent. `shell.jsp` (or
+      `.php`, `.html`, `.svg`) in a served directory runs or renders as this
+      site, and `../` in the name writes outside the upload directory.
+    remediation: >
+      Generate the stored name (`UUID.randomUUID()`), choose the extension
+      from an allowlist of content types you checked, store outside the web
+      root, and keep the client's name only as data.
+    # One-hop data flow (Milestone 3): the client's file name reaches the
+    # write through a local or a same-file helper.
+    taint:
+      inputs: |
+        ((method_invocation name: (identifier) @m arguments: (argument_list) @none) @input
+         (#match? @m "^(getOriginalFilename|getSubmittedFileName)$") (#eq? @none "()"))
+      sinks: |
+        ((method_invocation name: (identifier) @n arguments: (argument_list (_) @sink)) @hit
+         (#match? @n "^(transferTo|resolve)$"))
+        ((method_invocation object: (_) @o name: (identifier) @n arguments: (argument_list (_) @sink)) @hit
+         (#match? @o "^((java\\.nio\\.file\\.)?(Files|Paths|Path)|(org\\.apache\\.commons\\.io\\.)?FileUtils|FileCopyUtils)$")
+         (#match? @n "^(copy|write|move|newOutputStream|createFile|get|of|copyInputStreamToFile|writeByteArrayToFile|copyToFile)$"))
+        ((object_creation_expression type: (_) @t arguments: (argument_list (_) @sink)) @hit
+         (#match? @t "^((java\\.io\\.)?(File|FileOutputStream|FileWriter))$"))
+
+  # ---------------------------------------------------------------------
+  # Defect classes found in AI-written code (ARB-083)
+  # ---------------------------------------------------------------------
+  # Each shape below is one a reviewer labelled in model-written services
+  # (fixtures/ai-corpus) that no earlier rule covered. All start advisory.
+  - id: mail-starttls-not-required
+    requirements: [ARB-083]
+    title: "`{text}` lets Jakarta Mail fall back to plaintext"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-319]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-8]
+    tags: [tls, smtp, ai-code]
+    # `starttls.enable` alone is opportunistic: STARTTLS is used only when
+    # the server advertises it, so a MITM that strips the capability gets
+    # the AUTH exchange in clear. `starttls.required` (anywhere in the
+    # file) or implicit TLS (`mail.smtp.ssl.enable`) makes it mandatory.
+    query: |
+      (method_invocation
+        name: (identifier) @m (#match? @m "^(put|setProperty)$")
+        arguments: (argument_list . (string_literal) @k (#match? @k "^\"mail\\.smtps?\\.starttls\\.enable\"$"))) @hit
+    unless_in_file: |
+      ((string_literal) @k (#match? @k "^\"mail\\.smtps?\\.(starttls\\.required|ssl\\.enable)\"$"))
+    description: >-
+      With only `mail.smtp.starttls.enable`, Jakarta Mail upgrades to TLS
+      when the server offers it and carries on in plaintext when it does
+      not. An attacker on the path removes STARTTLS from the server's
+      greeting and reads SMTP_USER and SMTP_PASSWORD from the AUTH command.
+    remediation: "Also set `mail.smtp.starttls.required=true` (or use implicit TLS with `mail.smtp.ssl.enable=true` on port 465)."
+
+  - id: mail-ssl-trust-all
+    requirements: [ARB-083]
+    title: "`{text}` trusts every mail server certificate"
+    severity: high
+    confidence: high
+    dimension: security
+    cwe: [CWE-295]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-8]
+    tags: [tls, smtp, ai-code]
+    query: |
+      (method_invocation
+        name: (identifier) @m (#match? @m "^(put|setProperty)$")
+        arguments: (argument_list . (string_literal) @k (#match? @k "^\"mail\\.(smtps?|imaps?|pop3s?)\\.ssl\\.trust\"$")
+                   . (string_literal) @v (#eq? @v "\"*\""))) @hit
+      (method_invocation
+        name: (identifier) @m (#match? @m "^(put|setProperty)$")
+        arguments: (argument_list . (string_literal) @k (#match? @k "^\"mail\\.(smtps?|imaps?|pop3s?)\\.ssl\\.checkserveridentity\"$")
+                   . (string_literal) @v (#eq? @v "\"false\""))) @hit
+    # JavaMail reads `ssl.trust` only when no socket factory is given: with
+    # `ssl.socketFactory` set in the same method (Keycloak's truststore
+    # configurator) the factory's own trust store decides.
+    unless_in_scope: |
+      ((string_literal) @k (#match? @k "^\"mail\\.(smtps?|imaps?|pop3s?)\\.ssl\\.socketFactory\"$"))
+    description: >-
+      `mail.smtp.ssl.trust=*` accepts any certificate from any host, and
+      `ssl.checkserveridentity=false` accepts a valid certificate issued
+      for some other host. Either way the connection is encrypted to
+      whoever answers, and the SMTP credentials go to them.
+    remediation: "Remove the property; for a private CA, add it to the trust store or name the exact host in `mail.smtp.ssl.trust`."
+
+  - id: retry-constant-delay
+    requirements: [ARB-083]
+    title: "`{text}` retries after the same fixed delay every time"
+    severity: low
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [retry, backoff, reliability, ai-code]
+    # Retry scheduling with a constant: the wait is a value named as the
+    # retry delay (`retryDelayMs`) used as is, in a file that caps attempts,
+    # with no growth or jitter on it. retry-without-backoff is the no-delay case.
+    query: |
+      ((method_invocation object: (_) @o name: (identifier) @m
+         arguments: (argument_list . [(identifier) (field_access)] @d .))
+        (#match? @o "^(Thread|TimeUnit\\.\\w+)$") (#eq? @m "sleep")
+        (#match? @d "(?i)(^|\\.)retry_?(delay|interval|wait|pause|sleep|backoff)(_?(ms|millis|seconds|secs))?$")) @hit
+      ((method_invocation name: (identifier) @m
+         arguments: (argument_list . (_) . [(identifier) (field_access)] @d . (_) .))
+        (#match? @m "^(schedule|delayedExecutor)$")
+        (#match? @d "(?i)(^|\\.)retry_?(delay|interval|wait|pause|backoff)(_?(ms|millis|seconds|secs))?$")) @hit
+    requires_file: |
+      ((identifier) @r (#match? @r "(?i)^_?max_?(retries|retry|attempts?|tries)$|^_?retry_?(count|limit)$|^MAX_(RETRIES|ATTEMPTS|TRIES)$"))
+    unless_in_file: |
+      ((identifier) @b (#match? @b "(?i)backoff|jitter"))
+      ((binary_expression operator: ["*" "<<"]) @b (#match? @b "(?i)retry_?(delay|interval)"))
+      ((assignment_expression left: (_) @l operator: ["*=" "<<="]) (#match? @l "(?i)retry_?(delay|interval)"))
+    description: >-
+      Every retry waits the same interval. When a dependency fails, every
+      caller retries in lock-step on that interval, so the recovering
+      service is hit by the whole backlog at once and each retry is as
+      likely to fail as the last.
+    remediation: "Grow the delay with the attempt (`base << attempt`, capped) and add jitter, or use a retry library (resilience4j, Failsafe) with exponential backoff."
+
+  - id: ssrf-stored-callback
+    requirements: [ARB-083]
+    title: "`{text}` delivers to a stored callback URL with no internal-address block"
+    severity: medium
+    confidence: medium
+    dimension: security
+    cwe: [CWE-918]
+    controls: [NIST-800-218:PW.5, NIST-800-53r5:SC-7]
+    tags: [ssrf, webhook, ai-code]
+    query: |
+      ((method_invocation object: (_) @c name: (identifier) @m
+         arguments: (argument_list . (identifier) . (_)))
+        (#match? @m "^(send|sendAsync)$") (#match? @c "(?i)client$")) @hit
+      ((method_invocation object: (_) @c name: (identifier) @m
+         arguments: (argument_list . (_) . (_) .))
+        (#match? @m "^(postForEntity|postForObject|exchange)$") (#match? @c "(?i)(rest)?template$")) @hit
+    requires_file: |
+      ((string_literal) @s (#match? @s "(?i)callback_?url|webhook_?url|notify_?url|hook_?url|callback_?uri|redirect_?hook"))
+    unless_in_file: |
+      ((identifier) @m (#match? @m "^(isSiteLocalAddress|isLoopbackAddress|isLinkLocalAddress|isAnyLocalAddress|isMulticastAddress)$"))
+      ((identifier) @m (#match? @m "(?i)ssrf|private_?(ip|addr|net|range)|is_?internal|is_?public_?(host|addr|ip)|blocked_?(ip|addr|host)|allowed_?(host|ip)"))
+    description: >-
+      The URL was stored by a client (a merchant, a subscriber) and the server
+      later sends a request to it. Nothing in the file refuses loopback,
+      private, link-local or cloud-metadata addresses, so whoever can set
+      the URL can make the server reach internal services
+      (169.254.169.254, localhost admin ports) and learn from the delivery
+      status whether they answered.
+    remediation: "Resolve the host, refuse loopback, site-local, link-local and any-local addresses, and connect to the address you checked; or keep an allowlist of callback hosts."
+
+  - id: image-decode-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` decodes an image without checking its dimensions first"
+    severity: high
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-409, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, decompression-bomb, ai-code]
+    # ImageIO.read allocates the full raster from the header. Reading the
+    # size through an ImageReader (getWidth(0)/getHeight(0) before read)
+    # anywhere in the file is taken as the check.
+    query: |
+      ((method_invocation object: (identifier) @o name: (identifier) @m)
+        (#eq? @o "ImageIO") (#eq? @m "read")) @hit
+    unless_in_file: |
+      ((identifier) @i (#match? @i "^(ImageReader|getImageReaders|getImageReadersByFormatName|getImageReadersBySuffix)$"))
+    description: >-
+      A small PNG can declare 50000 x 50000 pixels; `ImageIO.read` then
+      allocates a raster of gigabytes before anything checks the size, and
+      one upload throws OutOfMemoryError for the whole JVM. An upload size
+      limit does not help: the file is small, the image it declares is not.
+    remediation: "Open an `ImageReader` on an `ImageInputStream`, check `getWidth(0)` and `getHeight(0)` against a limit, then `reader.read(0)`."
+
+  - id: decompress-read-unbounded
+    requirements: [ARB-083]
+    title: "`{text}` reads a decompressed stream with no size limit"
+    severity: medium
+    confidence: medium
+    dimension: quality
+    cwe: [CWE-409, CWE-400]
+    controls: [NIST-800-218:PW.5]
+    tags: [unbounded-memory, decompression-bomb, ai-code]
+    query: |
+      ((method_invocation name: (identifier) @m arguments: (argument_list))
+        (#match? @m "^(readAllBytes)$")) @hit
+      ((method_invocation object: (identifier) @o name: (identifier) @m)
+        (#match? @o "^(IOUtils|ByteStreams)$") (#match? @m "^(toByteArray|toString)$")) @hit
+    requires_in_scope: |
+      ((object_creation_expression type: (type_identifier) @t)
+        (#match? @t "^(GZIPInputStream|InflaterInputStream|ZipInputStream|GzipCompressorInputStream|BZip2CompressorInputStream|XZCompressorInputStream|ZstdInputStream|BrotliInputStream|DeflateCompressorInputStream)$"))
+    unless_in_scope: |
+      ((identifier) @i (#match? @i "^(readNBytes|BoundedInputStream|LimitedInputStream|getSize|getCompressedSize)$"))
+      ((identifier) @i (#match? @i "(?i)^max_?(size|bytes|len|length|uncompressed)|_?limit$"))
+    description: >-
+      Compressed input expands by up to ~1000x (deflate) or far more
+      (nested archives). Reading the decompressing stream to the end keeps
+      going until the output ends, so a 1 MB upload can become gigabytes of
+      heap.
+    remediation: "Read at most `max + 1` bytes (`in.readNBytes(max + 1)`) and refuse output longer than `max`; for zip entries check the running total, not the declared size."

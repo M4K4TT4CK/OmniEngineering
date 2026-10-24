@@ -1348,6 +1348,134 @@
       "prevention_rules": [],
       "prevention_notes": "A tool's exit code and an empty result are separate facts; check the exit code whenever nothing parsed. Any input an analyzer needs besides its binary is declared in its manifest.",
       "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-052",
+      "date": "2026-10-21",
+      "title": "import arbiter.lang_rules before arbiter.probes raised a circular ImportError",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "ImportError: cannot import name 'register_lang_rules' from partially initialized module 'arbiter.lang_rules' (most likely due to a circular import)",
+      "how_detected": "reproduced while writing docs/gaps-and-next-steps.md (2026-10-21)",
+      "root_cause": "lang_rules imported PACKS and ProbeContext from probes at module level, while probes imports lang_rules at its end to register the packs; importing lang_rules first started probes, which then asked for a name lang_rules had not defined yet. The suite never saw it because conftest and earlier tests imported probes first, and two test files papered over it with an import-order line.",
+      "requirement": "ARB-078",
+      "affected": [
+        "src/arbiter/lang_rules.py",
+        "src/arbiter/probes.py"
+      ],
+      "fix_summary": "lang_rules defines AST_PACKS from its own path and imports ProbeContext under TYPE_CHECKING only; the import-order workaround lines in tests were removed",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_import_order.py::test_lang_rules_imports_first_and_the_packs_still_register",
+        "tests/test_import_order.py::test_every_module_imports_first_in_a_fresh_interpreter"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [],
+      "prevention_notes": "every module is imported first in its own fresh subprocess in the test suite, so a new top-level back-import fails CI whatever the import order of other tests",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-053",
+      "date": "2026-10-21",
+      "title": "controls._probe_of mapped arbiter/<lang>.* to <lang>, so language-pack controls always read not assessed",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "_probe_of('arbiter/python.x') returned 'python'; a control satisfied by a language-pack rule resolved to not_assessed with reason 'probe did not run' even when lang_python ran clean",
+      "how_detected": "code reading for docs/gaps-and-next-steps.md and ARB-062 criterion 5 (2026-10-21)",
+      "root_cause": "_probe_of mapped native rule-id heads through a fixed table and fell back to the head itself; language packs register their probe as lang_<pack>, which the table never knew, and no test evaluated a control backed by a pack rule",
+      "requirement": "ARB-062",
+      "affected": [
+        "src/arbiter/controls.py"
+      ],
+      "fix_summary": "_probe_of returns lang_<pack> for any head that names a shipped language pack, read from lang_rules.load_packs() so a new pack needs no edit",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_controls_lang_packs.py::test_a_language_pack_check_maps_to_its_pack_probe",
+        "tests/test_controls_lang_packs.py::test_every_shipped_pack_maps_to_a_registered_probe",
+        "tests/test_controls_lang_packs.py::test_a_real_scan_reports_a_language_control_as_assessed"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [],
+      "prevention_notes": "every shipped pack rule id is checked to map to a registered probe name, and a real scan per language asserts the control reads satisfied",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-054",
+      "date": "2026-10-21",
+      "title": "Repeated defects with identical evidence in one file collapsed into one finding",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "six identical catch {} (or rescue Exception) in one file reported once: one fingerprint, and engine._dedupe kept one per id",
+      "how_detected": "code reading for docs/gaps-and-next-steps.md (2026-10-21)",
+      "root_cause": "the fingerprint deliberately excludes line numbers so a baseline survives reformatting; with nothing else to tell same-evidence sites in one file apart, they shared an id and deduplication by id treated them as one defect",
+      "requirement": "ARB-080",
+      "affected": [
+        "src/arbiter/core.py",
+        "src/arbiter/engine.py"
+      ],
+      "fix_summary": "core.assign_occurrences numbers the distinct sites of one id before _dedupe (occurrence 0 keeps the old id); legacy baselines, suppressions by id and diffs from legacy reports match every repeat; arbiter baseline --migrate rewrites a legacy baseline",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_occurrence_fingerprint.py::test_six_repeated_defects_in_one_file_count_as_six",
+        "tests/test_occurrence_fingerprint.py::test_the_gate_stays_green_on_a_legacy_baseline_and_after_migrating_it",
+        "tests/test_occurrence_fingerprint.py::test_migrating_a_legacy_baseline_keeps_exactly_what_it_accepted"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [],
+      "prevention_notes": "a real scan of six repeats must yield six ids, and the gate on a legacy baseline must stay green on unchanged code",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-055",
+      "date": "2026-10-22",
+      "title": "controls._probe_of mapped house/<id> to 'house', so a control backed by a house rule always read not assessed",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "_probe_of('house/x') returned 'house'; no probe has that name (house rules come from house_rules, ast_query ones from house_rules_ast), so a control mapped to a house rule resolved to not_assessed with 'probe did not run' even after both house probes ran clean",
+      "how_detected": "ARB-062 round 2 controls review (2026-10-22), reading _probe_of for every emitted prefix",
+      "root_cause": "The house/ prefix is not arbiter/-prefixed, so it skipped the native-probe table (whose 'house' entry only matched the never-emitted arbiter/house.*) and fell through to the bare head. Two probes emit house/ ids and which one depends on the rule's type in arbiter.yaml, which _probe_of never saw; FAIL-053's test enumerated language packs only, not every emitted prefix",
+      "requirement": "ARB-062",
+      "affected": [
+        "src/arbiter/controls.py",
+        "src/arbiter/engine.py"
+      ],
+      "fix_summary": "house/<id> maps to house_rules_ast for an ast_query rule and house_rules otherwise, using the rule types from the scan configuration (engine passes house_rule_types(config)); a report read without its configuration (arbiter controls on report.json) requires both house probes, so an ast_query rule is never read as assessed when tree-sitter was missing; a house id absent from the configuration reads not assessed. The dead arbiter/house entry is removed",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_controls_probe_mapping.py::test_every_emitted_prefix_maps_to_a_registered_probe",
+        "tests/test_controls_probe_mapping.py::test_a_house_rule_maps_to_the_probe_for_its_type",
+        "tests/test_controls_probe_mapping.py::test_a_clean_house_rule_run_satisfies_its_control",
+        "tests/test_controls_probe_mapping.py::test_a_real_scan_reports_a_house_rule_control_as_assessed",
+        "tests/test_controls_probe_mapping.py::test_a_real_scan_finding_names_the_probe_its_rule_maps_to"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [],
+      "prevention_notes": "Every rule-id prefix the scanner can emit is enumerated from the source (literal arbiter/<head>. ids, house/, each language pack, each adapter manifest) and asserted to map to a registered probe; a real scan over every planted bad tree plus both house rule types asserts each finding's recorded probe equals _probe_of(rule_id)",
+      "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-056",
+      "date": "2026-10-23",
+      "title": "Model label reasons quoted credential-shaped DB URLs from corpus code",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "omni gate (arbiter gate) failed with 2 new secrets.pg-url findings in tools/gold/labels/history/gold-model-v1.jsonl after the file was moved; labeller reasons quoted postgres://user:pass@host URLs seen in the excerpt",
+      "how_detected": "omni gate",
+      "root_cause": "label_models.parse_answer stored the model's reason verbatim; _mask_secrets masks the excerpt but does not cover inline DB-URL credentials, and a reason can quote code back",
+      "requirement": "ARB-067",
+      "affected": [
+        "tools/label_models.py",
+        "tools/gold/labels/"
+      ],
+      "fix_summary": "parse_answer passes reasons through mask_reason (_mask_secrets plus DB-URL credentials); existing label files' reasons re-masked",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_label_models.py::test_reasons_are_masked_before_they_reach_a_label_file"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [],
+      "prevention_notes": "Anything a model returns that may quote corpus code is masked before it is written to a tracked file",
+      "recurrence_of": ""
     }
   ]
 }

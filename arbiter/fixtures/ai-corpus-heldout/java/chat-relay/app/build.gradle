@@ -1,0 +1,44 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+repositories {
+    mavenCentral()
+}
+
+sourceCompatibility = JavaVersion.VERSION_17
+targetCompatibility = JavaVersion.VERSION_17
+
+// Sources live alongside this file, so point Gradle at the current directory and pick out the two files.
+sourceSets {
+    main {
+        java {
+            srcDirs = ['.']
+            include 'ChatRelay.java'
+        }
+    }
+    test {
+        java {
+            srcDirs = ['.']
+            include 'ChatRelayTest.java'
+        }
+    }
+}
+
+dependencies {
+    implementation 'io.javalin:javalin:6.3.0'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.2'
+    implementation 'org.slf4j:slf4j-simple:2.0.13'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+application {
+    mainClass = 'ChatRelay'
+}
+
+test {
+    useJUnitPlatform()
+}

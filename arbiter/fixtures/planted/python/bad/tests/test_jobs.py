@@ -3,6 +3,12 @@ import pytest
 from worker import TaskQueue
 
 
+def test_submit_adds_task():  # expect: arbiter/assurance.test-asserts-nothing
+    # The skipped test below used to hide this one (round 2).
+    q = TaskQueue()
+    q.tasks.append(1)
+
+
 @pytest.mark.skip  # expect: arbiter/assurance.permanently-skipped-test
 def test_take_returns_oldest_first():
     q = TaskQueue()
@@ -15,9 +21,6 @@ def test_take_on_empty_queue():
     assert q.take() is None
 
 
-# The comment directly above the def is deliberate: the assurance probe's
-# `^\s*def test_` anchor swallows preceding blank lines, so a def after two
-# blank lines is reported two lines early.
 def test_take_removes_task():  # expect: arbiter/assurance.test-asserts-nothing
     q = TaskQueue()
     q.tasks.append(1)

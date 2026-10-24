@@ -102,6 +102,11 @@ def _add_scan_commands(sub) -> None:
         sp.add_argument("--cache-path", default=None, metavar="FILE",
                         help="where the result cache lives (default: "
                              ".arbiter/cache.json under the first target)")
+        sp.add_argument("--model-verify", dest="model_verify",
+                        action=argparse.BooleanOptionalAction, default=None,
+                        help="ask a model to confirm or reject each finding at or above "
+                             "verify.min_severity (default: on for --profile assisted; "
+                             "never under offline or ci)")
         return sp
 
     sc = common(sub.add_parser("scan", help="analyze and report"))
@@ -122,7 +127,7 @@ def _add_scan_commands(sub) -> None:
                           "that no longer matches")
 
     gt = common(sub.add_parser("gate", help="analyze and exit non-zero on policy failure"))
-    gt.add_argument("--out", default="arbiter-out")
+    gt.add_argument("--out", default="arbiter-out", help="output directory")
     gt.add_argument("--format", default="json,console",
                     help="json,sarif,html,markdown,console,pr-comment,annotations")
 
@@ -144,15 +149,20 @@ def _add_report_commands(sub) -> None:
                     help="arm spec, e.g. 'native;only=secrets' or 'checkov;kind=tool;tool=checkov'")
     ab.add_argument("--name", default="", help="label for the comparison")
     ab.add_argument("--out", default="arbiter-ab", help="output directory")
-    ab.add_argument("--no-adapters", action="store_true")
+    ab.add_argument("--no-adapters", action="store_true", help="native probes only")
 
     pr = sub.add_parser("probes", help="list probes and whether they can run here")
     pr.add_argument("target", nargs="?", default=".", help="target to assess applicability against")
-    pr.add_argument("--no-adapters", action="store_true")
+    pr.add_argument("--no-adapters", action="store_true", help="leave the external analyzers out of the list")
 
     bl = sub.add_parser("baseline", help="write a baseline from a report")
     bl.add_argument("report", help="path to report.json")
-    bl.add_argument("--out", default=".arbiter/baseline.json")
+    bl.add_argument("--out", default=".arbiter/baseline.json",
+                    help="where to write the baseline (default .arbiter/baseline.json)")
+    bl.add_argument("--migrate", metavar="OLD_BASELINE",
+                    help="carry an earlier baseline (e.g. one cut before occurrence ids, "
+                         "ARB-080) into the current id format instead of re-cutting it: "
+                         "only findings it accepted are kept; may equal --out")
 
     df = sub.add_parser("diff", help="compare two reports")
     df.add_argument("before", help="earlier report.json")
@@ -161,13 +171,14 @@ def _add_report_commands(sub) -> None:
     df.add_argument("--out", default="", help="write the chosen formats into this directory")
 
     fb = sub.add_parser("feedback", help="adjudicate findings so the tool calibrates")
-    fb.add_argument("finding_ids", nargs="+", help="finding ids from a report")
-    fb.add_argument("--report", default="arbiter-out/report.json")
+    fb.add_argument("finding_ids", nargs="+", help="finding ids from a report; the end of an id is enough")
+    fb.add_argument("--report", default="arbiter-out/report.json",
+                    help="report the finding ids come from (default arbiter-out/report.json)")
     fb.add_argument("--knowledge", help="knowledge file (default .arbiter/knowledge.json)")
     group = fb.add_mutually_exclusive_group(required=True)
-    group.add_argument("--false-positive", action="store_true")
-    group.add_argument("--true-positive", action="store_true")
-    fb.add_argument("--note", default="")
+    group.add_argument("--false-positive", action="store_true", help="the finding is wrong here")
+    group.add_argument("--true-positive", action="store_true", help="the finding is a real problem")
+    fb.add_argument("--note", default="", help="why; stored with each verdict")
     fb.add_argument("--reviewer", default="",
                     help="who is answerable for these verdicts "
                          "(default: git config user.email)")
@@ -224,8 +235,9 @@ def _add_report_commands(sub) -> None:
     ct.add_argument("--list", action="store_true", help="list available frameworks and exit")
 
     ex = sub.add_parser("explain", help="show one finding in full")
-    ex.add_argument("finding_id")
-    ex.add_argument("--report", default="arbiter-out/report.json")
+    ex.add_argument("finding_id", help="the full finding id, e.g. f:8c41d2ae9b07")
+    ex.add_argument("--report", default="arbiter-out/report.json",
+                    help="report to read (default arbiter-out/report.json)")
 
 
 def _add_service_commands(sub) -> None:
@@ -345,14 +357,14 @@ def _add_service_commands(sub) -> None:
     # value and do nothing with it.
     rg = remote_common(remote_sub.add_parser("gate", help="run the policy gate remotely"))
     rg.add_argument("target", nargs="?", default=".", help="directory to send")
-    rg.add_argument("--profile", default="ci")
-    rg.add_argument("--only", default="")
-    rg.add_argument("--skip", default="")
+    rg.add_argument("--profile", default="ci", help="capability budget (default ci); the server refuses one that needs the network")
+    rg.add_argument("--only", default="", help="comma-separated probes to run exclusively")
+    rg.add_argument("--skip", default="", help="comma-separated probes to skip")
 
     rq = remote_common(remote_sub.add_parser(
         "review-queue", help="draw a review queue from a report; marks nothing"))
     rq.add_argument("report", help="path to a report.json")
-    rq.add_argument("--limit", type=int, default=20)
+    rq.add_argument("--limit", type=int, default=20, help="how many findings to queue (default 20)")
     rq.add_argument("--rule", default="", help="only findings whose rule id contains this")
     rq.add_argument("--out", help="write the queue here instead of standard output")
 
@@ -463,6 +475,7 @@ def cmd_scan(args, gate_mode: bool = False) -> int:
         use_cache=not getattr(args, "no_cache", False),
         cache_path=getattr(args, "cache_path", None),
         verify_cache=bool(getattr(args, "verify_cache", False)),
+        model_verify=getattr(args, "model_verify", None),
     )
 
     formats = _formats(args.format)
@@ -600,8 +613,14 @@ def cmd_probes(args) -> int:
 
 def cmd_baseline(args) -> int:
     report = Report.from_dict(json.loads(Path(args.report).read_text(encoding="utf-8")))
-    n = write_baseline(report, args.out)
-    print(f"  baseline written: {args.out} ({n} finding ids)")
+    migrate = getattr(args, "migrate", None)
+    try:
+        n = write_baseline(report, args.out, migrate_from=migrate)
+    except ValueError as exc:
+        print(f"  baseline not written: {exc}", file=sys.stderr)
+        return EXIT_ERROR
+    verb = f"migrated from {migrate}" if migrate else "written"
+    print(f"  baseline {verb}: {args.out} ({n} finding ids)")
     return EXIT_OK
 
 
@@ -860,6 +879,7 @@ def cmd_controls(args) -> int:
     """
     from .controls import (
         NO_COVERAGE,
+        NOT_APPLICABLE,
         NOT_ASSESSED,
         SATISFIED,
         STATE_MEANING,
@@ -900,6 +920,10 @@ def cmd_controls(args) -> int:
         print(f"  {fw['id']}  baseline {fw['baseline'] or '-'}")
         print(f"  {'-' * 72}")
         for state in STATES:
+            # not_applicable exists only for packs with per-language
+            # applicability; a framework pack never prints a row of zeros for it.
+            if state == NOT_APPLICABLE and not counts[state] and "languages" not in res:
+                continue
             print(f"    {counts[state]:>4}  {state:<17}{STATE_MEANING[state]}")
         if res["not_enumerated"]:
             print(f"    {res['not_enumerated']:>4}  not_enumerated   "
@@ -912,6 +936,17 @@ def cmd_controls(args) -> int:
               f"({counts[SATISFIED] + counts[VIOLATED]} of {res['declared_total']}).")
         print("    Every other control is unevidenced here. That is a statement "
               "about\n    this tool's reach, not about the system's security.")
+        if res.get("languages"):
+            # Per language: assessed, not assessed, gap, out of reach, n/a.
+            print(f"\n    {'language':<12}{'assessed':>9}{'violated':>9}{'not_run':>9}"
+                  f"{'gap':>6}{'OOR':>6}{'n/a':>6}{'absent':>8}")
+            for lang, lc in res["languages"].items():
+                if lc["absent"] and not any(lc[k] for k in (
+                        "satisfied", "violated", "not_assessed", "no_coverage", "out_of_reach")):
+                    continue  # the language is not in this codebase
+                print(f"    {lang:<12}{lc['satisfied'] + lc['violated']:>9}{lc['violated']:>9}"
+                      f"{lc['not_assessed']:>9}{lc['no_coverage']:>6}{lc['out_of_reach']:>6}"
+                      f"{lc['not_applicable']:>6}{lc['absent']:>8}")
 
         rows = [r for r in res["controls"]
                 if not wanted or r["state"] in wanted]
@@ -925,6 +960,9 @@ def cmd_controls(args) -> int:
                 print(f"    [{r['state'].upper()}] {r['id']}  {r['title']}")
                 if r.get("reason"):
                     print(f"        {r['reason'][:100]}")
+                for lang, cell in (r.get("languages") or {}).items():
+                    if cell["state"] in (VIOLATED, NOT_ASSESSED, NO_COVERAGE):
+                        print(f"        {lang:<11} {cell['state']:<13} {cell['reason'][:80]}")
                 if r["state"] in (VIOLATED, SATISFIED) and r.get("residual"):
                     print(f"        still needs a person: {r['residual'].strip()[:100]}")
     return EXIT_OK

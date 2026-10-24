@@ -11,7 +11,6 @@ import pytest
 from helpers import _scan_text
 
 from arbiter import ast as ts
-from arbiter import probes  # noqa: F401 - registers the packs before lang_rules is imported
 from arbiter.lang_rules import load_packs
 
 PACK = "python"
@@ -20,7 +19,12 @@ RULES = {
     "swallowed-error-in-worker-loop", "worker-loop-no-stop-signal",
     "thread-not-daemon-never-joined", "sql-injection", "command-injection",
     "code-injection", "unsafe-deserialization", "insecure-random-for-secret",
-    "weak-password-hash",
+    "weak-password-hash", "jwt-unverified-decode", "jwt-literal-signing-key",
+    "error-traceback-to-client", "error-message-to-client", "csrf-protection-disabled",
+    "argument-injection", "upload-client-filename", "debug-mode-enabled",
+    # AI-written-code defect classes (ARB-083)
+    "mail-tls-unverified", "retry-constant-delay", "ssrf-stored-callback",
+    "image-bomb-check-disabled", "decompress-unbounded", "request-body-unbounded",
 }
 
 pytestmark = pytest.mark.skipif(not ts.available(), reason="tree-sitter not installed")
@@ -304,3 +308,352 @@ def test_weak_digest_is_only_reported_for_passwords(tmp_path):
 
 def test_pack_rules_skip_test_files(tmp_path):
     assert not rules_in(tmp_path, "import pickle\nx = pickle.loads(b)\n", name="tests/test_x.py")
+
+
+# --- gold benchmark and OWASP Benchmark Python (ARB-065) ---------------------
+
+def _lines(tmp_path, code: str, rule: str, name: str = "service.py") -> list[int]:
+    found = _scan_text(tmp_path, name, code, only=["lang_python"])
+    return sorted(f.location.start_line for f in found if f.rule_id == f"arbiter/python.{rule}")
+
+
+def test_sql_with_every_splice_quoted_or_bound_is_fine(tmp_path):
+    # Django's backends: sqlite3/introspection.py:92, cache/backends/db.py:151,
+    # postgres/operations.py:326, models/sql/compiler.py:2052.
+    code = (
+        "def f(self, cursor, t, name, sql):\n"
+        "    cursor.execute('PRAGMA table_xinfo(%s)' % self.connection.ops.quote_name(t))\n"
+        "    cursor.execute('ALTER TABLE %s VALIDATE CONSTRAINT %s' % (qn(t), self.quote_name(name)))\n"
+        "    cursor.execute('UPDATE %(table)s SET a = 1' % {'table': self.quote_name(t)})\n"
+        "    cursor.execute('SELECT %s, %s FROM %s WHERE %s = %%s' % (a, b, t, c), [name])\n"
+        "    cursor.execute(f'SELECT * FROM {qn(t)} LIMIT {MAX_ROWS}')\n"
+        "    cursor.execute('SELECT * FROM {}'.format(quote_name(t)))\n"
+        "    cursor.execute('SELECT * FROM (%s) subquery' % sql)\n"
+        # still reported: one raw value beside quoted identifiers, a quoted
+        # '%s' slot in a two-stage template, a raw f-string value
+        "    cursor.execute(\"UPDATE %s SET a = '%s'\" % (qn(t), name))\n"
+        "    cursor.execute(\"SELECT * FROM %s WHERE n = '%s' AND x = %%s\" % (t, name))\n"
+        "    cursor.execute(f\"SELECT {qn(t)} FROM t WHERE n = '{name}'\")\n"
+        "    cursor.execute('SELECT * FROM %s' % t)\n")
+    assert _lines(tmp_path, code, "sql-injection") == [9, 10, 11, 12]
+
+
+def test_random_value_put_in_a_session_or_cookie_is_a_secret(tmp_path):
+    # OWASP Benchmark Python weakrand: `value = str(random.random())[2:]`,
+    # then `mysession[cookie] = value`. SystemRandom and secrets are fine.
+    code = (
+        "import random, secrets\n"
+        "def remember(resp):\n"
+        "    value = str(random.normalvariate())[2:]\n"
+        "    session['rememberMe'] = value\n"
+        "def remember_ok(resp):\n"
+        "    value = str(random.SystemRandom().getrandbits(32))\n"
+        "    other = secrets.token_hex(16)\n"
+        "    session['rememberMe'] = value\n"
+        "def jitter():\n"
+        "    delay = random.uniform(0, 1)\n"
+        "    return delay\n"
+        "def direct(resp):\n"
+        "    resp.set_cookie('id', str(random.getrandbits(64)))\n")
+    assert _lines(tmp_path, code, "insecure-random-for-secret") == [3, 13]
+
+
+def test_streaming_weak_digest_in_a_password_handler(tmp_path):
+    # OWASP Benchmark Python hash: `h = hashlib.new('md5'); h.update(input)`,
+    # written to passwordFile.txt. aiohttp's digest-auth cnonce (a one-shot
+    # sha1 of a counter in a function that holds a password) is not reported.
+    code = (
+        "import hashlib\n"
+        "def store(data):\n"
+        "    h = hashlib.new('md5')\n"
+        "    h.update(data)\n"
+        "    open('passwordFile.txt', 'a').write(h.hexdigest())\n"
+        "def sign(self):\n"
+        "    a1 = self._password_bytes\n"
+        "    cnonce = hashlib.sha1(str(self._count).encode()).hexdigest()\n"
+        "def etag(data):\n"
+        "    h = hashlib.md5()\n"
+        "    h.update(data)\n"
+        "def store_strong(data):\n"
+        "    h = hashlib.sha512()\n"
+        "    open('passwordFile.txt', 'a').write(h.hexdigest())\n")
+    assert _lines(tmp_path, code, "weak-password-hash") == [3]
+
+
+def test_eval_behind_a_validating_guard_is_fine(tmp_path):
+    # OWASP Benchmark Python codeinj: the safe twins return early unless the
+    # input is a plain string literal. A guard elsewhere, or none, still reports.
+    code = (
+        "def ok(bar):\n"
+        "    if not bar.startswith(\"'\") or not bar.endswith(\"'\"):\n"
+        "        return 'must be a literal'\n"
+        "    return eval(bar)\n"
+        "def name_only(expr, ns):\n"
+        "    if not expr.isidentifier():\n"
+        "        raise ValueError(expr)\n"
+        "    return eval(expr, {}, ns)\n"
+        "def unguarded(bar):\n"
+        "    if bar.startswith('x'):\n"
+        "        log(bar)\n"
+        "    return eval(bar)\n")
+    assert _lines(tmp_path, code, "code-injection") == [12]
+
+
+# --- CWE Top 25 round 1 (ARB-062) -------------------------------------------
+
+def test_jwt_decode_without_verification_every_spelling(tmp_path):
+    code = (
+        "import jwt\n"
+        "from jose import jwt as jose_jwt\n"
+        "def a(t):\n"
+        "    return jwt.decode(t, options={'verify_signature': False})\n"
+        "def b(t):\n"
+        "    return jwt.decode(t, verify=False)\n"
+        "def c(t, k):\n"
+        "    return jwt.decode(t, k, algorithms=['HS256', 'none'])\n"
+        "def d(t):\n"
+        "    return jose_jwt.get_unverified_claims(t)\n"
+        "def e(t):\n"
+        "    opts = {'verify_signature': False}\n"
+        "    return jwt.decode(t, options=opts)\n"
+        "def f(t):\n"
+        "    return jwt.decode(t, options=dict(verify_signature=False))\n")
+    assert _lines(tmp_path, code, "jwt-unverified-decode") == [4, 6, 8, 10, 12, 15]
+
+
+def test_jwt_peek_then_verify_and_header_reads_are_fine(tmp_path):
+    # Reading `iss`/`kid` unverified to pick the key, then verifying with an
+    # algorithm list, is how multi-issuer validation is written.
+    code = (
+        "import jwt\n"
+        "def verify(t, keys):\n"
+        "    iss = jwt.decode(t, options={'verify_signature': False})['iss']\n"
+        "    return jwt.decode(t, keys[iss], algorithms=['RS256'], audience='api')\n"
+        "def kid(t):\n"
+        "    return jwt.get_unverified_header(t)['kid']\n"
+        "def exp_only(t, k):\n"
+        "    return jwt.decode(t, k, algorithms=['HS256'], options={'verify_exp': False})\n")
+    assert _lines(tmp_path, code, "jwt-unverified-decode") == []
+
+
+def test_jwt_literal_key_skips_placeholders_and_unrelated_constants(tmp_path):
+    code = (
+        "import jwt, os\n"
+        "JWT_KEY = 'changeme-in-production'\n"
+        "OTHER_KEY = 'q8Vz-m2Lr7-tKw4P-zz'\n"
+        "def a(p):\n"
+        "    return jwt.encode(p, JWT_KEY, algorithm='HS256')\n"
+        "def b(p):\n"
+        "    return jwt.encode(p, os.environ['K'], algorithm='HS256')\n"
+        "def c(p):\n"
+        "    return jwt.encode(p, 'short', algorithm='HS256')\n")
+    assert _lines(tmp_path, code, "jwt-literal-signing-key") == []
+
+
+def test_traceback_behind_a_debug_flag_is_not_reported(tmp_path):
+    # django/core/handlers/asgi.py:294
+    code = (
+        "import traceback\n"
+        "from django.conf import settings\n"
+        "from django.http import HttpResponseServerError\n"
+        "def handle(request):\n"
+        "    try:\n"
+        "        return run(request)\n"
+        "    except Exception:\n"
+        "        return HttpResponseServerError(\n"
+        "            traceback.format_exc() if settings.DEBUG else 'Internal Server Error')\n"
+        "def leak(request):\n"
+        "    try:\n"
+        "        return run(request)\n"
+        "    except Exception:\n"
+        "        return HttpResponseServerError(traceback.format_exc())\n"
+        "def logged():\n"
+        "    log.error('failed: %s', traceback.format_exc())\n")
+    assert _lines(tmp_path, code, "error-traceback-to-client") == [14]
+
+
+def test_exception_message_only_from_a_catch_all_handler(tmp_path):
+    code = (
+        "from fastapi import HTTPException\n"
+        "from flask import jsonify\n"
+        "def parse(body):\n"
+        "    try:\n"
+        "        return int(body)\n"
+        "    except ValueError as e:\n"
+        "        return jsonify(error=str(e)), 400\n"
+        "def run(job):\n"
+        "    try:\n"
+        "        job()\n"
+        "    except Exception as exc:\n"
+        "        raise HTTPException(status_code=500, detail=str(exc))\n"
+        "def other(job):\n"
+        "    try:\n"
+        "        job()\n"
+        "    except Exception as exc:\n"
+        "        return jsonify(error=str(job)), 500\n"
+        "def helper(job):\n"
+        "    try:\n"
+        "        job()\n"
+        "    except Exception as exc:\n"
+        "        return str(exc)\n")
+    assert _lines(tmp_path, code, "error-message-to-client") == [12]
+
+
+def test_csrf_exempt_is_reported_only_on_a_session_authenticated_view(tmp_path):
+    code = (
+        "from django.views.decorators.csrf import csrf_exempt\n"
+        "import hmac\n"
+        "@csrf_exempt\n"
+        "def stripe_webhook(request):\n"
+        "    request.user\n"
+        "@csrf_exempt\n"
+        "def api(request):\n"
+        "    token = request.headers['Authorization']\n"
+        "    request.user\n"
+        "@csrf_exempt\n"
+        "def public_ping(request):\n"
+        "    return ok()\n"
+        "@csrf_exempt\n"
+        "def transfer(request):\n"
+        "    request.user.account.transfer(request.POST['to'])\n")
+    assert _lines(tmp_path, code, "csrf-protection-disabled") == [13]
+
+
+def test_csrf_exempt_dispatcher_that_reapplies_csrf_protect_is_fine(tmp_path):
+    # zulip's rest_dispatch: exempt, then csrf_protect() on the session branch.
+    code = (
+        "from django.views.decorators.csrf import csrf_exempt, csrf_protect\n"
+        "@csrf_exempt\n"
+        "def rest_dispatch(request, **kwargs):\n"
+        "    target = kwargs[request.method]\n"
+        "    if request.user.is_authenticated:\n"
+        "        target = csrf_protect(session_view(target))\n"
+        "    return target(request)\n"
+        "@csrf_exempt\n"
+        "def settings_post(request):\n"
+        "    request.user.save_settings(request.POST)\n")
+    assert _lines(tmp_path, code, "csrf-protection-disabled") == [8]
+
+
+def test_wtf_csrf_off_in_a_test_config_is_fine(tmp_path):
+    code = (
+        "class Config:\n"
+        "    WTF_CSRF_ENABLED = False\n"
+        "class TestingConfig(Config):\n"
+        "    WTF_CSRF_ENABLED = False\n"
+        "app.config['WTF_CSRF_ENABLED'] = False\n")
+    assert _lines(tmp_path, code, "csrf-protection-disabled") == [2, 5]
+
+
+# ------------------------------------------- CWE Top 25 round 2 (ARB-062)
+
+def test_argument_injection_needs_a_request_value_and_no_separator(tmp_path):
+    code = (
+        "import subprocess\n"
+        "from flask import request\n"
+        "def a():\n"
+        "    subprocess.run(['git', 'log', '--', request.args['ref']])\n"         # separated
+        "    subprocess.run(['git', 'checkout', f\"--branch={request.args['b']}\"])\n"  # bound to its option
+        "def b(path):\n"
+        "    subprocess.run(['tar', '-czf', 'out.tgz', path])\n"                  # not from the request
+        "def c():\n"
+        "    ref = request.args['ref']\n"
+        "    if ref.startswith('-'):\n"
+        "        return 'bad', 400\n"
+        "    subprocess.run(['git', 'show', ref])\n"                              # dash check
+        "def d():\n"
+        "    host = request.args.get('host')\n"
+        "    return subprocess.check_output(['ssh', host, 'uptime'])\n")          # 15
+    assert _lines(tmp_path, code, "argument-injection") == [15]
+
+
+def test_upload_rule_needs_an_upload_a_write_and_no_guard(tmp_path):
+    code = (
+        "import uuid\n"
+        "from fastapi import UploadFile\n"
+        "from werkzeug.utils import secure_filename\n"
+        "from flask import request\n"
+        "def zip_entries(zf):\n"
+        "    for info in zf.infolist():\n"
+        "        with open(info.filename, 'wb') as out:\n"                         # no upload in scope
+        "            out.write(zf.read(info))\n"
+        "def read_back(file: UploadFile):\n"
+        "    with open(file.filename) as fh:\n"                                    # read mode
+        "        return fh.read()\n"
+        "def flask_ok():\n"
+        "    f = request.files['a']\n"
+        "    f.save('/srv/up/' + secure_filename(f.filename))\n"                   # sanitised
+        "def django_ok(request):\n"
+        "    f = request.FILES['doc']\n"
+        "    with open(f'media/{uuid.uuid4().hex}.pdf', 'wb') as out:\n"           # server name
+        "        out.write(f.read())\n"
+        "async def fastapi_bad(file: UploadFile):\n"
+        "    with open(f'uploads/{file.filename}', mode='wb') as out:\n"           # 20
+        "        out.write(await file.read())\n")
+    assert _lines(tmp_path, code, "upload-client-filename") == [20]
+
+
+def test_debug_mode_only_for_a_literal_true_in_a_web_app(tmp_path):
+    code = (
+        "import os\n"
+        "from flask import Flask\n"
+        "app = Flask(__name__)\n"
+        "app.run(debug=os.environ.get('FLASK_DEBUG') == '1')\n"
+        "app.config['DEBUG'] = True\n")
+    assert _lines(tmp_path, code, "debug-mode-enabled") == [5]
+    # unittest's `suite.run(result, debug=True)` in a module that is not a web app.
+    (tmp_path / "other").mkdir()
+    assert not _lines(tmp_path / "other", "def go(suite, r):\n    suite.run(r, debug=True)\n",
+                      "debug-mode-enabled", name="runner.py")
+def test_sql_spliced_from_a_local_built_by_quoting_is_fine(tmp_path):
+    """Round 2 (ARB-065): simple in-function constant tracking. Django's cache
+    backend quotes the table into a local first (`table = quote_name(...)`,
+    db.py:76/136/233/302), celery's session.py quotes `col_name` and compiles
+    `col_type`, createcachetable chooses `unique` between two literals."""
+    code = (
+        "def f(self, cursor, connection, keys, col, preparer, engine, flag):\n"
+        "    quote_name = connection.ops.quote_name\n"
+        "    table = quote_name(self._table)\n"
+        "    cursor.execute('DELETE FROM %s' % table)\n"
+        "    cursor.execute('DELETE FROM %s WHERE %s IN (%s)' % (\n"
+        "        table, quote_name('k'), ', '.join(['%s'] * len(keys))), keys)\n"
+        "    col_name = preparer.quote_identifier(col.name)\n"
+        "    col_type = col.type.compile(engine.dialect)\n"
+        "    stmt = f'ALTER TABLE {table} ADD COLUMN {col_name} {col_type}'\n"
+        "    unique = 'UNIQUE ' if flag else ''\n"
+        "    cursor.execute('CREATE %sINDEX %s ON %s' % (unique, quote_name('i'), table))\n"
+        "    cursor.execute(str(constraint_sql) + ' NOT VALID')\n"
+        "    cursor.execute('SELECT %s FROM t' % ', '.join(self.quote_name(c) for c in keys))\n"
+        "    cursor.execute(sql.SQL('x') if 0 else 'SELECT * FROM {}'.format(sql.Identifier(t)))\n"
+        # still reported: a parameter, a local assigned from a parameter in
+        # one branch, a container filled later, a loop variable
+        "def g(cursor, name, flag, rows):\n"
+        "    cursor.execute('SELECT %s()' % name)\n"
+        "    t = 'jobs'\n"
+        "    if flag:\n"
+        "        t = name\n"
+        "    cursor.execute('DELETE FROM %s' % t)\n"
+        "    parts = []\n"
+        "    parts.append(name)\n"
+        "    cursor.execute('SELECT * FROM (%s)' % ' UNION '.join(parts))\n"
+        "    for r in rows:\n"
+        "        cursor.execute(f'DELETE FROM {r}')\n")
+    assert _lines(tmp_path, code, "sql-injection") == [16, 20, 23, 25]
+
+
+def test_safe_splice_keys_are_python_and_ruby_only():
+    from arbiter.lang_rules import PackError, validate_pack
+    rule = {"id": "x", "title": "t", "query": "(identifier) @hit", "remediation": "r",
+            "safe_splice_names": "[A-Z]+"}
+    validate_pack({"languages": ["python"], "rules": [rule]}, "p")
+    validate_pack({"languages": ["ruby"], "rules": [rule]}, "r")
+    with pytest.raises(PackError):
+        validate_pack({"languages": ["go"], "rules": [rule]}, "g")
+    with pytest.raises(PackError):
+        validate_pack({"languages": ["python", "ruby"], "rules": [rule]}, "pr")
+    ruby_only = {**rule, "safe_splice_values": "x"}
+    validate_pack({"languages": ["ruby"], "rules": [ruby_only]}, "r")
+    with pytest.raises(PackError):
+        validate_pack({"languages": ["python"], "rules": [ruby_only]}, "p")
+    with pytest.raises(PackError):
+        validate_pack({"languages": ["python"], "rules": [{**rule, "safe_splice_names": "("}]}, "p")

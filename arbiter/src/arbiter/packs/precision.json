@@ -1,0 +1,9854 @@
+{
+ "_about": "Per-rule precision ledger (docs/precision.md). Built by tools/precision_ledger.py from label files; do not edit by hand. A rule is admitted when its Wilson 95% lower bound reaches bar.rule_lower on at least bar.rule_min_n TP+FP labels, with labeller kappa at least bar.kappa_min where two labellers looked. `tier` is the claim: verified-tier precision on held-out labels only, stratified by (rule, source, language) and weighted by each stratum's population, overall and per category.",
+ "version": 1,
+ "bar": {
+  "rule_lower": 0.97,
+  "rule_min_n": 30,
+  "kappa_min": 0.8,
+  "offline_lower": 0.99,
+  "tier_lower": 0.99
+ },
+ "generated": "2026-10-23",
+ "rules": {
+  "arbiter/assurance.analysis-excluded": {
+   "tp": 1,
+   "fp": 1,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.5,
+   "wilson_lower": 0.0945,
+   "wilson_upper": 0.9055,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 7,
+   "held_out_population": 1,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "toml",
+     "population": 3,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "yaml",
+     "population": 4,
+     "held_out_population": 1,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 11,
+     "held_out_population": 2
+    }
+   },
+   "weighted": {
+    "precision": 0.4286,
+    "wilson_lower": 0.0704,
+    "wilson_upper": 0.8813,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 1,
+    "fp": 1,
+    "population": 7,
+    "strata": 2,
+    "pooled": {
+     "precision": 0.5,
+     "wilson_lower": 0.0945
+    }
+   },
+   "dimension": "",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/assurance.blanket-suppression": {
+   "tp": 150,
+   "fp": 0,
+   "unsure": 0,
+   "n": 150,
+   "held_out": {
+    "tp": 20,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.975,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 150,
+   "held_out_population": 20,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 62,
+     "held_out_population": 1,
+     "tp": 62,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 88,
+     "held_out_population": 19,
+     "tp": 88,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 19,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 150,
+     "held_out_population": 20
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.975,
+    "wilson_upper": 1.0,
+    "n_eff": 150.0,
+    "n_eff_kish": 150.0,
+    "tp": 150,
+    "fp": 0,
+    "population": 150,
+    "strata": 2,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.975
+    }
+   },
+   "dimension": "",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": true,
+   "admitted_reason": "lower bound 0.975 on 150 labels",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/assurance.permanently-skipped-test": {
+   "tp": 5,
+   "fp": 0,
+   "unsure": 0,
+   "n": 5,
+   "held_out": {
+    "tp": 1,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.5655,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 191,
+   "held_out_population": 69,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 112,
+     "held_out_population": 49,
+     "tp": 3,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 41,
+     "held_out_population": 1,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 38,
+     "held_out_population": 19,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 192,
+     "held_out_population": 69
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.5652,
+    "wilson_upper": 1.0,
+    "n_eff": 5.0,
+    "n_eff_kish": 5.0,
+    "tp": 5,
+    "fp": 0,
+    "population": 191,
+    "strata": 3,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.5655
+    }
+   },
+   "dimension": "",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "5 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 4,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/assurance.test-asserts-nothing": {
+   "tp": 4,
+   "fp": 4,
+   "unsure": 0,
+   "n": 8,
+   "held_out": {
+    "tp": 2,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.5,
+   "wilson_lower": 0.2152,
+   "wilson_upper": 0.7848,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender+adjudicator/v3",
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model",
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 75,
+   "held_out_population": 26,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "python",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 14,
+     "held_out_population": 3,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 13,
+     "held_out_population": 0,
+     "tp": 2,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 47,
+     "held_out_population": 23,
+     "tp": 1,
+     "fp": 3,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    },
+    "gold-model": {
+     "population": 74,
+     "held_out_population": 26
+    }
+   },
+   "weighted": {
+    "precision": 0.5167,
+    "wilson_lower": 0.2096,
+    "wilson_upper": 0.8117,
+    "n_eff": 6.7,
+    "n_eff_kish": 6.7,
+    "tp": 4,
+    "fp": 4,
+    "population": 75,
+    "strata": 4,
+    "pooled": {
+     "precision": 0.5,
+     "wilson_lower": 0.2152
+    }
+   },
+   "dimension": "",
+   "cwe": [
+    "CWE-1164"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "8 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 5,
+    "ai-corpus": 1
+   }
+  },
+  "arbiter/authored.docstring-promises-absent-behaviour": {
+   "tp": 0,
+   "fp": 4,
+   "unsure": 0,
+   "n": 4,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.4899,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 5,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 5,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 4,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 5,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.4899,
+    "n_eff": 4.0,
+    "n_eff_kish": 4.0,
+    "tp": 0,
+    "fp": 4,
+    "population": 5,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "4 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/authored.security-check-disabled": {
+   "tp": 0,
+   "fp": 6,
+   "unsure": 0,
+   "n": 6,
+   "held_out": {
+    "tp": 0,
+    "fp": 2,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.3903,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 82,
+   "held_out_population": 28,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 33,
+     "held_out_population": 11,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 1,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "html",
+     "population": 4,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 11,
+     "held_out_population": 3,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 30,
+     "held_out_population": 11,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 1,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "yaml",
+     "population": 4,
+     "held_out_population": 3,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 86,
+     "held_out_population": 29
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.4772,
+    "n_eff": 4.2,
+    "n_eff_kish": 4.2,
+    "tp": 0,
+    "fp": 6,
+    "population": 82,
+    "strata": 5,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "",
+   "cwe": [
+    "CWE-295"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "6 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/authored.stub-on-production-path": {
+   "tp": 0,
+   "fp": 5,
+   "unsure": 0,
+   "n": 5,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.4345,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 52,
+   "held_out_population": 3,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 52,
+     "held_out_population": 3,
+     "tp": 0,
+     "fp": 5,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 52,
+     "held_out_population": 3
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.4345,
+    "n_eff": 5.0,
+    "n_eff_kish": 5.0,
+    "tp": 0,
+    "fp": 5,
+    "population": 52,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "",
+   "cwe": [
+    "CWE-1164"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "5 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/authored.undeclared-import": {
+   "tp": 0,
+   "fp": 2,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.6576,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 3,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 2,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 3,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.6809,
+    "n_eff": 1.8,
+    "n_eff_kish": 1.8,
+    "tp": 0,
+    "fp": 2,
+    "population": 3,
+    "strata": 2,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "",
+   "cwe": [
+    "CWE-1357"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/concurrency.check-then-act-unlocked": {
+   "tp": 0,
+   "fp": 2,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.6576,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 12,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 12,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 12,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.6576,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 0,
+    "fp": 2,
+    "population": 12,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "",
+   "cwe": [
+    "CWE-362"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/contract.documented-route-not-registered": {
+   "tp": 0,
+   "fp": 1,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 1,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.7935,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender+adjudicator/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "held_out_population": 2,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "json",
+     "population": 2,
+     "held_out_population": 2,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 1,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 2,
+     "held_out_population": 2
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.7935,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 0,
+    "fp": 1,
+    "population": 2,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/contract.dropped-column-still-referenced": {
+   "tp": 0,
+   "fp": 1,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.7935,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "json",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.7935,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 0,
+    "fp": 1,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/drift.broken-doc-link": {
+   "tp": 3,
+   "fp": 3,
+   "unsure": 0,
+   "n": 6,
+   "held_out": {
+    "tp": 2,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.5,
+   "wilson_lower": 0.1876,
+   "wilson_upper": 0.8124,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender+adjudicator/v3",
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 582,
+   "held_out_population": 94,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "markdown",
+     "population": 582,
+     "held_out_population": 94,
+     "tp": 3,
+     "fp": 3,
+     "unsure": 0,
+     "held_out": {
+      "tp": 2,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 582,
+     "held_out_population": 94
+    }
+   },
+   "weighted": {
+    "precision": 0.5,
+    "wilson_lower": 0.1876,
+    "wilson_upper": 0.8124,
+    "n_eff": 6.0,
+    "n_eff_kish": 6.0,
+    "tp": 3,
+    "fp": 3,
+    "population": 582,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.5,
+     "wilson_lower": 0.1876
+    }
+   },
+   "dimension": "",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "6 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/drift.doc-references-missing-file": {
+   "tp": 0,
+   "fp": 6,
+   "unsure": 0,
+   "n": 6,
+   "held_out": {
+    "tp": 0,
+    "fp": 1,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.3903,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 105,
+   "held_out_population": 12,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "markdown",
+     "population": 105,
+     "held_out_population": 12,
+     "tp": 0,
+     "fp": 6,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 1,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 105,
+     "held_out_population": 12
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.3903,
+    "n_eff": 6.0,
+    "n_eff_kish": 6.0,
+    "tp": 0,
+    "fp": 6,
+    "population": 105,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "6 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/drift.documented-env-var-absent": {
+   "tp": 1,
+   "fp": 3,
+   "unsure": 0,
+   "n": 4,
+   "held_out": {
+    "tp": 0,
+    "fp": 2,
+    "unsure": 0
+   },
+   "precision": 0.25,
+   "wilson_lower": 0.0456,
+   "wilson_upper": 0.6994,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model",
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 8,
+   "held_out_population": 5,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "markdown",
+     "population": 7,
+     "held_out_population": 5,
+     "tp": 0,
+     "fp": 3,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 2,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    },
+    "gold-model": {
+     "population": 7,
+     "held_out_population": 5
+    }
+   },
+   "weighted": {
+    "precision": 0.125,
+    "wilson_lower": 0.0123,
+    "wilson_upper": 0.6201,
+    "n_eff": 3.7,
+    "n_eff_kish": 3.7,
+    "tp": 1,
+    "fp": 3,
+    "population": 8,
+    "strata": 2,
+    "pooled": {
+     "precision": 0.25,
+     "wilson_lower": 0.0456
+    }
+   },
+   "dimension": "",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "4 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/go.check-then-act-map": {
+   "tp": 0,
+   "fp": 2,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 2,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.6576,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 3,
+   "held_out_population": 3,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 3,
+     "held_out_population": 3,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 2,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 3,
+     "held_out_population": 3
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.6576,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 0,
+    "fp": 2,
+    "population": 3,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-362",
+    "CWE-367"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/go.command-injection": {
+   "tp": 1,
+   "fp": 1,
+   "unsure": 1,
+   "n": 2,
+   "held_out": {
+    "tp": 1,
+    "fp": 1,
+    "unsure": 0
+   },
+   "precision": 0.5,
+   "wilson_lower": 0.0945,
+   "wilson_upper": 0.9055,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 3,
+   "held_out_population": 2,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 3,
+     "held_out_population": 2,
+     "tp": 1,
+     "fp": 1,
+     "unsure": 1,
+     "held_out": {
+      "tp": 1,
+      "fp": 1,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 3,
+     "held_out_population": 2
+    }
+   },
+   "weighted": {
+    "precision": 0.5,
+    "wilson_lower": 0.0945,
+    "wilson_upper": 0.9055,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 1,
+    "fp": 1,
+    "population": 3,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.5,
+     "wilson_lower": 0.0945
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-78"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/go.db-call-no-deadline": {
+   "tp": 12,
+   "fp": 0,
+   "unsure": 0,
+   "n": 12,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.7575,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 12,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "go",
+     "population": 12,
+     "held_out_population": 0,
+     "tp": 12,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 12,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.7575,
+    "wilson_upper": 1.0,
+    "n_eff": 12.0,
+    "n_eff_kish": 12.0,
+    "tp": 12,
+    "fp": 0,
+    "population": 12,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.7575
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "12 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 12
+   }
+  },
+  "arbiter/go.error-text-in-response": {
+   "tp": 5,
+   "fp": 1,
+   "unsure": 0,
+   "n": 6,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.8333,
+   "wilson_lower": 0.4365,
+   "wilson_upper": 0.9699,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 6,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 6,
+     "held_out_population": 0,
+     "tp": 5,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 6,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.8333,
+    "wilson_lower": 0.4365,
+    "wilson_upper": 0.9699,
+    "n_eff": 6.0,
+    "n_eff_kish": 6.0,
+    "tp": 5,
+    "fp": 1,
+    "population": 6,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.8333,
+     "wilson_lower": 0.4365
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-200",
+    "CWE-209"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "6 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 6,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/go.http-client-no-timeout": {
+   "tp": 2,
+   "fp": 1,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 1,
+    "unsure": 0
+   },
+   "precision": 0.6667,
+   "wilson_lower": 0.2077,
+   "wilson_upper": 0.9385,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 8,
+   "held_out_population": 5,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 8,
+     "held_out_population": 5,
+     "tp": 2,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 1,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 8,
+     "held_out_population": 5
+    }
+   },
+   "weighted": {
+    "precision": 0.6667,
+    "wilson_lower": 0.2077,
+    "wilson_upper": 0.9385,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 2,
+    "fp": 1,
+    "population": 8,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.6667,
+     "wilson_lower": 0.2077
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/go.http-default-client": {
+   "tp": 7,
+   "fp": 0,
+   "unsure": 0,
+   "n": 7,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.6457,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 7,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 7,
+     "held_out_population": 0,
+     "tp": 7,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 7,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.6457,
+    "wilson_upper": 1.0,
+    "n_eff": 7.0,
+    "n_eff_kish": 7.0,
+    "tp": 7,
+    "fp": 0,
+    "population": 7,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.6457
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "7 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/go.ignored-encode-error": {
+   "tp": 2,
+   "fp": 0,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.3424,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 5,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "go",
+     "population": 5,
+     "held_out_population": 0,
+     "tp": 2,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 5,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.3424,
+    "wilson_upper": 1.0,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 2,
+    "fp": 0,
+    "population": 5,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.3424
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-252"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 5
+   }
+  },
+  "arbiter/go.ignored-exec-error": {
+   "tp": 2,
+   "fp": 0,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.3424,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "go",
+     "population": 2,
+     "held_out_population": 0,
+     "tp": 2,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 2,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.3424,
+    "wilson_upper": 1.0,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 2,
+    "fp": 0,
+    "population": 2,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.3424
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-252"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 2
+   }
+  },
+  "arbiter/go.image-decode-unbounded": {
+   "tp": 2,
+   "fp": 0,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.3424,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "go",
+     "population": 2,
+     "held_out_population": 0,
+     "tp": 2,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 2,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.3424,
+    "wilson_upper": 1.0,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 2,
+    "fp": 0,
+    "population": 2,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.3424
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400",
+    "CWE-409"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 2
+   }
+  },
+  "arbiter/go.pprof-on-default-mux": {
+   "tp": 1,
+   "fp": 0,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 1,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.2065,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "held_out_population": 1,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 1,
+     "held_out_population": 1,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 1,
+     "held_out_population": 1
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.2065,
+    "wilson_upper": 1.0,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 1,
+    "fp": 0,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.2065
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-200",
+    "CWE-489"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/go.request-body-read-unbounded": {
+   "tp": 2,
+   "fp": 0,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.3424,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 2,
+     "held_out_population": 0,
+     "tp": 2,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 2,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.3424,
+    "wilson_upper": 1.0,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 2,
+    "fp": 0,
+    "population": 2,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.3424
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400",
+    "CWE-770"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/go.retry-constant-delay": {
+   "tp": 2,
+   "fp": 0,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 1,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.3424,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model",
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "held_out_population": 1,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "go",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 1,
+     "held_out_population": 1,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    },
+    "gold-model": {
+     "population": 1,
+     "held_out_population": 1
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.3424,
+    "wilson_upper": 1.0,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 2,
+    "fp": 0,
+    "population": 2,
+    "strata": 2,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.3424
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 1
+   }
+  },
+  "arbiter/go.retry-no-backoff": {
+   "tp": 1,
+   "fp": 1,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.5,
+   "wilson_lower": 0.0945,
+   "wilson_upper": 0.9055,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 5,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 5,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 5,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.5,
+    "wilson_lower": 0.0945,
+    "wilson_upper": 0.9055,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 1,
+    "fp": 1,
+    "population": 5,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.5,
+     "wilson_lower": 0.0945
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400",
+    "CWE-834"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/go.sql-injection": {
+   "tp": 0,
+   "fp": 3,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.5615,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 3,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "go",
+     "population": 3,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 3,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 3,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.5615,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 0,
+    "fp": 3,
+    "population": 3,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-89"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 5,
+    "ai-corpus": 3
+   }
+  },
+  "arbiter/go.ssrf-stored-callback": {
+   "tp": 0,
+   "fp": 0,
+   "unsure": 1,
+   "n": 0,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": null,
+   "wilson_lower": null,
+   "wilson_upper": null,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "go",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 0,
+     "unsure": 1,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": null,
+   "dimension": "security",
+   "cwe": [
+    "CWE-918"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "0 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 1
+   }
+  },
+  "arbiter/go.stub-not-implemented": {
+   "tp": 0,
+   "fp": 2,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 2,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.6576,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 4,
+   "held_out_population": 3,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 4,
+     "held_out_population": 3,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 2,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 4,
+     "held_out_population": 3
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.6576,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 0,
+    "fp": 2,
+    "population": 4,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-1164"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/go.stub-returns-nil": {
+   "tp": 0,
+   "fp": 3,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 3,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.5615,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 3,
+   "held_out_population": 3,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 3,
+     "held_out_population": 3,
+     "tp": 0,
+     "fp": 3,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 3,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 3,
+     "held_out_population": 3
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.5615,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 0,
+    "fp": 3,
+    "population": 3,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-1164"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/go.test-skipped-unconditionally": {
+   "tp": 2,
+   "fp": 0,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.3424,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 3,
+   "held_out_population": 1,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 3,
+     "held_out_population": 1,
+     "tp": 2,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 3,
+     "held_out_population": 1
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.3424,
+    "wilson_upper": 1.0,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 2,
+    "fp": 0,
+    "population": 3,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.3424
+    }
+   },
+   "dimension": "assurance",
+   "cwe": [
+    "CWE-1164"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/go.worker-loop-no-stop": {
+   "tp": 2,
+   "fp": 1,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 1,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.6667,
+   "wilson_lower": 0.2077,
+   "wilson_upper": 0.9385,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 9,
+   "held_out_population": 4,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 9,
+     "held_out_population": 4,
+     "tp": 2,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 9,
+     "held_out_population": 4
+    }
+   },
+   "weighted": {
+    "precision": 0.6667,
+    "wilson_lower": 0.2077,
+    "wilson_upper": 0.9385,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 2,
+    "fp": 1,
+    "population": 9,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.6667,
+     "wilson_lower": 0.2077
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-835"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.check-then-act-unsynchronized": {
+   "tp": 0,
+   "fp": 2,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.6576,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 2,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 2,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.6576,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 0,
+    "fp": 2,
+    "population": 2,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-362",
+    "CWE-366"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.command-injection": {
+   "tp": 571,
+   "fp": 303,
+   "unsure": 0,
+   "n": 874,
+   "held_out": {
+    "tp": 571,
+    "fp": 302,
+    "unsure": 0
+   },
+   "precision": 0.6533,
+   "wilson_lower": 0.6212,
+   "wilson_upper": 0.6841,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender+adjudicator/v3",
+    "claude-opus-5-5:prosecutor+defender/v3",
+    "ground-truth"
+   ],
+   "sources": [
+    "gold-model",
+    "juliet-java",
+    "owasp-java"
+   ],
+   "dates": {},
+   "population": 877,
+   "held_out_population": 875,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 5,
+     "held_out_population": 3,
+     "tp": 1,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "juliet-java",
+     "language": "java",
+     "population": 660,
+     "held_out_population": 660,
+     "tp": 444,
+     "fp": 216,
+     "unsure": 0,
+     "held_out": {
+      "tp": 444,
+      "fp": 216,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "owasp-java",
+     "language": "java",
+     "population": 212,
+     "held_out_population": 212,
+     "tp": 126,
+     "fp": 86,
+     "unsure": 0,
+     "held_out": {
+      "tp": 126,
+      "fp": 86,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 5,
+     "held_out_population": 3
+    },
+    "juliet-java": {
+     "population": 660,
+     "held_out_population": 660
+    },
+    "owasp-java": {
+     "population": 212,
+     "held_out_population": 212
+    }
+   },
+   "weighted": {
+    "precision": 0.6528,
+    "wilson_lower": 0.6205,
+    "wilson_upper": 0.6837,
+    "n_eff": 869.6,
+    "n_eff_kish": 869.6,
+    "tp": 571,
+    "fp": 303,
+    "population": 877,
+    "strata": 3,
+    "pooled": {
+     "precision": 0.6533,
+     "wilson_lower": 0.6212
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-78"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "lower bound 0.621 on 874 labels, below 0.97",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 7,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.decompress-read-unbounded": {
+   "tp": 0,
+   "fp": 1,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 1,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.7935,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "held_out_population": 1,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 1,
+     "held_out_population": 1,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 1,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 1,
+     "held_out_population": 1
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.7935,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 0,
+    "fp": 1,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400",
+    "CWE-409"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.hostname-verifier-disabled": {
+   "tp": 0,
+   "fp": 1,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 1,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.7935,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "held_out_population": 1,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 1,
+     "held_out_population": 1,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 1,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 1,
+     "held_out_population": 1
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.7935,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 0,
+    "fp": 1,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-295"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.image-decode-unbounded": {
+   "tp": 2,
+   "fp": 0,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.3424,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "java",
+     "population": 2,
+     "held_out_population": 0,
+     "tp": 2,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 2,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.3424,
+    "wilson_upper": 1.0,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 2,
+    "fp": 0,
+    "population": 2,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.3424
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400",
+    "CWE-409"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 2
+   }
+  },
+  "arbiter/java.jackson-default-typing": {
+   "tp": 0,
+   "fp": 3,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.5615,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 8,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 8,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 3,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 8,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.5615,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 0,
+    "fp": 3,
+    "population": 8,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-502"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.mail-starttls-not-required": {
+   "tp": 1,
+   "fp": 0,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.2065,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "java",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.2065,
+    "wilson_upper": 1.0,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 1,
+    "fp": 0,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.2065
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-319"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 1
+   }
+  },
+  "arbiter/java.object-input-stream": {
+   "tp": 2,
+   "fp": 2,
+   "unsure": 0,
+   "n": 4,
+   "held_out": {
+    "tp": 1,
+    "fp": 1,
+    "unsure": 0
+   },
+   "precision": 0.5,
+   "wilson_lower": 0.15,
+   "wilson_upper": 0.85,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender+adjudicator/v3",
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 8,
+   "held_out_population": 4,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 8,
+     "held_out_population": 4,
+     "tp": 2,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 1,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 8,
+     "held_out_population": 4
+    }
+   },
+   "weighted": {
+    "precision": 0.5,
+    "wilson_lower": 0.15,
+    "wilson_upper": 0.85,
+    "n_eff": 4.0,
+    "n_eff_kish": 4.0,
+    "tp": 2,
+    "fp": 2,
+    "population": 8,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.5,
+     "wilson_lower": 0.15
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-502"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "4 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.rest-template-no-timeout": {
+   "tp": 4,
+   "fp": 0,
+   "unsure": 0,
+   "n": 4,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.5101,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 4,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 4,
+     "held_out_population": 0,
+     "tp": 4,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 4,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.5101,
+    "wilson_upper": 1.0,
+    "n_eff": 4.0,
+    "n_eff_kish": 4.0,
+    "tp": 4,
+    "fp": 0,
+    "population": 4,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.5101
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "4 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.retry-constant-delay": {
+   "tp": 1,
+   "fp": 0,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.2065,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "java",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.2065,
+    "wilson_upper": 1.0,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 1,
+    "fp": 0,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.2065
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 1
+   }
+  },
+  "arbiter/java.retry-without-backoff": {
+   "tp": 0,
+   "fp": 1,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.7935,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 2,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 2,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.7935,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 0,
+    "fp": 1,
+    "population": 2,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400",
+    "CWE-834"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.sql-string-built": {
+   "tp": 2492,
+   "fp": 1140,
+   "unsure": 0,
+   "n": 3632,
+   "held_out": {
+    "tp": 2492,
+    "fp": 1140,
+    "unsure": 0
+   },
+   "precision": 0.6861,
+   "wilson_lower": 0.6708,
+   "wilson_upper": 0.701,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3",
+    "ground-truth"
+   ],
+   "sources": [
+    "gold-model",
+    "juliet-java",
+    "owasp-java"
+   ],
+   "dates": {},
+   "population": 3633,
+   "held_out_population": 3633,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 2,
+     "held_out_population": 2,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 1,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "juliet-java",
+     "language": "java",
+     "population": 3300,
+     "held_out_population": 3300,
+     "tp": 2220,
+     "fp": 1080,
+     "unsure": 0,
+     "held_out": {
+      "tp": 2220,
+      "fp": 1080,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "owasp-java",
+     "language": "java",
+     "population": 331,
+     "held_out_population": 331,
+     "tp": 272,
+     "fp": 59,
+     "unsure": 0,
+     "held_out": {
+      "tp": 272,
+      "fp": 59,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 2,
+     "held_out_population": 2
+    },
+    "juliet-java": {
+     "population": 3300,
+     "held_out_population": 3300
+    },
+    "owasp-java": {
+     "population": 331,
+     "held_out_population": 331
+    }
+   },
+   "weighted": {
+    "precision": 0.6859,
+    "wilson_lower": 0.6706,
+    "wilson_upper": 0.7008,
+    "n_eff": 3631.0,
+    "n_eff_kish": 3631.0,
+    "tp": 2492,
+    "fp": 1140,
+    "population": 3633,
+    "strata": 3,
+    "pooled": {
+     "precision": 0.6861,
+     "wilson_lower": 0.6708
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-89"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "lower bound 0.671 on 3632 labels, below 0.97",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 9,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.ssrf-stored-callback": {
+   "tp": 0,
+   "fp": 0,
+   "unsure": 1,
+   "n": 0,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": null,
+   "wilson_lower": null,
+   "wilson_upper": null,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "java",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 0,
+     "unsure": 1,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": null,
+   "dimension": "security",
+   "cwe": [
+    "CWE-918"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "0 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 1
+   }
+  },
+  "arbiter/java.stub-method": {
+   "tp": 0,
+   "fp": 7,
+   "unsure": 0,
+   "n": 7,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.3543,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 56,
+   "held_out_population": 27,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 56,
+     "held_out_population": 27,
+     "tp": 0,
+     "fp": 7,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 56,
+     "held_out_population": 27
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.3543,
+    "n_eff": 7.0,
+    "n_eff_kish": 7.0,
+    "tp": 0,
+    "fp": 7,
+    "population": 56,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-1164"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "7 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.swallowed-exception": {
+   "tp": 3,
+   "fp": 1,
+   "unsure": 0,
+   "n": 4,
+   "held_out": {
+    "tp": 1,
+    "fp": 1,
+    "unsure": 0
+   },
+   "precision": 0.75,
+   "wilson_lower": 0.3006,
+   "wilson_upper": 0.9544,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 26,
+   "held_out_population": 19,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 26,
+     "held_out_population": 19,
+     "tp": 3,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 1,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 26,
+     "held_out_population": 19
+    }
+   },
+   "weighted": {
+    "precision": 0.75,
+    "wilson_lower": 0.3006,
+    "wilson_upper": 0.9544,
+    "n_eff": 4.0,
+    "n_eff_kish": 4.0,
+    "tp": 3,
+    "fp": 1,
+    "population": 26,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.75,
+     "wilson_lower": 0.3006
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-391",
+    "CWE-703"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "4 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.test-without-assertion": {
+   "tp": 2,
+   "fp": 4,
+   "unsure": 0,
+   "n": 6,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.3333,
+   "wilson_lower": 0.0968,
+   "wilson_upper": 0.7,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender+adjudicator/v3",
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 199,
+   "held_out_population": 45,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 199,
+     "held_out_population": 45,
+     "tp": 2,
+     "fp": 4,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 199,
+     "held_out_population": 45
+    }
+   },
+   "weighted": {
+    "precision": 0.3333,
+    "wilson_lower": 0.0968,
+    "wilson_upper": 0.7,
+    "n_eff": 6.0,
+    "n_eff_kish": 6.0,
+    "tp": 2,
+    "fp": 4,
+    "population": 199,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.3333,
+     "wilson_lower": 0.0968
+    }
+   },
+   "dimension": "assurance",
+   "cwe": [
+    "CWE-1164"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "6 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 7,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.trust-all-certificates": {
+   "tp": 0,
+   "fp": 2,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 2,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.6576,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 6,
+   "held_out_population": 5,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 6,
+     "held_out_population": 5,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 2,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 6,
+     "held_out_population": 5
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.6576,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 0,
+    "fp": 2,
+    "population": 6,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-295"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.unsynchronized-counter": {
+   "tp": 0,
+   "fp": 2,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.6576,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 8,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 8,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 8,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.6576,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 0,
+    "fp": 2,
+    "population": 8,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-362",
+    "CWE-366"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.upload-client-filename": {
+   "tp": 1,
+   "fp": 0,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.2065,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "java",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.2065,
+    "wilson_upper": 1.0,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 1,
+    "fp": 0,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.2065
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-434"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 1
+   }
+  },
+  "arbiter/java.url-connection-no-timeout": {
+   "tp": 0,
+   "fp": 3,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.5615,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 4,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 4,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 3,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 4,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.5615,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 0,
+    "fp": 3,
+    "population": 4,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.weak-random-for-secret": {
+   "tp": 218,
+   "fp": 0,
+   "unsure": 0,
+   "n": 218,
+   "held_out": {
+    "tp": 218,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.9827,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "ground-truth"
+   ],
+   "sources": [
+    "owasp-java"
+   ],
+   "dates": {},
+   "population": 218,
+   "held_out_population": 218,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "owasp-java",
+     "language": "java",
+     "population": 218,
+     "held_out_population": 218,
+     "tp": 218,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 218,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "owasp-java": {
+     "population": 218,
+     "held_out_population": 218
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.9827,
+    "wilson_upper": 1.0,
+    "n_eff": 218.0,
+    "n_eff_kish": 218.0,
+    "tp": 218,
+    "fp": 0,
+    "population": 218,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.9827
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-330",
+    "CWE-338"
+   ],
+   "fp_notes": [],
+   "admitted": true,
+   "admitted_reason": "lower bound 0.983 on 218 labels",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 7,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/java.xss-unescaped-html": {
+   "tp": 382,
+   "fp": 53,
+   "unsure": 0,
+   "n": 435,
+   "held_out": {
+    "tp": 382,
+    "fp": 53,
+    "unsure": 0
+   },
+   "precision": 0.8782,
+   "wilson_lower": 0.8441,
+   "wilson_upper": 0.9056,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "ground-truth"
+   ],
+   "sources": [
+    "juliet-java",
+    "owasp-java"
+   ],
+   "dates": {},
+   "population": 435,
+   "held_out_population": 435,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "juliet-java",
+     "language": "java",
+     "population": 162,
+     "held_out_population": 162,
+     "tp": 162,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 162,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "owasp-java",
+     "language": "java",
+     "population": 273,
+     "held_out_population": 273,
+     "tp": 220,
+     "fp": 53,
+     "unsure": 0,
+     "held_out": {
+      "tp": 220,
+      "fp": 53,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "juliet-java": {
+     "population": 162,
+     "held_out_population": 162
+    },
+    "owasp-java": {
+     "population": 273,
+     "held_out_population": 273
+    }
+   },
+   "weighted": {
+    "precision": 0.8782,
+    "wilson_lower": 0.8441,
+    "wilson_upper": 0.9056,
+    "n_eff": 435.0,
+    "n_eff_kish": 435.0,
+    "tp": 382,
+    "fp": 53,
+    "population": 435,
+    "strata": 2,
+    "pooled": {
+     "precision": 0.8782,
+     "wilson_lower": 0.8441
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-79"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "lower bound 0.844 on 435 labels, below 0.97",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/python.code-injection": {
+   "tp": 22,
+   "fp": 12,
+   "unsure": 0,
+   "n": 34,
+   "held_out": {
+    "tp": 20,
+    "fp": 11,
+    "unsure": 0
+   },
+   "precision": 0.6471,
+   "wilson_lower": 0.4791,
+   "wilson_upper": 0.7851,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3",
+    "ground-truth"
+   ],
+   "sources": [
+    "gold-model",
+    "owasp-python"
+   ],
+   "dates": {},
+   "population": 38,
+   "held_out_population": 31,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 7,
+     "held_out_population": 0,
+     "tp": 2,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "owasp-python",
+     "language": "python",
+     "population": 31,
+     "held_out_population": 31,
+     "tp": 20,
+     "fp": 11,
+     "unsure": 0,
+     "held_out": {
+      "tp": 20,
+      "fp": 11,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 7,
+     "held_out_population": 0
+    },
+    "owasp-python": {
+     "population": 31,
+     "held_out_population": 31
+    }
+   },
+   "weighted": {
+    "precision": 0.6491,
+    "wilson_lower": 0.472,
+    "wilson_upper": 0.7929,
+    "n_eff": 30.5,
+    "n_eff_kish": 30.5,
+    "tp": 22,
+    "fp": 12,
+    "population": 38,
+    "strata": 2,
+    "pooled": {
+     "precision": 0.6471,
+     "wilson_lower": 0.4791
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-95"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "lower bound 0.479 on 34 labels, below 0.97",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/python.command-injection": {
+   "tp": 7,
+   "fp": 6,
+   "unsure": 0,
+   "n": 13,
+   "held_out": {
+    "tp": 7,
+    "fp": 6,
+    "unsure": 0
+   },
+   "precision": 0.5385,
+   "wilson_lower": 0.2914,
+   "wilson_upper": 0.7679,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "ground-truth"
+   ],
+   "sources": [
+    "owasp-python"
+   ],
+   "dates": {},
+   "population": 13,
+   "held_out_population": 13,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "owasp-python",
+     "language": "python",
+     "population": 13,
+     "held_out_population": 13,
+     "tp": 7,
+     "fp": 6,
+     "unsure": 0,
+     "held_out": {
+      "tp": 7,
+      "fp": 6,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "owasp-python": {
+     "population": 13,
+     "held_out_population": 13
+    }
+   },
+   "weighted": {
+    "precision": 0.5385,
+    "wilson_lower": 0.2914,
+    "wilson_upper": 0.7679,
+    "n_eff": 13.0,
+    "n_eff_kish": 13.0,
+    "tp": 7,
+    "fp": 6,
+    "population": 13,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.5385,
+     "wilson_lower": 0.2914
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-78"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "13 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 5,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/python.http-no-timeout": {
+   "tp": 2,
+   "fp": 1,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.6667,
+   "wilson_lower": 0.2077,
+   "wilson_upper": 0.9385,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 3,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 3,
+     "held_out_population": 0,
+     "tp": 2,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 3,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.6667,
+    "wilson_lower": 0.2077,
+    "wilson_upper": 0.9385,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 2,
+    "fp": 1,
+    "population": 3,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.6667,
+     "wilson_lower": 0.2077
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/python.insecure-random-for-secret": {
+   "tp": 99,
+   "fp": 0,
+   "unsure": 0,
+   "n": 99,
+   "held_out": {
+    "tp": 99,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.9626,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "ground-truth"
+   ],
+   "sources": [
+    "owasp-python"
+   ],
+   "dates": {},
+   "population": 99,
+   "held_out_population": 99,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "owasp-python",
+     "language": "python",
+     "population": 99,
+     "held_out_population": 99,
+     "tp": 99,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 99,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "owasp-python": {
+     "population": 99,
+     "held_out_population": 99
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.9626,
+    "wilson_upper": 1.0,
+    "n_eff": 99.0,
+    "n_eff_kish": 99.0,
+    "tp": 99,
+    "fp": 0,
+    "population": 99,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.9626
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-338"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "lower bound 0.963 on 99 labels, below 0.97",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/python.mail-tls-unverified": {
+   "tp": 2,
+   "fp": 0,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.3424,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "python",
+     "population": 2,
+     "held_out_population": 0,
+     "tp": 2,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 2,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.3424,
+    "wilson_upper": 1.0,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 2,
+    "fp": 0,
+    "population": 2,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.3424
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-295"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 2
+   }
+  },
+  "arbiter/python.request-body-unbounded": {
+   "tp": 2,
+   "fp": 0,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.3424,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "python",
+     "population": 2,
+     "held_out_population": 0,
+     "tp": 2,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 2,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.3424,
+    "wilson_upper": 1.0,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 2,
+    "fp": 0,
+    "population": 2,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.3424
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400",
+    "CWE-770"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 2
+   }
+  },
+  "arbiter/python.retry-constant-delay": {
+   "tp": 1,
+   "fp": 0,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.2065,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "python",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.2065,
+    "wilson_upper": 1.0,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 1,
+    "fp": 0,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.2065
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 1
+   }
+  },
+  "arbiter/python.sql-injection": {
+   "tp": 17,
+   "fp": 5,
+   "unsure": 0,
+   "n": 22,
+   "held_out": {
+    "tp": 17,
+    "fp": 1,
+    "unsure": 0
+   },
+   "precision": 0.7727,
+   "wilson_lower": 0.5656,
+   "wilson_upper": 0.8988,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3",
+    "ground-truth"
+   ],
+   "sources": [
+    "cve-fix",
+    "cve-fix-persists",
+    "gold-model",
+    "owasp-python"
+   ],
+   "dates": {},
+   "population": 39,
+   "held_out_population": 18,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "cve-fix",
+     "language": "python",
+     "population": 8,
+     "held_out_population": 8,
+     "tp": 8,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 8,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "cve-fix-persists",
+     "language": "python",
+     "population": 5,
+     "held_out_population": 5,
+     "tp": 4,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 4,
+      "fp": 1,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 21,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 4,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "owasp-python",
+     "language": "python",
+     "population": 5,
+     "held_out_population": 5,
+     "tp": 5,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 5,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "cve-fix": {
+     "population": 8,
+     "held_out_population": 8
+    },
+    "cve-fix-persists": {
+     "population": 5,
+     "held_out_population": 5
+    },
+    "gold-model": {
+     "population": 21,
+     "held_out_population": 0
+    },
+    "owasp-python": {
+     "population": 5,
+     "held_out_population": 5
+    }
+   },
+   "weighted": {
+    "precision": 0.4359,
+    "wilson_lower": 0.2058,
+    "wilson_upper": 0.6974,
+    "n_eff": 11.9,
+    "n_eff_kish": 11.9,
+    "tp": 17,
+    "fp": 5,
+    "population": 39,
+    "strata": 4,
+    "pooled": {
+     "precision": 0.7727,
+     "wilson_lower": 0.5656
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-89"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "22 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 8,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/python.swallowed-error-in-worker-loop": {
+   "tp": 0,
+   "fp": 2,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.6576,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 2,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 2,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.6576,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 0,
+    "fp": 2,
+    "population": 2,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-391",
+    "CWE-703"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/python.thread-not-daemon-never-joined": {
+   "tp": 0,
+   "fp": 1,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.7935,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.7935,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 0,
+    "fp": 1,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-835"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/python.unsafe-deserialization": {
+   "tp": 18,
+   "fp": 15,
+   "unsure": 0,
+   "n": 33,
+   "held_out": {
+    "tp": 18,
+    "fp": 12,
+    "unsure": 0
+   },
+   "precision": 0.5455,
+   "wilson_lower": 0.3799,
+   "wilson_upper": 0.7016,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3",
+    "ground-truth"
+   ],
+   "sources": [
+    "gold-model",
+    "owasp-python"
+   ],
+   "dates": {},
+   "population": 41,
+   "held_out_population": 30,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 11,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 3,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "owasp-python",
+     "language": "python",
+     "population": 30,
+     "held_out_population": 30,
+     "tp": 18,
+     "fp": 12,
+     "unsure": 0,
+     "held_out": {
+      "tp": 18,
+      "fp": 12,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 11,
+     "held_out_population": 0
+    },
+    "owasp-python": {
+     "population": 30,
+     "held_out_population": 30
+    }
+   },
+   "weighted": {
+    "precision": 0.439,
+    "wilson_lower": 0.2626,
+    "wilson_upper": 0.6323,
+    "n_eff": 23.9,
+    "n_eff_kish": 23.9,
+    "tp": 18,
+    "fp": 15,
+    "population": 41,
+    "strata": 2,
+    "pooled": {
+     "precision": 0.5455,
+     "wilson_lower": 0.3799
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-502"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "lower bound 0.380 on 33 labels, below 0.97",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 4,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/python.weak-password-hash": {
+   "tp": 72,
+   "fp": 0,
+   "unsure": 0,
+   "n": 72,
+   "held_out": {
+    "tp": 71,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.9493,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3",
+    "ground-truth"
+   ],
+   "sources": [
+    "gold-model",
+    "owasp-python"
+   ],
+   "dates": {},
+   "population": 72,
+   "held_out_population": 71,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "owasp-python",
+     "language": "python",
+     "population": 71,
+     "held_out_population": 71,
+     "tp": 71,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 71,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 1,
+     "held_out_population": 0
+    },
+    "owasp-python": {
+     "population": 71,
+     "held_out_population": 71
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.9493,
+    "wilson_upper": 1.0,
+    "n_eff": 72.0,
+    "n_eff_kish": 72.0,
+    "tp": 72,
+    "fp": 0,
+    "population": 72,
+    "strata": 2,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.9493
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-327",
+    "CWE-916"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "lower bound 0.949 on 72 labels, below 0.97",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/resource.k8s-capabilities-not-dropped": {
+   "tp": 8,
+   "fp": 0,
+   "unsure": 0,
+   "n": 8,
+   "held_out": {
+    "tp": 2,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.6756,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 8,
+   "held_out_population": 2,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "yaml",
+     "population": 8,
+     "held_out_population": 2,
+     "tp": 8,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 2,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 8,
+     "held_out_population": 2
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.6756,
+    "wilson_upper": 1.0,
+    "n_eff": 8.0,
+    "n_eff_kish": 8.0,
+    "tp": 8,
+    "fp": 0,
+    "population": 8,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.6756
+    }
+   },
+   "dimension": "security",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "8 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/resource.k8s-mutable-image-tag": {
+   "tp": 6,
+   "fp": 0,
+   "unsure": 0,
+   "n": 6,
+   "held_out": {
+    "tp": 2,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.6097,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 6,
+   "held_out_population": 2,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "yaml",
+     "population": 6,
+     "held_out_population": 2,
+     "tp": 6,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 2,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 6,
+     "held_out_population": 2
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.6097,
+    "wilson_upper": 1.0,
+    "n_eff": 6.0,
+    "n_eff_kish": 6.0,
+    "tp": 6,
+    "fp": 0,
+    "population": 6,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.6097
+    }
+   },
+   "dimension": "supply_chain",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "6 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/resource.k8s-no-resource-limits": {
+   "tp": 7,
+   "fp": 0,
+   "unsure": 1,
+   "n": 7,
+   "held_out": {
+    "tp": 2,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.6457,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender+adjudicator/v3",
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 8,
+   "held_out_population": 2,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "yaml",
+     "population": 8,
+     "held_out_population": 2,
+     "tp": 7,
+     "fp": 0,
+     "unsure": 1,
+     "held_out": {
+      "tp": 2,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 8,
+     "held_out_population": 2
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.6457,
+    "wilson_upper": 1.0,
+    "n_eff": 7.0,
+    "n_eff_kish": 7.0,
+    "tp": 7,
+    "fp": 0,
+    "population": 8,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.6457
+    }
+   },
+   "dimension": "quality",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "7 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/resource.k8s-no-security-context": {
+   "tp": 8,
+   "fp": 0,
+   "unsure": 0,
+   "n": 8,
+   "held_out": {
+    "tp": 2,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.6756,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 8,
+   "held_out_population": 2,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "yaml",
+     "population": 8,
+     "held_out_population": 2,
+     "tp": 8,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 2,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 8,
+     "held_out_population": 2
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.6756,
+    "wilson_upper": 1.0,
+    "n_eff": 8.0,
+    "n_eff_kish": 8.0,
+    "tp": 8,
+    "fp": 0,
+    "population": 8,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.6756
+    }
+   },
+   "dimension": "security",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "8 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/resource.k8s-not-run-as-non-root": {
+   "tp": 7,
+   "fp": 0,
+   "unsure": 0,
+   "n": 7,
+   "held_out": {
+    "tp": 2,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.6457,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 8,
+   "held_out_population": 2,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "yaml",
+     "population": 8,
+     "held_out_population": 2,
+     "tp": 7,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 2,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 8,
+     "held_out_population": 2
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.6457,
+    "wilson_upper": 1.0,
+    "n_eff": 7.0,
+    "n_eff_kish": 7.0,
+    "tp": 7,
+    "fp": 0,
+    "population": 8,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.6457
+    }
+   },
+   "dimension": "security",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "7 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/resource.k8s-privilege-escalation-not-disabled": {
+   "tp": 8,
+   "fp": 0,
+   "unsure": 0,
+   "n": 8,
+   "held_out": {
+    "tp": 2,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.6756,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 8,
+   "held_out_population": 2,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "yaml",
+     "population": 8,
+     "held_out_population": 2,
+     "tp": 8,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 2,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 8,
+     "held_out_population": 2
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.6756,
+    "wilson_upper": 1.0,
+    "n_eff": 8.0,
+    "n_eff_kish": 8.0,
+    "tp": 8,
+    "fp": 0,
+    "population": 8,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.6756
+    }
+   },
+   "dimension": "security",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "8 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/resource.k8s-writable-root-filesystem": {
+   "tp": 8,
+   "fp": 0,
+   "unsure": 0,
+   "n": 8,
+   "held_out": {
+    "tp": 2,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.6756,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 8,
+   "held_out_population": 2,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "yaml",
+     "population": 8,
+     "held_out_population": 2,
+     "tp": 8,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 2,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 8,
+     "held_out_population": 2
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.6756,
+    "wilson_upper": 1.0,
+    "n_eff": 8.0,
+    "n_eff_kish": 8.0,
+    "tp": 8,
+    "fp": 0,
+    "population": 8,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.6756
+    }
+   },
+   "dimension": "security",
+   "cwe": [],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "8 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.check-then-act-unlocked": {
+   "tp": 0,
+   "fp": 3,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.5615,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender+adjudicator/v3",
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 4,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 4,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 3,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 4,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.5615,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 0,
+    "fp": 3,
+    "population": 4,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-362",
+    "CWE-366"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 6,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.code-injection": {
+   "tp": 0,
+   "fp": 2,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.6576,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 3,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 3,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 3,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.6576,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 0,
+    "fp": 2,
+    "population": 3,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-470",
+    "CWE-95"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.command-injection": {
+   "tp": 1,
+   "fp": 2,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.3333,
+   "wilson_lower": 0.0615,
+   "wilson_upper": 0.7923,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 17,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 17,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 17,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.3333,
+    "wilson_lower": 0.0615,
+    "wilson_upper": 0.7923,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 1,
+    "fp": 2,
+    "population": 17,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.3333,
+     "wilson_lower": 0.0615
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-78"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.dynamic-eval": {
+   "tp": 1,
+   "fp": 2,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 1,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.3333,
+   "wilson_lower": 0.0615,
+   "wilson_upper": 0.7923,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 13,
+   "held_out_population": 1,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 13,
+     "held_out_population": 1,
+     "tp": 1,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 13,
+     "held_out_population": 1
+    }
+   },
+   "weighted": {
+    "precision": 0.3333,
+    "wilson_lower": 0.0615,
+    "wilson_upper": 0.7923,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 1,
+    "fp": 2,
+    "population": 13,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.3333,
+     "wilson_lower": 0.0615
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-95"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.http-no-timeout": {
+   "tp": 2,
+   "fp": 0,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.3424,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 4,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 4,
+     "held_out_population": 0,
+     "tp": 2,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 4,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.3424,
+    "wilson_upper": 1.0,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 2,
+    "fp": 0,
+    "population": 4,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.3424
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 5,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.marshal-load": {
+   "tp": 5,
+   "fp": 1,
+   "unsure": 0,
+   "n": 6,
+   "held_out": {
+    "tp": 4,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.8333,
+   "wilson_lower": 0.4365,
+   "wilson_upper": 0.9699,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3",
+    "ground-truth"
+   ],
+   "sources": [
+    "cve-fix",
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 18,
+   "held_out_population": 4,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "cve-fix",
+     "language": "ruby",
+     "population": 4,
+     "held_out_population": 4,
+     "tp": 4,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 4,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 14,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "cve-fix": {
+     "population": 4,
+     "held_out_population": 4
+    },
+    "gold-model": {
+     "population": 14,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.6111,
+    "wilson_lower": 0.1833,
+    "wilson_upper": 0.9167,
+    "n_eff": 3.1,
+    "n_eff_kish": 3.2,
+    "tp": 5,
+    "fp": 1,
+    "population": 18,
+    "strata": 2,
+    "pooled": {
+     "precision": 0.8333,
+     "wilson_lower": 0.4365
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-502"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "6 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.request-body-read-unbounded": {
+   "tp": 2,
+   "fp": 0,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.3424,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model",
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 3,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "ruby",
+     "population": 2,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 2,
+     "held_out_population": 0
+    },
+    "gold-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.3191,
+    "wilson_upper": 1.0,
+    "n_eff": 1.8,
+    "n_eff_kish": 1.8,
+    "tp": 2,
+    "fp": 0,
+    "population": 3,
+    "strata": 2,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.3424
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400",
+    "CWE-770"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 2
+   }
+  },
+  "arbiter/ruby.requeue-without-delay": {
+   "tp": 0,
+   "fp": 1,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.7935,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "ruby",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.7935,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 0,
+    "fp": 1,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 1
+   }
+  },
+  "arbiter/ruby.rescue-exception": {
+   "tp": 9,
+   "fp": 0,
+   "unsure": 0,
+   "n": 9,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.7009,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 17,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 17,
+     "held_out_population": 0,
+     "tp": 9,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 17,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.7009,
+    "wilson_upper": 1.0,
+    "n_eff": 9.0,
+    "n_eff_kish": 9.0,
+    "tp": 9,
+    "fp": 0,
+    "population": 17,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.7009
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-396"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "9 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.retry-unbounded": {
+   "tp": 1,
+   "fp": 3,
+   "unsure": 0,
+   "n": 4,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.25,
+   "wilson_lower": 0.0456,
+   "wilson_upper": 0.6994,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender+adjudicator/v3",
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 15,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 15,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 3,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 15,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.25,
+    "wilson_lower": 0.0456,
+    "wilson_upper": 0.6994,
+    "n_eff": 4.0,
+    "n_eff_kish": 4.0,
+    "tp": 1,
+    "fp": 3,
+    "population": 15,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.25,
+     "wilson_lower": 0.0456
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400",
+    "CWE-834"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "4 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.retry-without-backoff": {
+   "tp": 0,
+   "fp": 1,
+   "unsure": 1,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.7935,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 16,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 16,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 1,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 16,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.7935,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 0,
+    "fp": 1,
+    "population": 16,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.skipped-spec": {
+   "tp": 6,
+   "fp": 1,
+   "unsure": 0,
+   "n": 7,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.8571,
+   "wilson_lower": 0.4869,
+   "wilson_upper": 0.9743,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 11,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 11,
+     "held_out_population": 0,
+     "tp": 6,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 11,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.8571,
+    "wilson_lower": 0.4869,
+    "wilson_upper": 0.9743,
+    "n_eff": 7.0,
+    "n_eff_kish": 7.0,
+    "tp": 6,
+    "fp": 1,
+    "population": 11,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.8571,
+     "wilson_lower": 0.4869
+    }
+   },
+   "dimension": "assurance",
+   "cwe": [
+    "CWE-1164"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "7 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 4,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.sql-injection": {
+   "tp": 0,
+   "fp": 10,
+   "unsure": 0,
+   "n": 10,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.2775,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 20,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 20,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 10,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 20,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.2775,
+    "n_eff": 10.0,
+    "n_eff_kish": 10.0,
+    "tp": 0,
+    "fp": 10,
+    "population": 20,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-89"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "10 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 5,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.ssrf-stored-callback": {
+   "tp": 1,
+   "fp": 0,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.2065,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "ruby",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.2065,
+    "wilson_upper": 1.0,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 1,
+    "fp": 0,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.2065
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-918"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 1
+   }
+  },
+  "arbiter/ruby.stub-method": {
+   "tp": 0,
+   "fp": 3,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.5615,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 10,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 10,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 3,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 10,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.5615,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 0,
+    "fp": 3,
+    "population": 10,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-1164"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.swallowed-error": {
+   "tp": 3,
+   "fp": 1,
+   "unsure": 0,
+   "n": 4,
+   "held_out": {
+    "tp": 1,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.75,
+   "wilson_lower": 0.3006,
+   "wilson_upper": 0.9544,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model",
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 16,
+   "held_out_population": 1,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "ruby",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 15,
+     "held_out_population": 1,
+     "tp": 3,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    },
+    "gold-model": {
+     "population": 15,
+     "held_out_population": 1
+    }
+   },
+   "weighted": {
+    "precision": 0.9375,
+    "wilson_lower": 0.4119,
+    "wilson_upper": 0.9969,
+    "n_eff": 3.4,
+    "n_eff_kish": 3.4,
+    "tp": 3,
+    "fp": 1,
+    "population": 16,
+    "strata": 2,
+    "pooled": {
+     "precision": 0.75,
+     "wilson_lower": 0.3006
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-391",
+    "CWE-703"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "4 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 4,
+    "ai-corpus": 1
+   }
+  },
+  "arbiter/ruby.tls-verify-off": {
+   "tp": 0,
+   "fp": 2,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.6576,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 2,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 2,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 2,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.6576,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 0,
+    "fp": 2,
+    "population": 2,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-295"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.unsynchronised-counter": {
+   "tp": 1,
+   "fp": 1,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.5,
+   "wilson_lower": 0.0945,
+   "wilson_upper": 0.9055,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 8,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 8,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 8,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.5,
+    "wilson_lower": 0.0945,
+    "wilson_upper": 0.9055,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 1,
+    "fp": 1,
+    "population": 8,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.5,
+     "wilson_lower": 0.0945
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-362",
+    "CWE-366"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.vacuous-spec": {
+   "tp": 0,
+   "fp": 2,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.6576,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 3,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 3,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 3,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.6576,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 0,
+    "fp": 2,
+    "population": 3,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "assurance",
+   "cwe": [
+    "CWE-1164"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/ruby.yaml-unsafe-load": {
+   "tp": 0,
+   "fp": 2,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.6576,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 11,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 11,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 11,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.6576,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 0,
+    "fp": 2,
+    "population": 11,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-502"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/secrets.assigned-credential": {
+   "tp": 0,
+   "fp": 6,
+   "unsure": 0,
+   "n": 6,
+   "held_out": {
+    "tp": 0,
+    "fp": 3,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.3903,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 140,
+   "held_out_population": 49,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 23,
+     "held_out_population": 7,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 59,
+     "held_out_population": 31,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 1,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 10,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 35,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 8,
+     "held_out_population": 7,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 1,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "yaml",
+     "population": 5,
+     "held_out_population": 4,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 1,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 142,
+     "held_out_population": 51
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.5153,
+    "n_eff": 3.6,
+    "n_eff_kish": 3.6,
+    "tp": 0,
+    "fp": 6,
+    "population": 140,
+    "strata": 6,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "",
+   "cwe": [
+    "CWE-798"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "6 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/secrets.jwt": {
+   "tp": 0,
+   "fp": 5,
+   "unsure": 0,
+   "n": 5,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.4345,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 115,
+   "held_out_population": 46,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 88,
+     "held_out_population": 46,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "kotlin",
+     "population": 3,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 24,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 115,
+     "held_out_population": 46
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.5477,
+    "n_eff": 3.2,
+    "n_eff_kish": 3.2,
+    "tp": 0,
+    "fp": 5,
+    "population": 115,
+    "strata": 3,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "",
+   "cwe": [
+    "CWE-798"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "5 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/secrets.pg-url": {
+   "tp": 0,
+   "fp": 2,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.6576,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 19,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 7,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 12,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 21,
+     "held_out_population": 1
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.6725,
+    "n_eff": 1.9,
+    "n_eff_kish": 1.9,
+    "tp": 0,
+    "fp": 2,
+    "population": 19,
+    "strata": 2,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "",
+   "cwe": [
+    "CWE-798"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/secrets.private-key": {
+   "tp": 0,
+   "fp": 6,
+   "unsure": 0,
+   "n": 6,
+   "held_out": {
+    "tp": 0,
+    "fp": 1,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.3903,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 114,
+   "held_out_population": 26,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "go",
+     "population": 13,
+     "held_out_population": 8,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "java",
+     "population": 46,
+     "held_out_population": 14,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 13,
+     "held_out_population": 2,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "ruby",
+     "population": 26,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 15,
+     "held_out_population": 1,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "yaml",
+     "population": 1,
+     "held_out_population": 1,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 1,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 114,
+     "held_out_population": 26
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.498,
+    "n_eff": 3.9,
+    "n_eff_kish": 3.9,
+    "tp": 0,
+    "fp": 6,
+    "population": 114,
+    "strata": 6,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "",
+   "cwe": [
+    "CWE-798"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "6 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/supply.pull-request-target": {
+   "tp": 0,
+   "fp": 3,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.5615,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 18,
+   "held_out_population": 2,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "yaml",
+     "population": 18,
+     "held_out_population": 2,
+     "tp": 0,
+     "fp": 3,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 18,
+     "held_out_population": 2
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.5615,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 0,
+    "fp": 3,
+    "population": 18,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "",
+   "cwe": [
+    "CWE-829"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/supply.unpinned-action": {
+   "tp": 196,
+   "fp": 0,
+   "unsure": 0,
+   "n": 196,
+   "held_out": {
+    "tp": 30,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.9808,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 273,
+   "held_out_population": 41,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "yaml",
+     "population": 273,
+     "held_out_population": 41,
+     "tp": 196,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 30,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 273,
+     "held_out_population": 41
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.9808,
+    "wilson_upper": 1.0,
+    "n_eff": 196.0,
+    "n_eff_kish": 196.0,
+    "tp": 196,
+    "fp": 0,
+    "population": 273,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.9808
+    }
+   },
+   "dimension": "",
+   "cwe": [
+    "CWE-1357",
+    "CWE-494"
+   ],
+   "fp_notes": [],
+   "admitted": true,
+   "admitted_reason": "lower bound 0.981 on 196 labels",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/supply.unpinned-npm-dep": {
+   "tp": 21,
+   "fp": 6,
+   "unsure": 1,
+   "n": 27,
+   "held_out": {
+    "tp": 0,
+    "fp": 1,
+    "unsure": 0
+   },
+   "precision": 0.7778,
+   "wilson_lower": 0.5924,
+   "wilson_upper": 0.8939,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender+adjudicator/v3",
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model",
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 464,
+   "held_out_population": 188,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "",
+     "population": 47,
+     "held_out_population": 0,
+     "tp": 21,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "json",
+     "population": 417,
+     "held_out_population": 188,
+     "tp": 0,
+     "fp": 6,
+     "unsure": 1,
+     "held_out": {
+      "tp": 0,
+      "fp": 1,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 47,
+     "held_out_population": 0
+    },
+    "gold-model": {
+     "population": 417,
+     "held_out_population": 188
+    }
+   },
+   "weighted": {
+    "precision": 0.1013,
+    "wilson_lower": 0.0147,
+    "wilson_upper": 0.4604,
+    "n_eff": 7.4,
+    "n_eff_kish": 7.4,
+    "tp": 21,
+    "fp": 6,
+    "population": 464,
+    "strata": 2,
+    "pooled": {
+     "precision": 0.7778,
+     "wilson_lower": 0.5924
+    }
+   },
+   "dimension": "",
+   "cwe": [
+    "CWE-1357",
+    "CWE-494"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "27 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 47
+   }
+  },
+  "arbiter/supply.unpinned-python-dep": {
+   "tp": 16,
+   "fp": 0,
+   "unsure": 0,
+   "n": 16,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.8064,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model",
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 26,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "",
+     "population": 18,
+     "held_out_population": 0,
+     "tp": 8,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "python",
+     "population": 8,
+     "held_out_population": 0,
+     "tp": 8,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 18,
+     "held_out_population": 0
+    },
+    "gold-model": {
+     "population": 8,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.7839,
+    "wilson_upper": 1.0,
+    "n_eff": 13.9,
+    "n_eff_kish": 13.9,
+    "tp": 16,
+    "fp": 0,
+    "population": 26,
+    "strata": 2,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.8064
+    }
+   },
+   "dimension": "",
+   "cwe": [
+    "CWE-1357",
+    "CWE-494"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "16 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 0,
+    "ai-corpus": 18
+   }
+  },
+  "arbiter/typescript.axios-no-timeout": {
+   "tp": 4,
+   "fp": 0,
+   "unsure": 0,
+   "n": 4,
+   "held_out": {
+    "tp": 2,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.5101,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender+adjudicator/v3",
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 5,
+   "held_out_population": 3,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 5,
+     "held_out_population": 3,
+     "tp": 4,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 2,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 5,
+     "held_out_population": 3
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.5101,
+    "wilson_upper": 1.0,
+    "n_eff": 4.0,
+    "n_eff_kish": 4.0,
+    "tp": 4,
+    "fp": 0,
+    "population": 5,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.5101
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "4 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/typescript.empty-catch": {
+   "tp": 1,
+   "fp": 2,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.3333,
+   "wilson_lower": 0.0615,
+   "wilson_upper": 0.7923,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender+adjudicator/v3",
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 7,
+   "held_out_population": 1,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 7,
+     "held_out_population": 1,
+     "tp": 1,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 7,
+     "held_out_population": 1
+    }
+   },
+   "weighted": {
+    "precision": 0.3333,
+    "wilson_lower": 0.0615,
+    "wilson_upper": 0.7923,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 1,
+    "fp": 2,
+    "population": 7,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.3333,
+     "wilson_lower": 0.0615
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-391",
+    "CWE-703"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/typescript.empty-catch-in-loop": {
+   "tp": 3,
+   "fp": 0,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.4385,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender+adjudicator/v3",
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 9,
+   "held_out_population": 1,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 9,
+     "held_out_population": 1,
+     "tp": 3,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 9,
+     "held_out_population": 1
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.4385,
+    "wilson_upper": 1.0,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 3,
+    "fp": 0,
+    "population": 9,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.4385
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-391",
+    "CWE-703"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/typescript.fetch-no-timeout": {
+   "tp": 6,
+   "fp": 0,
+   "unsure": 0,
+   "n": 6,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.6097,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 15,
+   "held_out_population": 1,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 15,
+     "held_out_population": 1,
+     "tp": 6,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 15,
+     "held_out_population": 1
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.6097,
+    "wilson_upper": 1.0,
+    "n_eff": 6.0,
+    "n_eff_kish": 6.0,
+    "tp": 6,
+    "fp": 0,
+    "population": 15,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.6097
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "6 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/typescript.http-request-no-timeout": {
+   "tp": 7,
+   "fp": 0,
+   "unsure": 0,
+   "n": 7,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.6457,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 9,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 9,
+     "held_out_population": 0,
+     "tp": 7,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 9,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.6457,
+    "wilson_upper": 1.0,
+    "n_eff": 7.0,
+    "n_eff_kish": 7.0,
+    "tp": 7,
+    "fp": 0,
+    "population": 9,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.6457
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "7 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/typescript.inner-html-assigned": {
+   "tp": 0,
+   "fp": 2,
+   "unsure": 0,
+   "n": 2,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.6576,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 4,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 4,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 4,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.6576,
+    "n_eff": 2.0,
+    "n_eff_kish": 2.0,
+    "tp": 0,
+    "fp": 2,
+    "population": 4,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-79"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "2 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/typescript.mail-starttls-not-required": {
+   "tp": 1,
+   "fp": 0,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.2065,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "typescript",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.2065,
+    "wilson_upper": 1.0,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 1,
+    "fp": 0,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.2065
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-319"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 1
+   }
+  },
+  "arbiter/typescript.promise-catch-noop": {
+   "tp": 2,
+   "fp": 4,
+   "unsure": 0,
+   "n": 6,
+   "held_out": {
+    "tp": 1,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.3333,
+   "wilson_lower": 0.0968,
+   "wilson_upper": 0.7,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model",
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 10,
+   "held_out_population": 1,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "typescript",
+     "population": 3,
+     "held_out_population": 0,
+     "tp": 1,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 7,
+     "held_out_population": 1,
+     "tp": 1,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 3,
+     "held_out_population": 0
+    },
+    "gold-model": {
+     "population": 7,
+     "held_out_population": 1
+    }
+   },
+   "weighted": {
+    "precision": 0.3333,
+    "wilson_lower": 0.0885,
+    "wilson_upper": 0.7202,
+    "n_eff": 5.2,
+    "n_eff_kish": 5.2,
+    "tp": 2,
+    "fp": 4,
+    "population": 10,
+    "strata": 2,
+    "pooled": {
+     "precision": 0.3333,
+     "wilson_lower": 0.0968
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-391",
+    "CWE-703"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "6 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 3
+   }
+  },
+  "arbiter/typescript.request-body-accumulated-unbounded": {
+   "tp": 4,
+   "fp": 0,
+   "unsure": 0,
+   "n": 4,
+   "held_out": {
+    "tp": 3,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.5101,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 5,
+   "held_out_population": 3,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 5,
+     "held_out_population": 3,
+     "tp": 4,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 3,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 5,
+     "held_out_population": 3
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.5101,
+    "wilson_upper": 1.0,
+    "n_eff": 4.0,
+    "n_eff_kish": 4.0,
+    "tp": 4,
+    "fp": 0,
+    "population": 5,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.5101
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400",
+    "CWE-770"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "4 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/typescript.retry-no-backoff": {
+   "tp": 0,
+   "fp": 1,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.7935,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.7935,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 0,
+    "fp": 1,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-400",
+    "CWE-834"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/typescript.shell-command-built": {
+   "tp": 1,
+   "fp": 4,
+   "unsure": 0,
+   "n": 5,
+   "held_out": {
+    "tp": 1,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.2,
+   "wilson_lower": 0.0362,
+   "wilson_upper": 0.6245,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3",
+    "ground-truth"
+   ],
+   "sources": [
+    "cve-fix",
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 5,
+   "held_out_population": 1,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "cve-fix",
+     "language": "typescript",
+     "population": 1,
+     "held_out_population": 1,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 0,
+      "unsure": 0
+     }
+    },
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 4,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 4,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "cve-fix": {
+     "population": 1,
+     "held_out_population": 1
+    },
+    "gold-model": {
+     "population": 4,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.2,
+    "wilson_lower": 0.0362,
+    "wilson_upper": 0.6245,
+    "n_eff": 5.0,
+    "n_eff_kish": 5.0,
+    "tp": 1,
+    "fp": 4,
+    "population": 5,
+    "strata": 2,
+    "pooled": {
+     "precision": 0.2,
+     "wilson_lower": 0.0362
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-78"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "5 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/typescript.shell-spawn-built": {
+   "tp": 1,
+   "fp": 0,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 1,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.2065,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "held_out_population": 1,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 1,
+     "held_out_population": 1,
+     "tp": 1,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 1,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 1,
+     "held_out_population": 1
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.2065,
+    "wilson_upper": 1.0,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 1,
+    "fp": 0,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.2065
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-78"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/typescript.skipped-test": {
+   "tp": 1,
+   "fp": 2,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 2,
+    "unsure": 0
+   },
+   "precision": 0.3333,
+   "wilson_lower": 0.0615,
+   "wilson_upper": 0.7923,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 10,
+   "held_out_population": 8,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 10,
+     "held_out_population": 8,
+     "tp": 1,
+     "fp": 2,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 2,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 10,
+     "held_out_population": 8
+    }
+   },
+   "weighted": {
+    "precision": 0.3333,
+    "wilson_lower": 0.0615,
+    "wilson_upper": 0.7923,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 1,
+    "fp": 2,
+    "population": 10,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.3333,
+     "wilson_lower": 0.0615
+    }
+   },
+   "dimension": "assurance",
+   "cwe": [
+    "CWE-1164"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/typescript.sql-string-built": {
+   "tp": 0,
+   "fp": 1,
+   "unsure": 0,
+   "n": 1,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.7935,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 1,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.7935,
+    "n_eff": 1.0,
+    "n_eff_kish": 1.0,
+    "tp": 0,
+    "fp": 1,
+    "population": 1,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "security",
+   "cwe": [
+    "CWE-89"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "1 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/typescript.ssrf-stored-callback": {
+   "tp": 0,
+   "fp": 0,
+   "unsure": 1,
+   "n": 0,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": null,
+   "wilson_lower": null,
+   "wilson_upper": null,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "ai-corpus-model"
+   ],
+   "dates": {},
+   "population": 1,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "ai-corpus-model",
+     "language": "typescript",
+     "population": 1,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 0,
+     "unsure": 1,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "ai-corpus-model": {
+     "population": 1,
+     "held_out_population": 0
+    }
+   },
+   "weighted": null,
+   "dimension": "security",
+   "cwe": [
+    "CWE-918"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "0 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 1,
+    "ai-corpus": 1
+   }
+  },
+  "arbiter/typescript.stub-returns-constant": {
+   "tp": 3,
+   "fp": 0,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 1.0,
+   "wilson_lower": 0.4385,
+   "wilson_upper": 1.0,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 3,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 3,
+     "held_out_population": 0,
+     "tp": 3,
+     "fp": 0,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 3,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 1.0,
+    "wilson_lower": 0.4385,
+    "wilson_upper": 1.0,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 3,
+    "fp": 0,
+    "population": 3,
+    "strata": 1,
+    "pooled": {
+     "precision": 1.0,
+     "wilson_lower": 0.4385
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-1164"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 2,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/typescript.stub-throws-not-implemented": {
+   "tp": 0,
+   "fp": 3,
+   "unsure": 0,
+   "n": 3,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.5615,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 4,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 4,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 3,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 4,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.5615,
+    "n_eff": 3.0,
+    "n_eff_kish": 3.0,
+    "tp": 0,
+    "fp": 3,
+    "population": 4,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "quality",
+   "cwe": [
+    "CWE-1164"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "3 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 3,
+    "ai-corpus": 0
+   }
+  },
+  "arbiter/typescript.test-without-assertion": {
+   "tp": 0,
+   "fp": 4,
+   "unsure": 0,
+   "n": 4,
+   "held_out": {
+    "tp": 0,
+    "fp": 0,
+    "unsure": 0
+   },
+   "precision": 0.0,
+   "wilson_lower": 0.0,
+   "wilson_upper": 0.4899,
+   "kappa": null,
+   "kappa_pairs": 0,
+   "observed_agreement": null,
+   "labellers": [
+    "claude-opus-5-5:prosecutor+defender/v3"
+   ],
+   "sources": [
+    "gold-model"
+   ],
+   "dates": {},
+   "population": 22,
+   "held_out_population": 0,
+   "population_unknown": 0,
+   "strata": [
+    {
+     "source": "gold-model",
+     "language": "typescript",
+     "population": 22,
+     "held_out_population": 0,
+     "tp": 0,
+     "fp": 4,
+     "unsure": 0,
+     "held_out": {
+      "tp": 0,
+      "fp": 0,
+      "unsure": 0
+     }
+    }
+   ],
+   "source_population": {
+    "gold-model": {
+     "population": 22,
+     "held_out_population": 0
+    }
+   },
+   "weighted": {
+    "precision": 0.0,
+    "wilson_lower": 0.0,
+    "wilson_upper": 0.4899,
+    "n_eff": 4.0,
+    "n_eff_kish": 4.0,
+    "tp": 0,
+    "fp": 4,
+    "population": 22,
+    "strata": 1,
+    "pooled": {
+     "precision": 0.0,
+     "wilson_lower": 0.0
+    }
+   },
+   "dimension": "assurance",
+   "cwe": [
+    "CWE-1164"
+   ],
+   "fp_notes": [],
+   "admitted": false,
+   "admitted_reason": "4 label(s), 30 needed",
+   "updated": "2026-10-23",
+   "snapshot_counts": {
+    "planted": 6,
+    "ai-corpus": 0
+   }
+  }
+ },
+ "tier": {
+  "held_out_only": true,
+  "method": "stratified",
+  "rules": [],
+  "overall": null,
+  "claim": false,
+  "population_unknown": [],
+  "categories": {}
+ }
+}

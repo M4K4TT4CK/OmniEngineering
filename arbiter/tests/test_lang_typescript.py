@@ -430,6 +430,50 @@ def test_assertion_helpers_and_conditional_skips_are_not_reported(tmp_path):
     assert got == [("skipped-test", 4), ("test-without-assertion", 2)]
 
 
+# ----------------------------- precision on the gold corpus (ARB-065)
+
+def test_node_test_and_ava_assertion_objects_count_as_assertions(tmp_path):
+    # undici: `const { strictEqual } = tspl(t, { plan: 2 })`, then the
+    # destructured names called bare; jose (AVA): `t.throwsAsync`, `t.is`;
+    # node:test's `t.assert`, an imported `deepStrictEqual`, a test-shaped
+    # helper handed `t` (undici `runClient(t)`), and a Promise whose
+    # `reject` fails the test. A helper named for something else
+    # (`checkout(t)`, pinned above) still does not count.
+    src = (
+        "test('plan', (t) => { const { strictEqual } = tspl(t, { plan: 1 }); strictEqual(run(), 1); });\n"
+        "test('ava', async (t) => { await t.throwsAsync(run(), { code: 'E' }); });\n"
+        "test('ava is', (t) => { t.is(run(), 1); t.true(ok); });\n"
+        "test('node', (t) => { t.assert.equal(run(), 1); });\n"
+        "test('bare', (t) => { deepStrictEqual(run(), [1]); });\n"
+        "test('helper', async (t) => { await runClient(t, run()); });\n"
+        "test('promise', (t) => new Promise((resolve, reject) => { run().on('error', reject); }));\n"
+        "test('only calls', async (t) => { await run(); });\n"
+        "test('nested arrow only', async (t) => { await t.test('x', async (t) => { await run(); }); });\n"
+        "test('should forceFlush without error', (t) => { run(); });\n"
+        "test('batch callback should not crash', (t) => { run(); });\n"
+    )
+    assert _lines(_scan(tmp_path, {"a.test.js": src}, "test-without-assertion")) == [8, 9]
+
+
+def test_a_playwright_page_flow_is_checked_by_its_locators(tmp_path):
+    # keycloak admin-ui: `test("...", async ({ page }) => { await clickX(page); })`.
+    # A node:test `t` that only calls the code is still reported.
+    src = (
+        "test('Check hide inherited roles option', async ({ page }) => { await clickHide(page); });\n"
+        "test('typed', async ({ page }: { page: Page }) => { await clickHide(page); });\n"
+        "test('only calls', async (t) => { await clickHide(t.name); });\n"
+    )
+    assert _lines(_scan(tmp_path, {"a.spec.ts": src}, "test-without-assertion")) == [3]
+
+
+def test_fetch_in_browser_code_is_not_reported(tmp_path):
+    # tomcat's manager webapp and the otel-js web examples run in a page
+    src = "export async function load() { return fetch('/api/apps'); }\n"
+    browser = "document.title = 'x';\n" + src
+    assert _lines(_scan(tmp_path, {"a.ts": src}, "fetch-no-timeout")) == [1]
+    assert not _scan(tmp_path, {"b.js": browser}, "fetch-no-timeout")
+
+
 # ---------------------------------------------------------------- the corpus
 
 def test_the_corpus_exercises_every_rule_in_the_pack():
@@ -437,3 +481,104 @@ def test_the_corpus_exercises_every_rule_in_the_pack():
     bad = ROOT / "fixtures" / "planted" / "typescript" / "bad"
     marked = {e.rule.split(".", 1)[1] for e in planted.markers(bad) if e.rule.startswith("arbiter/typescript.")}
     assert marked == set(RULES), {"unexercised": set(RULES) - marked, "unknown": marked - set(RULES)}
+
+
+# ------------------------------------------------- CWE Top 25 (ARB-062)
+
+def test_jwt_decode_is_silent_when_the_function_verifies_or_reads_the_header(tmp_path):
+    src = (
+        'import jwt from "jsonwebtoken";\n'
+        'export function a(t, keys) {\n'
+        '  const kid = jwt.decode(t, { complete: true })?.header.kid;\n'
+        '  return keys[kid];\n'
+        '}\n'
+        'export function b(t, k) {\n'
+        '  jwt.verify(t, k, { algorithms: ["RS256"] });\n'
+        '  return jwt.decode(t).sub;\n'
+        '}\n'
+        'export function c(t) { return jwt.decode(t).sub; }\n')
+    assert _lines(_scan(tmp_path, {"auth.ts": src}, "jwt-decode-unverified")) == [10]
+    # jwt-simple's decode(token, secret) verifies; without jsonwebtoken or jose
+    # in the file the rule does not run.
+    simple = 'const jwt = require("jwt-simple");\nexport const c = (t, s) => jwt.decode(t, s).sub;\n'
+    assert not _scan(tmp_path, {"simple.js": simple}, "jwt-decode-unverified")
+
+
+def test_error_responses_that_do_not_leak_are_silent(tmp_path):
+    src = (
+        'export function h(err, req, res, next) {\n'
+        '  if (process.env.NODE_ENV !== "production") {\n'
+        '    return res.status(500).json({ stack: err.stack });\n'
+        '  }\n'
+        '  res.status(500).json({ error: "internal" });\n'
+        '}\n'
+        'export function f(err, request, reply) { reply.send(err); }\n'
+        'export function g(err, req, res) { res.status(500).send(err.stack); }\n')
+    found = _scan(tmp_path, {"errors.ts": src})
+    assert [(f.rule_id.split(".")[-1], f.location.start_line) for f in found
+            if "-in-response" in f.rule_id] == [("error-stack-in-response", 8)]
+
+
+# ------------------------------------------- CWE Top 25 round 2 (ARB-062)
+
+def test_ssrf_needs_the_request_value_to_be_the_url_or_its_start(tmp_path):
+    src = (
+        'export async function a(req, res) {\n'
+        '  const r = await fetch(`https://api.example.com/u/${req.params.id}`);\n'   # fixed host
+        '  const id = req.params.id;\n'
+        '  await fetch(`https://api.example.com/u/${id}`);\n'                         # fixed host
+        '  await got(req.query.url);\n'                                               # 5
+        '}\n'
+        'export async function b(req, res) {\n'
+        '  const { url } = req.body;\n'
+        '  if (!ALLOWED_HOSTS.has(new URL(url).hostname)) return res.sendStatus(400);\n'
+        '  await fetch(url);\n'                                                       # guarded
+        '}\n'
+        'export async function c(req, res, url) { await fetch(url); }\n')            # not from req
+    assert _lines(_scan(tmp_path, {"proxy.ts": src}, "ssrf-request-url")) == [5]
+
+
+def test_argument_injection_is_silent_with_a_separator_a_bound_option_or_a_dash_check(tmp_path):
+    src = (
+        'import { execFile, spawn } from "node:child_process";\n'
+        'export function a(req) {\n'
+        '  const ref = req.query.ref;\n'
+        '  spawn("git", ["log", "--", ref]);\n'
+        '  execFile("git", ["fetch", `--depth=${req.query.depth}`]);\n'
+        '  execFile("du", ["-sh", req.params.path]);\n'                               # not an option-parsing tool on the list
+        '}\n'
+        'export function b(req) {\n'
+        '  const host = String(req.query.host);\n'
+        '  if (host.startsWith("-")) throw new Error("bad host");\n'
+        '  spawn("ssh", [host, "uptime"]);\n'
+        '}\n'
+        'export function c(req) { spawn("rsync", ["-a", req.body.src, "/backup"]); }\n')   # 13
+    assert _lines(_scan(tmp_path, {"run.ts": src}, "argument-injection")) == [13]
+
+
+def test_upload_with_a_file_filter_or_a_server_name_is_silent(tmp_path):
+    guarded = (
+        'import multer from "multer";\n'
+        'const storage = multer.diskStorage({\n'
+        '  filename: (_r, file, cb) => cb(null, Date.now() + "-" + file.originalname),\n'
+        '});\n'
+        'export const upload = multer({ storage, fileFilter: (_r, f, cb) => cb(null, f.mimetype === "image/png") });\n')
+    assert not _scan(tmp_path, {"up.ts": guarded}, "upload-client-filename")
+    bare = guarded.replace(", fileFilter: (_r, f, cb) => cb(null, f.mimetype === \"image/png\")", "")
+    assert _lines(_scan(tmp_path, {"up.ts": bare}, "upload-client-filename")) == [3]
+    # Reading the client's name for display is not storing under it.
+    shown = 'export const h = (req, res) => res.json({ name: req.file.originalname });\n'
+    assert not _scan(tmp_path, {"show.ts": shown}, "upload-client-filename")
+
+
+def test_csrf_rules_need_an_unsafe_method_or_a_cross_site_cookie_without_a_token(tmp_path):
+    defaults = 'import csrf from "csurf";\nexport const p = csrf({ ignoreMethods: ["GET", "HEAD", "OPTIONS"] });\n'
+    assert not _scan(tmp_path, {"a.ts": defaults}, "csrf-unsafe-methods-ignored")
+    cookie = ('import session from "express-session";\n'
+              'export const s = session({ secret: "x", cookie: { sameSite: "none", secure: true } });\n')
+    assert _lines(_scan(tmp_path, {"b.ts": cookie}, "session-cookie-cross-site")) == [2]
+    with_token = cookie + 'import { doubleCsrf } from "csrf-csrf";\n'
+    assert not _scan(tmp_path, {"c.ts": with_token}, "session-cookie-cross-site")
+    # sameSite: "none" on some other cookie, in a file with no session library.
+    other = 'export const opts = { sameSite: "none", secure: true };\n'
+    assert not _scan(tmp_path, {"d.ts": other}, "session-cookie-cross-site")

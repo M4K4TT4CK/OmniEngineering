@@ -1,0 +1,183 @@
+{
+  "app": "typescript/url-shortener",
+  "labelled_by": "independent reviewer (model: claude, labelling subagent without access to Arbiter output)",
+  "labelled_on": "2026-10-22",
+  "defects": [
+    {
+      "id": "D1",
+      "file": "src/app.ts",
+      "line": 59,
+      "cwe": [
+        "CWE-918"
+      ],
+      "category": "ssrf",
+      "severity": "high",
+      "justification": "The IPv4-mapped IPv6 check recurses on the text after '::ffff:', but WHATWG URL normalises [::ffff:127.0.0.1] to '::ffff:7f00:1', so '7f00:1' fails both checks and is treated as public. http://[::ffff:127.0.0.1]/ (or ::ffff:a9fe:a9fe for metadata) gets past the SSRF guard on title fetch.",
+      "source": "independent"
+    },
+    {
+      "id": "D2",
+      "file": "src/app.ts",
+      "line": 105,
+      "end_line": 106,
+      "cwe": [
+        "CWE-367",
+        "CWE-918"
+      ],
+      "category": "ssrf",
+      "severity": "medium",
+      "justification": "The DNS check runs separately from fetch(), which resolves the name again, so DNS rebinding (public answer first, internal answer second) reaches internal hosts. The README admits this; the connection should be pinned to the checked IP.",
+      "source": "independent"
+    },
+    {
+      "id": "D3",
+      "file": "src/app.ts",
+      "line": 179,
+      "cwe": [
+        "CWE-755"
+      ],
+      "category": "unhandled-promise",
+      "severity": "medium",
+      "justification": "Rethrowing a non-constraint DB error inside an async Express 4 handler gives an unhandled promise rejection, not a call to the error middleware. The request hangs, and on Node >=15 the process crashes.",
+      "source": "independent"
+    },
+    {
+      "id": "D4",
+      "file": "src/app.test.ts",
+      "line": 1,
+      "cwe": [],
+      "category": "missing-test",
+      "severity": "low",
+      "justification": "Every test replaces fetchPageTitle with a stub, so the SSRF guard (private-IP blocking, redirect re-checks, size/timeout limits) that the README advertises has no tests. That is how the ::ffff bypass went unnoticed.",
+      "source": "independent"
+    },
+    {
+      "id": "D5",
+      "file": "package.json",
+      "line": 14,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D6",
+      "file": "package.json",
+      "line": 15,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D7",
+      "file": "package.json",
+      "line": 18,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D8",
+      "file": "package.json",
+      "line": 19,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D9",
+      "file": "package.json",
+      "line": 20,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D10",
+      "file": "package.json",
+      "line": 21,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D11",
+      "file": "package.json",
+      "line": 22,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D12",
+      "file": "package.json",
+      "line": 23,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D13",
+      "file": "package.json",
+      "line": 24,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    },
+    {
+      "id": "D14",
+      "file": "package.json",
+      "line": 25,
+      "cwe": [
+        "CWE-1357"
+      ],
+      "category": "unpinned-dependency",
+      "severity": "low",
+      "justification": "Dependency uses a caret range, so installs float to new minor/patch releases; with no lockfile in the app, builds are not reproducible and a compromised or broken release is pulled in automatically.",
+      "source": "independent"
+    }
+  ],
+  "false_alarms": [
+    {
+      "rule": "arbiter/typescript.promise-catch-noop",
+      "file": "src/app.ts",
+      "line": 82,
+      "reason": "best-effort cancel of a stream reader after the bytes needed were read; a failure to cancel has no consequence to handle"
+    }
+  ]
+}
