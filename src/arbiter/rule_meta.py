@@ -106,8 +106,16 @@ def meta(rule_id: str) -> dict | None:
     return shipped_rules().get(rule_id)
 
 
+NOT_ASSESSED = ".not-assessed"
+
+
 def requirements_of(rule_id: str) -> list[str]:
+    """The rule's requirements. `<rule>.not-assessed` (a check that could not
+    be evaluated, e.g. a resource value known only at apply) traces to the
+    rule it stands for; its tier stays its own (advisory)."""
     m = meta(rule_id)
+    if m is None and rule_id.endswith(NOT_ASSESSED):
+        m = meta(rule_id[: -len(NOT_ASSESSED)])
     return list(m["requirements"]) if m else []
 
 

@@ -87,26 +87,60 @@ def cohens_kappa(a: list[str], b: list[str]) -> float | None:
     return (po - pe) / (1 - pe)
 
 
-def weighted_precision(strata: Iterable[dict]) -> dict | None:
-    """Population-weighted precision over strata {tp, fp, population}, with a
-    Wilson interval on Kish's effective sample size.
+class UnknownPopulation(ValueError):
+    """A stratum has labels but no recorded population, so it cannot be
+    weighted. The caller reports it; nothing here guesses one."""
 
-    p = sum(w_r * tp_r / n_r) with w_r = population_r / population. The
-    effective n is 1 / sum(w_r^2 / n_r): one stratum gives exactly the plain
-    Wilson interval on its own labels, and a loud rule labelled thinly
-    widens the interval instead of hiding behind a quiet, well-labelled one.
+
+def weighted_precision(strata: Iterable[dict]) -> dict | None:
+    """Stratified (population-weighted) precision over strata
+    {tp, fp, population}, with a Wilson interval on an effective sample size.
+
+    Point estimate: p = sum_h W_h * p_h, where p_h = tp_h / n_h over the
+    stratum's decided labels and W_h = N_h / N over the strata that have
+    any. N_h is the number of findings the stratum's labels were drawn from.
+    It must be recorded: a stratum with labels and no population raises
+    `UnknownPopulation` (the label count is not a population), and one with
+    fewer findings than labels is a data error.
+
+    Interval: Wilson on an effective sample size n_eff, the smaller of
+      * Kish's 1 / sum(W_h^2 / n_h), the loss from unequal weights, which
+        stays defined when every stratum is all-TP, and
+      * the design-based p(1-p) / V with V = sum W_h^2 p_h(1-p_h) / n_h,
+        the stratified variance, which is smaller when a heavy stratum is
+        both thinly labelled and less precise than the rest.
+    Both equal n_h for one stratum, so one stratum gives its plain Wilson
+    interval. No finite-population correction: the claim is about the rule
+    on code like the corpus, not about these particular findings, so a
+    census stratum still carries the sampling error of its n_h.
     """
     rows = [s for s in strata if (s.get("tp", 0) + s.get("fp", 0)) > 0]
     if not rows:
         return None
-    pops = [max(float(s.get("population") or 0), float(s["tp"] + s["fp"])) for s in rows]
+    pops = []
+    for s in rows:
+        n = s["tp"] + s["fp"]
+        pop = s.get("population")
+        if pop is None:
+            raise UnknownPopulation(f"stratum {s.get('key', '?')} has {n} label(s) and no recorded population")
+        if pop < n:
+            raise ValueError(f"stratum {s.get('key', '?')}: population {pop} is below its {n} label(s)")
+        pops.append(float(pop))
     total = sum(pops)
-    p = sum(w / total * s["tp"] / (s["tp"] + s["fp"]) for w, s in zip(pops, rows))
-    n_eff = 1.0 / sum((w / total) ** 2 / (s["tp"] + s["fp"]) for w, s in zip(pops, rows))
+    ws = [w / total for w in pops]
+    ns = [s["tp"] + s["fp"] for s in rows]
+    ps = [s["tp"] / n for s, n in zip(rows, ns)]
+    p = sum(w * q for w, q in zip(ws, ps))
+    kish = 1.0 / sum(w * w / n for w, n in zip(ws, ns))
+    var = sum(w * w * q * (1 - q) / n for w, q, n in zip(ws, ps, ns))
+    n_eff = min(kish, p * (1 - p) / var) if var > 0 else kish
     lo, hi = wilson(p * n_eff, n_eff)
+    tp, fp = sum(s["tp"] for s in rows), sum(s["fp"] for s in rows)
     return {"precision": round(p, 4), "wilson_lower": round(lo, 4), "wilson_upper": round(hi, 4),
-            "n_eff": round(n_eff, 1), "tp": sum(s["tp"] for s in rows),
-            "fp": sum(s["fp"] for s in rows), "population": int(total), "rules": len(rows)}
+            "n_eff": round(n_eff, 1), "n_eff_kish": round(kish, 1), "tp": tp, "fp": fp,
+            "population": int(total), "strata": len(rows),
+            "pooled": {"precision": round(tp / (tp + fp), 4),
+                       "wilson_lower": round(wilson(tp, tp + fp)[0], 4)}}
 
 
 # ---------------------------------------------------------------------------

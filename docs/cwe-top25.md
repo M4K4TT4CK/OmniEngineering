@@ -1,8 +1,9 @@
 # CWE Top 25 (2024): what Arbiter assesses, per language
 
-Phase 2 (ARB-062) measures, before any new rule is written, what Arbiter
-already catches for the [2024 CWE Top 25](https://cwe.mitre.org/top25/archive/2024/2024_top25_list.html)
-in the five IDE languages. "Already" means:
+Phase 2 (ARB-062) measured what Arbiter catches for the
+[2024 CWE Top 25](https://cwe.mitre.org/top25/archive/2024/2024_top25_list.html)
+in the five IDE languages, then added native rules for the ranked gaps
+(rounds 1 and 2, and ARB-083 for Python 918). "Catches" means:
 
 - the native language packs (`src/arbiter/packs/rules/ast/<lang>.yaml`) and the
   other native probes (`secrets`, `authored`, ...);
@@ -237,7 +238,8 @@ semgrep's bundled `generic.secrets.gitleaks.*` rules did report two of them.
   in a function that handles an upload (`request.files`, `request.FILES`,
   `UploadFile`). Both are silent with a sanitiser, basename, allowlist,
   `fileFilter` or MIME check in scope. All of these are medium confidence:
-  only the same function is read. Python 918 was semgrep-only until
+  only the function and at most one same-file call it makes are read
+  (`taint:`, see [probes.md](probes.md#one-hop-data-flow-taint)). Python 918 was semgrep-only until
   ARB-083 (below).
   `python.debug-mode-enabled` (CWE-200/489) reports a literal `debug=True`
   in `app.run`, `FastAPI(...)`/`Starlette(...)`, `app.debug = True` or
@@ -267,8 +269,10 @@ semgrep's bundled `generic.secrets.gitleaks.*` rules did report two of them.
   `mux.Vars`, `chi.URLParam`, gin/echo/fiber `c.Query`/`c.Param`; Ruby
   `params[…]`, `params.require/fetch`, `request.params`), written in the sink
   call or assigned to a local that a later statement of the same block passes
-  to it. A value that crosses a function or file boundary is not followed, so
-  these CWEs beyond one function stay out of reach, as for 918.
+  to it. Rules with a `taint:` block also follow the value through one call
+  into a function in the same file (`hops: 1`); a value that crosses files,
+  or more than one call, is not followed, so those forms stay out of reach,
+  as for 918.
   `path-traversal-request` (high severity, medium confidence) is
   `filepath.Join`/`os.Open`/`http.ServeFile`/`c.File` and `File.join`,
   `Rails.root.join`, `File.read`, `send_file`, `render file:`; silent when the
@@ -316,15 +320,16 @@ semgrep's bundled `generic.secrets.gitleaks.*` rules did report two of them.
 | 306 | all five | OOR. Needs the route and middleware topology across files, plus knowing which functions are "critical". |
 | 269 | all five | OOR. Privilege management is a deployment and role-design property. Its single-file signals (running as root, broad IAM) sit in Dockerfiles, Kubernetes and IaC, where checkov covers part of it, not in application code. |
 | 20 | all five | OOR as a class. CWE-20 is a pillar: every concrete instance is a more specific CWE (22, 79, 89, 434, 1287 ...) that has its own row. A "missing validation" with no specific sink has no single-file signature. |
-| 918 | all five | Assessed **only in the same-function form** (request value to HTTP client in one handler). A URL that passes through helper functions or other files needs interprocedural taint, which is OOR. The plan listed 918 as out of reach "without taint". The same-function form is common enough in AI-written code, and semgrep catches it in Python, so it is planted. |
+| 918 | all five | Assessed **only in the same-function form** (request value to HTTP client in one handler). A URL that passes through one same-file helper is followed (`taint:`, one hop); beyond that, or across files, it needs interprocedural taint, which is OOR. The plan listed 918 as out of reach "without taint". The same-function form is common enough in AI-written code, and semgrep catches it in Python, so it is planted. |
 
 ## Gap list for the next step
 
-These cells are ranked by two things: how often AI-written code contains the
+These cells were ranked by two things: how often AI-written code contains the
 defect, and how practical a single-file native rule is. Practicality means a
 recognisable API call plus at most a same-function condition, at an
-acceptable false-positive rate. Writing these rules is the next step and is
-not part of this change.
+acceptable false-positive rate. All ten are now native (rounds 1 and 2;
+Python 918 by ARB-083); the only planted gap left is TypeScript 352 in its
+absent-middleware form.
 
 | Rank | Gap | Languages | Why it ranks here |
 |---|---|---|---|
@@ -333,7 +338,7 @@ not part of this change.
 | 3 | CWE-352 CSRF switched off (`csrf.disable()`, `csrf(c -> c.disable())`, `skip_before_action :verify_authenticity_token`) | native in Java, Python and Ruby since round 1; TypeScript's explicit weakenings since round 2 (a missing middleware stays out of reach) | The standard AI "fix" for a 403 on POST. It is an exact call pattern, and semgrep's Ruby rule cannot tell it from a correct controller. |
 | 4 | CWE-200 error detail returned to the client (`err.stack`, `traceback.format_exc()`, `e.backtrace`, `printStackTrace` into the body, `http.Error(w, err.Error(), 500)`) | native in all five languages since round 1 | Very common in generated handlers. A response sink containing the error in the same statement is practical. The Go `err.Error()` form needs a medium-confidence level. |
 | 5 | CWE-434 upload stored under the client's filename (`f.filename`, `file.originalname`, `header.Filename`, `getOriginalFilename()`, `original_filename` in a save or write path) | native in all five since round 2 | The names are framework-specific and stable. A same-function absence of an extension or MIME allowlist could raise the confidence. |
-| 6 | CWE-918 request value passed straight to an HTTP client (`fetch(req.query…)`, `client.Get(r.URL.Query()…)`, `URI.create(param)`, `Faraday#get(params…)`) | native in TypeScript, Go, Java and Ruby since round 2 (Python via semgrep) | Link previews, webhooks and image proxies are common asks. The same-statement or same-function source-to-sink form is the existing `sql-injection` rules' shape. |
+| 6 | CWE-918 request value passed straight to an HTTP client (`fetch(req.query…)`, `client.Get(r.URL.Query()…)`, `URI.create(param)`, `Faraday#get(params…)`) | native in TypeScript, Go, Java and Ruby since round 2, and Python since ARB-083 | Link previews, webhooks and image proxies are common asks. The same-statement or same-function source-to-sink form is the existing `sql-injection` rules' shape. |
 | 7 | CWE-22 request value joined into a path (`filepath.Join(dir, r.URL.Query()…)`, `File.join(…, params[…])`) with no `IsLocal`/`basename`/prefix check in scope | Go, Ruby; native in both since round 2 | Common. The "unless_in_scope" guard condition fits the pack schema. |
 | 8 | CWE-77 argument injection: `git`/`curl`/`ssh` invoked with a non-literal argument and no `--` | native in all five since round 2 (a request value as the argument, same function) | Less common, but none of the analyzers sees it. The tool names and the missing `--` are easy to check, though the defect is narrower. |
 | 9 | CWE-79 HTML string built from a `@RequestParam` in a `produces = TEXT_HTML` handler | native in Java since round 2 | Less common, since Java assistants usually use templates. Practical, using the TS `html-from-request` shape. |

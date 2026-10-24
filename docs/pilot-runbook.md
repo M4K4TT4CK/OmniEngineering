@@ -73,7 +73,7 @@ Arbiter accepts, so large archives would fail in a way that looks like our bug.
 Run the server as an unprivileged user in a container, with a memory limit. The
 scanned repository is never executed — no build, no test, no hook, no entry
 point from the upload runs at any stage — but the analyzers still parse
-attacker-chosen files in a subprocess with a 900-second timeout and no memory
+attacker-chosen files inside a scan subprocess capped at 900 seconds and with no memory
 limit of their own. A parser bug on a pathological file is the plausible way to
 lose the box, and a container with a cap turns that into one failed request.
 
@@ -161,7 +161,7 @@ Revocation takes effect on the next request. Anything already running finishes.
 
 ## What to send each tester
 
-- The URL, and that every call needs `X-API-Key`.
+- The URL, and that every call except `GET /v1/health` needs `X-API-Key`.
 - Their key, over a channel that expires.
 - [pilot-terms.md](pilot-terms.md).
 - That it is free and there is nothing to apply for: scan whatever they like,
@@ -197,9 +197,12 @@ log for the things that are invisible otherwise:
 - `status` 500 is an Arbiter bug, and the line gives you the key and the time to
   ask its owner what they were scanning.
 
-Restarting the server resets the rate-limit counters, since they live in memory.
-Running two instances behind one address doubles every per-key limit, so do not,
-until the counts move to shared storage.
+With the default `--limiter memory`, restarting the server resets the counts,
+and a second instance behind one address doubles every per-key limit. To run
+more than one process, or to keep the hourly counts across a restart, add
+`--limiter file` to the `command:` in `deploy/compose.yaml`; the counts then
+live in `limiter.db` beside the key file
+([hosted-api.md](hosted-api.md#sharing-the-limits-between-processes---limiter-file)).
 
 ## Shutting it down
 

@@ -33,12 +33,22 @@ def _rec(fid, label, labeller="a", rule=RULE, held_out=True, role="labeller", **
             "source": kw.pop("source", "gold"), "held_out": held_out, "role": role, **kw}
 
 
-def _pairs(n_tp: int, n_fp: int = 0, rule: str = RULE, held_out: bool = True, prefix: str = "f"):
+def _pop(size: int, held_out_size: int | None = None, rule_size: int | None = None,
+         rule_held_out: int | None = None) -> dict:
+    """The population fields label_models.py writes on a label record."""
+    held = size if held_out_size is None else held_out_size
+    return {"stratum_size": size, "stratum_held_out_size": held,
+            "rule_population": size if rule_size is None else rule_size,
+            "rule_held_out_population": held if rule_held_out is None else rule_held_out}
+
+
+def _pairs(n_tp: int, n_fp: int = 0, rule: str = RULE, held_out: bool = True, prefix: str = "f",
+           pop: dict | None = None, **kw):
     out = []
     for i in range(n_tp + n_fp):
         label = "tp" if i < n_tp else "fp"
-        out += [_rec(f"{prefix}{i}", label, "model-a", rule, held_out),
-                _rec(f"{prefix}{i}", label, "model-b", rule, held_out)]
+        out += [_rec(f"{prefix}{i}", label, "model-a", rule, held_out, **(pop or {}), **kw),
+                _rec(f"{prefix}{i}", label, "model-b", rule, held_out, **(pop or {}), **kw)]
     return out
 
 
@@ -145,7 +155,8 @@ def test_labellers_who_disagree_too_often_keep_a_rule_out():
 
 
 def test_the_tier_claim_uses_held_out_labels_of_verified_rules_only():
-    recs = _pairs(400, 0) + _pairs(500, 0, held_out=False, prefix="dev")
+    pop = _pop(2000, 800)
+    recs = _pairs(400, 0, pop=pop) + _pairs(500, 0, held_out=False, prefix="dev", pop=pop)
     led = PL.build(recs, None, "2026-10-22", {RULE})
     t = led["tier"]
     assert t["rules"] == [RULE] and t["overall"]["tp"] == 400       # the dev labels are not in it
@@ -157,7 +168,8 @@ def test_the_tier_claim_uses_held_out_labels_of_verified_rules_only():
 
 
 def test_a_category_claim_needs_its_own_bound():
-    recs = _pairs(400, 0) + _pairs(150, 0, rule="arbiter/python.code-injection", prefix="c")
+    recs = (_pairs(400, 0, pop=_pop(400)) +
+            _pairs(150, 0, rule="arbiter/python.code-injection", prefix="c", pop=_pop(150)))
     t = PL.build(recs, None, "2026-10-22", {RULE, "arbiter/python.code-injection"})["tier"]
     assert t["categories"]["CWE-89"]["claim"] is True
     assert t["categories"]["CWE-95"]["claim"] is False      # 150/150 is admitted, but < 0.99
@@ -194,7 +206,7 @@ SNAPS = {"planted": {"by_rule": {RULE: 10}, "recorded": "2026-10-20"}}
 
 
 def _ledger(**entry) -> dict:
-    led = PL.build(_pairs(400, 0), None, "2026-10-22", {RULE}, {"planted": {RULE: 10}})
+    led = PL.build(_pairs(400, 0, pop=_pop(400)), None, "2026-10-22", {RULE}, {"planted": {RULE: 10}})
     led["rules"][RULE].update(entry)
     return led
 
@@ -209,7 +221,7 @@ def test_guard_fails_a_verified_rule_with_no_ledger_entry():
 
 
 def test_guard_fails_a_verified_rule_below_the_bar():
-    led = PL.build(_pairs(390, 10), None, "2026-10-22", set())
+    led = PL.build(_pairs(390, 10, pop=_pop(400)), None, "2026-10-22", set())
     out = PG.check(led, {RULE}, {})
     assert len(out) == 1 and "below the bar" in out[0] and "lower bound" in out[0]
 
@@ -302,3 +314,71 @@ def test_a_new_labeller_with_the_same_counts_is_a_relabel():
     again = PL.build(relabel, first, "2026-10-22", set(), {"planted": {RULE: 9}})
     assert again["rules"][RULE]["updated"] == "2026-10-22"
     assert again["rules"][RULE]["snapshot_counts"] == {"planted": 9}
+
+
+# ---------------------------------------------------------------------------
+# Population weights (docs/precision.md, "Population weights")
+# ---------------------------------------------------------------------------
+
+def test_the_tier_claim_weights_strata_by_population_not_by_labels():
+    # One rule, two languages. Go: 9,000 held-out findings, 50 labels at 90%.
+    # Python: 1,000, 950 labels at 100%. Pooled 99.5%, weighted 91%.
+    go = _pairs(45, 5, prefix="g", language="go", pop=_pop(9000, rule_size=10_000, rule_held_out=10_000))
+    py = _pairs(950, 0, prefix="p", language="python", pop=_pop(1000, rule_size=10_000, rule_held_out=10_000))
+    led = PL.build(go + py, None, "2026-10-23", {RULE})
+    e = led["rules"][RULE]
+    assert e["precision"] == 0.995 and e["population"] == 10_000 and e["population_unknown"] == 0
+    assert [(s["language"], s["population"], s["tp"], s["fp"]) for s in e["strata"]] == [
+        ("go", 9000, 45, 5), ("python", 1000, 950, 0)]
+    assert e["weighted"]["precision"] == 0.91
+    t = led["tier"]
+    assert t["overall"]["precision"] == 0.91 and t["overall"]["pooled"]["precision"] == 0.995
+    assert t["overall"]["coverage"] == 1.0 and t["claim"] is False
+
+
+def test_held_out_findings_in_unlabelled_strata_count_against_the_bound():
+    pop = _pop(400, rule_size=500, rule_held_out=500)                  # 100 held-out findings were never sampled
+    led = PL.build(_pairs(400, 0, pop=pop), None, "2026-10-23", {RULE})
+    o = led["tier"]["overall"]
+    assert o["held_out_population"] == 500 and o["unlabelled_population"] == 100
+    assert o["coverage"] == 0.8 and o["claim_lower"] == round(o["wilson_lower"] * 0.8, 4)
+    assert led["tier"]["claim"] is False
+    full = PL.build(_pairs(400, 0, pop=_pop(400)), None, "2026-10-23", {RULE})["tier"]
+    assert full["claim"] is True and full["overall"]["claim_lower"] == full["overall"]["wilson_lower"]
+
+
+def test_labels_with_no_population_are_reported_unknown_never_counted():
+    led = PL.build(_pairs(400, 0), None, "2026-10-23", {RULE})
+    e = led["rules"][RULE]
+    assert e["population"] is None and e["population_unknown"] == 400 and e["weighted"] is None
+    assert e["admitted"]                            # admission is per rule, on its labels
+    t = led["tier"]
+    assert t["overall"] is None and t["claim"] is False and t["population_unknown"] == [RULE]
+    assert "population unknown" in PL.render(led)
+    # One unknown label makes its whole stratum unknown: no partial guess.
+    mixed = _pairs(399, 0, pop=_pop(1000)) + _pairs(1, 0, prefix="x")
+    e = PL.build(mixed, None, "2026-10-23", set())["rules"][RULE]
+    assert e["population"] is None and e["population_unknown"] == 400
+
+
+def test_two_sizes_for_one_stratum_are_refused():
+    recs = _pairs(3, 0, pop=_pop(40)) + _pairs(3, 0, prefix="y", pop=_pop(41))
+    with pytest.raises(SystemExit, match="two population sizes"):
+        PL.build(recs, None, "2026-10-23", set())
+
+
+def test_a_sheet_with_no_stratum_size_is_unknown(tmp_path):
+    sheet = tmp_path / "s.csv"
+    sheet.write_text("sample_id,rule,language,stratum_size,verdict\nS1,r,python,,TP\nS2,r,python,7,TP\n")
+    a, b = PL.read_sheet(sheet, "b", "gold", True)
+    assert "stratum_size" not in a
+    assert (b["stratum_size"], b["stratum_held_out_size"]) == (7, 7)
+    assert PL.read_sheet(sheet, "b", "gold", False)[1]["stratum_held_out_size"] == 0
+
+
+def test_guard_fails_a_verified_rule_whose_population_is_unknown():
+    led = PL.build(_pairs(400, 0), None, "2026-10-23", {RULE}, {"planted": {RULE: 10}})
+    out = PG.check(led, {RULE}, SNAPS)
+    assert len(out) == 1 and "no recorded population" in out[0] and "400 label(s)" in out[0]
+    assert PG.check(led, set(), SNAPS) == []        # not declared: the ledger only says so
+    assert PG.check(_ledger(), {RULE}, SNAPS) == []

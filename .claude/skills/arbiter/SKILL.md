@@ -21,7 +21,7 @@ findings never blend, the tool never executes the target.
 | Anything with `--changed`, `--baseline`, `--system`, formats | the CLI: `arbiter scan`, `arbiter gate`, `arbiter diff`, `arbiter ab` |
 | One finding in full | `arbiter explain <finding-id>` |
 | A scan that must not remember the last one (CI, a measurement) | `--no-cache`; the file-local probes otherwise reuse `.arbiter/cache.json`, and `--verify-cache` audits it |
-| What was and was not checked for a framework | `arbiter controls --framework <id>` |
+| What was and was not checked for a framework | `arbiter controls --framework <id>` (the id from `arbiter controls --list`, e.g. `NIST-800-218`, not the pack file name) |
 | The trend across runs | `arbiter dashboard`, from `<out>/history.jsonl`, which every scan and gate appends to (`--no-history` skips it) |
 
 ## Reading a report
@@ -35,6 +35,14 @@ findings never blend, the tool never executes the target.
 - Every finding carries `provenance` (`deterministic` or `inferred`),
   `confidence`, and `remediation_source`. Never present an inferred finding
   as a deterministic one, and never present a bare reference link as a fix.
+- Every finding also carries `tier` (`verified`, `advisory` or `inferred`)
+  and `tier_reason`. Today every deterministic finding is `advisory`: no rule
+  is declared verified. Never call an advisory finding verified. Under
+  `--profile assisted` or `--model-verify`, `verification` holds a model's
+  `confirmed` / `rejected` / `unsure` verdict beside the finding, never in
+  place of it; `not_verified` is not a pass. `offline` and `ci` never call a
+  model. `arbiter verify` is the claim-ledger check and calls no model.
+- Field-by-field guide: `docs/reading-a-report.md`.
 - A suppressed finding is still in the report, marked and attributed. That is
   the feature; do not delete it from the corpus.
 - The `governance` probe reads `.ai/failures/failure-ledger.json` against the
@@ -47,13 +55,15 @@ findings never blend, the tool never executes the target.
 
 ## Gating a change to Arbiter itself
 
-`.github/workflows/pr-check.yml` runs the suite, `tools/integrity.py`,
-`tools/mutate_tests.py`, `python omni doctor`, `python omni gate`, and on
+`.github/workflows/pr-check.yml` runs the fast suite, `tools/integrity.py`,
+`tools/precision_guard.py check`, `tools/mutate_tests.py`, `python omni
+doctor`, `python omni gate`, and on
 Linux `arbiter gate .` with the external analyzers installed. Before saying a
 change is complete:
 
 ```bash
-python -m pytest tests/ -q
+python -m pytest -q -m "not slow"   # the fast tier pr-check runs; -m slow needs ./tools/install_tools.sh
+python tools/precision_guard.py check
 python tools/mutate_tests.py
 arbiter gate .            # the repository's own policy, from arbiter.yaml
 python omni gate          # CHANGELOG.md and the requirement registry co-change

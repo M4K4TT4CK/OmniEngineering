@@ -66,7 +66,7 @@ def test_weighted_precision_of_one_stratum_is_its_plain_wilson():
 def test_a_loud_thinly_labelled_rule_widens_the_weighted_interval():
     even = P.weighted_precision([{"tp": 100, "fp": 0, "population": 100},
                                  {"tp": 100, "fp": 0, "population": 100}])
-    skewed = P.weighted_precision([{"tp": 100, "fp": 0, "population": 10},
+    skewed = P.weighted_precision([{"tp": 100, "fp": 0, "population": 100},
                                    {"tp": 5, "fp": 0, "population": 10_000}])
     assert skewed["wilson_lower"] < even["wilson_lower"]
 
@@ -268,3 +268,33 @@ def test_sarif_levels_stay_by_severity_under_the_legacy_gate(tmp_path):
     rep.gate = evaluate_gate(rep, _cfg())
     write_sarif(rep, str(tmp_path / "r.sarif"))
     assert json.loads((tmp_path / "r.sarif").read_text())["runs"][0]["results"][0]["level"] == "error"
+
+
+def test_weighting_follows_the_population_not_the_label_count():
+    # A loud stratum (9,000 findings) labelled thinly at 90%, a quiet one
+    # (1,000) labelled heavily at 100%. Pooled, the labels say 99.5%; the
+    # population says 0.9 * 0.9 + 0.1 * 1.0 = 91%.
+    loud = {"tp": 45, "fp": 5, "population": 9000}
+    quiet = {"tp": 950, "fp": 0, "population": 1000}
+    w = P.weighted_precision([loud, quiet])
+    assert w["precision"] == 0.91
+    assert w["pooled"]["precision"] == 0.995
+    assert w["wilson_upper"] < 0.97 < w["pooled"]["wilson_lower"]   # the bar a rule needs
+
+
+def test_the_design_effective_n_wins_when_a_heavy_stratum_is_noisier():
+    # Kish's n_eff only sees the weights; the stratified variance also sees
+    # that the heavy stratum is the imprecise one, and is the smaller n.
+    w = P.weighted_precision([{"tp": 45, "fp": 5, "population": 9000},
+                              {"tp": 950, "fp": 0, "population": 1000}])
+    assert w["n_eff"] < w["n_eff_kish"]
+    p, n = 0.91, w["n_eff"]
+    assert abs(n - p * (1 - p) / (0.9 ** 2 * 0.9 * 0.1 / 50)) < 0.1
+
+
+def test_an_unknown_or_impossible_population_is_refused_not_guessed():
+    with pytest.raises(P.UnknownPopulation):
+        P.weighted_precision([{"tp": 5, "fp": 0, "population": None, "key": "r/py"}])
+    with pytest.raises(ValueError, match="below its 5 label"):
+        P.weighted_precision([{"tp": 5, "fp": 0, "population": 3}])
+    assert P.weighted_precision([{"tp": 0, "fp": 0, "population": None}]) is None   # nothing labelled

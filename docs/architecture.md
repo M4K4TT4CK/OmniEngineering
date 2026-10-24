@@ -16,26 +16,54 @@
 
 ```text
 src/arbiter/
-  core.py        Finding, Location, Report, Scorecard, fingerprinting
-  inventory.py   acquire + classify + stack detection
-  graph.py       TF / CFN / K8s / plan JSON → normalized Resource
-  probes.py      native probes and the probe contract
-  adapters.py    declarative external-tool adapters
-  policy.py      config, profiles, suppressions, scoring, gate
-  engine.py      the scan pipeline
-  cache.py       the persistent per-file result cache
-  claims.py      the claim ledger and its invariants
-  controls.py    control-framework evaluation
-  learn.py       knowledge file, calibration, adaptive thresholds
-  review.py      adjudication batch selection
-  review_ui.py   the offline review page and terminal walkthrough
-  report.py      json · sarif · console · markdown · html
-  ab.py          the A/B harness
-  cli.py         commands
-  packs/         rule packs, control packs and adapter manifests (data, not code)
-fixtures/        synthetic repos with known planted defects
-tests/           unit + golden-fixture regression tests
-tools/           corpus, injection, discrimination and training tooling
+  core.py         Finding, Location, Report, Scorecard, fingerprinting
+  inventory.py    acquire + classify + stack detection
+  incremental.py  partial scans (--changed, --only-files) and requirement attribution
+  graph.py        TF / CFN / K8s / plan JSON → normalized Resource
+  probes.py       native probes and the probe contract
+  adapters.py     declarative external-tool adapters
+  ast.py          the tree-sitter layer: parsing, function metrics, grammar cache
+  lang_rules.py   the language rule packs (packs/rules/ast/*.yaml) and their schema
+  dataflow.py     one-hop data flow for `taint:` rules
+  authored.py     defects of machine-drafted code: imports, stubs, disabled checks
+  ecosystems.py   Go, Java and Ruby imports and manifests, for authored.py
+  aiapp.py        repository-scoped rules from AI-written services
+  concurrency.py  shared state changed with no lock held (Python)
+  contract.py     contracts between artifacts (OpenAPI vs routes, migrations vs models)
+  assurance.py    whether the checking is switched on
+  judgement.py    the model judgement pass (inferred findings)
+  scope_notes.py  pointers from the repository's own docs, never a severity change
+  cwe.py          CWE classification of every finding
+  verify.py       the optional model verification pass
+  context.py      the bounded, masked code excerpt shown to models
+  precision.py    precision tiers and the ledger reader
+  rule_meta.py    rule metadata: requirements, declared tier
+  policy.py       config, profiles, suppressions, scoring, gate
+  engine.py       the scan pipeline
+  cache.py        the persistent per-file result cache
+  claims.py       the claim ledger and its invariants
+  controls.py     control-framework evaluation
+  learn.py        knowledge file, calibration, adaptive thresholds
+  review.py       adjudication batch selection
+  review_ui.py    the offline review page and terminal walkthrough
+  ledger.py       failure-ledger drafts from true-positive verdicts
+  report.py       json · sarif · console · markdown · html · pr-comment · annotations
+  diff.py         report-to-report comparison
+  history.py      run history and the dashboard
+  planted.py      the planted-corpus markers and scoring
+  ab.py           the A/B harness
+  service.py      workspaces, archive ingest and path checks for the hosted surfaces
+  api.py          the hosted HTTPS API and its keys
+  client.py       `arbiter remote`
+  mcp.py          the MCP server
+  bundle.py       the air-gapped bundle
+  cli.py          commands
+  packs/          rule packs, control packs, adapter manifests and the precision ledger (data, not code)
+fixtures/         synthetic repos with known planted defects, and the AI-written corpora
+tests/            unit + golden-fixture regression tests
+tools/            corpus, injection, discrimination and training tooling; the gold
+                  benchmark, ground truth, model labelling, precision ledger and
+                  guard, regression guards and mutation variants
 ```
 
 Rule packs, control packs and adapter manifests are **data**. Adding a
@@ -50,7 +78,7 @@ particular dishonesty impossible.
    uninstalled tool counts as *not assessed* rather than vanishing from the
    coverage denominator. A tool that is not registered cannot be reported as
    missing.
-2. **Resolve the profile** into a capability set (network, model).
+2. **Resolve the profile** into a capability set (network, model, verify).
 3. **Clear the file-read cache.** One scan, one view of the files — a previous
    scan's bytes must never be served for this one's paths.
 4. **Resolve targets**, from paths or a system manifest.
@@ -66,16 +94,22 @@ particular dishonesty impossible.
 9. **Run the probes**, each with an explicit outcome. A probe declared
    `cacheable` is shown only the files the result cache cannot answer for;
    its hits are assembled from the cache and are indistinguishable downstream.
-10. **Post-process the findings**: deduplicate, apply calibration, apply
-    severity overrides, apply the baseline, apply suppressions — in that order.
-11. **Assemble the report**, including lines of code by language and by role.
-12. **Compute the scorecard.**
-13. **Evaluate control coverage.** Wrapped so that failing to evaluate a
+10. **Post-process the findings**: deduplicate, attribute requirements, apply
+    calibration, apply severity overrides, apply the baseline, apply
+    suppressions, attach scope notes, classify CWE — in that order.
+11. **Model verification** (`verify.py`), only when the profile or config asks
+    for it and the profile allows model calls. It annotates findings and never
+    removes one.
+12. **Assemble the report**, including lines of code by language and by role.
+13. **Compute the scorecard.**
+14. **Evaluate control coverage.** Wrapped so that failing to evaluate a
     framework can never fail a scan.
-14. **Evaluate the gate.**
-15. **Build the claim ledger and verify it.** A report that fails its own
+15. **Assign precision tiers** (`precision.py`) and build the `rules` block.
+16. **Evaluate the gate.**
+17. **Build the claim ledger and verify it.** A report that fails its own
     integrity check is a bug in Arbiter, not a finding about the target.
-16. **Clean up** temporary workspaces unless `--keep-workspace` is set.
+18. **Clean up** temporary workspaces (cloned git URLs) unless the caller
+    asked to keep them (`keep_workspace`; not exposed on the CLI).
 
 Suppressions are applied *after* the baseline and calibration, and never delete
 a finding — it stays in the report, marked and attributed.
@@ -89,10 +123,12 @@ coverage computable. Skip reasons are evaluated in a fixed precedence:
 |---|---|---|
 | 1 | not selected by `--only` | `not selected on the command line` |
 | 2 | disabled in configuration | `disabled in configuration` |
-| 3 | not applicable to this tree | the probe's own explanation |
-| 4 | required binary absent | `missing binary: <name>` |
-| 5 | profile forbids network | `profile '<name>' forbids network access` |
-| 6 | profile forbids model calls | `profile '<name>' forbids model calls` |
+| 3 | a partial scan, and the probe is not file- or change-scoped | `partial scan (<basis>): <scope reason>, so it cannot answer from a subset` |
+| 4 | a required Python package, tree-sitter grammar or file is absent (prevented: stays in the denominator) | `missing python package: <m>`, `missing tree-sitter grammar: <g> (run tools/install_tools.sh)`, `missing required file: <path>` |
+| 5 | not applicable to this tree | the probe's own explanation |
+| 6 | required binary absent | `missing binary: <name>` |
+| 7 | profile forbids network | `profile '<name>' forbids network access` |
+| 8 | profile forbids model calls | `profile '<name>' forbids model calls` |
 
 Two distinctions carry real weight:
 
@@ -167,10 +203,11 @@ all miss, and the same bytes at two paths are two entries. A clean file is
 stored as an empty list, which is the common hit.
 
 **What is never cached.** Only probes declared `cacheable` take part:
-`secrets`, `supply_chain`, `ast_metrics`, `house_rules_ast` and `authored`.
+`secrets`, `supply_chain`, `ast_metrics`, `house_rules_ast`, `authored`,
+`concurrency` and the language-pack probes (`lang_<pack>`).
 The declaration claims the probe is file-local — the same file under the same
 rules yields the same findings whether or not any other file is present — and
-`tools/integrity.py` (CI-13) tests the claim on every run by scanning a file
+`tools/integrity.py` (harness check CI-13; the report invariants are CI-1 to CI-12) tests the claim on every run by scanning a file
 alone and beside another. `house_rules` is file-scoped but not cacheable: a
 `file_exists` rule reports on the repository, with no path to attribute to.
 `authored` reads the manifests to decide whether an import is declared, so it
@@ -233,6 +270,10 @@ renderings of it. Beyond findings and probe outcomes it carries:
 | `claims` | Every assertion the report makes, with supporting and abstaining checks. |
 | `integrity` | Whether the report passed its own invariant check, and any violations. |
 | `gate` | The policy decision and what drove it. |
+| `scan_scope` | Full or partial, cache counts, precision-tier counts and the verification summary. |
+| `rules` | One row per rule that fired: `{id, requirements, tier}`. |
 
-See [evidence.md](evidence.md#claim-integrity) for the claim ledger and its ten
-invariants.
+Each finding also carries `tier`, `tier_reason`, `requirements`, `cwe` and
+`verification`; [reading-a-report.md](reading-a-report.md) explains every
+field. See [evidence.md](evidence.md#claim-integrity) for the claim ledger and
+its twelve invariants.

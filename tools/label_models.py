@@ -449,7 +449,9 @@ class Labeller:
                       excerpt_sha256=it["excerpt_sha256"], category=it["category"],
                       votes={r: {"label": v["label"], "reason": v["reason"]}
                              for r, v in [("prosecutor", p), ("defender", d), ("adjudicator", adj)] if v},
-                      cost_usd=round(cost, 6))
+                      cost_usd=round(cost, 6),
+                      # The population the item was drawn from, for the ledger's weights.
+                      **{k: it[k] for k in ls.POPULATION_KEYS if k in it})
         if "truth" in it:
             rec["truth"] = it["truth"]
         return rec
@@ -651,14 +653,26 @@ def items_from_report(report: Path, corpus: Path, n: int, seed: int,
     else:
         rows = ls.stratified_sample(findings, n, seed,
                                     key=lambda f: (f["rule"], f["language"], category(f["rule"])))
+    pops = ls.stratum_populations(findings, lambda f: f["repo"] in held)
     items = []
     for f in rows:
         it = make_item(f, corpus / f["repo"], "gold-model", f["repo"] in held)
         if it:
-            it["stratum_size"] = f["stratum_size"]
+            it.update(pops[(f["rule"], f["language"])])
+            assert it["stratum_size"] == f["stratum_size"]
             items.append(it)
-    pop = Counter((f["rule"], f["language"]) for f in findings)
-    return items, {"population": len(findings), "strata": len(pop)}
+    return items, {"population": len(findings), "strata": len(pops)}
+
+
+def census(items: list[dict]) -> list[dict]:
+    """Every finding was labelled (no sampling): each stratum's population
+    is the items in it."""
+    rows = [{"rule": it["rule"], "language": it["finding"].get("language") or "", "held_out": it["held_out"]}
+            for it in items]
+    pops = ls.stratum_populations(rows, lambda r: r["held_out"], "census")
+    for it, r in zip(items, rows):
+        it.update(pops[(r["rule"], r["language"])])
+    return items
 
 
 def items_from_ai_corpus() -> list[dict]:
@@ -671,7 +685,7 @@ def items_from_ai_corpus() -> list[dict]:
             it = make_item({**f, "repo": name}, app, "ai-corpus-model", False)
             if it:
                 items.append(it)
-    return items
+    return census(items)
 
 
 def items_from_ground_truth(paths: list[Path], n: int, seed: int,
@@ -799,13 +813,53 @@ def items_from_planted(categories: set[str], cap: int | None = None) -> list[dic
 # check (a SHA pin, a lockfile, a file that exists, a test path), compare the
 # model label with it. The labellers saw the repo facts in their prompt, so
 # this measures whether they follow facts, not an independent truth -- except
-# the SHA-pin and test-path checks, which they were never shown.
+# the SHA-pin, test-path and suppression-names-a-rule checks, which they were
+# never shown.
 # ---------------------------------------------------------------------------
 
 _SHA_PIN = re.compile(r"uses:\s*['\"]?[^@\s'\"]+@[0-9a-f]{40}\b")
 _TEST_PATH = re.compile(r"(?i)(^|/)(tests?|spec|__tests__|testdata|test-?fixtures?|fixtures?|examples?|samples?|"
                         r"docs?|cookbook|itest|testsuite|integration-test|e2e|dummyserver|caddytest)(/|$)|"
                         r"(^|/)[^/]*(_test|\.test|\.spec|_spec|Test|Tests)\.\w+$|(^|/)test_[^/]*$")
+
+
+# A suppression directive and, when it names rules, the names (group
+# `named`). Written here from each tool's syntax, not taken from Arbiter's
+# SUPPRESSION_PATTERNS, so the check is independent of the rule it checks.
+# `@ts-ignore` / `@ts-expect-error` and `NOSONAR` cannot name a rule at all.
+_SUPPRESSION_DIRECTIVES = [
+    re.compile(r"#\s*noqa\b(?P<named>\s*:\s*[A-Z]+[0-9]+)?", re.I),
+    re.compile(r"#\s*type:\s*ignore\b(?P<named>\[[^\]]+\])?"),
+    re.compile(r"#\s*pyright:\s*ignore\b(?P<named>\[[^\]]+\])?"),
+    re.compile(r"#\s*nosec\b(?P<named>[ \t]+B\d{3}|[ \t]+G\d{3})?"),
+    re.compile(r"#\s*pylint:\s*disable\s*=\s*(?P<named>(?!all\b)[\w-]+)?"),
+    re.compile(r"#\s*rubocop:\s*disable\b(?P<named>[ \t]+(?!all\b)[A-Z]\w*/\w+)?"),
+    re.compile(r"//\s*@ts-(?:ignore|expect-error|nocheck)\b()?"),
+    re.compile(r"(?://|/\*)\s*eslint-disable(?:-next-line|-line)?\b(?P<named>[ \t]+(?!\*/|--)[@\w/-]+)?"),
+    re.compile(r"//\s*nolint\b(?P<named>:\w+)?"),
+    re.compile(r"(?://|#)\s*NOSONAR\b()?"),
+    re.compile(r"@SuppressWarnings\(\s*(?P<all>\"all\")?"),
+]
+
+
+def suppression_fact(line: str) -> tuple[str, str] | None:
+    """Whether the suppression on `line` names a rule: ("tp", ...) when it
+    names none, ("fp", ...) when it does, None when the line holds no
+    directive outside a string literal."""
+    for rx in _SUPPRESSION_DIRECTIVES:
+        m = rx.search(line)
+        if not m:
+            continue
+        before = line[:m.start()]
+        if before.count('"') % 2 or before.count("'") % 2 or before.count("`") % 2:
+            continue        # inside a string literal: not a directive
+        groups = m.groupdict()
+        if "all" in groups:
+            return ("tp", "suppresses \"all\"") if groups["all"] else ("fp", "names the warnings it suppresses")
+        if groups.get("named"):
+            return "fp", f"names a rule ({groups['named'].strip(' :')})"
+        return "tp", "the suppression names no rule"
+    return None
 
 
 def fact_truth(rec: dict, root: Path) -> tuple[str, str] | None:
@@ -820,6 +874,8 @@ def fact_truth(rec: dict, root: Path) -> tuple[str, str] | None:
         if "uses:" not in ln or re.search(r"uses:\s*['\"]?(\./|docker://)", ln):
             return None
         return ("fp", "pinned to a full commit SHA") if _SHA_PIN.search(ln) else ("tp", "uses a tag or branch")
+    if rule == "arbiter/assurance.blanket-suppression":
+        return suppression_fact(ln)
     if rule.startswith("arbiter/supply.unpinned-"):
         here = (root / path).parent
         locks = [n for n in _LOCKS if (here / n).exists() or (root / n).exists()]
@@ -904,7 +960,7 @@ def items_from_suspects(path: Path) -> list[dict]:
         it = make_item(s, Path(s["root"]).expanduser(), s["suspect"], True)
         if it:
             out.append(it)
-    return out
+    return census(out)
 
 
 # ---------------------------------------------------------------------------

@@ -1553,7 +1553,8 @@
         "round 2 testing harness 2026-10-22: AI-written corpus (fixtures/ai-corpus, 25 generated apps, 172 hand labels) scored by tools/ai_corpus_score.py: native recall 2/117 code defects, code-finding precision 2/31; human-label sampling with Wilson CIs and Cohen's kappa (tools/label_sample.py), labelling itself not yet done; regression guards (tools/regression_guard.py) on in-tree corpora and 4 small pinned repos; mutation variants (tools/variants.py) 83% robustness. Corpus labels are model-written and unaudited by people; see docs/testing-harness.md",
         "precision tiers and ledger 2026-10-22 (p1a-tiers): findings carry tier verified|advisory|inferred; gate.tier_mode legacy (default) or tiered; per-rule ledger tools/gold/precision.json (shipped as packs/precision.json) built by tools/precision_ledger.py, admitted at Wilson lower >= 0.97 on >= 30 labels with kappa >= 0.8; CI precision guard tools/precision_guard.py. The ledger is empty (no labels yet): every finding is advisory and no precision claim is made; switching to tiered waits for Phase 1b labels. Labels are model-made plus external ground truth, not human",
         "precision Phase 2 2026-10-22: model verification pass (src/arbiter/verify.py, profile assisted) records a confirmed/rejected/unsure verdict per finding at >= medium, never hides one; tools/verify_eval.py measures confirmed-set precision against labels with Wilson 95%; not yet measured live (no API key on the build machine)",
-        "held-out AI corpus 2026-10-22 (plan Phase 1 item 5): fixtures/ai-corpus-heldout, 40 apps from claude-opus-5-5 and claude-haiku-5-5, 236 blind labels committed before the scan (88bcb10), sealed in tools/gold/heldout.json; aggregate-only score: code recall 6/142, code-finding precision 7/40 (lower bound, unreviewed counted as FP), high-severity findings 0/11; regression guard keeps counts and a digest only. Held-out gold-repo split (30% of gold repos) not done here"
+        "held-out AI corpus 2026-10-22 (plan Phase 1 item 5): fixtures/ai-corpus-heldout, 40 apps from claude-opus-5-5 and claude-haiku-5-5, 236 blind labels committed before the scan (88bcb10), sealed in tools/gold/heldout.json; aggregate-only score: code recall 6/142, code-finding precision 7/40 (lower bound, unreviewed counted as FP), high-severity findings 0/11; regression guard keeps counts and a digest only. Held-out gold-repo split (30% of gold repos) not done here",
+        "2026-10-23 progress (round 4 rule fixes): supply.unpinned-action now reports the uses: line (the ^\\s* regex under re.M had matched from the blank line above; all 3 v3 FPs). ruby.sql-injection gains a Ruby splice check (lang_rules._rb_splices_safe; safe_splice_text/calls/values): literal choices, quote_*/sanitize/escape calls and PRAGMA read-backs are not reported; gold 20 -> 12, all 8 removed labelled fp; planted bad twins all still caught. Ledger: unpinned-action 196/0, lower 0.981, admitted; ruby.sql-injection 0/10."
       ]
     },
     {
@@ -1612,7 +1613,9 @@
         "2026-10-22 progress (Phase 1 items 4-5): measured per-rule precision with no human labels: ground truth (OWASP Java/Python, Juliet Java, 70 CVE fix pairs; 8,061 labels) and two independent model labellers + adjudicator (692 labels, $34.82), in tools/gold/labels/ and tools/gold/results/2026-10-22-labels.md. Labeller tp-call precision on blind ground truth 0.993 with Wilson lower bound 0.962, so model labels cannot yet support a 0.99 claim; calibration covers injection/crypto only. Held-out split frozen in tools/gold/heldout.json. why/why-not and feedback criteria are untouched.",
         "2026-10-23 progress (calibration round 2): 450 more blind ground-truth items; labeller tp-call precision pooled over 700 items 395/401 (Wilson lower 0.968), still below 0.99; all 6 false TPs have the deciding fact outside the excerpt (other-file safe source, Flask route decorator, cross-file Juliet), 389/390 (0.986) without them. Planted-twin calibration for tests/secrets/stubs/resilience/concurrency (lower bounds 0.67-0.86, too few items for 0.99) and fact-checks for supply chain and secrets. BenchmarkTest01096's safe label is right (fixed route). No category's model labels can back a 0.99 claim; tools/gold/results/2026-10-23-calibration.md. $21.27.",
         "2026-10-23 progress (labeller context, calibration round 3): shared excerpt builder src/arbiter/context.py for labellers and verify (decorators/annotations, class header, route registration, taint-path callees, up to 3 cross-file definitions resolved by type/import; bounded 220 lines, masked); label prompt v2, verify-v2. 500 new blind ground-truth items: tp calls 286/286 (Wilson lower 0.987), fp calls 206/206; pooled rounds 1-3 681/687 (0.981). Injection family still short of a 0.99 lower bound (363 clean tp calls needed on v2; 286 so far). 5 of round 1-2's 6 false TPs become correct fp with the new excerpt; the 6th (Juliet _81) is now excluded by the widened cross-file filter. Timeout-family claim no longer asserts indefinite blocking. tools/gold/results/2026-10-23-calibration-3.md. $18.58.",
-        "2026-10-23 progress (relabel at v3, calibration rounds 4-5): context.build adds up to 2 same-file callers when a parameter feeds the flagged line; labeller prompt v3, verify-v3. Calibration on v3 (494 new blind ground-truth items): tp calls 382/382, Wilson lower 0.99004 (round 4 alone 154/154, 0.976), fp calls 112/112, 0 unsure: the first single-version 0.99 bound, for injection/weak-crypto/deserialisation on benchmark code only, margin one error. Gold sample (601, fresh gold run), AI corpus (115) and CVE suspects (5) relabelled with v3; v1 files in tools/gold/labels/history/, and the ledger build drops superseded-version model labels. Admitted: java.weak-random-for-secret, assurance.blanket-suppression (125/125, 0.970, model labels in an uncalibrated category, so not declared verified). Precision guard green. Rule gaps: ruby.sql-injection 0/19 on Rails; supply.unpinned-action reports blank lines (3 FPs); model labels lack stratum_size. tools/gold/results/2026-10-23-calibration-4.md, -relabel.md. $44.97."
+        "2026-10-23 progress (relabel at v3, calibration rounds 4-5): context.build adds up to 2 same-file callers when a parameter feeds the flagged line; labeller prompt v3, verify-v3. Calibration on v3 (494 new blind ground-truth items): tp calls 382/382, Wilson lower 0.99004 (round 4 alone 154/154, 0.976), fp calls 112/112, 0 unsure: the first single-version 0.99 bound, for injection/weak-crypto/deserialisation on benchmark code only, margin one error. Gold sample (601, fresh gold run), AI corpus (115) and CVE suspects (5) relabelled with v3; v1 files in tools/gold/labels/history/, and the ledger build drops superseded-version model labels. Admitted: java.weak-random-for-secret, assurance.blanket-suppression (125/125, 0.970, model labels in an uncalibrated category, so not declared verified). Precision guard green. Rule gaps: ruby.sql-injection 0/19 on Rails; supply.unpinned-action reports blank lines (3 FPs); model labels lack stratum_size. tools/gold/results/2026-10-23-calibration-4.md, -relabel.md. $44.97.",
+        "2026-10-23 progress (round 4, population weights): label records carry stratum_size, stratum_held_out_size, rule_population, rule_held_out_population and sampling (label_models.py, ground-truth writers); existing files backfilled with no model calls by tools/label_populations.py (gold-model from the relabel's own gold run, committed as tools/gold/results/2026-10-23-gold-report-relabel.json.gz; the rest as censuses; 6,139 records, 0 unknown, no label changed). The tier claim is now stratified by (rule, source, language), weighted by held-out population, Wilson on min(Kish, design) n_eff, with unlabelled held-out population counted against the bound; unknown populations are reported, and precision_guard fails a declared-verified rule that has any. blanket-suppression population 150 (was the 125-label fallback), 20 held out. No rule declared verified, so no tier claim; both admitted rules together would give lower 0.984 (was 0.966). $0.",
+        "2026-10-23 progress (round 4 relabel): label_models fact-check adds suppression_fact (does a suppression directive name a rule), agreeing with 150/150 blanket-suppression labels; v3 --per-rule relabel of unpinned-action (200 sampled) and blanket-suppression (all 150), 116 items, $3.85, all tp; SHA-pin fact agrees 200/200. Stale-location and no-longer-reported labels moved to tools/gold/labels/history/. blanket-suppression 150/0, lower 0.975."
       ]
     },
     {
@@ -1708,7 +1711,9 @@
       "documentation_required": [
         "changelog"
       ],
-      "risk_notes": []
+      "risk_notes": [
+        "progress 2026-10-23 (round 4 docs review): tests/test_docs.py checks that every relative link and #anchor in the root guides and docs/ resolves and that every CLI subcommand appears in docs/cli.md; a partial step toward criterion 2 (capability claims in docs/ tested), not the generated briefs of criterion 1"
+      ]
     },
     {
       "id": "ARB-072",
@@ -1957,6 +1962,205 @@
         "rules tuned on 25 development apps can overfit: the held-out corpus is the honest measure and was not read",
         "app-level auth detection is name-based and can be fooled by auth done outside the repository (a gateway)",
         "Dev-corpus code recall 2% to 28%, precision 9% to 52%; held-out 10 of 142 (aggregate only). New rules stay advisory until the ledger admits them."
+      ]
+    },
+    {
+      "id": "ARB-084",
+      "category": "capability",
+      "title": "Code-size, complexity and test-presence checks",
+      "description": "The quality and AST-metrics probes report what makes code hard to review or change: functions over a cyclomatic-complexity limit (arbiter/ast.high-complexity), nested too deeply (arbiter/ast.deep-nesting) or too long (arbiter/ast.function-too-long), files over a line limit (arbiter/quality.file-too-long), a high density of TODO/FIXME markers (arbiter/quality.todo-density) and a repository with source but no tests (arbiter/quality.no-tests). Limits come from arbiter.yaml. Shipped with Arbiter 0.1.0 (8158e1a, 2026-09-12) before the requirement registry; recorded here so their findings trace to a requirement (ARB-064).",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/probes.py",
+        "arbiter.yaml",
+        "tests/test_probes_quality.py",
+        "src/arbiter/packs/rules/native.yaml"
+      ],
+      "acceptance_criteria": [
+        "each of the six rules is emitted by probe_quality or probe_ast_metrics and listed in native.yaml with requirements ARB-084",
+        "limits are read from arbiter.yaml",
+        "findings carry requirements ARB-084 in the JSON report"
+      ],
+      "validation_required": [
+        "python -m pytest -q",
+        "tests/test_rule_requirements.py"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "size and complexity limits are conventions not defects; findings stay advisory"
+      ]
+    },
+    {
+      "id": "ARB-085",
+      "category": "capability",
+      "title": "Provider-neutral IaC resource policy",
+      "description": "The resource probe evaluates Terraform/CloudFormation/Kubernetes resources normalised to provider-neutral kinds against packs/rules/resource.yaml: encryption at rest (database, object store, volume, queue), public exposure (public object store, publicly accessible database, unrestricted ingress, host network), transport security (plaintext listener, plaintext database connections, weak TLS version, no HTTPS redirect), logging and retention, deletion protection, and the Kubernetes pod-security checks (privileged, privilege escalation, host namespaces and paths, root user, capabilities, security context, resource limits, mutable image tags, writable root filesystem). It also says when a value is only known at apply time (arbiter/resource.unknown-until-apply) and when HCL source was read literally instead of from a plan (arbiter/resource.source-is-literal-hcl). Shipped in 8158e1a, 64d028d and 9b7a984 (2026-09-12/13) before the requirement registry; recorded here for ARB-064 traceability.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/packs/rules/resource.yaml",
+        "src/arbiter/probes.py",
+        "src/arbiter/graph.py",
+        "tests/test_probes_iac.py",
+        "src/arbiter/packs/rules/native.yaml"
+      ],
+      "acceptance_criteria": [
+        "every resource.yaml rule carries requirements ARB-085",
+        "resource.unknown-until-apply and resource.source-is-literal-hcl carry ARB-085 in native.yaml",
+        "a rule fires on the provider-neutral kind for AWS Azure and GCP resources alike"
+      ],
+      "validation_required": [
+        "python -m pytest -q",
+        "tests/test_rule_requirements.py"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "provider-specific normalisation lives in the graph normalisers; a resource type they do not normalise is not assessed"
+      ]
+    },
+    {
+      "id": "ARB-086",
+      "category": "capability",
+      "title": "Committed provider-issued tokens and credential URLs",
+      "description": "The secrets probe reports fixed-prefix credentials committed to the tree, one rule per pattern in probes.SECRET_PATTERNS: AWS access keys, GitHub and GitLab tokens, Google API keys, JWTs, npm and PyPI tokens, OpenAI and Anthropic keys, Postgres URLs with a password, SendGrid, Slack and Stripe keys and Slack webhooks. Shipped in 8158e1a (2026-09-12) and efdeb51 (2026-09-13, provider-issued tokens) before the requirement registry; recorded here for ARB-064 traceability. The heuristic rules secrets.assigned-credential and secrets.private-key keep ARB-065.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/probes.py",
+        "tests/test_probes_security.py",
+        "src/arbiter/packs/rules/native.yaml"
+      ],
+      "acceptance_criteria": [
+        "every SECRET_PATTERNS entry has a native.yaml entry with requirements ARB-086",
+        "a planted token of each provider format is reported and its value is masked in the report"
+      ],
+      "validation_required": [
+        "python -m pytest -q",
+        "tests/test_rule_requirements.py"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "prefix patterns miss credentials with no fixed prefix; those are assigned-credential's job"
+      ]
+    },
+    {
+      "id": "ARB-087",
+      "category": "capability",
+      "title": "Supply-chain checks: pinning, workflow triggers and nonexistent packages",
+      "description": "The supply-chain and authored probes report dependencies that can change or do not exist: GitHub Actions not pinned to a commit SHA (arbiter/supply.unpinned-action), workflows triggered by pull_request_target (arbiter/supply.pull-request-target), npm and Python dependencies without a pinned version (arbiter/supply.unpinned-npm-dep, arbiter/supply.unpinned-python-dep), and imports of packages that no registry or manifest knows (arbiter/authored.import-of-nonexistent-package). Shipped in 8158e1a and bcb5fc6 (2026-09-12) before the requirement registry; recorded here for ARB-064 traceability.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/probes.py",
+        "src/arbiter/authored.py",
+        "tests/test_probes_quality.py",
+        "tests/test_probes_security.py",
+        "src/arbiter/packs/rules/native.yaml"
+      ],
+      "acceptance_criteria": [
+        "the five rules carry requirements ARB-087 in native.yaml",
+        "findings carry ARB-087 in the JSON report"
+      ],
+      "validation_required": [
+        "python -m pytest -q",
+        "tests/test_rule_requirements.py"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "nonexistent-package detection depends on what the manifests and the offline package list know"
+      ]
+    },
+    {
+      "id": "ARB-088",
+      "category": "capability",
+      "title": "Cross-artifact consistency: interface and contract checks",
+      "description": "The interface probe compares what repositories in one system say about each other: a constant that disagrees across repositories, an environment variable read but never provided or provided but never read, an IAM permission needed but not granted or granted but unused, and a port listened on but not exposed. The contract probe compares artifacts that describe the same thing: a documented route that is not registered, a dropped column still referenced, and an API spec that could not be compared. Shipped in 8158e1a and 489a085 (2026-09-12) before the requirement registry; recorded here for ARB-064 traceability.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/probes.py",
+        "tests/test_graph_system.py",
+        "tests/test_probes_drift.py",
+        "src/arbiter/packs/rules/native.yaml"
+      ],
+      "acceptance_criteria": [
+        "the six interface and three contract rules carry requirements ARB-088 in native.yaml",
+        "the interface probe declares itself not applicable on a single-repository scan (ARB-033)"
+      ],
+      "validation_required": [
+        "python -m pytest -q",
+        "tests/test_rule_requirements.py"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "the interface checks need a multi-repository system; on one repository they are not applicable"
+      ]
+    },
+    {
+      "id": "ARB-089",
+      "category": "capability",
+      "title": "Written claims checked against the code",
+      "description": "Three rules check prose that makes a claim about the code: a configuration section documents an environment variable no source file reads (arbiter/drift.documented-env-var-absent), a docstring promises behaviour the body does not have (arbiter/authored.docstring-promises-absent-behaviour), and the judgement pass finds a claim the code contradicts (arbiter/judgement.claim-contradicts-code). Shipped in 8158e1a, bcb5fc6 and 64d028d (2026-09-12) before the requirement registry; recorded here for ARB-064 traceability. The judgement provider fix for 5.x models was made under ARB-065.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/probes.py",
+        "src/arbiter/authored.py",
+        "src/arbiter/judgement.py",
+        "tests/test_judgement_provider.py",
+        "src/arbiter/packs/rules/native.yaml"
+      ],
+      "acceptance_criteria": [
+        "the three rules carry requirements ARB-089 in native.yaml",
+        "judgement.claim-contradicts-code is only produced by the judgement pass and never without a provider"
+      ],
+      "validation_required": [
+        "python -m pytest -q",
+        "tests/test_rule_requirements.py"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "the judgement rule depends on a model provider and is not run offline"
+      ]
+    },
+    {
+      "id": "ARB-090",
+      "category": "capability",
+      "title": "Assurance census: suppressions and analysis exclusions are reported",
+      "description": "The assurance probe reports what the analysis was told not to look at, so a clean result can be read for what it covers: tool configuration that excludes paths from analysis (arbiter/assurance.analysis-excluded) and a per-tool count of inline suppressions (arbiter/assurance.suppression-census). Shipped in bcb5fc6 (2026-09-12) before the requirement registry; the census was later fixed under ARB-049 (FAIL-048, suppressions inside strings) and ARB-065 (gosec #nosec labelled gosec). Recorded here for ARB-064 traceability.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "src/arbiter/assurance.py",
+        "tests/test_probes_quality.py",
+        "src/arbiter/packs/rules/native.yaml"
+      ],
+      "acceptance_criteria": [
+        "both rules carry requirements ARB-090 in native.yaml",
+        "an exclusion file with patterns produces one analysis-excluded finding naming the tool"
+      ],
+      "validation_required": [
+        "python -m pytest -q",
+        "tests/test_rule_requirements.py"
+      ],
+      "documentation_required": [
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "the census is informational; counts are not defects"
       ]
     }
   ]

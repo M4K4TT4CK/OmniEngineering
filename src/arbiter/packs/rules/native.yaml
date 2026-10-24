@@ -5,7 +5,10 @@
 #                 proposed by tools/rule_requirements.py and reviewed by hand
 #   tier          verified | advisory (default advisory: on probation until the
 #                 precision ledger admits it; see docs/precision.md)
-#   note          why a rule has no requirement: it predates the registry
+#   note          optional free text; it never stands in for `requirements`
+#
+# Every rule has at least one requirement. Rules shipped before the registry
+# existed (2026-09-12/13) trace to the group requirements ARB-084..ARB-090.
 #
 # tests/test_rule_requirements.py holds this list to the rule ids the source
 # can emit, in both directions.
@@ -17,7 +20,7 @@ rules:
   - id: arbiter/aiapp.unauthenticated-destructive-route
     requirements: [ARB-083]
   - id: arbiter/assurance.analysis-excluded
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-090]
   - id: arbiter/assurance.blanket-suppression
     requirements: [ARB-033, ARB-065]
   - id: arbiter/assurance.cache-divergence
@@ -25,23 +28,23 @@ rules:
   - id: arbiter/assurance.permanently-skipped-test
     requirements: [ARB-065, ARB-080]
   - id: arbiter/assurance.suppression-census
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-049, ARB-065, ARB-090]
   - id: arbiter/assurance.test-asserts-nothing
     requirements: [ARB-065]
   - id: arbiter/ast.deep-nesting
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-084]
   - id: arbiter/ast.function-too-long
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-084]
   - id: arbiter/ast.high-complexity
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-084]
   - id: arbiter/authored.docstring-promises-absent-behaviour
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-089]
   - id: arbiter/authored.import-of-nonexistent-package
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-087]
   - id: arbiter/authored.security-check-disabled
     requirements: [ARB-065, ARB-080]
   - id: arbiter/authored.stub-on-production-path
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-048, ARB-065]
   - id: arbiter/authored.undeclared-import
     requirements: [ARB-065]
   - id: arbiter/concurrency.check-then-act-unlocked
@@ -49,82 +52,82 @@ rules:
   - id: arbiter/concurrency.unsynchronised-counter
     requirements: [ARB-054]
   - id: arbiter/contract.documented-route-not-registered
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-088]
   - id: arbiter/contract.dropped-column-still-referenced
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-088]
   - id: arbiter/contract.spec-not-compared
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-088]
   - id: arbiter/drift.broken-doc-link
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-013, ARB-048]
   - id: arbiter/drift.doc-references-missing-file
     requirements: [ARB-033]
   - id: arbiter/drift.documented-env-var-absent
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-089]
   - id: arbiter/governance.open-failure-untested
     requirements: [ARB-038]
   - id: arbiter/governance.regression-test-missing
     requirements: [ARB-038]
   - id: arbiter/interface.constant-disagreement
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-088]
   - id: arbiter/interface.env-var-never-provided
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-088]
   - id: arbiter/interface.env-var-provided-but-unused
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-088]
   - id: arbiter/interface.permission-not-granted
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-088]
   - id: arbiter/interface.permission-unused
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-088]
   - id: arbiter/interface.port-not-exposed
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-088]
   - id: arbiter/judgement.claim-contradicts-code
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-065, ARB-089]
   - id: arbiter/quality.file-too-long
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-084]
   - id: arbiter/quality.no-tests
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-084]
   - id: arbiter/quality.todo-density
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-084]
   - id: arbiter/resource.source-is-literal-hcl
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-085]
   - id: arbiter/resource.unknown-until-apply
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-085]
   - id: arbiter/secrets.anthropic-key
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-086]
   - id: arbiter/secrets.assigned-credential
     requirements: [ARB-065]
   - id: arbiter/secrets.aws-access-key
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-086]
   - id: arbiter/secrets.gh-token
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-086]
   - id: arbiter/secrets.gitlab-token
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-086]
   - id: arbiter/secrets.google-api-key
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-086]
   - id: arbiter/secrets.jwt
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-086]
   - id: arbiter/secrets.npm-token
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-086]
   - id: arbiter/secrets.openai-key
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-086]
   - id: arbiter/secrets.pg-url
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-086]
   - id: arbiter/secrets.private-key
     requirements: [ARB-065]
   - id: arbiter/secrets.pypi-token
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-086]
   - id: arbiter/secrets.sendgrid-key
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-086]
   - id: arbiter/secrets.slack-token
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-086]
   - id: arbiter/secrets.slack-webhook
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-086]
   - id: arbiter/secrets.stripe-key
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-086]
   - id: arbiter/supply.pull-request-target
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-087]
   - id: arbiter/supply.unpinned-action
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-087]
   - id: arbiter/supply.unpinned-npm-dep
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-087]
   - id: arbiter/supply.unpinned-python-dep
-    note: introduced 2026-09-12/13, before the requirement registry; no requirement has changed it since
+    requirements: [ARB-087]

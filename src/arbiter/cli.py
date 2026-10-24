@@ -127,7 +127,7 @@ def _add_scan_commands(sub) -> None:
                           "that no longer matches")
 
     gt = common(sub.add_parser("gate", help="analyze and exit non-zero on policy failure"))
-    gt.add_argument("--out", default="arbiter-out")
+    gt.add_argument("--out", default="arbiter-out", help="output directory")
     gt.add_argument("--format", default="json,console",
                     help="json,sarif,html,markdown,console,pr-comment,annotations")
 
@@ -149,15 +149,16 @@ def _add_report_commands(sub) -> None:
                     help="arm spec, e.g. 'native;only=secrets' or 'checkov;kind=tool;tool=checkov'")
     ab.add_argument("--name", default="", help="label for the comparison")
     ab.add_argument("--out", default="arbiter-ab", help="output directory")
-    ab.add_argument("--no-adapters", action="store_true")
+    ab.add_argument("--no-adapters", action="store_true", help="native probes only")
 
     pr = sub.add_parser("probes", help="list probes and whether they can run here")
     pr.add_argument("target", nargs="?", default=".", help="target to assess applicability against")
-    pr.add_argument("--no-adapters", action="store_true")
+    pr.add_argument("--no-adapters", action="store_true", help="leave the external analyzers out of the list")
 
     bl = sub.add_parser("baseline", help="write a baseline from a report")
     bl.add_argument("report", help="path to report.json")
-    bl.add_argument("--out", default=".arbiter/baseline.json")
+    bl.add_argument("--out", default=".arbiter/baseline.json",
+                    help="where to write the baseline (default .arbiter/baseline.json)")
     bl.add_argument("--migrate", metavar="OLD_BASELINE",
                     help="carry an earlier baseline (e.g. one cut before occurrence ids, "
                          "ARB-080) into the current id format instead of re-cutting it: "
@@ -170,13 +171,14 @@ def _add_report_commands(sub) -> None:
     df.add_argument("--out", default="", help="write the chosen formats into this directory")
 
     fb = sub.add_parser("feedback", help="adjudicate findings so the tool calibrates")
-    fb.add_argument("finding_ids", nargs="+", help="finding ids from a report")
-    fb.add_argument("--report", default="arbiter-out/report.json")
+    fb.add_argument("finding_ids", nargs="+", help="finding ids from a report; the end of an id is enough")
+    fb.add_argument("--report", default="arbiter-out/report.json",
+                    help="report the finding ids come from (default arbiter-out/report.json)")
     fb.add_argument("--knowledge", help="knowledge file (default .arbiter/knowledge.json)")
     group = fb.add_mutually_exclusive_group(required=True)
-    group.add_argument("--false-positive", action="store_true")
-    group.add_argument("--true-positive", action="store_true")
-    fb.add_argument("--note", default="")
+    group.add_argument("--false-positive", action="store_true", help="the finding is wrong here")
+    group.add_argument("--true-positive", action="store_true", help="the finding is a real problem")
+    fb.add_argument("--note", default="", help="why; stored with each verdict")
     fb.add_argument("--reviewer", default="",
                     help="who is answerable for these verdicts "
                          "(default: git config user.email)")
@@ -233,8 +235,9 @@ def _add_report_commands(sub) -> None:
     ct.add_argument("--list", action="store_true", help="list available frameworks and exit")
 
     ex = sub.add_parser("explain", help="show one finding in full")
-    ex.add_argument("finding_id")
-    ex.add_argument("--report", default="arbiter-out/report.json")
+    ex.add_argument("finding_id", help="the full finding id, e.g. f:8c41d2ae9b07")
+    ex.add_argument("--report", default="arbiter-out/report.json",
+                    help="report to read (default arbiter-out/report.json)")
 
 
 def _add_service_commands(sub) -> None:
@@ -354,14 +357,14 @@ def _add_service_commands(sub) -> None:
     # value and do nothing with it.
     rg = remote_common(remote_sub.add_parser("gate", help="run the policy gate remotely"))
     rg.add_argument("target", nargs="?", default=".", help="directory to send")
-    rg.add_argument("--profile", default="ci")
-    rg.add_argument("--only", default="")
-    rg.add_argument("--skip", default="")
+    rg.add_argument("--profile", default="ci", help="capability budget (default ci); the server refuses one that needs the network")
+    rg.add_argument("--only", default="", help="comma-separated probes to run exclusively")
+    rg.add_argument("--skip", default="", help="comma-separated probes to skip")
 
     rq = remote_common(remote_sub.add_parser(
         "review-queue", help="draw a review queue from a report; marks nothing"))
     rq.add_argument("report", help="path to a report.json")
-    rq.add_argument("--limit", type=int, default=20)
+    rq.add_argument("--limit", type=int, default=20, help="how many findings to queue (default 20)")
     rq.add_argument("--rule", default="", help="only findings whose rule id contains this")
     rq.add_argument("--out", help="write the queue here instead of standard output")
 

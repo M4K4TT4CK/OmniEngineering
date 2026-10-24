@@ -59,7 +59,9 @@ confined over HTTPS exactly as the others are and writes only under
 
 `profile` is restricted to `offline` and `ci` on both scanning tools. Both run
 with the network off. An agent cannot ask for the network by naming a profile,
-and `service.check_profile` refuses one that would.
+and `service.check_profile` refuses one that declares `network: True`.
+(`assisted` declares no network but does call a model; see the note in
+[hosted-api.md](hosted-api.md#custody-is-the-real-gate).)
 
 ## The tool that does not exist
 
@@ -81,7 +83,7 @@ says every mark was proposed by an assistant and nothing has been recorded. That
 is a file a person reads. It has no permanence: the knowledge file is read and
 never saved, no failure ledger is opened — the entries the `y` marks *would*
 draft come back as text — and the draft is not consulted by anything until a
-person runs `arbiter review --apply review-draft.md --reviewer <name>`, having
+person runs `arbiter review <report> --apply review-draft.md --reviewer <name>`, having
 read it. The reviewer named on that command answers for every mark it records.
 
 Applying is different in kind, not degree. The moment a tool could record, the
@@ -200,9 +202,9 @@ arbiter mcp --http --root /srv/arbiter/work --cert cert.pem --key key.pem
 | `--audit`, `--no-audit` | where request lines go, or not keeping them |
 | `--limiter` | `memory` (default, one process) or `file`: the caps counted in `limiter.db` beside the key file, shared by every process serving the same keys — see [hosted-api.md](hosted-api.md#sharing-the-limits-between-processes---limiter-file) |
 
-The SDK is pinned at `mcp>=2.2`. That is a hard floor rather than caution: the
-server API changed shape there — handlers became constructor arguments instead of
-decorators — so a 1.x install fails at startup rather than degrading.
+The SDK is pinned at `mcp>=2.2`. `_build_server` checks whether the installed
+`Server` takes its handlers as constructor arguments or as decorators, and uses
+whichever it finds.
 
 Sessions are **stateless**: nothing is kept between requests, so there is no
 session store holding one caller's state for another to resume, and nothing to

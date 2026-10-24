@@ -15,7 +15,9 @@ Fails when:
      than 20% above the count recorded when it was labelled, and the
      ledger entry was not updated after the snapshot was: the rule now
      fires on code its labels never saw, so its precision is unmeasured;
-  4. tools/gold/precision.json and the packaged copy differ.
+  4. tools/gold/precision.json and the packaged copy differ;
+  5. a rule declared verified has labels whose population (`stratum_size`)
+     is unknown, so the population-weighted tier claim cannot weight it.
 
 The sibling of tools/regression_guard.py: that one asks whether findings
 changed, this one whether the precision claim still rests on its labels.
@@ -94,6 +96,12 @@ def check(ledger: dict, verified: set[str], snapshots: dict[str, dict],
         ok, why = P.admission(entry, bar)
         if not ok:
             out.append(f"{rule}: declared verified but below the bar: {why}")
+        unknown = entry.get("population_unknown")
+        if unknown or entry.get("held_out_population") is None:
+            what = f"{unknown} label(s)" if unknown else "its held-out labels"
+            out.append(f"{rule}: declared verified but {what} have no recorded population "
+                       "(stratum_size), so the tier claim cannot weight it: backfill with "
+                       "tools/label_populations.py or re-sample")
     for rule, entry in sorted(rules.items()):
         ok, why = P.admission(entry, bar)
         if "admitted" in entry and bool(entry["admitted"]) != ok:

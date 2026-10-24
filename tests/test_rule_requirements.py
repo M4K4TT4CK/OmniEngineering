@@ -1,5 +1,6 @@
 """Every shipped rule traces to the requirement(s) it was built or fixed
-under (ARB-064), or is listed here as an exception with its reason.
+under (ARB-064). No exceptions: the rules that shipped before the registry
+existed trace to the group requirements ARB-084..ARB-090 written for them.
 
 The mapping is rule metadata: `requirements:` on each pack rule and in
 `packs/rules/native.yaml` for rules coded in Python, proposed from the
@@ -17,45 +18,6 @@ from helpers import ROOT
 from arbiter import rule_meta
 from arbiter.lang_rules import PackError, validate_pack
 
-# Rules with no requirement, by reason. Every one was introduced on
-# 2026-09-12 or 2026-09-13 (commits 8158e1a "Arbiter 0.1.0", bcb5fc6,
-# 489a085, 64d028d, efdeb51), before the requirement registry existed, and no
-# requirement has changed it since: there is nothing true to cite. A rule
-# that a requirement later changes gets that id and leaves this list.
-PRE_REGISTRY = {
-    # resource.yaml: the provider-neutral IaC policy shipped with 0.1.0
-    *(f"arbiter/resource.{r}" for r in (
-        "database-allows-plaintext-connections", "database-publicly-accessible", "host-network",
-        "k8s-capabilities-not-dropped", "k8s-dangerous-capabilities", "k8s-host-namespace",
-        "k8s-host-path-volume", "k8s-mutable-image-tag", "k8s-no-resource-limits",
-        "k8s-no-security-context", "k8s-not-run-as-non-root", "k8s-privilege-escalation",
-        "k8s-privilege-escalation-not-disabled", "k8s-runs-as-root", "k8s-writable-root-filesystem",
-        "no-deletion-protection", "no-https-redirect", "no-log-retention", "no-object-store-logging",
-        "plaintext-listener", "privileged-container", "public-object-store", "source-is-literal-hcl",
-        "unencrypted-database", "unencrypted-object-store", "unencrypted-queue", "unencrypted-volume",
-        "unknown-until-apply", "unrestricted-ingress", "weak-tls-version")),
-    # secrets: fixed-prefix token patterns (0.1.0 and efdeb51)
-    *(f"arbiter/secrets.{r}" for r in (
-        "anthropic-key", "aws-access-key", "gh-token", "gitlab-token", "google-api-key", "jwt",
-        "npm-token", "openai-key", "pg-url", "pypi-token", "sendgrid-key", "slack-token",
-        "slack-webhook", "stripe-key")),
-    *(f"arbiter/supply.{r}" for r in (
-        "pull-request-target", "unpinned-action", "unpinned-npm-dep", "unpinned-python-dep")),
-    *(f"arbiter/interface.{r}" for r in (
-        "constant-disagreement", "env-var-never-provided", "env-var-provided-but-unused",
-        "permission-not-granted", "permission-unused", "port-not-exposed")),
-    *(f"arbiter/contract.{r}" for r in (
-        "documented-route-not-registered", "dropped-column-still-referenced", "spec-not-compared")),
-    "arbiter/ast.deep-nesting", "arbiter/ast.function-too-long", "arbiter/ast.high-complexity",
-    "arbiter/quality.file-too-long", "arbiter/quality.no-tests", "arbiter/quality.todo-density",
-    "arbiter/drift.broken-doc-link", "arbiter/drift.documented-env-var-absent",
-    "arbiter/assurance.analysis-excluded", "arbiter/assurance.suppression-census",
-    "arbiter/authored.docstring-promises-absent-behaviour",
-    "arbiter/authored.import-of-nonexistent-package", "arbiter/authored.stub-on-production-path",
-    "arbiter/judgement.claim-contradicts-code",
-}
-
-
 def _registry() -> set[str]:
     ids = set()
     for name in ("requirements.json", "requirements-archive.json"):
@@ -64,19 +26,22 @@ def _registry() -> set[str]:
     return ids
 
 
-def test_every_shipped_rule_has_a_requirement_or_is_a_listed_exception():
+def test_every_shipped_rule_has_a_requirement_in_the_registry():
+    """Strict: no exceptions. A rule shipped before the registry traces to the
+    group requirement written for it (ARB-084..ARB-090)."""
+    known = _registry()
     rules = rule_meta.shipped_rules()
-    missing = sorted(r for r, m in rules.items() if not m["requirements"] and r not in PRE_REGISTRY)
-    assert not missing, f"rules with no requirement and no listed reason: {missing}"
-    stale = sorted(r for r in PRE_REGISTRY if r in rules and rules[r]["requirements"])
-    assert not stale, f"now traced, remove from PRE_REGISTRY: {stale}"
-    assert PRE_REGISTRY <= set(rules), sorted(PRE_REGISTRY - set(rules))
+    missing = sorted(r for r, m in rules.items() if not m["requirements"])
+    assert not missing, f"rules with no requirement: {missing}"
+    dangling = {r: sorted(set(m["requirements"]) - known) for r, m in rules.items()
+                if set(m["requirements"]) - known}
+    assert not dangling, f"rules citing ids not in the registry or its archive: {dangling}"
 
 
 def test_most_rules_are_traced():
     rules = rule_meta.shipped_rules()
     traced = sum(1 for m in rules.values() if m["requirements"])
-    assert traced >= 157 and len(rules) >= 228
+    assert traced == len(rules) and len(rules) >= 263
 
 
 def test_every_cited_requirement_exists():
@@ -93,10 +58,35 @@ def test_native_yaml_lists_exactly_the_rules_the_source_can_emit():
                                f"listed but never emitted: {sorted(native - emitted)}")
 
 
-def test_a_pre_registry_native_rule_says_why_it_has_no_requirement():
+def test_a_not_assessed_finding_traces_to_the_rule_it_stands_for():
+    assert rule_meta.requirements_of("arbiter/resource.unencrypted-volume.not-assessed") == \
+        rule_meta.requirements_of("arbiter/resource.unencrypted-volume") == ["ARB-085"]
+    assert rule_meta.requirements_of("arbiter/nope.not-assessed") == []
+
+
+def test_every_native_yaml_entry_lists_requirements():
     import yaml
     for rule in yaml.safe_load(rule_meta.NATIVE.read_text())["rules"]:
-        assert rule.get("requirements") or rule.get("note"), rule["id"]
+        assert rule.get("requirements"), rule["id"]
+
+
+def test_every_arbiter_finding_in_a_scan_carries_requirements(legacy_report, system_report,
+                                                               plan_report):
+    """End to end: every arbiter/* finding of a real scan names a requirement,
+    in the Finding and in the JSON report (quality, drift, secrets, supply,
+    interface, contract and resource rules among them)."""
+    known = _registry()
+    seen = set()
+    for report in (legacy_report, system_report, plan_report):
+        data = json.loads(json.dumps(report.to_dict(), default=str))
+        for f in data["findings"]:
+            if not f["rule_id"].startswith("arbiter/"):
+                continue
+            seen.add(f["rule_id"])
+            assert f["requirements"], f["rule_id"]
+            assert set(f["requirements"]) <= known, f["rule_id"]
+    assert {r.split(".")[0] for r in seen} >= {
+        "arbiter/quality", "arbiter/resource", "arbiter/interface", "arbiter/secrets"}, sorted(seen)
 
 
 @pytest.mark.parametrize("bad,msg", [

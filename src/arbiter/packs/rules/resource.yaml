@@ -14,6 +14,7 @@
 
 rules:
   - id: unencrypted-database
+    requirements: [ARB-085]
     title: Database storage is not encrypted at rest
     match_kinds: [database]
     assert: property_truthy
@@ -39,6 +40,7 @@ rules:
     controls: [NIST-800-53r5:SC-28, CIS-AWS:2.3.1]
 
   - id: unencrypted-object-store
+    requirements: [ARB-085]
     title: Object store does not declare server-side encryption
     match_kinds: [object_store]
     assert: property_truthy
@@ -60,6 +62,7 @@ rules:
     controls: [NIST-800-53r5:SC-28, CIS-AWS:2.1.1]
 
   - id: unencrypted-volume
+    requirements: [ARB-085]
     title: Block or file storage is not encrypted
     match_kinds: [block_store, filesystem]
     # A Kubernetes PVC is a block_store, but encryption is a property of its
@@ -81,6 +84,7 @@ rules:
     controls: [NIST-800-53r5:SC-28]
 
   - id: unencrypted-queue
+    requirements: [ARB-085]
     title: Queue or topic has no encryption configured
     match_kinds: [queue, topic]
     assert: property_truthy
@@ -97,6 +101,7 @@ rules:
     controls: [NIST-800-53r5:SC-28]
 
   - id: public-object-store
+    requirements: [ARB-085]
     title: Object store grants public access
     match_kinds: [object_store]
     assert: property_not_in
@@ -111,6 +116,7 @@ rules:
     controls: [NIST-800-53r5:AC-3, CIS-AWS:2.1.5]
 
   - id: database-publicly-accessible
+    requirements: [ARB-085]
     title: Database is reachable from the public internet
     match_kinds: [database]
     assert: property_absent_or_false
@@ -125,6 +131,7 @@ rules:
     controls: [NIST-800-53r5:SC-7, CIS-AWS:2.3.3]
 
   - id: unrestricted-ingress
+    requirements: [ARB-085]
     title: Security group allows ingress from any address
     match_kinds: [firewall, firewall_rule]
     assert: no_open_ingress
@@ -136,6 +143,7 @@ rules:
     controls: [NIST-800-53r5:SC-7, CIS-AWS:5.2]
 
   - id: plaintext-listener
+    requirements: [ARB-085]
     title: Load balancer listener terminates in plaintext
     match_kinds: [listener]
     assert: property_not_in
@@ -153,6 +161,7 @@ rules:
     controls: [NIST-800-53r5:SC-8]
 
   - id: database-allows-plaintext-connections
+    requirements: [ARB-085]
     title: Database accepts unencrypted connections
     match_kinds: [database]
     # AWS RDS enforces TLS through a parameter group rather than a property on
@@ -182,6 +191,7 @@ rules:
     controls: [NIST-800-53r5:SC-8, NIST-800-171r2:3.13.8]
 
   - id: weak-tls-version
+    requirements: [ARB-085]
     title: TLS version policy allows 1.0 or 1.1
     match_kinds: [database, object_store, load_balancer, listener, compute, search]
     assert: property_not_in
@@ -202,6 +212,7 @@ rules:
     controls: [NIST-800-53r5:SC-8, NIST-800-53r5:SC-13]
 
   - id: no-https-redirect
+    requirements: [ARB-085]
     title: Web endpoint does not redirect HTTP to HTTPS
     match_kinds: [listener, compute]
     match_native: [azurerm_app_service, azurerm_linux_web_app, azurerm_windows_web_app,
@@ -220,6 +231,7 @@ rules:
     controls: [NIST-800-53r5:SC-8]
 
   - id: no-log-retention
+    requirements: [ARB-085]
     title: Log group has no retention period
     match_kinds: [log_group]
     assert: property_truthy
@@ -235,6 +247,7 @@ rules:
     controls: [NIST-800-53r5:AU-11]
 
   - id: no-object-store-logging
+    requirements: [ARB-085]
     title: Object store has no access logging
     match_kinds: [object_store]
     assert: property_truthy
@@ -260,6 +273,7 @@ rules:
     controls: [NIST-800-53r5:AU-2]
 
   - id: no-deletion-protection
+    requirements: [ARB-085]
     title: Stateful resource has no deletion protection
     match_kinds: [database]
     assert: property_truthy
@@ -278,6 +292,7 @@ rules:
     controls: [NIST-800-53r5:CP-9]
 
   - id: privileged-container
+    requirements: [ARB-085]
     title: Container runs privileged
     match_kinds: [compute]
     assert: text_absent
@@ -290,6 +305,7 @@ rules:
     controls: [NIST-800-53r5:AC-6, NIST-800-190:4.4]
 
   - id: host-network
+    requirements: [ARB-085]
     title: Workload attaches to the host network
     match_kinds: [compute]
     assert: text_absent
@@ -315,6 +331,7 @@ rules:
   # -------------------------------------------------------------------------
 
   - id: k8s-privilege-escalation
+    requirements: [ARB-085]
     title: Container allows privilege escalation
     match_kinds: [compute]
     match_providers: [k8s]
@@ -328,6 +345,7 @@ rules:
     controls: [NIST-800-53r5:AC-6, NIST-800-190:4.4]
 
   - id: k8s-host-namespace
+    requirements: [ARB-085]
     title: Workload shares a host namespace
     match_kinds: [compute]
     match_providers: [k8s]
@@ -341,6 +359,7 @@ rules:
     controls: [NIST-800-53r5:SC-39, NIST-800-190:4.4]
 
   - id: k8s-host-path-volume
+    requirements: [ARB-085]
     title: Workload mounts a host path
     match_kinds: [compute]
     match_providers: [k8s]
@@ -354,6 +373,7 @@ rules:
     controls: [NIST-800-190:4.4]
 
   - id: k8s-runs-as-root
+    requirements: [ARB-085]
     title: Container runs as root
     match_kinds: [compute]
     match_providers: [k8s]
@@ -367,6 +387,7 @@ rules:
     controls: [NIST-800-53r5:AC-6]
 
   - id: k8s-dangerous-capabilities
+    requirements: [ARB-085]
     title: Container adds a dangerous Linux capability
     match_kinds: [compute]
     match_providers: [k8s]
@@ -380,6 +401,7 @@ rules:
     controls: [NIST-800-53r5:AC-6, NIST-800-190:4.4]
 
   - id: k8s-mutable-image-tag
+    requirements: [ARB-085]
     title: Container image uses a mutable tag
     match_kinds: [compute]
     match_providers: [k8s]
@@ -393,6 +415,7 @@ rules:
     controls: [NIST-800-218:PW.4, NIST-800-53r5:CM-2]
 
   - id: k8s-no-resource-limits
+    requirements: [ARB-085]
     title: Container declares no resource limits
     match_kinds: [compute]
     match_providers: [k8s]
@@ -421,6 +444,7 @@ rules:
   # -------------------------------------------------------------------------
 
   - id: k8s-no-security-context
+    requirements: [ARB-085]
     title: Workload declares no security context
     match_kinds: [compute]
     match_providers: [k8s]
@@ -437,6 +461,7 @@ rules:
     controls: [NIST-800-53r5:CM-6, NIST-800-190:4.4]
 
   - id: k8s-privilege-escalation-not-disabled
+    requirements: [ARB-085]
     title: Privilege escalation is not explicitly disabled
     match_kinds: [compute]
     match_providers: [k8s]
@@ -450,6 +475,7 @@ rules:
     controls: [NIST-800-53r5:AC-6, NIST-800-190:4.4]
 
   - id: k8s-not-run-as-non-root
+    requirements: [ARB-085]
     title: Workload does not require a non-root user
     match_kinds: [compute]
     match_providers: [k8s]
@@ -463,6 +489,7 @@ rules:
     controls: [NIST-800-53r5:AC-6]
 
   - id: k8s-writable-root-filesystem
+    requirements: [ARB-085]
     title: Container root filesystem is writable
     match_kinds: [compute]
     match_providers: [k8s]
@@ -476,6 +503,7 @@ rules:
     controls: [NIST-800-53r5:CM-7]
 
   - id: k8s-capabilities-not-dropped
+    requirements: [ARB-085]
     title: Container retains default Linux capabilities
     match_kinds: [compute]
     match_providers: [k8s]

@@ -229,7 +229,9 @@ there.
 > its `labels.json` while writing or tuning a rule, and do not add its apps
 > to planted fixtures or variants. Only aggregate scores are reported
 > (`tools/ai_corpus_score.py --aggregate-only`, which names no rule, file,
-> line or finding). The 99% precision claim is reported on held-out data
+> line or finding). The precision claim (target: a Wilson lower bound of
+> 0.99 on the verified tier; not reached, see
+> [precision.md](precision.md#current-numbers)) is computed on held-out data
 > only. The sealed list is `tools/gold/heldout.json` → `ai_corpus_heldout`.
 
 The development corpus above is what rules get tuned against, so its score
@@ -362,7 +364,7 @@ Targets are in `tools/gold/guards.json`. Three are in-tree (`fixtures/planted`,
 an aggregate-only target: counts and a digest, never findings; see
 [the held-out batch](#held-out-batch-fixturesai-corpus-heldout)). Four are small gold repositories pinned in
 `tools/fetch_corpus.sh`: `py-urllib3`, `ts-jose`, `ruby-puma` and
-`go-coredns`. They have 47, 134, 74 and 308 findings and scan in 1.6 to 7 s.
+`go-coredns`. They have 36, 110, 74 and 305 findings (snapshots of 2026-10-23) and scan in 1.6 to 7 s.
 The large gold repositories stay with `gold_benchmark.py`, because a
 snapshot diff of 5,000 findings is one nobody reads.
 
@@ -437,9 +439,11 @@ transform) pair the transform actually changed. Markers that the unmodified
 scan already misses are not scored. A lost finding reported within three
 lines of the defect is flagged as a location regression.
 
-### Results (2026-10-22)
+### Results (2026-10-22, before one-hop data flow)
 
-404 of 486 pairs kept (83%).
+404 of 486 pairs kept (83%). After one-hop data flow (ARB-062) the sweep kept
+608 of 648 (94%; CHANGELOG, Milestone 3); this file's table has not been
+re-run since.
 
 | transform | kept |
 |---|---|
@@ -482,10 +486,15 @@ robustness below 1.
 The precision claim is meant to stand with no person reading findings, so
 the labels come from two places that do not depend on Arbiter: benchmarks
 with published answers, and model labellers kept independent of Arbiter and
-of the Phase 2 verifier. Labels are JSON lines in `tools/gold/labels/`
-(`finding_id`, `rule_id`, `label` tp|fp|unsure, `labeller`, `source`,
-`held_out`, `reason`, `excerpt_sha256`, plus path, line and CWE). Results:
-`tools/gold/results/2026-10-22-labels.md`.
+of the verify pass (`src/arbiter/verify.py`). Labels are JSON lines in
+`tools/gold/labels/`; the format the ledger reads is in
+[precision.md](precision.md#label-format) (model labellers also write
+`reason`, `excerpt_sha256`, path, line and CWE). Results:
+`tools/gold/results/2026-10-22-labels.md`; current: `2026-10-23-relabel.md`
+and `2026-10-23-calibration*.md`, summarised in
+[precision.md](precision.md#current-numbers). The ledger built from these
+labels, and the CI guard over it, are documented in
+[precision.md](precision.md#ledger).
 
 ```bash
 tools/ground_truth/fetch_gt.sh                       # Juliet (SHA-256 pinned) + CVE pair files -> ~/wt/corpus-gt
@@ -515,9 +524,12 @@ excerpt shows whether their data is tainted.
 CLI (`claude -p --model opus`, no tools, settings, skills or MCP servers, a
 replaced system prompt):
 
-- A labeller sees the excerpt (enclosing function, same-file functions it
-  calls, imports; at most 180 lines; secrets masked by
-  `judgement._mask_secrets`), the file path and a *neutral claim* written
+- A labeller sees the excerpt built by `arbiter.context`, the same builder
+  the verify pass uses ([precision.md](precision.md#what-the-model-sees):
+  the enclosing function with decorators and class header, imports,
+  same-file callees and route registration, repository definitions on the
+  taint path and, from prompt `v3`, up to two same-file callers; at most 220
+  lines; secrets masked by `judgement._mask_secrets`), the file path and a *neutral claim* written
   for this tool (`CLAIMS`). It never sees Arbiter's title, description,
   remediation, severity or confidence, or any verifier verdict. A test checks
   the prompt for the rule's own wording.
@@ -559,7 +571,7 @@ names). These are files we wrote: they measure the labellers on clear-cut
 cases and cannot back a claim on real code. `label_models.py fact-check`
 compares existing model labels with facts a script can check (a full-SHA
 action pin, a lockfile beside the manifest, a secret under a test or example
-path, every linked path existing). Results:
+path, every linked path existing, a suppression directive that names no rule). Results:
 `tools/gold/results/2026-10-23-calibration.md`.
 
 **Held-out split** (`tools/gold/heldout.json`, frozen by
@@ -569,26 +581,33 @@ repositories (30%, stratified by language) plus every ground-truth source.
 repositories or ground-truth sources while changing a rule**; the precision
 claim is reported on the held-out split only. `heldout_split.py --check`
 fails if the committed file no longer matches a fresh computation. The
-AI-written corpus is development data (rules were tuned on it); a second
-corpus from a different generator model, held out, is future work.
+AI-written corpus is development data (rules were tuned on it); its held-out
+counterpart is `fixtures/ai-corpus-heldout/`
+([above](#held-out-batch-fixturesai-corpus-heldout)).
 
 ## What the numbers say
 
-1. **On code a current model writes for interview-style tasks, Arbiter's
-   native probes catch 2% of the code defects a reviewer finds, and 6% of
-   their findings in code are right** (dependency pinning aside, where it is
-   94% and 100%). The planted corpus measures something real, the rules
+1. **Recall on real code is low.** On the AI-written development corpus,
+   before the ARB-083 rules, the native probes caught 2% of the code defects
+   a reviewer found, and 9% of their code findings were right (dependency
+   pinning aside, where it is 94% and 100%). After ARB-083 (2026-10-23,
+   CHANGELOG), they catch 33 of 117 code defects (28%; 4 of 11 high or
+   critical), and 33 of 64 code findings match a label (52%; 11 unreviewed
+   count as wrong). Those rules were written for these labels, so this
+   flatters them. The planted corpus measures something real, the rules
    firing on the shapes they were written for, but it says little about this
    population.
-2. Biggest recall gains, by count and severity: resource bounds on untrusted
+2. Recall gaps addressed by ARB-083 (rules in
+   [probes.md](probes.md#ai-written-services)): resource bounds on untrusted
    input (image decoding, request bodies, job retention); unauthenticated
-   destructive or relay endpoints; SSRF on any server-side fetch of a
-   user-supplied URL, including callback URLs; ignored errors in Go beyond
-   `_ =`; path checks that only run when an env var is set; TLS without
-   verification in SMTP clients; constant-delay retries.
+   destructive or relay endpoints; SSRF to stored callback URLs; ignored
+   errors in Go; TLS without verification in SMTP clients; constant-delay
+   retries. Still open: SSRF on any server-side fetch of a user-supplied URL
+   beyond one hop, and path checks that only run when an env var is set.
 3. Biggest precision fixes: `go.db-call-no-deadline` on embedded databases,
    `go/ruby.sql-injection` on constant concatenation, and
    `authored.undeclared-import` for a framework's own dependencies.
-4. Robustness: make the injection rules follow a value through one local
-   assignment and one function call. Without that, the AI corpus will keep
-   showing misses that the planted corpus scores as caught.
+4. Robustness: one-hop data flow (`src/arbiter/dataflow.py`, `taint:` in
+   packs; ARB-062) took variant robustness from 485/596 to 608/648 pairs
+   (CHANGELOG, 2026-10-22). What remains is flow across files and beyond one
+   same-file call.

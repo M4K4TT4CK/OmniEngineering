@@ -641,12 +641,19 @@ def test_sql_spliced_from_a_local_built_by_quoting_is_fine(tmp_path):
     assert _lines(tmp_path, code, "sql-injection") == [16, 20, 23, 25]
 
 
-def test_safe_splice_keys_are_python_only():
+def test_safe_splice_keys_are_python_and_ruby_only():
     from arbiter.lang_rules import PackError, validate_pack
     rule = {"id": "x", "title": "t", "query": "(identifier) @hit", "remediation": "r",
             "safe_splice_names": "[A-Z]+"}
     validate_pack({"languages": ["python"], "rules": [rule]}, "p")
+    validate_pack({"languages": ["ruby"], "rules": [rule]}, "r")
     with pytest.raises(PackError):
         validate_pack({"languages": ["go"], "rules": [rule]}, "g")
+    with pytest.raises(PackError):
+        validate_pack({"languages": ["python", "ruby"], "rules": [rule]}, "pr")
+    ruby_only = {**rule, "safe_splice_values": "x"}
+    validate_pack({"languages": ["ruby"], "rules": [ruby_only]}, "r")
+    with pytest.raises(PackError):
+        validate_pack({"languages": ["python"], "rules": [ruby_only]}, "p")
     with pytest.raises(PackError):
         validate_pack({"languages": ["python"], "rules": [{**rule, "safe_splice_names": "("}]}, "p")

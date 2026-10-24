@@ -149,7 +149,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "fetch":
         return 1 if fetch(pairs, dest) else 0
     labels, suspects, per_pair = label_pairs(pairs, dest)
-    g.write_jsonl(args.out / "cve-fix.jsonl", labels)
+    g.write_jsonl(args.out / "cve-fix.jsonl", g.census_population(labels))
     sus = args.suspects or args.out / "cve-suspects.json"
     sus.write_text(json.dumps({"suspects": suspects, "per_pair": per_pair}, indent=1) + "\n", encoding="utf-8")
     yielded = sum(1 for r in per_pair if r.get("vuln_findings"))

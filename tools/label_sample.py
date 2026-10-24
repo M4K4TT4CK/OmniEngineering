@@ -105,6 +105,33 @@ def allocate(sizes: dict, n: int, floor: int = 1) -> dict:
     return alloc
 
 
+POPULATION_KEYS = ("stratum_size", "stratum_held_out_size", "rule_population",
+                   "rule_held_out_population", "sampling")
+
+
+def stratum_populations(findings: list[dict], held_out=lambda f: False,
+                        sampling: str = "stratified") -> dict[tuple, dict]:
+    """(rule, language) -> the population fields a label record carries
+    (docs/precision.md, "Population weights"): the stratum's size and how
+    many of it are held out, and the same for the rule as a whole within
+    this run. `findings` is everything the sample was drawn from (after
+    any rule filter), so these are the weights back to that population."""
+    size: Counter = Counter()
+    held: Counter = Counter()
+    for f in findings:
+        k = (f["rule"], f.get("language") or "")
+        size[k] += 1
+        held[k] += bool(held_out(f))
+    rule_size: Counter = Counter()
+    rule_held: Counter = Counter()
+    for (rule, _lang), v in size.items():
+        rule_size[rule] += v
+        rule_held[rule] += held[(rule, _lang)]
+    return {k: {"stratum_size": v, "stratum_held_out_size": held[k], "rule_population": rule_size[k[0]],
+                "rule_held_out_population": rule_held[k[0]], "sampling": sampling}
+            for k, v in size.items()}
+
+
 def stratified_sample(findings: list[dict], n: int, seed: int = 20261022,
                       key=lambda f: (f["rule"], f["language"])) -> list[dict]:
     strata: dict[tuple, list[dict]] = defaultdict(list)

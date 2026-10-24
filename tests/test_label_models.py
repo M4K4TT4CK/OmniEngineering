@@ -336,6 +336,26 @@ def test_fact_truth_sha_pin_lockfile_and_test_path(tmp_path):
     assert lm.fact_truth({**sec, "path": "app/conf.py"}, tmp_path) is None
 
 
+def test_fact_truth_blanket_suppression_names_no_rule(tmp_path):
+    """Round 4: the claim of assurance.blanket-suppression is a regex fact,
+    like the SHA pin: does the directive on the line name a rule."""
+    (tmp_path / "a.py").write_text("import x  # noqa\nimport y  # noqa: F401\n"
+                                   "z = 1  # type: ignore[attr-defined]\ns = '# noqa'\n", encoding="utf-8")
+    (tmp_path / "a.ts").write_text("// @ts-ignore\nf() // eslint-disable-line no-console\n"
+                                   "g() // eslint-disable-line\n", encoding="utf-8")
+    sup = {"rule_id": "arbiter/assurance.blanket-suppression"}
+    got = [lm.fact_truth({**sup, "path": p, "line": n}, tmp_path)
+           for p, n in (("a.py", 1), ("a.py", 2), ("a.py", 3), ("a.py", 4),
+                        ("a.ts", 1), ("a.ts", 2), ("a.ts", 3))]
+    assert [g[0] if g else None for g in got] == ["tp", "fp", "fp", None, "tp", "fp", "tp"]
+    for line, want in (("x := f() //nolint", "tp"), ("x := f() //nolint:errcheck", "fp"),
+                       ('@SuppressWarnings("all")', "tp"), ('@SuppressWarnings("unchecked")', "fp"),
+                       ("# nosec", "tp"), ("# nosec B101", "fp"), ("/* eslint-disable */", "tp"),
+                       ("# rubocop:disable Style/Foo", "fp"), ("# pylint: disable=all", "tp")):
+        assert lm.suppression_fact(line)[0] == want, line
+    assert lm.suppression_fact("x = 1") is None
+
+
 def test_server_throttle_is_retried_not_taken_for_a_usage_limit(tmp_path):
     calls = []
 
@@ -410,3 +430,55 @@ def test_per_rule_sample_sizes_languages_and_prefix_property():
 def test_reasons_are_masked_before_they_reach_a_label_file():
     ans = lm.parse_answer('{"label": "fp", "reason": "uses postgres://myuser:mypass@localhost/db in a test"}')
     assert "mypass" not in ans["reason"] and "postgres://[redacted]@localhost/db" in ans["reason"]
+
+
+# --- population weights ------------------------------------------------------
+
+def test_a_label_record_carries_the_population_its_item_was_drawn_from(tmp_path):
+    fake = Fake({"prosecutor": {"label": "tp", "reason": "p"}, "defender": {"label": "tp", "reason": "d"}})
+    it = _item(tmp_path)
+    it.update({"stratum_size": 40, "stratum_held_out_size": 12, "rule_population": 55,
+               "rule_held_out_population": 20, "sampling": "stratified"})
+    rec = lm.Labeller(lm.Cache(tmp_path / "c.jsonl"), lm.Budget(5), caller=fake).label(it)
+    assert {k: rec[k] for k in lm.ls.POPULATION_KEYS} == {
+        "stratum_size": 40, "stratum_held_out_size": 12, "rule_population": 55,
+        "rule_held_out_population": 20, "sampling": "stratified"}
+    assert rec["label"] == "tp"
+
+
+def test_items_from_a_report_carry_stratum_and_held_out_sizes(tmp_path, monkeypatch):
+    findings = []
+    for repo in ("dev-repo", "ho-repo"):
+        (tmp_path / repo).mkdir()
+        (tmp_path / repo / "app.py").write_text(PY)
+        findings += [{"id": f"f:{repo}{i}", "rule": "arbiter/python.command-injection", "path": "app.py",
+                      "line": 14, "cwe": ["CWE-78"], "severity": "high"} for i in range(3 if repo == "ho-repo" else 5)]
+    report = tmp_path / "gold-report.json"
+    report.write_text(json.dumps({"repos": [{"name": "dev-repo", "language": "python"},
+                                            {"name": "ho-repo", "language": "python"}],
+                                  "raw_findings": {"dev-repo": findings[:5], "ho-repo": findings[5:]}}))
+    monkeypatch.setattr(lm, "heldout_repos", lambda: {"ho-repo"})
+    items, meta = lm.items_from_report(report, tmp_path, 0, 7, {"*": 2})
+    assert meta == {"population": 8, "strata": 1} and len(items) == 2
+    for it in items:
+        assert (it["stratum_size"], it["stratum_held_out_size"]) == (8, 3)
+        assert (it["rule_population"], it["rule_held_out_population"], it["sampling"]) == (8, 3, "stratified")
+
+
+def test_a_census_is_its_own_population():
+    items = [{"rule": "r/a", "held_out": False, "finding": {"language": "go"}} for _ in range(3)] + \
+            [{"rule": "r/a", "held_out": False, "finding": {"language": "python"}}]
+    out = lm.census(items)
+    assert [(it["stratum_size"], it["rule_population"], it["sampling"]) for it in out] == \
+        [(3, 4, "census")] * 3 + [(1, 4, "census")]
+
+
+def test_ground_truth_census_population_counts_each_stratum_and_keeps_labels():
+    recs = [g.label({"id": f"f:{i}", "rule": "r/a", "language": lang}, lab, labeller="ground-truth",
+                    source="owasp-java", held_out=True, reason="")
+            for i, (lang, lab) in enumerate([("java", "tp"), ("java", "fp"), ("java", "tp"), ("python", "tp")])]
+    out = g.census_population(recs)
+    assert [r["label"] for r in out] == [r["label"] for r in recs]
+    assert [(r["stratum_size"], r["stratum_held_out_size"], r["rule_population"]) for r in out] == \
+        [(3, 3, 4)] * 3 + [(1, 1, 4)]
+    assert all("stratum_size" not in r for r in recs)      # a copy, not an edit

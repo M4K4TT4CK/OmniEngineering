@@ -10,9 +10,9 @@ treated as passes.
 - [External adapters](#external-adapters)
 - [Infrastructure as code](#infrastructure-as-code)
 - [The resource graph](#the-resource-graph)
-- [Machine-authored code](#machine-authored-code)
 - [Concurrency](#concurrency)
 - [Language packs](#language-packs)
+- [Machine-authored code](#machine-authored-code)
 - [AI-written services](#ai-written-services)
 - [Contracts between artifacts](#contracts-between-artifacts)
 - [Assurance: is the checking switched on?](#assurance-is-the-checking-switched-on)
@@ -27,11 +27,11 @@ treated as passes.
 | Probe | Dimension | Requires | Catches |
 |---|---|---|---|
 | `secrets` | security | nothing | AWS keys, private keys, GitHub/Slack tokens, credentialed URLs, high-entropy literals assigned to credential-named symbols |
-| `resource_policy` | security, compliance | nothing | 13 provider-neutral rules over the normalized resource graph — unencrypted storage, public buckets, open ingress, plaintext listeners, missing retention |
+| `resource_policy` | security, compliance | nothing | 28 provider-neutral rules (`src/arbiter/packs/rules/resource.yaml`) over the normalized resource graph — unencrypted storage, public buckets, open ingress, plaintext listeners, missing retention |
 | `quality` | quality | nothing | Oversized files, TODO clusters, repositories with no tests |
 | `ast_metrics` | quality | tree-sitter | Function length, cyclomatic complexity and nesting depth measured from a real parse tree, in 11 languages |
 | `house_rules_ast` | quality, security | tree-sitter | Your own tree-sitter queries from `arbiter.yaml` |
-| `supply_chain` | supply chain | nothing | Unpinned Python/npm dependencies, GitHub Actions on mutable refs, `pull_request_target` |
+| `supply_chain` | supply chain, security | nothing | Unpinned Python/npm dependencies, GitHub Actions on mutable refs, `pull_request_target` |
 | `doc_drift` | drift | nothing | Broken documentation links, files described in prose that do not exist, documented environment variables nothing reads |
 | `interface` | interface | 2+ repos | Six cross-repo seam checks — see [systems.md](systems.md). On a single repository it is recorded as not applicable (`n/a` in the NOT ASSESSED block) and leaves the coverage denominator; a probe that was *prevented* from running stays in it, and claim invariant CI-12 refuses a report that marks a prevented probe as not applicable. |
 | `house_rules` | quality, drift | nothing | Your own rules from `arbiter.yaml` |
@@ -49,6 +49,11 @@ List what can run in a given checkout, and why anything cannot:
 ```bash
 arbiter probes ./repo
 ```
+
+The `CHECKS` column is how many rules each probe holds. On this repository,
+2026-10-23, the language packs hold 176 rules (Python 26, TypeScript/JavaScript
+42, Go 34, Java 39, Ruby 35) and Arbiter ships 263 rules in all. Every rule
+starts in the `advisory` precision tier ([precision.md](precision.md#tiers)).
 
 ### Probe scopes
 
@@ -196,7 +201,14 @@ because the same line is Rails' generated default in `test.rb`. A Python rule
 may also give `safe_splice_calls` and `safe_splice_names` (regexes): a hit that
 builds a string is skipped when every value spliced into it is a literal, a
 call or name those match, or a local whose every assignment in the enclosing
-function is (`python.sql-injection`; one function, no data flow). The schema is documented at the top of
+function is (`python.sql-injection`; one function, no data flow). A Ruby
+rule may give the same two keys plus `safe_splice_text` (searched in each
+`#{...}`) and `safe_splice_values` (full-matched against a value or a local's
+assigned value): a call whose first argument is an interpolated string is
+skipped when every interpolation is safe, which includes a literal chosen by
+a condition (`ruby.sql-injection`: `#{x ? 'A' : 'B'}`, `#{' IF EXISTS' if
+f}`, a PRAGMA setting read back with `query_value("PRAGMA foreign_keys")`).
+The schema is documented at the top of
 `src/arbiter/lang_rules.py`, and a pack that breaks it fails at import.
 Rule ids are `arbiter/<pack>.<id>`; each carries its CWE.
 
@@ -322,8 +334,6 @@ $ arbiter scan ./app --profile connected
   critical  import-of-nonexistent-package  secure_token_validator
 ```
 
-Zero false criticals across the corpus.
-
 ---
 
 ## AI-written services
@@ -432,17 +442,21 @@ answers, and swapping a decidable check for a probabilistic one is a downgrade
 dressed as an upgrade.
 
 ```yaml
-profile: connected          # offline and ci forbid model calls outright
+profile: connected          # offline, ci and assisted do not run it
 judgement:
-  provider: anthropic       # reads ANTHROPIC_API_KEY from the environment
-  model: claude-sonnet-4-5
+  provider: anthropic       # reads ANTHROPIC_API_KEY (or api_key_env) from the environment
+  model: claude-sonnet-4-5  # the default
 ```
+
+This is a different pass from model *verification* (the `assisted` profile),
+which judges Arbiter's own findings rather than producing new ones; see
+[precision.md](precision.md#model-verification).
 
 Three rules it obeys:
 
 - **Inferred findings never blend with deterministic ones.** Everything from
   this pass is `provenance: inferred`, and the gate ignores inferred findings
-  unless `gate.gate_inferred` is set. A model's opinion should not turn a build
+  unless `gate.gate_on_inferred` is set. A model's opinion should not turn a build
   red on its own.
 - **No provider configured is *not assessed*, never a pass.** The easy
   implementation returns an empty list when there is no key — and an empty list
