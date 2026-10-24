@@ -1,6 +1,12 @@
 # Changelog
 ## 2026-10-23
 ### Completed
+- `REQ-060` | Legal | The vendored Arbiter is described as Apache-2.0. Arbiter
+moved from all rights reserved to Apache-2.0 on 2026-10-21; `NOTICE`,
+`LICENSES/README.md` and `README.md` now call `arbiter/` a separate
+Apache-2.0 work with its own `LICENSE`, `NOTICE` and `NOTICE.md`, and
+`arbiter/` is pulled to Arbiter `main` (7925c5e, round 4) so its own
+`LICENSE` agrees.
 - `REQ-059` | Adoption | `omni adopt` without `--with-arbiter` leaves the
 Arbiter gate rule out. The required `completion.arbiter_gate` rule used to be
 copied every time, so an adopter without Arbiter on PATH failed every `omni

@@ -1164,7 +1164,8 @@
       ],
       "risk_notes": [
         "Arbiter is proprietary and not on PyPI; the default source is its GitHub URL",
-        "which needs access. The pip step reports failure with the output tail and leaves the wiring in place."
+        "which needs access. The pip step reports failure with the output tail and leaves the wiring in place.",
+        "2026-10-23: superseded by REQ-060. Arbiter moved to Apache-2.0 on 2026-10-21, so arbiter/ is no longer all rights reserved."
       ]
     },
     {
@@ -1243,7 +1244,8 @@
       "risk_notes": [
         "Mixed licensing on one branch: Apache-2.0 for the workspace",
         "all rights reserved for arbiter/",
-        "stated at the root. Merged to main on 2026-10-09 (pull request #3)."
+        "stated at the root. Merged to main on 2026-10-09 (pull request #3).",
+        "2026-10-23: superseded by REQ-060. Arbiter moved to Apache-2.0 on 2026-10-21, so arbiter/ is no longer all rights reserved."
       ]
     },
     {
@@ -2009,6 +2011,38 @@
       ],
       "risk_notes": [
         "Verified: unit tests exit 0 (520 tests, 1 skipped), omni gate exit 0 (completion.tests and completion.arbiter_gate PASS), manual adopt with and without --with-arbiter and --dry-run in scratch targets."
+      ]
+    },
+    {
+      "id": "REQ-060",
+      "category": "Legal",
+      "title": "Root notices describe the vendored Arbiter as Apache-2.0",
+      "description": "Arbiter changed from all rights reserved to Apache-2.0 on 2026-10-21. The root NOTICE, LICENSES/README.md and README described arbiter/ as all rights reserved and outside the Apache grant. They now say it is a separate Apache-2.0 work with its own copyright holder, LICENSE, NOTICE and NOTICE.md, and the vendored subtree is pulled to Arbiter main so arbiter/LICENSE agrees.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "NOTICE",
+        "LICENSES/README.md",
+        "README.md",
+        "arbiter/"
+      ],
+      "acceptance_criteria": [
+        "arbiter/LICENSE is the Apache-2.0 text",
+        "No root document calls arbiter/ proprietary or all rights reserved except as dated history",
+        "NOTICE says redistributing arbiter/ keeps arbiter/NOTICE"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests",
+        "omni gate"
+      ],
+      "documentation_required": [
+        "NOTICE",
+        "LICENSES/README.md",
+        "README.md",
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "Not legal advice; wording follows Arbiter's own docs/licensing.md."
       ]
     }
   ]

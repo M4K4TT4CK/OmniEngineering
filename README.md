@@ -503,9 +503,9 @@ does not, the code graph leaves `arbiter/` to the subtree's own graph, and the
 The subtree's commits cite Arbiter's requirement ids, which the gate reads
 from `arbiter/.ai/requirements/` rather than as typos here.
 
-Arbiter keeps its own `LICENSE` (all rights reserved) and `NOTICE.md` under
-`arbiter/`; the Apache-2.0 licence of this repository does not extend to it,
-and `NOTICE` and `LICENSES/README.md` at the root say so. A project adopting
+Arbiter is a separate Apache-2.0 work (since 2026-10-21) and keeps its own
+`LICENSE`, `NOTICE` and `NOTICE.md` under `arbiter/`; `NOTICE` and
+`LICENSES/README.md` at the root say so. A project adopting
 this workspace never receives the subtree: `omni adopt --with-arbiter` installs
 Arbiter from its own repository.
 
@@ -1478,9 +1478,9 @@ OmniEngineering names, marks, and project identity are governed by the
 repository trademark policy. User projects built with this workspace remain
 owned and licensed by their project owners.
 
-One directory is excluded: `arbiter/`, the vendored Arbiter subtree, is
-licensed under its own `arbiter/LICENSE` (all rights reserved) and the
-Apache-2.0 grant above does not extend to it. `NOTICE` and the license guide
+One directory is a separate work: `arbiter/`, the vendored Arbiter subtree,
+is also Apache-2.0 but under its own `arbiter/LICENSE` and `arbiter/NOTICE`
+(copyright Nicholas J Pauken), not the grant above. `NOTICE` and the license guide
 say so; see [The vendored Arbiter subtree](#the-vendored-arbiter-subtree).
 
 See:

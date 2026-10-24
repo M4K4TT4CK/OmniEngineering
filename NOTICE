@@ -21,8 +21,9 @@ License). Their copyright notices and license texts are reproduced in
 viewer page.
 
 Vendored Arbiter (on `main` since 2026-10-09): the directory arbiter/ holds
-the Arbiter repository evaluator, copyright Nicholas J Pauken, under its own
-terms in arbiter/LICENSE (all rights reserved; see arbiter/NOTICE.md for its
-third-party components). The Apache License, Version 2.0 that covers this
-workspace does NOT extend to anything under arbiter/.
+the Arbiter repository evaluator, Copyright 2026 Nicholas J Pauken, a
+separate work that is also licensed under the Apache License, Version 2.0
+(since 2026-10-21; previously all rights reserved). Its own licence, notice
+and third-party inventory are arbiter/LICENSE, arbiter/NOTICE and
+arbiter/NOTICE.md; redistribution of arbiter/ must keep arbiter/NOTICE.
 

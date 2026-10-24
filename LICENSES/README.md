@@ -58,7 +58,9 @@ policy, not blocking people from using, forking, or modifying the workspace.
 
 ## arbiter/ (vendored on `main` since 2026-10-09)
 
-Not Apache-2.0. The vendored Arbiter under `arbiter/` is licensed under
-`arbiter/LICENSE` (all rights reserved, Nicholas J Pauken). Nothing in this
-directory or in `LICENSE` at the root applies to it.
+Also Apache-2.0, but a separate work with its own copyright holder
+(Nicholas J Pauken) and its own `arbiter/LICENSE`, `arbiter/NOTICE` and
+`arbiter/NOTICE.md` (third-party analyzers, which keep their own licences).
+Arbiter moved to Apache-2.0 on 2026-10-21; before that `arbiter/LICENSE` was
+all rights reserved. Keep `arbiter/NOTICE` when redistributing the subtree.
 
