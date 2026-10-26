@@ -692,7 +692,9 @@ request. Other assistants can read the file as a playbook.
 `./omni docs build` (before a design review, after clarifying requirements,
 before calling a slice done, before a release) and which generated document
 answers which question. `omni adopt --tools claude` copies it beside
-`clarify`, and `omni update` brings it into workspaces adopted earlier.
+`clarify`. `omni update` merges it into earlier adopted workspaces that have
+`CLAUDE.md` or `.claude/`. It leaves `clarify` alone, because adopters often
+keep their own version of that skill.
 
 ## Command Reference
 
@@ -1300,7 +1302,10 @@ Keeping the docs current:
   `omni gate` adds a `completion.docs_fresh` failure. `omni docs build --check`
   runs the same comparison by hand and ignores the commit line.
 - **Output location.** `configuration.docs_output_dir` moves the output, and
-  `--output` overrides it for one run.
+  `--output` overrides it for one run. The changelog and registry gates ignore
+  `docs/generated/**`, so regenerated docs never require a CHANGELOG entry. If
+  you move the output, add the new directory to those rules' `ignore` lists in
+  `.ai/rules/completion-workflow.json`.
 
 Diagrams are capped so they stay readable: 24 components, 40 edges, 25 classes
 overall and 15 per package. Each diagram carries a note saying what was

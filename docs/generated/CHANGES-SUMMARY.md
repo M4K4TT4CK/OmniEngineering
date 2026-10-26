@@ -46,6 +46,4 @@ Documents a requirement lists in `documentation_required` that none of its commi
 | REQ-049 | completed | `CHANGELOG.md` | 2 |
 | REQ-053 | completed | `.ai/project-configuration.md` | 4 |
 
-Not checked, no commit names them in the scanned history: REQ-060.
-
 Not checked, entry is not a file path: REQ-022: design docs; REQ-023: design docs.

@@ -4,7 +4,7 @@
 
 Related assistant workflow: [swe-docs](../../.claude/skills/swe-docs/SKILL.md) to when to rebuild and how to read these documents.
 
-Generated from commit `722787b69a81a1a515577498a13e2dcf5369de98`.
+Generated from commit `f360d755c6728ad19b72f484676d35ada0deab8c`.
 
 Regenerate with `omni docs build`; `omni requirement add|update|complete` regenerate it automatically. Nothing here is written by a model: every line comes from the code graph, the requirement registry, the failure ledger, the test-suite registry, git history and source docstrings.
 
@@ -21,7 +21,7 @@ Regenerate with `omni docs build`; `omni requirement add|update|complete` regene
 
 ## Inputs
 
-- Code graph: 4 source module(s), 30 test module(s), built at commit `722787b69a81`.
+- Code graph: 4 source module(s), 30 test module(s), built at commit `f360d755c672`.
 - Requirements: 60 active, 0 archived.
 - Failure ledger: 19 entries.
 - Test suites: 1 registered.

@@ -67,6 +67,8 @@ flowchart LR
         m_omni_graph_py["omni_graph.py"]
         m_omni_mcp_py["omni_mcp.py"]
     end
+    m_make_ai_py --> m_omni_docs_py
+    m_make_ai_py --> m_omni_graph_py
     m_omni_mcp_py --> m_make_ai_py
     m_omni_mcp_py --> m_omni_graph_py
 ```

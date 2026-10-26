@@ -5088,6 +5088,18 @@ def run_arbiter_sync(args: argparse.Namespace) -> int:
     return 0
 
 
+# REQ-060: skills `omni update` merges into a workspace that uses Claude Code. Only skills whose content is
+# OmniEngineering's own: `clarify` is often replaced by an adopter's version, so update leaves it alone.
+UPDATE_SKILL_FILES = [".claude/skills/swe-docs/SKILL.md"]
+
+
+def update_skill_files(target_root: Path) -> list[str]:
+    """The skill files to merge on update: only where the target uses Claude Code (CLAUDE.md or .claude/)."""
+    if (target_root / "CLAUDE.md").is_file() or (target_root / ".claude").is_dir():
+        return list(UPDATE_SKILL_FILES)
+    return []
+
+
 def run_update(args: argparse.Namespace) -> int:
     source_root = Path(args.source).resolve()
     target_root = Path(".").resolve()
@@ -5144,6 +5156,7 @@ def run_update(args: argparse.Namespace) -> int:
         files.extend(ADOPTION_LEGAL_FILES)
     if args.include_presentation:
         files.extend(ADOPTION_PRESENTATION_FILES)
+    files.extend(update_skill_files(target_root))
 
     print(f"OmniEngineering update source: {source_root} @ {current_ref[:12]}")
     print(f"Base ref (last sync): {base_ref[:12]}")

@@ -114,7 +114,7 @@ Source: [make_ai.py](../../make_ai.py)
 - `validate_project_map_freshness(report: DoctorReport) -> None`
 - `validate_project_graph(report: DoctorReport) -> None`
 - `validate_recent_commits_tracked(report: DoctorReport) -> None`
-- ... and 162 more public functions.
+- ... and 163 more public functions.
 
 **Data structures.**
 
@@ -129,7 +129,7 @@ Source: [make_ai.py](../../make_ai.py)
 
 **Dependencies.**
 
-- Imports: no project modules.
+- Imports: `omni_docs.py`, `omni_graph.py`
 - Imported by: `omni_mcp.py`
 - External: `argparse`, `datetime`, `fnmatch`, `hashlib`, `json`, `os`, `pathlib`, `queue`, `re`, `shlex`, `shutil`, `subprocess`, `sys`, `tempfile`, `threading`, `time`, `typing`
 
@@ -156,7 +156,7 @@ Source: [omni_docs.py](../../omni_docs.py)
 - `header(model: Model, filename: str, title: str) -> list[str]`
 - `finish(lines: list[str]) -> str`
 - `code_modules(model: Model) -> list[Module]`
-- `internal_imports(model: Model) -> set[tuple[str, str]]`
+- `internal_imports(model: Model) -> set[tuple[str, str]]`: (importer, imported) module paths inside the project: the graph's import edges plus imports guarded by `try`/`if`, which the graph does not record.
 - `external_imports(model: Model) -> dict[str, set[str]]`: module path -> names of external modules it imports.
 - `module_of_node(model: Model, node_id: str) -> str | None`
 - `requirements_for(model: Model, path: str) -> list[dict[str, Any]]`
@@ -202,7 +202,7 @@ Source: [omni_docs.py](../../omni_docs.py)
 **Dependencies.**
 
 - Imports: no project modules.
-- Imported by: no project modules.
+- Imported by: `make_ai.py`
 - External: `ast`, `dataclasses`, `json`, `os`, `pathlib`, `re`, `subprocess`, `typing`
 
 **Design rationale.**
@@ -279,7 +279,7 @@ Source: [omni_graph.py](../../omni_graph.py)
 **Dependencies.**
 
 - Imports: no project modules.
-- Imported by: `omni_mcp.py`
+- Imported by: `make_ai.py`, `omni_mcp.py`
 - External: `collections`, `dataclasses`, `datetime`, `fnmatch`, `html`, `json`, `math`, `os`, `pathlib`, `random`, `re`, `shlex`, `subprocess`, `textwrap`, `typing`, `urllib`
 
 **Design rationale.**

@@ -32,14 +32,21 @@ to `docs/generated/` (or `configuration.docs_output_dir`, or `--output`):
 
   The gate checks freshness only when `configuration.docs_gate_freshness` is
   true. `omni docs build --check` runs the same check by hand.
+  `docs/generated/**` is added to the ignore list of the changelog and
+  registry gates, so a regenerated doc never demands a CHANGELOG entry.
+
+  Imports nested in `try` or `if` blocks are read from the source, because
+  the graph does not record them. Without that, `make_ai.py -> omni_graph.py`
+  was missing from this repository's own component view.
 
   The new skill `.claude/skills/swe-docs` ships through `omni adopt --tools
-  claude`, and `omni_docs.py` ships with the CLI files, so `omni update` brings
-  both in. The generated documents link the `clarify`, `run-plan`,
+  claude`. `omni_docs.py` ships with the CLI files. `omni update` merges both
+  wherever `CLAUDE.md` or `.claude/` exists (through the new
+  `UPDATE_SKILL_FILES`). `clarify` is left out of that merge on purpose. The generated documents link the `clarify`, `run-plan`,
   `review-ai-code`, `test-debug` and `sre-readiness` skills when they are
   installed.
 
-  Tests: `tests/test_docs_build.py` runs 26 tests against
+  Tests: `tests/test_docs_build.py` runs 28 tests against
   `tests/fixtures/docs_project`. They cover each generator, structural
   Mermaid validity, byte-identical output across two processes with
   different hash seeds, the requirement hooks, and the opt-in gate.

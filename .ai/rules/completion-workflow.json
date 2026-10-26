@@ -39,7 +39,8 @@
           ".ai/omni-version.json",
           ".ai/context-log.md",
           ".ai/gate-waivers.jsonl",
-          ".ai/requirements/**"
+          ".ai/requirements/**",
+          "docs/generated/**"
         ],
         "must_also_change": [
           "CHANGELOG.md"
@@ -67,7 +68,8 @@
           ".ai/omni-version.json",
           ".ai/context-log.md",
           ".ai/gate-waivers.jsonl",
-          ".ai/requirements/**"
+          ".ai/requirements/**",
+          "docs/generated/**"
         ],
         "must_also_change": [
           ".ai/requirements/requirements.json",

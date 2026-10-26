@@ -180,6 +180,7 @@ class TestArchitecture(FixtureDocs):
         self.assertIn("A tiny order-taking service", sad)
         self.assertIn('x_dep_requests["requests"]', sad)  # declared dependency in the context view
         self.assertIn("m_shop_cli_py --> m_shop_service_py", sad)  # component import edge
+        self.assertIn("m_shop_cli_py --> m_shop_models_py", sad)  # import guarded by try:, read from the source
         self.assertIn('subgraph g_shop ["shop"]', sad)
         self.assertIn("f_shop_cli_py_main --> f_shop_service_py_checkout", sad)  # runtime view from the console script
         self.assertIn("service web", sad)  # compose service in the deployment view
@@ -401,6 +402,22 @@ class TestShipping(unittest.TestCase):
         self.assertIn("omni_docs.py", ma.ADOPTION_CLI_FILES)  # so `omni update` merges it like the rest of the CLI
         self.assertIn(".claude/skills/swe-docs", ma.ADOPTION_TOOL_FILES["claude"])
         self.assertTrue((ROOT / ".claude/skills/swe-docs/SKILL.md").is_file())
+
+    def test_update_merges_the_skill_only_where_claude_code_is_used(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp)
+            self.assertEqual(ma.update_skill_files(target), [])
+            (target / "CLAUDE.md").write_text("# x\n", encoding="utf-8")
+            files = ma.update_skill_files(target)
+        self.assertIn(".claude/skills/swe-docs/SKILL.md", files)
+        self.assertNotIn(".claude/skills/clarify/SKILL.md", files)  # adopters often replace clarify; update leaves it
+        for rel in files:
+            self.assertTrue((ROOT / rel).is_file(), rel)
+
+    def test_generated_docs_never_trip_the_changelog_or_registry_gates(self) -> None:
+        rules = {r["id"]: r for r in json.loads((ROOT / ".ai/rules/completion-workflow.json").read_text(encoding="utf-8"))["rules"]}
+        for rule_id in ("completion.changelog_gate", "completion.requirements_registry"):
+            self.assertIn("docs/generated/**", rules[rule_id]["validation"]["ignore"], rule_id)
 
 
 class TestWorkflowSkills(unittest.TestCase):

@@ -67,7 +67,7 @@ Tests are linked by data, not by name matching: test paths in the requirement's 
 | REQ-057: Documentation matches the CLI and code | completed | README.md, CONTRIBUTING.md, docs/arbiter-integration.md, .ai/context-brief.md, .ai/project-configuration.md, .ai/project-map.md, .ai/adapters, .claude/skills/clarify/SKILL.md, +3 more | tests/test_docs.py, tests/test_graph_arb_trace.py, tests/test_graph_findings.py, tests/test_graph_impact.py, tests/test_mcp.py, tests/test_omni_graph_findings.py | - |
 | REQ-058: omni adopt ships an empty requirements registry | completed | make_ai.py, tests/test_adopt_loop.py, README.md | tests/test_adopt_loop.py | - |
 | REQ-059: omni adopt without --with-arbiter leaves the Arbiter gate rule out | completed | make_ai.py, tests/test_adopt_loop.py, README.md | tests/test_adopt_loop.py | - |
-| REQ-060: omni docs build: generated engineering docs and diagrams | completed | omni_docs.py, make_ai.py, pyproject.toml, tests/test_docs_build.py, tests/fixtures/docs_project, docs/generated, .ai/graph-config.json, README.md, +1 more | tests/fixtures/docs_project, tests/test_docs_build.py | - |
+| REQ-060: omni docs build: generated engineering docs and diagrams | completed | omni_docs.py, make_ai.py, pyproject.toml, tests/test_docs_build.py, tests/fixtures/docs_project, docs/generated, .ai/graph-config.json, README.md, +1 more | tests/fixtures/docs_project, tests/fixtures/docs_project/.ai/failures/failure-ledger.json, tests/fixtures/docs_project/.ai/graph-config.json, tests/fixtures/docs_project/.ai/project-graph.json, tests/fixtures/docs_project/.ai/test-suites.json, tests/fixtures/docs_project/.github/workflows/ci.yml, +11 more | - |
 
 ## Open failures
 

@@ -109,6 +109,7 @@ class PyInfo:
     functions: list[PyFunc] = field(default_factory=list)
     classes: list[PyClass] = field(default_factory=list)
     has_main: bool = False
+    guarded_imports: list[tuple[str, int]] = field(default_factory=list)  # (module name, relative level)
 
 
 @dataclass
@@ -243,7 +244,57 @@ def parse_python(path: Path) -> PyInfo | None:
                 and any(isinstance(c, ast.Constant) and c.value == "__main__" for c in test.comparators)
             ):
                 info.has_main = True
+    info.guarded_imports = _guarded_imports(tree)
     return info
+
+
+def _guarded_imports(tree: ast.Module) -> list[tuple[str, int]]:
+    """Module-level imports nested in `try`/`if` blocks. The code graph records only top-level import
+    statements, so an optional dependency (`try: import x / except ImportError`) would otherwise vanish."""
+    found: set[tuple[str, int]] = set()
+
+    def walk(body: list[ast.stmt], nested: bool) -> None:
+        for node in body:
+            if isinstance(node, ast.Import) and nested:
+                found.update((alias.name, 0) for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and nested:
+                base = node.module or ""
+                found.add((base, node.level))
+                found.update((f"{base}.{alias.name}" if base else alias.name, node.level) for alias in node.names)
+            elif isinstance(node, ast.Try):
+                walk(node.body, True)
+                walk(node.orelse, True)
+                walk(node.finalbody, True)
+                for handler in node.handlers:
+                    walk(handler.body, True)
+            elif isinstance(node, ast.If):
+                walk(node.body, True)
+                walk(node.orelse, True)
+
+    walk(tree.body, False)
+    return sorted(found)
+
+
+def _resolve_module(name: str, level: int, importer: str, paths: set[str]) -> str | None:
+    """A project module path for an import name, or None. Tries the name as a path from the importer's package
+    (relative imports), from the repository root, and below a src/ or lib/ root."""
+    if not name and not level:
+        return None
+    parts = name.split(".") if name else []
+    bases: list[list[str]] = []
+    if level:
+        pkg = importer.split("/")[:-1]
+        if level > 1:
+            pkg = pkg[: len(pkg) - (level - 1)] if len(pkg) >= level - 1 else []
+        bases.append(pkg)
+    else:
+        bases += [[], *[[root] for root in sorted(_SOURCE_ROOTS)]]
+    for base in bases:
+        stem = "/".join([*base, *parts])
+        for candidate in (f"{stem}.py", f"{stem}/__init__.py"):
+            if stem and candidate in paths:
+                return candidate
+    return None
 
 
 def _git_head(root: Path) -> str | None:
@@ -453,6 +504,16 @@ def code_modules(model: Model) -> list[Module]:
 
 
 def internal_imports(model: Model) -> set[tuple[str, str]]:
+    """(importer, imported) module paths inside the project: the graph's import edges plus imports guarded by
+    `try`/`if`, which the graph does not record."""
+    cached = model.__dict__.get("_imports")
+    if cached is None:
+        cached = _internal_imports(model)
+        model.__dict__["_imports"] = cached
+    return cached
+
+
+def _internal_imports(model: Model) -> set[tuple[str, str]]:
     paths = model.by_path()
     pairs = set()
     for edge in model.edges:
@@ -464,6 +525,12 @@ def internal_imports(model: Model) -> set[tuple[str, str]]:
         a, b = str(source.get("file")), str(target.get("file"))
         if a != b and a in paths and b in paths:
             pairs.add((a, b))
+    known = set(paths)
+    for module in model.modules:
+        for name, level in module.py.guarded_imports if module.py else []:
+            target = _resolve_module(name, level, module.path, known)
+            if target and target != module.path:
+                pairs.add((module.path, target))
     return pairs
 
 
