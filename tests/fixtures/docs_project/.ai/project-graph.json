@@ -1,0 +1,898 @@
+{
+  "version": "1.0.0",
+  "generated_at": "fixture",
+  "root": ".",
+  "languages": [
+    "auto"
+  ],
+  "semantic_pass": {
+    "enabled": false,
+    "reason": "not requested",
+    "api_url": null
+  },
+  "language_stats": {
+    "python": {
+      "files": 5,
+      "mode": "tree-sitter",
+      "symbols": 13
+    }
+  },
+  "layers": {
+    "governance": {
+      "requirements": 4,
+      "changelog_entries": 0,
+      "touches": 5,
+      "vendored_workspaces": 0,
+      "vendored_requirements": 0,
+      "vendored_changelog_entries": 0,
+      "doc_mentions": 0
+    },
+    "assurance": {
+      "test_nodes": 2,
+      "test_files": 1,
+      "verifies": 2,
+      "suites": 1,
+      "suites_manual": 1,
+      "suites_auto": 0,
+      "failures": 1,
+      "guards": 1,
+      "unresolved": 0,
+      "vendored_failures": 0,
+      "findings": 0,
+      "flags": 0,
+      "cites": 0,
+      "recorded_as": 0,
+      "introduced_by": 0,
+      "uncommitted": 0,
+      "arbiter_rules": 0,
+      "cwes": 0,
+      "violates": 0,
+      "classified_as": 0,
+      "reports": [],
+      "specified_by": 0,
+      "mentions_rule": 0,
+      "traced_findings": 0
+    },
+    "code": {
+      "nodes": 16
+    }
+  },
+  "notes": [
+    "governance: no changelog found (looked for CHANGELOG.md, CHANGELOG, CHANGES.md, HISTORY.md, ...); set changelog_files in .ai/graph-config.json",
+    "assurance: findings: no Arbiter report found (run `arbiter scan` or ./omni gate)"
+  ],
+  "inputs": {
+    "head": "0000000000000000000000000000000000000001",
+    "files": {}
+  },
+  "provenance_legend": {
+    "EXTRACTED": "Read directly from the source AST at a single site -- an explicit name, import, base class, or call. No resolution happened.",
+    "INFERRED": "Resolved by traversing the graph (cross-file/scope name resolution) or by the configured semantic API pass. Always layered on top of an EXTRACTED fact that justifies it; never a standalone guess."
+  },
+  "nodes": [
+    {
+      "id": "shop/__init__.py",
+      "kind": "module",
+      "name": "__init__",
+      "qualified_name": "shop/__init__.py",
+      "file": "shop/__init__.py",
+      "start_line": 1,
+      "end_line": 2,
+      "language": "python",
+      "summary": ""
+    },
+    {
+      "id": "shop/cli.py",
+      "kind": "module",
+      "name": "cli",
+      "qualified_name": "shop/cli.py",
+      "file": "shop/cli.py",
+      "start_line": 1,
+      "end_line": 18,
+      "language": "python",
+      "summary": ""
+    },
+    {
+      "id": "external:sys",
+      "kind": "external",
+      "name": "sys",
+      "qualified_name": "sys",
+      "file": null,
+      "start_line": null,
+      "end_line": null,
+      "language": null,
+      "summary": ""
+    },
+    {
+      "id": "shop/cli.py::main",
+      "kind": "function",
+      "name": "main",
+      "qualified_name": "shop/cli.py::main",
+      "file": "shop/cli.py",
+      "start_line": 8,
+      "end_line": 13,
+      "language": "python",
+      "summary": "",
+      "attrs": {
+        "unresolved_calls": [
+          "print"
+        ]
+      }
+    },
+    {
+      "id": "shop/models.py",
+      "kind": "module",
+      "name": "models",
+      "qualified_name": "shop/models.py",
+      "file": "shop/models.py",
+      "start_line": 1,
+      "end_line": 37,
+      "language": "python",
+      "summary": ""
+    },
+    {
+      "id": "shop/models.py::Base",
+      "kind": "class",
+      "name": "Base",
+      "qualified_name": "shop/models.py::Base",
+      "file": "shop/models.py",
+      "start_line": 6,
+      "end_line": 11,
+      "language": "python",
+      "summary": ""
+    },
+    {
+      "id": "shop/models.py::Base::key",
+      "kind": "method",
+      "name": "key",
+      "qualified_name": "shop/models.py::Base::key",
+      "file": "shop/models.py",
+      "start_line": 9,
+      "end_line": 11,
+      "language": "python",
+      "summary": "",
+      "attrs": {
+        "unresolved_calls": [
+          "type"
+        ]
+      }
+    },
+    {
+      "id": "shop/models.py::Item",
+      "kind": "class",
+      "name": "Item",
+      "qualified_name": "shop/models.py::Item",
+      "file": "shop/models.py",
+      "start_line": 14,
+      "end_line": 19,
+      "language": "python",
+      "summary": ""
+    },
+    {
+      "id": "shop/models.py::Item::__init__",
+      "kind": "method",
+      "name": "__init__",
+      "qualified_name": "shop/models.py::Item::__init__",
+      "file": "shop/models.py",
+      "start_line": 17,
+      "end_line": 19,
+      "language": "python",
+      "summary": ""
+    },
+    {
+      "id": "shop/models.py::Order",
+      "kind": "class",
+      "name": "Order",
+      "qualified_name": "shop/models.py::Order",
+      "file": "shop/models.py",
+      "start_line": 22,
+      "end_line": 36,
+      "language": "python",
+      "summary": ""
+    },
+    {
+      "id": "shop/models.py::Order::__init__",
+      "kind": "method",
+      "name": "__init__",
+      "qualified_name": "shop/models.py::Order::__init__",
+      "file": "shop/models.py",
+      "start_line": 25,
+      "end_line": 26,
+      "language": "python",
+      "summary": ""
+    },
+    {
+      "id": "shop/models.py::Order::add",
+      "kind": "method",
+      "name": "add",
+      "qualified_name": "shop/models.py::Order::add",
+      "file": "shop/models.py",
+      "start_line": 28,
+      "end_line": 32,
+      "language": "python",
+      "summary": "",
+      "attrs": {
+        "unresolved_calls": [
+          "self.items.append"
+        ]
+      }
+    },
+    {
+      "id": "shop/models.py::Order::total",
+      "kind": "method",
+      "name": "total",
+      "qualified_name": "shop/models.py::Order::total",
+      "file": "shop/models.py",
+      "start_line": 34,
+      "end_line": 36,
+      "language": "python",
+      "summary": "",
+      "attrs": {
+        "unresolved_calls": [
+          "sum"
+        ]
+      }
+    },
+    {
+      "id": "shop/service.py",
+      "kind": "module",
+      "name": "service",
+      "qualified_name": "shop/service.py",
+      "file": "shop/service.py",
+      "start_line": 1,
+      "end_line": 22,
+      "language": "python",
+      "summary": ""
+    },
+    {
+      "id": "shop/service.py::checkout",
+      "kind": "function",
+      "name": "checkout",
+      "qualified_name": "shop/service.py::checkout",
+      "file": "shop/service.py",
+      "start_line": 6,
+      "end_line": 11,
+      "language": "python",
+      "summary": ""
+    },
+    {
+      "id": "shop/service.py::describe",
+      "kind": "function",
+      "name": "describe",
+      "qualified_name": "shop/service.py::describe",
+      "file": "shop/service.py",
+      "start_line": 14,
+      "end_line": 16,
+      "language": "python",
+      "summary": ""
+    },
+    {
+      "id": "shop/service.py::format_total",
+      "kind": "function",
+      "name": "format_total",
+      "qualified_name": "shop/service.py::format_total",
+      "file": "shop/service.py",
+      "start_line": 19,
+      "end_line": 21,
+      "language": "python",
+      "summary": ""
+    },
+    {
+      "id": "tests/service_checks.py",
+      "kind": "module",
+      "name": "service_checks",
+      "qualified_name": "tests/service_checks.py",
+      "file": "tests/service_checks.py",
+      "start_line": 1,
+      "end_line": 8,
+      "language": "python",
+      "summary": "",
+      "layer": "assurance",
+      "attrs": {
+        "test": true,
+        "suite": "shop-checks",
+        "framework": "plain"
+      }
+    },
+    {
+      "id": "tests/service_checks.py::check_checkout",
+      "kind": "function",
+      "name": "check_checkout",
+      "qualified_name": "tests/service_checks.py::check_checkout",
+      "file": "tests/service_checks.py",
+      "start_line": 6,
+      "end_line": 7,
+      "language": "python",
+      "summary": "",
+      "layer": "assurance",
+      "attrs": {
+        "test": true,
+        "suite": "shop-checks",
+        "framework": "plain"
+      }
+    },
+    {
+      "id": "req:REQ-001",
+      "kind": "requirement",
+      "name": "REQ-001",
+      "qualified_name": "REQ-001",
+      "file": ".ai/requirements/requirements.json",
+      "start_line": null,
+      "end_line": null,
+      "language": null,
+      "summary": "Price an order",
+      "layer": "governance",
+      "attrs": {
+        "status": "completed",
+        "priority": "high",
+        "category": "Feature",
+        "scope": [
+          "shop/models.py",
+          "shop/service.py",
+          "tests/service_checks.py"
+        ]
+      }
+    },
+    {
+      "id": "req:REQ-002",
+      "kind": "requirement",
+      "name": "REQ-002",
+      "qualified_name": "REQ-002",
+      "file": ".ai/requirements/requirements.json",
+      "start_line": null,
+      "end_line": null,
+      "language": null,
+      "summary": "Command-line checkout",
+      "layer": "governance",
+      "attrs": {
+        "status": "pending",
+        "priority": "medium",
+        "category": "Feature",
+        "scope": [
+          "shop/cli.py"
+        ]
+      }
+    },
+    {
+      "id": "req:REQ-003",
+      "kind": "requirement",
+      "name": "REQ-003",
+      "qualified_name": "REQ-003",
+      "file": ".ai/requirements/requirements.json",
+      "start_line": null,
+      "end_line": null,
+      "language": null,
+      "summary": "Checkout under 10 ms",
+      "layer": "governance",
+      "attrs": {
+        "status": "blocked",
+        "priority": "low",
+        "category": "Performance",
+        "scope": [
+          "shop/service.py"
+        ]
+      }
+    },
+    {
+      "id": "req:REQ-004",
+      "kind": "requirement",
+      "name": "REQ-004",
+      "qualified_name": "REQ-004",
+      "file": ".ai/requirements/requirements.json",
+      "start_line": null,
+      "end_line": null,
+      "language": null,
+      "summary": "Discount codes",
+      "layer": "governance",
+      "attrs": {
+        "status": "proposed",
+        "priority": "low",
+        "category": "Feature",
+        "scope": []
+      }
+    },
+    {
+      "id": "suite:shop-checks",
+      "kind": "suite",
+      "name": "shop-checks",
+      "qualified_name": "shop-checks",
+      "file": null,
+      "start_line": null,
+      "end_line": null,
+      "language": null,
+      "summary": "Shop checks",
+      "layer": "assurance",
+      "attrs": {
+        "kind": "unit",
+        "framework": "plain",
+        "command": "python -m tests.service_checks",
+        "source": "manual",
+        "test_files": 1,
+        "paths": [
+          "tests"
+        ]
+      }
+    },
+    {
+      "id": "failure:FAIL-001",
+      "kind": "failure",
+      "name": "FAIL-001",
+      "qualified_name": "FAIL-001",
+      "file": ".ai/failures/failure-ledger.json",
+      "start_line": null,
+      "end_line": null,
+      "language": null,
+      "summary": "Total ignores quantity",
+      "layer": "assurance",
+      "attrs": {
+        "status": "open",
+        "severity": "medium",
+        "date": "2026-10-01",
+        "symptom": "wrong total",
+        "root_cause": "no quantity field"
+      }
+    },
+    {
+      "id": "commit:aaaaaaaaa",
+      "kind": "commit",
+      "name": "aaaaaaa",
+      "qualified_name": "aaaaaaa",
+      "file": null,
+      "start_line": null,
+      "end_line": null,
+      "language": null,
+      "summary": "REQ-001 price orders",
+      "layer": "history",
+      "attrs": {
+        "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "date": "2026-10-01",
+        "requirements": [
+          "REQ-001"
+        ]
+      }
+    },
+    {
+      "id": "commit:bbbbbbbbb",
+      "kind": "commit",
+      "name": "bbbbbbb",
+      "qualified_name": "bbbbbbb",
+      "file": null,
+      "start_line": null,
+      "end_line": null,
+      "language": null,
+      "summary": "REQ-002 cli",
+      "layer": "history",
+      "attrs": {
+        "hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "date": "2026-10-01",
+        "requirements": [
+          "REQ-002"
+        ]
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source": "shop/cli.py",
+      "target": "external:sys",
+      "type": "imports",
+      "provenance": "EXTRACTED",
+      "resolver": "syntax",
+      "detail": "import sys"
+    },
+    {
+      "source": "shop/cli.py",
+      "target": "shop/cli.py::main",
+      "type": "defines",
+      "provenance": "EXTRACTED",
+      "resolver": "syntax",
+      "detail": ""
+    },
+    {
+      "source": "shop/models.py",
+      "target": "shop/models.py::Base",
+      "type": "defines",
+      "provenance": "EXTRACTED",
+      "resolver": "syntax",
+      "detail": ""
+    },
+    {
+      "source": "shop/models.py::Base",
+      "target": "shop/models.py::Base::key",
+      "type": "defines",
+      "provenance": "EXTRACTED",
+      "resolver": "syntax",
+      "detail": ""
+    },
+    {
+      "source": "shop/models.py",
+      "target": "shop/models.py::Item",
+      "type": "defines",
+      "provenance": "EXTRACTED",
+      "resolver": "syntax",
+      "detail": ""
+    },
+    {
+      "source": "shop/models.py::Item",
+      "target": "shop/models.py::Item::__init__",
+      "type": "defines",
+      "provenance": "EXTRACTED",
+      "resolver": "syntax",
+      "detail": ""
+    },
+    {
+      "source": "shop/models.py",
+      "target": "shop/models.py::Order",
+      "type": "defines",
+      "provenance": "EXTRACTED",
+      "resolver": "syntax",
+      "detail": ""
+    },
+    {
+      "source": "shop/models.py::Order",
+      "target": "shop/models.py::Order::__init__",
+      "type": "defines",
+      "provenance": "EXTRACTED",
+      "resolver": "syntax",
+      "detail": ""
+    },
+    {
+      "source": "shop/models.py::Order",
+      "target": "shop/models.py::Order::add",
+      "type": "defines",
+      "provenance": "EXTRACTED",
+      "resolver": "syntax",
+      "detail": ""
+    },
+    {
+      "source": "shop/models.py::Order",
+      "target": "shop/models.py::Order::total",
+      "type": "defines",
+      "provenance": "EXTRACTED",
+      "resolver": "syntax",
+      "detail": ""
+    },
+    {
+      "source": "shop/service.py",
+      "target": "shop/service.py::checkout",
+      "type": "defines",
+      "provenance": "EXTRACTED",
+      "resolver": "syntax",
+      "detail": ""
+    },
+    {
+      "source": "shop/service.py",
+      "target": "shop/service.py::describe",
+      "type": "defines",
+      "provenance": "EXTRACTED",
+      "resolver": "syntax",
+      "detail": ""
+    },
+    {
+      "source": "shop/service.py",
+      "target": "shop/service.py::format_total",
+      "type": "defines",
+      "provenance": "EXTRACTED",
+      "resolver": "syntax",
+      "detail": ""
+    },
+    {
+      "source": "tests/service_checks.py",
+      "target": "tests/service_checks.py::check_checkout",
+      "type": "defines",
+      "provenance": "EXTRACTED",
+      "resolver": "syntax",
+      "detail": ""
+    },
+    {
+      "source": "shop/cli.py",
+      "target": "shop/service.py",
+      "type": "imports",
+      "provenance": "INFERRED",
+      "resolver": "graph-traversal",
+      "detail": "resolved 'shop.service' to shop/service.py"
+    },
+    {
+      "source": "shop/cli.py::main",
+      "target": "shop/service.py::checkout",
+      "type": "calls",
+      "provenance": "INFERRED",
+      "resolver": "graph-traversal",
+      "detail": "resolved via import from 'shop.service'"
+    },
+    {
+      "source": "shop/cli.py::main",
+      "target": "shop/service.py::describe",
+      "type": "calls",
+      "provenance": "INFERRED",
+      "resolver": "graph-traversal",
+      "detail": "resolved via import from 'shop.service'"
+    },
+    {
+      "source": "shop/cli.py::main",
+      "target": "shop/service.py::format_total",
+      "type": "calls",
+      "provenance": "INFERRED",
+      "resolver": "graph-traversal",
+      "detail": "resolved via import from 'shop.service'"
+    },
+    {
+      "source": "shop/models.py::Order::add",
+      "target": "shop/models.py::Item",
+      "type": "calls",
+      "provenance": "INFERRED",
+      "resolver": "graph-traversal",
+      "detail": "same-module definition"
+    },
+    {
+      "source": "shop/models.py::Item",
+      "target": "shop/models.py::Base",
+      "type": "inherits",
+      "provenance": "INFERRED",
+      "resolver": "graph-traversal",
+      "detail": "same-module definition"
+    },
+    {
+      "source": "shop/models.py::Order",
+      "target": "shop/models.py::Base",
+      "type": "inherits",
+      "provenance": "INFERRED",
+      "resolver": "graph-traversal",
+      "detail": "same-module definition"
+    },
+    {
+      "source": "shop/service.py",
+      "target": "shop/models.py",
+      "type": "imports",
+      "provenance": "INFERRED",
+      "resolver": "graph-traversal",
+      "detail": "resolved 'shop.models' to shop/models.py"
+    },
+    {
+      "source": "shop/service.py::checkout",
+      "target": "shop/models.py::Order",
+      "type": "calls",
+      "provenance": "INFERRED",
+      "resolver": "graph-traversal",
+      "detail": "resolved via import from 'shop.models'"
+    },
+    {
+      "source": "shop/service.py::checkout",
+      "target": "shop/models.py::Order::add",
+      "type": "calls",
+      "provenance": "INFERRED",
+      "resolver": "graph-traversal",
+      "detail": "unique symbol name across the graph"
+    },
+    {
+      "source": "shop/service.py::checkout",
+      "target": "shop/models.py::Order::total",
+      "type": "calls",
+      "provenance": "INFERRED",
+      "resolver": "graph-traversal",
+      "detail": "unique symbol name across the graph"
+    },
+    {
+      "source": "shop/service.py::describe",
+      "target": "shop/service.py::format_total",
+      "type": "calls",
+      "provenance": "INFERRED",
+      "resolver": "graph-traversal",
+      "detail": "same-module definition"
+    },
+    {
+      "source": "tests/service_checks.py",
+      "target": "shop/service.py",
+      "type": "imports",
+      "provenance": "INFERRED",
+      "resolver": "graph-traversal",
+      "detail": "resolved 'shop.service' to shop/service.py"
+    },
+    {
+      "source": "tests/service_checks.py::check_checkout",
+      "target": "shop/service.py::checkout",
+      "type": "calls",
+      "provenance": "INFERRED",
+      "resolver": "graph-traversal",
+      "detail": "resolved via import from 'shop.service'"
+    },
+    {
+      "source": "req:REQ-001",
+      "target": "shop/models.py",
+      "type": "touches",
+      "provenance": "EXTRACTED",
+      "resolver": "requirements-registry",
+      "detail": "declared scope: shop/models.py",
+      "layer": "governance"
+    },
+    {
+      "source": "req:REQ-001",
+      "target": "shop/service.py",
+      "type": "touches",
+      "provenance": "EXTRACTED",
+      "resolver": "requirements-registry",
+      "detail": "declared scope: shop/service.py",
+      "layer": "governance"
+    },
+    {
+      "source": "req:REQ-001",
+      "target": "tests/service_checks.py",
+      "type": "touches",
+      "provenance": "EXTRACTED",
+      "resolver": "requirements-registry",
+      "detail": "declared scope: tests/service_checks.py",
+      "layer": "governance"
+    },
+    {
+      "source": "req:REQ-002",
+      "target": "shop/cli.py",
+      "type": "touches",
+      "provenance": "EXTRACTED",
+      "resolver": "requirements-registry",
+      "detail": "declared scope: shop/cli.py",
+      "layer": "governance"
+    },
+    {
+      "source": "req:REQ-003",
+      "target": "shop/service.py",
+      "type": "touches",
+      "provenance": "EXTRACTED",
+      "resolver": "requirements-registry",
+      "detail": "declared scope: shop/service.py",
+      "layer": "governance"
+    },
+    {
+      "source": "tests/service_checks.py",
+      "target": "shop/service.py",
+      "type": "verifies",
+      "provenance": "INFERRED",
+      "resolver": "graph-traversal",
+      "detail": "1 reference(s)",
+      "layer": "assurance"
+    },
+    {
+      "source": "tests/service_checks.py",
+      "target": "shop/service.py::checkout",
+      "type": "verifies",
+      "provenance": "INFERRED",
+      "resolver": "graph-traversal",
+      "detail": "1 reference(s) from 1 test(s): check_checkout",
+      "layer": "assurance"
+    },
+    {
+      "source": "suite:shop-checks",
+      "target": "tests/service_checks.py",
+      "type": "contains",
+      "provenance": "EXTRACTED",
+      "resolver": "test-suites",
+      "detail": "registered in the test suite registry",
+      "layer": "assurance"
+    },
+    {
+      "source": "suite:shop-checks",
+      "target": "shop/__init__.py",
+      "type": "covers",
+      "provenance": "EXTRACTED",
+      "resolver": "test-suites",
+      "detail": "suite covers shop",
+      "layer": "assurance"
+    },
+    {
+      "source": "suite:shop-checks",
+      "target": "shop/cli.py",
+      "type": "covers",
+      "provenance": "EXTRACTED",
+      "resolver": "test-suites",
+      "detail": "suite covers shop",
+      "layer": "assurance"
+    },
+    {
+      "source": "suite:shop-checks",
+      "target": "shop/models.py",
+      "type": "covers",
+      "provenance": "EXTRACTED",
+      "resolver": "test-suites",
+      "detail": "suite covers shop",
+      "layer": "assurance"
+    },
+    {
+      "source": "suite:shop-checks",
+      "target": "shop/service.py",
+      "type": "covers",
+      "provenance": "EXTRACTED",
+      "resolver": "test-suites",
+      "detail": "suite covers shop",
+      "layer": "assurance"
+    },
+    {
+      "source": "failure:FAIL-001",
+      "target": "shop/models.py",
+      "type": "affects",
+      "provenance": "EXTRACTED",
+      "resolver": "failure-ledger",
+      "detail": "recorded as affected in the ledger",
+      "layer": "assurance"
+    },
+    {
+      "source": "failure:FAIL-001",
+      "target": "req:REQ-001",
+      "type": "arose_in",
+      "provenance": "EXTRACTED",
+      "resolver": "failure-ledger",
+      "detail": "requirement being worked when it surfaced",
+      "layer": "assurance"
+    },
+    {
+      "source": "tests/service_checks.py::check_checkout",
+      "target": "failure:FAIL-001",
+      "type": "guards",
+      "provenance": "EXTRACTED",
+      "resolver": "failure-ledger",
+      "detail": "regression test recorded for FAIL-001",
+      "layer": "assurance"
+    },
+    {
+      "source": "commit:aaaaaaaaa",
+      "target": "req:REQ-001",
+      "type": "delivers",
+      "provenance": "EXTRACTED",
+      "resolver": "git",
+      "detail": "requirement id in the commit message",
+      "layer": "history"
+    },
+    {
+      "source": "commit:aaaaaaaaa",
+      "target": "shop/models.py",
+      "type": "modifies",
+      "provenance": "EXTRACTED",
+      "resolver": "git",
+      "detail": "file changed in the commit",
+      "layer": "history"
+    },
+    {
+      "source": "commit:aaaaaaaaa",
+      "target": "shop/service.py",
+      "type": "modifies",
+      "provenance": "EXTRACTED",
+      "resolver": "git",
+      "detail": "file changed in the commit",
+      "layer": "history"
+    },
+    {
+      "source": "commit:aaaaaaaaa",
+      "target": "tests/service_checks.py",
+      "type": "modifies",
+      "provenance": "EXTRACTED",
+      "resolver": "git",
+      "detail": "file changed in the commit",
+      "layer": "history"
+    },
+    {
+      "source": "commit:bbbbbbbbb",
+      "target": "req:REQ-002",
+      "type": "delivers",
+      "provenance": "EXTRACTED",
+      "resolver": "git",
+      "detail": "requirement id in the commit message",
+      "layer": "history"
+    },
+    {
+      "source": "commit:bbbbbbbbb",
+      "target": "shop/cli.py",
+      "type": "modifies",
+      "provenance": "EXTRACTED",
+      "resolver": "git",
+      "detail": "file changed in the commit",
+      "layer": "history"
+    },
+    {
+      "source": "commit:bbbbbbbbb",
+      "target": "file:README.md",
+      "type": "modifies",
+      "provenance": "EXTRACTED",
+      "resolver": "git",
+      "detail": "file changed in the commit",
+      "layer": "history"
+    }
+  ]
+}

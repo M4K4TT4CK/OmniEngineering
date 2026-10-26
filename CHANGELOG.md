@@ -1,4 +1,50 @@
 # Changelog
+## 2026-10-25
+### Completed
+- `REQ-060` | Documentation tooling | `omni docs build` generates engineering
+documents with Mermaid diagrams, and no model writes any of it. The output goes
+to `docs/generated/` (or `configuration.docs_output_dir`, or `--output`):
+  - `architecture.md`: a Software Architecture Document in arc42 / 42010 form,
+    with context, container, component, runtime and deployment views, plus
+    cross-cutting concepts, decisions, quality requirements, risks and a
+    glossary.
+  - `design.md`: a Software Design Document in IEEE 1016 style, with each
+    module's signatures, classes, dependencies and rationale, and a class
+    diagram per package.
+  - `requirements.md`: the SRS.
+  - `requirements-traceability.md`, `test-plan.md`, `modules.md`,
+    `class-diagram.md`, `CHANGES-SUMMARY.md` and `index.md`.
+
+  Everything comes from the code graph, the registry, the failure ledger, the
+  suite registry, git history and docstrings. A section with no data says *Not
+  derived*. The output is deterministic, with byte-identical LF output and no
+  timestamps. Only the `Generated from commit` line in `index.md` changes from
+  run to run.
+
+  Diagrams are capped at 24 components, 40 edges and 25 classes, and each one
+  notes what was collapsed. On Arbiter's 88 modules, the component view keeps
+  the 19 most connected modules and collapses the rest per package.
+
+  Once docs exist, `omni requirement add`, `update --status` and `complete`
+  regenerate them. That step reuses the graph on disk and writes only changed
+  files. Turn it off with `--no-docs` for one run or
+  `configuration.docs_auto_regenerate: false` for good.
+
+  The gate checks freshness only when `configuration.docs_gate_freshness` is
+  true. `omni docs build --check` runs the same check by hand.
+
+  The new skill `.claude/skills/swe-docs` ships through `omni adopt --tools
+  claude`, and `omni_docs.py` ships with the CLI files, so `omni update` brings
+  both in. The generated documents link the `clarify`, `run-plan`,
+  `review-ai-code`, `test-debug` and `sre-readiness` skills when they are
+  installed.
+
+  Tests: `tests/test_docs_build.py` runs 26 tests against
+  `tests/fixtures/docs_project`. They cover each generator, structural
+  Mermaid validity, byte-identical output across two processes with
+  different hash seeds, the requirement hooks, and the opt-in gate.
+  `tests/test_adopt_loop.py` checks that the skill ships. README has a new
+  "Generated Docs" section.
 ## 2026-10-23
 ### Completed
 - `REQ-059` | Adoption | `omni adopt` without `--with-arbiter` leaves the

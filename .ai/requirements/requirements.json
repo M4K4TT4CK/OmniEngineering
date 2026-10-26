@@ -2010,6 +2010,43 @@
       "risk_notes": [
         "Verified: unit tests exit 0 (520 tests, 1 skipped), omni gate exit 0 (completion.tests and completion.arbiter_gate PASS), manual adopt with and without --with-arbiter and --dry-run in scratch targets."
       ]
+    },
+    {
+      "id": "REQ-060",
+      "category": "Documentation tooling",
+      "title": "omni docs build: generated engineering docs and diagrams",
+      "description": "omni docs build regenerates deterministic engineering documents (SAD, SDD, SRS, traceability, test plan, module reference, class diagram, changes summary, index) with Mermaid diagrams from the code graph, requirement registry, failure ledger and git history, without model calls; requirement add/update/complete regenerate them automatically",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "omni_docs.py",
+        "make_ai.py",
+        "pyproject.toml",
+        "tests/test_docs_build.py",
+        "tests/fixtures/docs_project",
+        "docs/generated",
+        ".ai/graph-config.json",
+        "README.md",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "omni docs build writes the document set to a configurable directory",
+        "same inputs give byte-identical output",
+        "every Mermaid block passes the structural validator",
+        "requirement add/update/complete regenerate docs unless --no-docs or docs_auto_regenerate is false",
+        "the gate checks docs freshness only when docs_gate_freshness is true"
+      ],
+      "validation_required": [
+        "python3 -m unittest tests.test_docs_build",
+        "./omni gate"
+      ],
+      "documentation_required": [
+        "README.md",
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "Runtime view is not derived where dispatch goes through tables; call edges miss it"
+      ]
     }
   ]
 }

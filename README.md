@@ -688,6 +688,12 @@ modes. A time-boxed form handles one-line prompts.
 as `clarify`; invoke it with `/clarify` or let it trigger on a new feature
 request. Other assistants can read the file as a playbook.
 
+`.claude/skills/swe-docs/SKILL.md` tells an assistant when to run
+`./omni docs build` (before a design review, after clarifying requirements,
+before calling a slice done, before a release) and which generated document
+answers which question. `omni adopt --tools claude` copies it beside
+`clarify`, and `omni update` brings it into workspaces adopted earlier.
+
 ## Command Reference
 
 `omni` needs Python 3.10 or newer and nothing outside the standard library,
@@ -714,6 +720,7 @@ map.
 | `omni hook install-git [--force] [--with-graph-rebuild]` | Write `.githooks/pre-commit` (runs `omni gate`) and set `core.hooksPath`; commit `.githooks/` so other clones can opt in. Optionally a post-commit graph rebuild. |
 | `omni rule add --rulepack ALIAS --statement TEXT` | Add a rule to a rulepack. |
 | `omni graph build / show / trace / why / lineage / timeline / impact / findings / sources / schema / benchmark / render / view` | The project graph ([Code Graph](#code-graph-omni-graph)). |
+| `omni docs build [--root DIR] [--output DIR] [--graph FILE] [--no-graph-rebuild] [--check]` | Generate the engineering documents and Mermaid diagrams ([Generated Docs](#generated-docs-omni-docs)). |
 | `omni mcp serve / tools` | The MCP server ([MCP server](#mcp-server-the-graph-as-tools-for-any-assistant)). |
 | `omni arbiter install / baseline / update / sync` | Install, baseline and upgrade Arbiter ([Arbiter alongside the workspace](#arbiter-alongside-the-workspace)). |
 
@@ -1252,6 +1259,71 @@ The client must start it from the project root. The 14 tools:
 None of them writes a requirement, changelog entry, ledger entry or waiver;
 that stays with the CLI. `omni doctor` launches every stdio server in
 `.mcp.json` and fails one that does not answer.
+
+## Generated Docs (omni docs)
+
+`omni docs build` writes standard engineering documents with Mermaid diagrams
+to `docs/generated/`. No model writes any of it. Every line comes from the code
+graph, the requirement registry, the failure ledger, `.ai/test-suites.json`,
+git history (through the graph's history layer), Python docstrings and
+signatures, and deployment files on disk. A section with no data behind it
+says *Not derived* and gives the reason.
+
+| File | Contents |
+| --- | --- |
+| `index.md` | Links to every document, the commit the docs were generated from, and the inputs they used. |
+| `architecture.md` | Software Architecture Document (arc42 / ISO/IEC/IEEE 42010): goals, constraints, system context, containers and components, runtime view, deployment view, cross-cutting concepts, decisions, quality requirements, risks, glossary. |
+| `design.md` | Software Design Document (IEEE 1016 style): each module's purpose, public signatures, classes, dependencies and rationale, with a class diagram per package. |
+| `requirements.md` | Software Requirements Specification built from the registry: functional and non-functional requirements with acceptance criteria. |
+| `requirements-traceability.md` | Requirement, then files in scope, then linked tests, then status and failures. |
+| `test-plan.md` | Registered suites, test modules, the validation each requirement asks for, requirements with no linked test, and regression-test coverage of the ledger. |
+| `modules.md`, `class-diagram.md` | A one-table module reference and a cross-package class diagram. |
+| `CHANGES-SUMMARY.md` | Recently completed, in-progress, blocked and proposed requirements, open failures, and files listed in `documentation_required` that none of the requirement's commits changed. |
+
+Keeping the docs current:
+
+- **Rebuilt when requirements change.** Once `docs/generated/index.md`
+  exists, `omni requirement add`, `update --status` and `complete` regenerate
+  the docs after they succeed. This reuses the code graph already on disk and
+  never rebuilds it, and it writes only files whose bytes changed. Pass
+  `--no-docs` to skip it once. Set `configuration.docs_auto_regenerate` to
+  `false` in `.ai/rules/universal-engineering-ruleset.json` to turn it off.
+  A failure here never changes the requirement command's exit code.
+- **Graph refresh.** `omni docs build` rebuilds a missing or stale code graph
+  first (`--no-graph-rebuild` skips that).
+- **Stable output.** The output is deterministic: sorted, written as LF
+  bytes, and free of timestamps. The same inputs produce byte-identical
+  files, so a pull request shows only real changes. The one volatile line is
+  `Generated from commit` in `index.md`.
+- **Gate check is opt-in.** The gate never fails because the docs are stale
+  unless you set `configuration.docs_gate_freshness` to `true`. With it set,
+  `omni gate` adds a `completion.docs_fresh` failure. `omni docs build --check`
+  runs the same comparison by hand and ignores the commit line.
+- **Output location.** `configuration.docs_output_dir` moves the output, and
+  `--output` overrides it for one run.
+
+Diagrams are capped so they stay readable: 24 components, 40 edges, 25 classes
+overall and 15 per package. Each diagram carries a note saying what was
+collapsed or left out. Past the component cap, the most connected modules stay
+and the rest of each package becomes one node. The runtime view follows only
+call edges the graph resolved with confidence (same module, enclosing class,
+or import). When an entry point reaches fewer than three functions that way,
+the view is marked not derived instead of guessed.
+
+Embedded OmniEngineering tooling (`make_ai.py`, `omni_graph.py`, `omni_mcp.py`,
+`omni_docs.py`) gets its own container in the diagrams and stays out of the SDD
+of a project that embeds it. When a documented repository has the
+assistant-workflow skills installed (`clarify`, `run-plan`, `review-ai-code`,
+`test-debug`, `sre-readiness`, `swe-docs`), each document links the one that
+fits: the SRS links `clarify`, the SAD and SDD link `run-plan` and
+`review-ai-code`, the test plan links `test-debug`, and the deployment view
+and risks link `sre-readiness`. A skill that is not installed is never named.
+
+To document another checkout without writing into it:
+
+```bash
+./omni docs build --root ../other --graph /tmp/other-graph.json --output /tmp/other-docs
+```
 
 ## Failure Ledger
 

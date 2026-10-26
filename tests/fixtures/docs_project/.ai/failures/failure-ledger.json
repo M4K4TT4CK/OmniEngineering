@@ -1,0 +1,4 @@
+{"version": "1.0.0", "failure_id_prefix": "FAIL", "failures": [
+  {"id": "FAIL-001", "date": "2026-10-01", "title": "Total ignores quantity", "status": "open", "severity": "medium", "symptom": "wrong total", "root_cause": "no quantity field",
+   "requirement": "REQ-001", "affected": ["shop/models.py"], "fix_summary": "", "fix_commits": [], "regression_tests": ["tests/service_checks.py::check_checkout"], "prevention_rules": [], "recurrence_of": ""}
+]}

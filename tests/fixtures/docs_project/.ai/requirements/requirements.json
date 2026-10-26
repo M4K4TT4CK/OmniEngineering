@@ -1,0 +1,13 @@
+{
+  "requirements": [
+    {"id": "REQ-001", "category": "Feature", "title": "Price an order", "description": "Checkout returns the order total.", "priority": "high", "status": "completed",
+     "minimum_access_scope": ["shop/models.py", "shop/service.py", "tests/service_checks.py"], "acceptance_criteria": ["total equals the sum of item prices"],
+     "validation_required": ["python -m tests.service_checks"], "documentation_required": ["README"], "risk_notes": []},
+    {"id": "REQ-002", "category": "Feature", "title": "Command-line checkout", "description": "shop CLI prints the total.", "priority": "medium", "status": "pending",
+     "minimum_access_scope": ["shop/cli.py"], "acceptance_criteria": ["prints a total"], "validation_required": [], "documentation_required": ["README.md"], "risk_notes": ["CLI output format may change"]},
+    {"id": "REQ-003", "category": "Performance", "title": "Checkout under 10 ms", "description": "Checkout of 100 items finishes in 10 ms.", "priority": "low", "status": "blocked",
+     "minimum_access_scope": ["shop/service.py"], "acceptance_criteria": [], "validation_required": [], "documentation_required": [], "risk_notes": []},
+    {"id": "REQ-004", "category": "Feature", "title": "Discount codes", "description": "Apply a <percent> \"discount\" | code.", "priority": "low", "status": "proposed",
+     "minimum_access_scope": [], "acceptance_criteria": [], "validation_required": [], "documentation_required": [], "risk_notes": []}
+  ]
+}

@@ -1,0 +1,1 @@
+{"version": "1.0.0", "suites": [{"id": "shop-checks", "name": "Shop checks", "kind": "unit", "framework": "plain", "paths": ["tests"], "command": "python -m tests.service_checks", "covers": ["shop"]}]}

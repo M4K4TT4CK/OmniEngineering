@@ -76,6 +76,11 @@ class TestAdoptShipsTheClaudeSkills(unittest.TestCase):
             self.assertTrue(text.startswith("---\nname: clarify\n"), "skill frontmatter must name the skill")
             self.assertIn("Plan mode", text)
             self.assertIn("./omni requirement add", text)
+            docs_skill = Path(tmp) / ".claude" / "skills" / "swe-docs" / "SKILL.md"  # REQ-060
+            self.assertTrue(docs_skill.is_file(), out.getvalue())
+            docs_text = docs_skill.read_text(encoding="utf-8")
+            self.assertTrue(docs_text.startswith("---\nname: swe-docs\n"), "skill frontmatter must name the skill")
+            self.assertIn("./omni docs build", docs_text)
 
 
 def _adopt_quietly(*argv: str) -> tuple[int, str]:

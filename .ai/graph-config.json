@@ -1,6 +1,7 @@
 {
   "exclude_code_globs": [
-    "arbiter/"
+    "arbiter/",
+    "tests/fixtures/"
   ],
-  "_note": "arbiter/ is a vendored workspace with its own graph (cd arbiter && python omni graph build); this repository's graph covers the workspace only."
+  "_note": "arbiter/ is a vendored workspace with its own graph (cd arbiter && python omni graph build); this repository's graph covers the workspace only. tests/fixtures/ holds sample projects (REQ-060's docs fixture) that are not part of this codebase."
 }

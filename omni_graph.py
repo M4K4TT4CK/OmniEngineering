@@ -240,7 +240,7 @@ _DEFAULT_GRAPH_CONFIG: dict[str, Any] = {
     "requirement_id_pattern": None,
     # OmniEngineering's own files as embedded in a project. They join the workspace layer and are never counted as
     # the project's tests, suites or coverage targets. OmniEngineering's source repository sets this to [].
-    "tooling_paths": ["make_ai.py", "omni_graph.py", "omni", ".ai/*"],
+    "tooling_paths": ["make_ai.py", "omni_graph.py", "omni_docs.py", "omni", ".ai/*"],
     # Paths the code layer never parses, on top of .gitignore and .ai/.ignore: test corpora with planted defects,
     # vendored examples, generated output. They are still readable by an assistant (unlike .ai/.ignore entries) and
     # still appear in git history; they just never contribute symbols that would be attributed to the project.
