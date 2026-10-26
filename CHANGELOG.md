@@ -10,8 +10,8 @@ or requirement left out.
     the docstring's design reason), one table row per requirement in the SRS
     (status, priority, linked-test count, first sentence) plus acceptance
     criteria for the open ones, and one line per open requirement's risk notes
-    in the SAD. `--detail full` writes the previous output unchanged, apart from
-    `index.md`.
+    in the SAD. `--detail full` writes the previous long output; it differs only in
+    `index.md` and in how over-long text is cut (below).
   - Each fact has one home and the other documents link to it: purpose in the
     SDD, import lists in `modules.md`, open-failure detail in the traceability
     matrix, validation commands in the test plan, quality requirements in the
@@ -29,6 +29,12 @@ or requirement left out.
     seeds, and that retitling or completing one requirement changes only that
     requirement's lines and the status counts. It also checks that a full
     build stays full through `requirement complete` and `--check`.
+  - Text that runs past a length limit is cut only between whole sentences
+    (whole notes for risk notes) and ends with `(more: ...)` naming where the
+    full text is: `omni requirement show <id>`, the source file's docstring,
+    or `README.md`. No trailing "..." anywhere. A first sentence over the
+    limit is kept whole up to three times the limit, then cut at a clause.
+    Over-long signatures show parameter names and a count.
 ## 2026-10-25
 ### Completed
 - `REQ-060` | Documentation tooling | `omni docs build` generates engineering

@@ -183,17 +183,78 @@ def _read_json(path: Path) -> Any:
         return None
 
 
-def _one_line(text: str | None, limit: int = 200) -> str:
-    """First paragraph of a docstring, collapsed to one line."""
+MAX_PURPOSE = 200  # a module, class or function docstring's first paragraph
+MAX_WHY = 240  # summary SDD: the docstring's design reason
+MAX_RATIONALE = 400  # full SDD: the docstring's second paragraph
+MAX_INTRO = 600  # SAD: the README's introductory paragraph
+MAX_SIGNATURE = 160
+HARD_CEILING = 3  # a single sentence longer than limit x this is cut at a clause boundary
+
+
+def _sentences(line: str) -> list[str]:
+    return [part for part in re.split(r"(?<=[.!?])\s+(?=[A-Z(`\"'])", line) if part]
+
+
+def _clause_cut(line: str, ceiling: int) -> str:
+    """`line` cut at its last `;` or `,` before `ceiling`, else at its last space: never mid-word."""
+    head = line[:ceiling]
+    for mark in (";", ","):
+        at = head.rfind(mark)
+        if at > ceiling // 3:
+            return head[:at].rstrip()
+    at = head.rfind(" ")
+    return head[:at].rstrip(" ,;:-") if at > 0 else head
+
+
+def _fit(text: Any, limit: int, more: str) -> str:
+    """`text` on one line, at most about `limit` characters, cut only between whole sentences.
+
+    The first sentence is always kept whole, even past `limit`, unless it runs past HARD_CEILING x limit; then it is
+    cut at its last clause boundary. Whenever anything is left out, `(more: <more>)` says where the full text is."""
+    line = " ".join(str(text or "").split())
+    if len(line) <= limit:
+        return line
+    kept: list[str] = []
+    for sentence in _sentences(line):
+        if kept and len(" ".join([*kept, sentence])) > limit:
+            break
+        kept.append(sentence)
+    out = " ".join(kept)
+    if len(out) > limit * HARD_CEILING:
+        out = _clause_cut(out, limit * HARD_CEILING)
+    return out if out == line else f"{out} (more: {more})"
+
+
+def _fit_items(items: list[str], limit: int, more: str) -> str:
+    """Whole items (risk notes, say) joined with "; " while they fit in `limit`; the first is kept even when longer
+    (through `_fit`). Says how many were left out and where to read them."""
+    items = [" ".join(str(i).split()) for i in items if str(i).strip()]
+    if not items:
+        return ""
+    first = _fit(items[0], limit, more)
+    if first != items[0]:
+        rest = len(items) - 1
+        return first[: -1] + (f"; {rest} more note{'' if rest == 1 else 's'})" if rest else ")")
+    kept = [first]
+    for item in items[1:]:
+        if len("; ".join([*kept, item])) > limit:
+            break
+        kept.append(item)
+    left = len(items) - len(kept)
+    out = "; ".join(kept)
+    return out if not left else f"{out} (more: {more}; {left} more note{'' if left == 1 else 's'})"
+
+
+def _one_line(text: str | None) -> str:
+    """First paragraph of a docstring, collapsed to one line and kept whole (renderers fit it to the page)."""
     if not text:
         return ""
     para = re.split(r"\n\s*\n", text.strip(), maxsplit=1)[0]
-    line = " ".join(para.split())
-    return line if len(line) <= limit else line[: limit - 3].rstrip() + "..."
+    return " ".join(para.split())
 
 
-def _why(text: str | None, limit: int = 240) -> str:
-    """The first sentence of the first prose paragraph after the docstring's summary line. Headings, usage lines,
+def _why(text: str | None) -> str:
+    """The first prose paragraph after the docstring's summary line (fitted to MAX_WHY when rendered). Headings, usage lines,
     shell commands and paragraphs that only introduce a list are skipped: they are not a reason."""
     if not text:
         return ""
@@ -201,21 +262,20 @@ def _why(text: str | None, limit: int = 240) -> str:
         line = " ".join(para.split())
         if not re.match(r"[A-Z][a-z'’]*[ ,]", line) or line.endswith(":") or re.match(r"(Usage|Example|Run|Python)\b", line):
             continue
-        sentence = _first_sentence(line, limit)
+        sentence = (_sentences(line) or [""])[0]
         if len(sentence.split()) >= 6 and not sentence.endswith("?"):
-            return sentence
+            return line
     return ""
 
 
-def _rationale(text: str | None, limit: int = 400) -> str:
+def _rationale(text: str | None) -> str:
     """The docstring's second paragraph, when there is one: usually the why."""
     if not text:
         return ""
     parts = re.split(r"\n\s*\n", text.strip())
     if len(parts) < 2:
         return ""
-    line = " ".join(parts[1].split())
-    return line if len(line) <= limit else line[: limit - 3].rstrip() + "..."
+    return " ".join(parts[1].split())
 
 
 def _signature(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
@@ -226,7 +286,19 @@ def _signature(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
         args, returns = "...", ""
     prefix = "async " if isinstance(fn, ast.AsyncFunctionDef) else ""
     sig = " ".join(f"{prefix}{fn.name}({args}){returns}".split())
-    return sig if len(sig) <= 160 else sig[:157] + "..."
+    if len(sig) <= MAX_SIGNATURE:
+        return sig
+    # Too long to read: parameter names only, whole names while they fit, then a count. The full signature is in
+    # the source, which every rendered signature links to.
+    names = _params(fn)
+    kept: list[str] = []
+    for name in names:
+        if kept and len(f"{prefix}{fn.name}({', '.join([*kept, name])}, +N more){returns}") > MAX_SIGNATURE:
+            break
+        kept.append(name)
+    left = len(names) - len(kept)
+    inner = ", ".join(kept) + (f", +{left} more" if left else "")
+    return f"{prefix}{fn.name}({inner}){returns}"
 
 
 def _params(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str]:
@@ -1084,7 +1156,7 @@ def render_architecture(model: Model) -> str:
     reqs = active_requirements(model)
     # 1. Introduction and goals
     lines += section("1. Introduction and goals")
-    intro = _readme_intro(model.readme)
+    intro = _fit(_readme_intro(model.readme), MAX_INTRO, link(model, "README.md"))
     lines += [f"**System:** {model.project}", ""]
     lines += ([intro, ""] if intro else [not_derived("README.md has no introductory paragraph."), ""])
     goals = [r for r in reqs if r.get("priority") in ("critical", "high") and r.get("status") not in _TERMINAL]
@@ -1176,8 +1248,7 @@ def _readme_intro(readme: str) -> str:
             continue
         if in_code or not text or text.startswith(("#", "!", "[!", "<", "|", "-", "*", ">")) or text.startswith("[!["):
             continue
-        line = " ".join(text.split())
-        return line if len(line) <= 600 else line[:597].rstrip() + "..."
+        return " ".join(text.split())
     return ""
 
 
@@ -1277,7 +1348,7 @@ def _crosscutting_section(model: Model) -> list[str]:
         for n, p in hubs[:10]:
             mod = model.by_path()[p]
             if model.detail == "full":
-                purpose = mod.py.doc if mod.py and mod.py.doc else "no module docstring"
+                purpose = _purpose(model, mod) or "no module docstring"
                 lines.append(f"- {code(p)}: imported by {n}; {cell(purpose)}")
             else:
                 lines.append(f"- {code(p)}: imported by {n}")
@@ -1356,10 +1427,10 @@ def _risks_summary(model: Model, reqs: list[dict[str, Any]]) -> list[str]:
     risky = [(r, [str(n) for n in r.get("risk_notes") or [] if str(n).strip()]) for r in reqs if r.get("status") not in _TERMINAL]
     risky = [(r, notes) for r, notes in risky if notes]
     if risky:
-        lines += ["Open requirements that carry risk notes, with the first note (all notes: `omni requirement show <id>`, or `--detail full`):", ""]
+        lines += ["Open requirements that carry risk notes, with the notes that fit on one line (`--detail full` writes them all):", ""]
         for r, notes in risky:
-            more = f" (+{len(notes) - 1} more note{'' if len(notes) == 2 else 's'})" if len(notes) > 1 else ""
-            lines.append(f"- {r['id']} ({r.get('status')}): {cell(_first_sentence(notes[0], MAX_RISK_NOTE))}{more}")
+            pointer = f"`omni requirement show {r['id']}`"
+            lines.append(f"- {r['id']} ({r.get('status')}): {cell(_fit_items(notes, MAX_RISK_NOTE, pointer))}")
         lines.append("")
     else:
         lines += ["No open requirement carries a risk note.", ""]
@@ -1378,7 +1449,7 @@ def _glossary_section(model: Model) -> list[str]:
     lines = ["Terms defined in code (public classes with a docstring):", "", "| Term | Meaning | Defined in |", "| --- | --- | --- |"]
     short = model.detail != "full"
     cap = SUMMARY_GLOSSARY if short else MAX_GLOSSARY
-    lines += [f"| {cell(n)} | {cell(_first_sentence(d, 140) if short else d)} | {code(p)} |" for n, d, p in terms[:cap]]
+    lines += [f"| {cell(n)} | {cell(_fit(d, 140 if short else MAX_PURPOSE, f'{code(p)} docstring'))} | {code(p)} |" for n, d, p in terms[:cap]]
     if len(terms) > cap:
         where = "are documented in the source (`--detail full` lists them in the SDD)" if short else "are listed in the SDD"
         lines.append(f"\n{len(terms) - cap} more documented classes {where}.")
@@ -1387,19 +1458,6 @@ def _glossary_section(model: Model) -> list[str]:
 
 def render_design(model: Model) -> str:
     return _render_design_full(model) if model.detail == "full" else _render_design_summary(model)
-
-
-def _first_sentence(text: Any, limit: int) -> str:
-    """The first sentence of a text, collapsed to one line and cut at `limit` characters."""
-    line = " ".join(str(text or "").split())
-    match = re.search(r"(?<=[.!?])\s+(?=[A-Z(`\"'])", line)
-    if match:
-        line = line[: match.start()]
-    if len(line) <= limit:
-        return line
-    cut = line[: limit - 3]
-    cut = cut[: cut.rfind(" ")] if " " in cut else cut  # never end mid-word
-    return cut.rstrip(" ,;:-") + "..."
 
 
 def _names(names: list[str], limit: int) -> str:
@@ -1447,7 +1505,7 @@ def _render_design_summary(model: Model) -> str:
     lines += ["| Package | Modules | What it is for | Uses packages |", "| --- | --- | --- | --- |"]
     for package in sorted(by_package):
         init = model.by_path().get(f"{package}/__init__.py" if package != "(root)" else "__init__.py")
-        purpose = init.py.doc if init and init.py and init.py.doc else "-"
+        purpose = (_purpose(model, init) if init else "") or "-"
         lines.append(
             f"| [{cell(_package_label(package))}](#{_anchor('package ' + _package_label(package))}) | {len(by_package[package])} "
             f"| {cell(purpose)} | {cell(', '.join(sorted(pkg_deps.get(package, set()))))} |"
@@ -1457,7 +1515,7 @@ def _render_design_summary(model: Model) -> str:
         lines += section(f"Package {_package_label(package)}")
         for m in sorted(by_package[package], key=lambda x: x.path):
             name = m.path[len(package) + 1 :] if package != "(root)" else m.path
-            purpose = m.py.doc if m.py and m.py.doc else "_No module docstring._"
+            purpose = _purpose(model, m) or "_No module docstring._"
             if m.py:
                 types = [c.name for c in m.py.classes]
                 n_funcs = len(m.py.functions)
@@ -1472,12 +1530,17 @@ def _render_design_summary(model: Model) -> str:
             used = inbound.get(m.path, 0)
             if used:
                 facts.append(f"Imported by {used} module{'' if used == 1 else 's'}.")
-            why = m.py.why if m.py else ""
+            why = _fit(m.py.why, MAX_WHY, f"{link(model, m.path)} docstring") if m.py and m.py.why else ""
             if why:
                 facts.append(f"Why: {why}")
             lines.append(" ".join([f"- {link(model, m.path, name)}: {purpose}", *facts]))
         lines.append("")
     return finish(lines)
+
+
+def _purpose(model: Model, m: Module, limit: int = MAX_PURPOSE) -> str:
+    """A module's docstring summary, fitted, pointing at the source when cut."""
+    return _fit(m.py.doc, limit, f"{link(model, m.path)} docstring") if m.py and m.py.doc else ""
 
 
 def _anchor(heading: str) -> str:
@@ -1518,15 +1581,16 @@ def _render_design_full(model: Model) -> str:
         for m in sorted(by_package[package], key=lambda x: x.path):
             lines += section(f"Module {m.path}", 3)
             lines += [f"Source: {link(model, m.path)}", ""]
-            lines += ["**Purpose.** " + (m.py.doc if m.py and m.py.doc else "_Not derived: no module docstring._"), ""]
+            lines += ["**Purpose.** " + (_purpose(model, m) or "_Not derived: no module docstring._"), ""]
+            more = f"{link(model, m.path)}"
             lines += ["**Interfaces.**", ""]
             if m.py:
                 funcs = m.py.functions
                 if funcs:
                     for f in funcs[:MAX_SYMBOLS]:
-                        lines.append(f"- {code(f.signature)}" + (f": {cell(f.doc)}" if f.doc else ""))
+                        lines.append(f"- {code(f.signature)}" + (f": {cell(_fit(f.doc, MAX_PURPOSE, more))}" if f.doc else ""))
                     if len(funcs) > MAX_SYMBOLS:
-                        lines.append(f"- ... and {len(funcs) - MAX_SYMBOLS} more public functions.")
+                        lines.append(f"- {len(funcs) - MAX_SYMBOLS} more public functions are in {more}.")
                 else:
                     lines.append("- No public module-level functions.")
             elif m.symbols:
@@ -1540,11 +1604,11 @@ def _render_design_full(model: Model) -> str:
             if classes:
                 for cls in classes:
                     bases = f"({', '.join(cls.bases)})" if cls.bases else ""
-                    lines.append(f"- {code('class ' + cls.name + bases)}" + (f": {cell(cls.doc)}" if cls.doc else ""))
+                    lines.append(f"- {code('class ' + cls.name + bases)}" + (f": {cell(_fit(cls.doc, MAX_PURPOSE, more))}" if cls.doc else ""))
                     for meth in cls.methods[:MAX_METHODS]:
-                        lines.append(f"  - {code(meth.signature)}" + (f": {cell(meth.doc)}" if meth.doc else ""))
+                        lines.append(f"  - {code(meth.signature)}" + (f": {cell(_fit(meth.doc, MAX_PURPOSE, more))}" if meth.doc else ""))
                     if len(cls.methods) > MAX_METHODS:
-                        lines.append(f"  - ... and {len(cls.methods) - MAX_METHODS} more methods.")
+                        lines.append(f"  - {len(cls.methods) - MAX_METHODS} more methods are in {more}.")
             else:
                 lines.append("- No public classes.")
             lines.append("")
@@ -1557,7 +1621,7 @@ def _render_design_full(model: Model) -> str:
                 lines.append("- External: " + ", ".join(code(n) for n in sorted(ext[m.path])))
             lines.append("")
             reqs = requirements_for(model, m.path)
-            rationale = m.py.rationale if m.py else ""
+            rationale = _fit(m.py.rationale, MAX_RATIONALE, f"{more} docstring") if m.py and m.py.rationale else ""
             lines += ["**Design rationale.**", ""]
             if rationale:
                 lines += [rationale, ""]
@@ -1586,7 +1650,7 @@ def render_modules(model: Model) -> str:
         count = (len(m.py.functions) + len(m.py.classes)) if m.py else len([s for s in m.symbols if not s[1].startswith("_")])
         out = sorted(b for a, b in imports if a == m.path)
         inn = sorted(a for a, b in imports if b == m.path)
-        purpose = m.py.doc if m.py and m.py.doc else "-"
+        purpose = _purpose(model, m) or "-"
         if full:
             lines.append(f"| {link(model, m.path)} | {cell(m.container)} | {cell(purpose)} | {count} | {cell(', '.join(out))} | {cell(', '.join(inn))} |")
         else:
@@ -1678,7 +1742,7 @@ def _req_tables(model: Model, categories: dict[str, list[dict[str, Any]]]) -> li
         lines += section(category, 3)
         lines += ["| ID | Requirement | Status | Priority | Tests | Statement |", "| --- | --- | --- | --- | --- | --- |"]
         for r in categories[category]:
-            statement = _first_sentence(r.get("description"), MAX_STATEMENT) or "-"
+            statement = _fit(r.get("description"), MAX_STATEMENT, f"`omni requirement show {r['id']}`") or "-"
             lines.append(
                 f"| {r['id']} | {cell(r.get('title'))} | {cell(r.get('status'))} | {cell(r.get('priority'))} "
                 f"| {len(linked_tests(model, r))} | {cell(statement)} |"

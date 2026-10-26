@@ -364,6 +364,47 @@ class TestDeterminism(unittest.TestCase):
             self.assertEqual(omni_docs.check_docs(FIXTURE, out, graph), ["design.md"])
 
 
+class TestTextFitting(unittest.TestCase):
+    """Long text is cut only between whole sentences or notes, and every cut says where the full text is."""
+
+    def test_short_text_is_unchanged_and_has_no_pointer(self) -> None:
+        self.assertEqual(omni_docs._fit("Checkout returns the order total.", 200, "x"), "Checkout returns the order total.")
+        self.assertEqual(omni_docs._fit_items(["one note"], 200, "x"), "one note")
+
+    def test_multi_sentence_text_ends_at_a_sentence_with_a_pointer(self) -> None:
+        text = "First sentence is here. Second sentence is also here. Third one would go past the limit for sure."
+        out = omni_docs._fit(text, 60, "`omni requirement show REQ-9`")
+        self.assertEqual(out, "First sentence is here. Second sentence is also here. (more: `omni requirement show REQ-9`)")
+        self.assertNotIn("...", out)
+
+    def test_one_long_sentence_is_kept_whole(self) -> None:
+        sentence = "This single sentence is longer than the limit but shorter than three times it, so it stays whole."
+        self.assertEqual(omni_docs._fit(sentence + " Tail.", 60, "src"), sentence + " (more: src)")
+
+    def test_a_runaway_sentence_is_cut_at_a_clause_never_mid_word(self) -> None:
+        sentence = "alpha beta, " * 30 + "omega"
+        out = omni_docs._fit(sentence, 40, "src")
+        self.assertTrue(out.endswith("beta (more: src)"), out)
+        self.assertLessEqual(len(out), 40 * omni_docs.HARD_CEILING + len(" (more: src)"))
+
+    def test_notes_are_kept_whole_and_the_rest_counted(self) -> None:
+        out = omni_docs._fit_items(["Short note one.", "Short note two.", "A third note that does not fit."], 35, "`omni requirement show R-1`")
+        self.assertEqual(out, "Short note one.; Short note two. (more: `omni requirement show R-1`; 1 more note)")
+
+    def test_rendered_pointers_name_the_source(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "proj"
+            shutil.copytree(FIXTURE, root)
+            reg = root / ".ai/requirements/requirements.json"
+            data = json.loads(reg.read_text(encoding="utf-8"))
+            data["requirements"][1]["description"] = "The shop CLI prints the total. " + "It also prints each line item in turn. " * 8
+            reg.write_text(json.dumps(data), encoding="utf-8")
+            srs = omni_docs.render_all(root, root / "docs/generated", root / ".ai/project-graph.json")["requirements.md"]
+        row = next(line for line in srs.splitlines() if line.startswith("| REQ-002 |"))
+        self.assertTrue(row.endswith("in turn. (more: `omni requirement show REQ-002`) |"), row)
+        self.assertNotIn("(more:", next(line for line in srs.splitlines() if line.startswith("| REQ-001 |")))
+
+
 class TestSmallDiffs(unittest.TestCase):
     """A change to one requirement changes only the lines about that requirement, plus status counts."""
 

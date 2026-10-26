@@ -1292,6 +1292,14 @@ its acceptance criteria and validation, every risk note. The level is recorded
 in `index.md`, so later rebuilds, the regeneration after requirement commands
 and `--check` keep it until you pass `--detail` again.
 
+**Long text is never cut mid-sentence.** A description, docstring, risk-note
+list or README intro that runs past its length limit keeps the whole sentences
+(or whole notes) that fit and ends with a pointer to the full text, such as
+`(more: `omni requirement show ARB-062`; 10 more notes)` or
+`(more: [src/app.py](...) docstring)`. A first sentence longer than the limit
+is kept whole; only one longer than three times the limit is cut, at its last
+`;` or `,`. Text that fits carries no pointer.
+
 Keeping the docs current:
 
 - **Rebuilt when requirements change.** Once `docs/generated/index.md`

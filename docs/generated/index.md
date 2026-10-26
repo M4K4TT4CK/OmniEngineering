@@ -4,7 +4,7 @@
 
 Related assistant workflow: [swe-docs](../../.claude/skills/swe-docs/SKILL.md) to when to rebuild and how to read these documents.
 
-Generated from commit `e18a2c43a048481c7c5a7fed4c2d85de7c250f85`; code graph built at `51f083293e01` (older than HEAD: `omni docs build` rebuilds a stale graph).
+Generated from commit `f446b4390cff8f128f16196266fea96716bcf9a5`; code graph built at `e18a2c43a048` (older than HEAD: `omni docs build` rebuilds a stale graph).
 
 Detail level: summary (`omni docs build --detail summary|full`; later rebuilds keep it).
 
