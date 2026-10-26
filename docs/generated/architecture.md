@@ -16,10 +16,7 @@ All 60 registered requirements are completed or withdrawn; no open high-priority
 
 - Python >=3.10 (pyproject.toml `requires-python`).
 - Languages in the code graph: python (34 modules).
-- Project policy `allow_broad_refactor` is false: such changes need explicit approval.
-- Project policy `allow_dependency_changes` is false: such changes need explicit approval.
-- Project policy `allow_schema_changes` is false: such changes need explicit approval.
-- Project policy `allow_destructive_data_changes` is false: such changes need explicit approval.
+- Project policy: `allow_broad_refactor`, `allow_dependency_changes`, `allow_schema_changes`, `allow_destructive_data_changes` are false, so such changes need explicit approval.
 
 ## 3. System context
 
@@ -28,14 +25,8 @@ flowchart LR
     x_system["OmniEngineering Workspace"]
     x_user["User / developer<br/>1 entry point(s)"]
     x_user -->|runs| x_system
-    x_dep_tree_sitter["tree-sitter"]
-    x_system -->|uses| x_dep_tree_sitter
-    x_dep_tree_sitter_javascript["tree-sitter-javascript"]
-    x_system -->|uses| x_dep_tree_sitter_javascript
-    x_dep_tree_sitter_python["tree-sitter-python"]
-    x_system -->|uses| x_dep_tree_sitter_python
-    x_dep_tree_sitter_typescript["tree-sitter-typescript"]
-    x_system -->|uses| x_dep_tree_sitter_typescript
+    x_deps["4 declared dependencies:<br/>tree-sitter, tree-sitter-javascript, tree-sitter-python, tree-sitter-typescript"]
+    x_system -->|uses| x_deps
     x_ci["CI: 1 GitHub Actions workflow(s)"]
     x_ci -->|builds and checks| x_system
 ```
@@ -98,12 +89,6 @@ flowchart TD
     f_make_ai_py_run_doctor["run_doctor"]
     f_make_ai_py_run_gate["run_gate"]
     f_make_ai_py_run_graph_benchmark["run_graph_benchmark"]
-    f_make_ai_py_run_graph_build["run_graph_build"]
-    f_make_ai_py_run_graph_findings["run_graph_findings"]
-    f_make_ai_py_run_graph_impact["run_graph_impact"]
-    f_make_ai_py_run_graph_lineage["run_graph_lineage"]
-    f_make_ai_py_run_graph_render["run_graph_render"]
-    f_make_ai_py_run_graph_schema["run_graph_schema"]
     f_make_ai_py_main --> f_make_ai_py_build_parser
     f_make_ai_py_main --> f_make_ai_py_docs_regeneration_wanted
     f_make_ai_py_main --> f_make_ai_py_regenerate_docs_after_requirement_change
@@ -117,16 +102,10 @@ flowchart TD
     f_make_ai_py_main --> f_make_ai_py_run_doctor
     f_make_ai_py_main --> f_make_ai_py_run_gate
     f_make_ai_py_main --> f_make_ai_py_run_graph_benchmark
-    f_make_ai_py_main --> f_make_ai_py_run_graph_build
-    f_make_ai_py_main --> f_make_ai_py_run_graph_findings
-    f_make_ai_py_main --> f_make_ai_py_run_graph_impact
-    f_make_ai_py_main --> f_make_ai_py_run_graph_lineage
-    f_make_ai_py_main --> f_make_ai_py_run_graph_render
-    f_make_ai_py_main --> f_make_ai_py_run_graph_schema
 ```
 
 - Static direct calls only (same-module, enclosing-class or import-resolved); call order and conditions are not shown.
-- 69 further call(s) omitted at the 20-node cap.
+- 62 further call(s) omitted at the 14-node cap.
 
 ## 6. Deployment view
 
@@ -136,10 +115,6 @@ flowchart LR
         d_github_workflows_ci_yml["CI (.github/workflows/ci.yml)"]
     end
 ```
-
-Descriptors found:
-
-- [.github/workflows/ci.yml](../../.github/workflows/ci.yml)
 
 - Nodes are grouped by descriptor type; how they connect at run time is not derived (no edges are drawn).
 
@@ -171,23 +146,13 @@ Decision records and design documents in the repository:
 
 ## 9. Quality requirements
 
-| ID | Status | Category | Requirement |
-| --- | --- | --- | --- |
-| REQ-013 | completed | CLI / template maintainability | Add omni update: 3-way-merge template improvements into adopted workspaces |
-| REQ-014 | completed | CLI / template maintainability | Fix: omni update must not re-run sync when make_ai.py itself has an unresolved conflict |
-| REQ-017 | completed | CLI / template maintainability | Fix: adopting or updating omni_graph.py must not be able to break every other command |
-| REQ-025 | completed | Process | Portable enforcement: a real CI matrix and a git pre-commit hook, not just the Claude Stop hook |
-| REQ-042 | completed | CLI / template maintainability | Arbiter version tracking and omni arbiter update |
-| REQ-044 | completed | CLI / template maintainability | Requirement id aliases and omni requirement renumber |
-| REQ-049 | completed | CLI / template maintainability | omni arbiter sync levels the subtree, the installed package, the recorded version and the baseline in one command; doctor warns on a mismatched commit identity |
-
-Selected by category or title naming a quality attribute (performance, security, reliability, usability, ...).
+7 requirement(s) name a quality attribute in their category or title (CLI / template maintainability 6, Process 1); 0 still open. Each is a row in the [Software Requirements Specification (SRS)](requirements.md).
 
 ## 10. Risks and technical debt
 
-No open failures (19 recorded in the ledger, none open).
+0 open failure(s) of 19 in the failure ledger.
 
-Recurring failures (technical debt that came back): FAIL-018 repeats FAIL-017.
+1 recorded failure(s) recurred after an earlier fix (technical debt that came back): FAIL-018 repeats FAIL-017.
 
 No open requirement carries a risk note.
 

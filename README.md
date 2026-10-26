@@ -722,7 +722,7 @@ map.
 | `omni hook install-git [--force] [--with-graph-rebuild]` | Write `.githooks/pre-commit` (runs `omni gate`) and set `core.hooksPath`; commit `.githooks/` so other clones can opt in. Optionally a post-commit graph rebuild. |
 | `omni rule add --rulepack ALIAS --statement TEXT` | Add a rule to a rulepack. |
 | `omni graph build / show / trace / why / lineage / timeline / impact / findings / sources / schema / benchmark / render / view` | The project graph ([Code Graph](#code-graph-omni-graph)). |
-| `omni docs build [--root DIR] [--output DIR] [--graph FILE] [--no-graph-rebuild] [--check]` | Generate the engineering documents and Mermaid diagrams ([Generated Docs](#generated-docs-omni-docs)). |
+| `omni docs build [--root DIR] [--output DIR] [--graph FILE] [--no-graph-rebuild] [--check] [--detail summary\|full]` | Generate the engineering documents and Mermaid diagrams ([Generated Docs](#generated-docs-omni-docs)). |
 | `omni mcp serve / tools` | The MCP server ([MCP server](#mcp-server-the-graph-as-tools-for-any-assistant)). |
 | `omni arbiter install / baseline / update / sync` | Install, baseline and upgrade Arbiter ([Arbiter alongside the workspace](#arbiter-alongside-the-workspace)). |
 
@@ -1275,12 +1275,22 @@ says *Not derived* and gives the reason.
 | --- | --- |
 | `index.md` | Links to every document, the commit the docs were generated from, and the inputs they used. |
 | `architecture.md` | Software Architecture Document (arc42 / ISO/IEC/IEEE 42010): goals, constraints, system context, containers and components, runtime view, deployment view, cross-cutting concepts, decisions, quality requirements, risks, glossary. |
-| `design.md` | Software Design Document (IEEE 1016 style): each module's purpose, public signatures, classes, dependencies and rationale, with a class diagram per package. |
-| `requirements.md` | Software Requirements Specification built from the registry: functional and non-functional requirements with acceptance criteria. |
+| `design.md` | Software Design Document (IEEE 1016 style): a table of packages, then one line per module with its purpose, the public types it defines, how many modules import it, and the design reason its docstring gives. Full detail adds every public signature, the classes and methods, and a class diagram per package. |
+| `requirements.md` | Software Requirements Specification built from the registry: one row per requirement by area (status, priority, linked-test count, first sentence of the description), then the acceptance criteria of the open ones. Full detail writes every requirement in full. |
 | `requirements-traceability.md` | Requirement, then files in scope, then linked tests, then status and failures. |
 | `test-plan.md` | Registered suites, test modules, the validation each requirement asks for, requirements with no linked test, and regression-test coverage of the ledger. |
-| `modules.md`, `class-diagram.md` | A one-table module reference and a cross-package class diagram. |
+| `modules.md`, `class-diagram.md` | A one-table module reference (what each module imports and is imported by) and a cross-package class diagram. |
 | `CHANGES-SUMMARY.md` | Recently completed, in-progress, blocked and proposed requirements, open failures, and files listed in `documentation_required` that none of the requirement's commits changed. |
+
+**Detail level.** By default (`--detail summary`) each fact is stated in one
+document and the others link to it: a module's purpose in the SDD, its import
+lists in `modules.md`, a requirement's tests and open failures in the
+traceability matrix, its validation commands in the test plan. Module,
+requirement and risk entries are one line each. `--detail full` writes the
+long form instead: every public signature and method, every requirement with
+its acceptance criteria and validation, every risk note. The level is recorded
+in `index.md`, so later rebuilds, the regeneration after requirement commands
+and `--check` keep it until you pass `--detail` again.
 
 Keeping the docs current:
 
@@ -1296,7 +1306,10 @@ Keeping the docs current:
 - **Stable output.** The output is deterministic: sorted, written as LF
   bytes, and free of timestamps. The same inputs produce byte-identical
   files, so a pull request shows only real changes. The one volatile line is
-  `Generated from commit` in `index.md`.
+  `Generated from commit` in `index.md`, which also names the commit the code
+  graph was built at. Lists are sorted by path or id and each module,
+  requirement or failure has its own line, so changing one requirement changes
+  that requirement's lines and the status counts, nothing else.
 - **Gate check is opt-in.** The gate never fails because the docs are stale
   unless you set `configuration.docs_gate_freshness` to `true`. With it set,
   `omni gate` adds a `completion.docs_fresh` failure. `omni docs build --check`
@@ -1308,7 +1321,8 @@ Keeping the docs current:
   `.ai/rules/completion-workflow.json`.
 
 Diagrams are capped so they stay readable: 24 components, 40 edges, 25 classes
-overall and 15 per package. Each diagram carries a note saying what was
+overall and 15 per package (summary detail: 16 components, 24 edges, 14 nodes
+in a runtime flow, and the declared dependencies in one context node). Each diagram carries a note saying what was
 collapsed or left out. Past the component cap, the most connected modules stay
 and the rest of each package becomes one node. The runtime view follows only
 call edges the graph resolved with confidence (same module, enclosing class,

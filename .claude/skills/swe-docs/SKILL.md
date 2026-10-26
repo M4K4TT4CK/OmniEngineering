@@ -43,13 +43,13 @@ Start at `index.md`. It links every document and states which commit the code gr
 | Question | Document |
 | --- | --- |
 | What is the system, what surrounds it, how is it split up? | `architecture.md` (SAD), sections 3 and 4 |
-| What does module X expose and depend on, and why is it built that way? | `design.md` (SDD) |
+| What is module X for and why is it built that way? What does it import? | `design.md` (SDD); import lists in `modules.md`; signatures with `./omni docs build --detail full` |
 | What must be true, and how is each requirement accepted? | `requirements.md` (SRS) |
 | Which files and tests belong to REQ-NNN? | `requirements-traceability.md` |
 | What is untested, and which failures lack a regression test? | `test-plan.md` |
 | What changed recently, what is blocked, which required docs were never updated? | `CHANGES-SUMMARY.md` |
 
-Read the diagrams with their notes. Large graphs are capped (24 components, 40 edges, 25 classes), and the
+Read the diagrams with their notes. Large graphs are capped (24 components, 40 edges, 25 classes; tighter at the default summary detail), and the
 note under each diagram says what was collapsed or left out. The runtime view uses only call edges the graph
 resolved with confidence. When an entry point dispatches through a table or a callback, the view says it is
 not derived rather than guessing.

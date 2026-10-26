@@ -2441,15 +2441,16 @@ def run_docs_build(args: argparse.Namespace) -> int:
             except omni_graph.GraphDependencyError as exc:
                 print(f"docs: code graph not rebuilt ({str(exc).splitlines()[0]}); using what is on disk", file=sys.stderr)
     if args.check:
-        stale_docs = omni_docs.check_docs(root, output, graph_file)
+        stale_docs = omni_docs.check_docs(root, output, graph_file, args.detail)
         if stale_docs:
             print(f"docs: {output.as_posix()} is stale: {', '.join(stale_docs)}. Run `omni docs build`.")
             return 1
         print(f"docs: {output.as_posix()} is up to date")
         return 0
-    result = omni_docs.build_docs(root, output, graph_file)
+    detail = omni_docs.resolve_detail(output, args.detail)
+    result = omni_docs.build_docs(root, output, graph_file, detail)
     print(
-        f"docs: {len(result['written'])} written, {len(result['unchanged'])} unchanged in {output.as_posix()}"
+        f"docs: {len(result['written'])} written, {len(result['unchanged'])} unchanged in {output.as_posix()} ({detail} detail)"
         + (f" ({', '.join(result['written'])})" if result["written"] else "")
     )
     return 0
@@ -7184,6 +7185,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--check",
         action="store_true",
         help="Write nothing; exit 1 when a document is missing or differs from a fresh render (the commit-SHA line is ignored).",
+    )
+    docs_build.add_argument(
+        "--detail",
+        choices=["summary", "full"],
+        help="How much each document says. summary (the default): one line per module, requirement and risk, linking "
+        "to the document that owns the detail. full: every public signature, acceptance criterion and risk note. "
+        "Without the flag, the level the docs were last built at is kept.",
     )
 
     test_parser = subparsers.add_parser(

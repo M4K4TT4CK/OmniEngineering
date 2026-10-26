@@ -1,4 +1,34 @@
 # Changelog
+## 2026-10-26
+### Changed
+- `REQ-060` | Documentation tooling | The generated documents are shorter, and a
+rebuild after a small change gives a small diff. On Arbiter the SDD went from
+3,396 lines to 115 and the SRS from 1,679 to 388, with no module
+or requirement left out.
+  - `omni docs build --detail summary|full`. Summary is the default: one line
+    per module in the SDD (purpose, public types, how many modules import it,
+    the docstring's design reason), one table row per requirement in the SRS
+    (status, priority, linked-test count, first sentence) plus acceptance
+    criteria for the open ones, and one line per open requirement's risk notes
+    in the SAD. `--detail full` writes the previous output unchanged, apart from
+    `index.md`.
+  - Each fact has one home and the other documents link to it: purpose in the
+    SDD, import lists in `modules.md`, open-failure detail in the traceability
+    matrix, validation commands in the test plan, quality requirements in the
+    SRS.
+  - The level is recorded in `index.md`, so the regeneration after
+    `omni requirement add|update|complete` and `omni docs build --check` keep
+    it.
+  - The commit the code graph was built at moved onto the one volatile
+    `Generated from commit` line. Before this it sat on its own line, so
+    committing the docs made them look stale.
+  - Summary diagrams are tighter: 16 components, 24 edges, 14 runtime-flow
+    nodes, and one context node listing the declared dependencies.
+  - Tests: `tests/test_docs_build.py` checks summary and full output. It checks
+    byte-identical builds at both levels across processes with different hash
+    seeds, and that retitling or completing one requirement changes only that
+    requirement's lines and the status counts. It also checks that a full
+    build stays full through `requirement complete` and `--check`.
 ## 2026-10-25
 ### Completed
 - `REQ-060` | Documentation tooling | `omni docs build` generates engineering

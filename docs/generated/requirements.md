@@ -4,1008 +4,202 @@
 
 Related assistant workflow: [clarify](../../.claude/skills/clarify/SKILL.md) to capture new requirements before they land here.
 
-## 1. Introduction
+What OmniEngineering Workspace must do. One row per requirement in `.ai/requirements/requirements.json`, grouped by area: its status, priority, how many tests are linked to it, and the first sentence of its description. Acceptance criteria follow for the requirements that are still open.
 
-This specification lists every requirement in `.ai/requirements/requirements.json` for OmniEngineering Workspace, generated from the registry. Change requirements with `omni requirement add|update|complete`, never here.
+Which tests and files belong to each requirement is in the [Requirements Traceability Matrix](requirements-traceability.md); the validation each one asks for is in the [Test Plan and Coverage Summary](test-plan.md). For a single requirement in full run `omni requirement show <id>`; `omni docs build --detail full` writes every requirement in full here. Change requirements with `omni requirement add|update|complete`, never here.
 
-## 2. Overall description
+## Status
+
+60 active requirement(s) in 24 area(s); 0 archived.
 
 | Status | Requirements |
 | --- | --- |
 | completed | 60 |
 
-60 active requirement(s) in 24 categories.
-
-## 3. Functional requirements
+## Functional requirements
 
 ### Adoption
 
-#### REQ-058: omni adopt ships an empty requirements registry
-
-- **Priority:** high  **Status:** completed
-
-omni adopt copied this repository's whole requirements registry into adopters. It ships an empty registry instead (version and requirement_id_prefix kept, requirements []), drops the requirements archive and gate waivers, and drops the generated graph output (.ai/project-graph.json, .html, .svg), so an adopter's first omni requirement add is REQ-001.
-
-Acceptance criteria:
-
-1. The adopted .ai/requirements/requirements.json has requirements [] with this repository's version and requirement_id_prefix
-2. No requirements-archive.json or gate-waivers.jsonl is adopted
-3. No .ai/project-graph.json/.html/.svg is adopted
-4. The first omni requirement add in an adopter is REQ-001
-
-Validation: `python3 -m unittest discover -s tests`; `omni gate`; `README Quick Start in a scratch clone`
-
-#### REQ-059: omni adopt without --with-arbiter leaves the Arbiter gate rule out
-
-- **Priority:** high  **Status:** completed
-
-omni adopt always copied the required completion.arbiter_gate rule, so an adopter without Arbiter on PATH failed every omni gate until they edited the rulepack by hand. Without --with-arbiter, adopt now removes that rule from the completion rulepack it just copied (a rulepack that was skipped because it already exists is not touched); omni arbiter install adds it back.
-
-Acceptance criteria:
-
-1. omni adopt without --with-arbiter writes a completion rulepack with every source rule except completion.arbiter_gate, and says so
-2. omni adopt --dry-run says it would leave the rule out and writes nothing
-3. An existing completion rulepack that adopt skips is left byte-for-byte unchanged
-4. omni adopt --with-arbiter keeps the rule, and omni arbiter install after a plain adopt adds it back
-
-Validation: `python3 -m unittest discover -s tests`; `omni gate`
+| ID | Requirement | Status | Priority | Tests | Statement |
+| --- | --- | --- | --- | --- | --- |
+| REQ-058 | omni adopt ships an empty requirements registry | completed | high | 1 | omni adopt copied this repository's whole requirements registry into adopters. |
+| REQ-059 | omni adopt without --with-arbiter leaves the Arbiter gate rule out | completed | high | 1 | omni adopt always copied the required completion.arbiter_gate rule, so an adopter without Arbiter on PATH failed every omni gate until they edited the rulepack by hand. |
 
 ### AI workspace ruleset
 
-#### REQ-001: Add universal engineering ruleset
-
-- **Priority:** high  **Status:** completed
-
-Create the controlling OmniContext engineering ruleset and align the workspace instructions to it.
-
-Acceptance criteria:
-
-1. The global ruleset exists as a framework-agnostic source of truth.
-2. Assistant entrypoint shims point to the .ai entrypoint sources.
-3. Completion workflow requires validation, documentation, changelog, and reporting.
-
-Validation: `json`; `python_compile`; `bootstrap`
+| ID | Requirement | Status | Priority | Tests | Statement |
+| --- | --- | --- | --- | --- | --- |
+| REQ-001 | Add universal engineering ruleset | completed | high | 0 | Create the controlling OmniContext engineering ruleset and align the workspace instructions to it. |
 
 ### Assistant fallback rules
 
-#### REQ-004: Centralize fallback rules for LLM entrypoints
-
-- **Priority:** high  **Status:** completed
-
-Add explicit fallback operating rules for assistant entrypoints in case an assistant skips or cannot follow the primary .ai configuration.
-
-Acceptance criteria:
-
-1. A shared fallback contract exists inside .ai/entrypoints.
-2. A structured fallback rulepack exists inside .ai/rules.
-3. All assistant entrypoint shims point to .ai entrypoint sources and the centralized fallback contract.
-4. The sync command regenerates .ai entrypoint sources and assistant shims.
-5. The sync command skips existing non-Omni files unless --force is used.
-6. Doctor validates the fallback contract and fallback rulepack as required source-of-truth files.
-7. README and changelog document the fallback behavior.
-
-Validation: `doctor`; `validate`; `sync`; `json`; `python_compile`
+| ID | Requirement | Status | Priority | Tests | Statement |
+| --- | --- | --- | --- | --- | --- |
+| REQ-004 | Centralize fallback rules for LLM entrypoints | completed | high | 0 | Add explicit fallback operating rules for assistant entrypoints in case an assistant skips or cannot follow the primary .ai configuration. |
 
 ### Authoring interface
 
-#### REQ-008: Add low-friction rule and requirement editing
-
-- **Priority:** high  **Status:** completed
-
-Create an easy CLI interface for adding requirements and rulepack rules without manually editing long JSON files.
-
-Acceptance criteria:
-
-1. CLI can add requirements with defaults
-2. CLI can add rules to rulepacks with defaults
-3. README documents the authoring interface
-4. Doctor validates the resulting JSON
-
-Validation: `doctor`; `validate`; `json`; `python_compile`
+| ID | Requirement | Status | Priority | Tests | Statement |
+| --- | --- | --- | --- | --- | --- |
+| REQ-008 | Add low-friction rule and requirement editing | completed | high | 0 | Create an easy CLI interface for adding requirements and rulepack rules without manually editing long JSON files. |
 
 ### CI / repo hygiene
 
-#### REQ-012: Wire omni doctor into CI and stop future line-ending drift
-
-- **Priority:** medium  **Status:** completed
-
-Two efficiency/maintainability fixes identified while discussing how to make OmniEngineering easier to integrate and keep aligned over time: (1) added .github/workflows/ci.yml running `python3 omni doctor` (full-history checkout) on every push/PR to main, so workspace-health drift is caught automatically instead of relying on someone manually running the command or an LLM session auditing on request; (2) added .gitattributes (`* text=auto eol=lf`) so a Windows/WSL checkout stops silently diverging from committed line endings -- this repo's entire working tree had drifted to CRLF against an LF-committed history, which was masking real diffs behind whole-file noise.
-
-Acceptance criteria:
-
-1. omni doctor runs automatically on every push and pull request to main and fails the build only on real errors, not warnings.
-2. .gitattributes normalizes text files to LF so future checkouts don't silently drift from committed line endings.
-3. Existing committed content is left untouched -- .gitattributes affects future checkouts/commits, not a retroactive rewrite.
-
-Validation: `manual_verification`
-
-#### REQ-041: The adopt loop is proven end to end in CI and a test
-
-- **Priority:** high  **Status:** completed
-
-No test proved adopt, wire Arbiter, plant a defect, gate fails, fix, gate passes. A CI job and a unittest adopt the workspace into a temp directory with --with-arbiter from the vendored subtree, commit, add verify=False in Python, assert omni gate fails naming completion.arbiter_gate, fix it, assert it passes. CI also uploads the gate's SARIF to code scanning and reads requires-python from arbiter/pyproject.toml to decide which cells can run a vendored Arbiter.
-
-Acceptance criteria:
-
-1. the job and the test fail on the planted defect and pass after the fix
-2. the test skips without arbiter
-3. the SARIF upload is continue-on-error
-
-Validation: `python3 -m unittest tests.test_adopt_loop`
-
-#### REQ-048: The viewer is exercised in a browser: a finding is traced to its requirement in headless Chromium
-
-- **Priority:** high  **Status:** completed
-
-tests/test_viewer_browser.py builds a graph from a fixture repository plus a synthetic Arbiter report, renders the viewer, opens it in headless Chromium through Playwright, switches to the Findings view, selects a finding, and asserts the source row, the breadcrumb (directory, file, finding) and the Trace to requirement result; the severity colour mode is checked through the exported meta. The test skips without Playwright or a Chromium; a dedicated CI job installs both.
-
-Acceptance criteria:
-
-1. the test passes in CI on ubuntu
-2. it skips cleanly elsewhere
-3. the handbook says the trace is proven in a browser
-
-Validation: `./omni doctor`; `./omni gate`; `python3 -m unittest discover -s tests`
+| ID | Requirement | Status | Priority | Tests | Statement |
+| --- | --- | --- | --- | --- | --- |
+| REQ-012 | Wire omni doctor into CI and stop future line-ending drift | completed | medium | 0 | Two efficiency/maintainability fixes identified while discussing how to make OmniEngineering easier to integrate and keep aligned over time: (1) added .github/workflows/ci.yml running `python3 omni... |
+| REQ-041 | The adopt loop is proven end to end in CI and a test | completed | high | 2 | No test proved adopt, wire Arbiter, plant a defect, gate fails, fix, gate passes. |
+| REQ-048 | The viewer is exercised in a browser: a finding is traced to its requirement in headless Chromium | completed | high | 1 | tests/test_viewer_browser.py builds a graph from a fixture repository plus a synthetic Arbiter report, renders the viewer, opens it in headless Chromium through Playwright, switches to the Findings... |
 
 ### CLI ergonomics
 
-#### REQ-009: Add omni command entrypoint
-
-- **Priority:** high  **Status:** completed
-
-Provide an easy omni command so users can run omni doctor and omni sync instead of python3 make_ai.py doctor and python3 make_ai.py sync.
-
-Acceptance criteria:
-
-1. Repo-local ./omni command works
-2. Editable install can expose an optional omni console script
-3. Doctor validates the repo-local command entrypoint and warns, rather than fails, when the optional console script is absent
-4. README documents omni doctor and omni sync
-5. Fallback instructions use omni commands
-
-Validation: `doctor`; `validate`; `sync`; `json`; `python_compile`; `omni_doctor`; `omni_sync`
+| ID | Requirement | Status | Priority | Tests | Statement |
+| --- | --- | --- | --- | --- | --- |
+| REQ-009 | Add omni command entrypoint | completed | high | 0 | Provide an easy omni command so users can run omni doctor and omni sync instead of python3 make_ai.py doctor and python3 make_ai.py sync. |
 
 ### Code understanding
 
-#### REQ-015: Add omni graph: a deterministic tree-sitter AST code graph, not a vector index
-
-- **Priority:** high  **Status:** completed
-
-Adds `omni graph build/trace/show`, a new omni_graph.py module holding a local, deterministic code graph parsed from source with tree-sitter -- no embeddings, no vector store. Every node is a code entity read straight from a syntax tree (module/class/function/method); every edge is tagged EXTRACTED (a fact read directly from a single source site: an import statement, a call site, a base class) or INFERRED (resolved by traversing the graph across files/scopes, or by an optional configured semantic API pass). `omni graph trace <a> <b>` answers 'how are these connected' with an actual shortest path of tagged hops instead of a similarity score; `omni graph show <node>` lists a symbol's direct EXTRACTED/INFERRED edges. Covers Python, JavaScript, and TypeScript in v1. tree-sitter and the per-language grammars are an optional `[graph]` extra so the workspace stays dependency-free by default: `omni graph build` fails with an actionable install message if the extra is missing, while `trace`/`show` only read the JSON `build` wrote and need nothing beyond the standard library. The semantic pass is opt-in via `--semantic` and only calls out to a network API if OMNI_GRAPH_SEMANTIC_API_URL is explicitly configured; its findings are still validated against known graph symbol names before being added as INFERRED edges, so a hallucinated relation can't be written into the graph silently. The CLI surface (subcommand-per-verb, a --json mode on every command) is intentionally 1:1 wrappable by an MCP relay the same way omni_map/omni_doctor/omni_sync already are.
-
-Acceptance criteria:
-
-1. omni graph build parses Python, JavaScript, and TypeScript source with tree-sitter and writes a JSON graph whose edges are each tagged provenance EXTRACTED or INFERRED, with a resolver field distinguishing syntax / graph-traversal / semantic-api.
-2. omni graph build fails with a clear install message (not a traceback) when tree-sitter or a language grammar is missing, verified by running it against the system Python with no [graph] extra installed.
-3. omni graph trace <a> <b> resolves symbol names (preferring real symbols over unresolved external placeholders on a name collision) and prints the shortest path between them as a sequence of tagged hops; ambiguous or missing names are reported, not guessed.
-4. omni graph show <node> lists a symbol's direct outgoing and incoming edges with provenance tags.
-5. Cross-file call/import/inheritance resolution (INFERRED edges) verified against this repository's own make_ai.py plus a scratch TypeScript fixture with a cross-file import, confirming resolved edges are correct and that common built-ins (e.g. print) are excluded from the ambiguous unique-name fallback.
-6. omni graph build/trace/show and the graph JSON never require network access unless --semantic is passed and OMNI_GRAPH_SEMANTIC_API_URL is set.
-7. omni doctor gained a non-blocking check that only validates the graph file's JSON shape when one is present, since building the graph is opt-in.
-8. pyproject.toml exposes tree-sitter + grammars as an optional [graph] extra rather than a hard dependency.
-
-Validation: `doctor`; `python_compile`; `manual_verification`
-
-#### REQ-019: Add omni graph render: a permanent, stdlib-only SVG visualization command
-
-- **Priority:** high  **Status:** completed
-
-REQ-018's node-link graph was a one-off script requiring networkx+numpy, run by hand and copied into the repo. User ask: this should be a permanent feature of omni itself that updates as the user's project updates, not a one-off artifact. Added `omni graph render` (and the underlying omni_graph.render()/_spring_layout()/_render_svg()/_ego_network() functions): renders .ai/project-graph.json as a force-directed node-link SVG using a small pure-Python Fruchterman-Reingold layout -- no numpy/networkx dependency, so render works with just the standard library exactly like trace/show (only build needs the [graph] extra). Nodes are colored by source language (python/javascript/typescript) and sized by kind (module > class > function/method); edges distinguish calls/imports/inherits (colored, per edge style) from defines (faint, de-emphasized) from related_to (dashed, semantic-pass edges). --max-nodes caps large graphs to the highest-degree nodes to keep the O(n^2) layout fast; --focus/--depth renders just one symbol's neighborhood instead of the whole codebase. design/diagrams/omni-code-graph.svg was regenerated using this actual shipped command (replacing the prior one-off script's output) so the committed diagram is proof the feature works, not just a description of it.
-
-Acceptance criteria:
-
-1. omni graph render writes a well-formed SVG node-link graph from .ai/project-graph.json, verified by parsing the output as XML and rendering it to PNG for visual review.
-2. render works via plain system Python with no tree-sitter or third-party layout library installed, verified by running it without the [graph] extra present.
-3. Layout performance verified empirically: 112 real nodes rendered in ~0.2s, 300 nodes (max-nodes cap, including external references) in ~1.3s against this repo's own graph -- fast enough for normal CLI use.
-4. --focus <symbol> --depth N renders only that symbol's N-hop neighborhood, verified against run_doctor at depth 1 producing a correct, legible ego-network.
-5. --max-nodes correctly truncates to the highest-degree nodes and reports truncated:true, verified by rendering with include_external=True against a cap below the real node count.
-6. The project's own root label in the rendered title resolves to a real folder name instead of a literal '.', verified before and after the fix.
-7. design/diagrams/omni-code-graph.svg in this repo is the literal output of running `omni graph render` against this repo, not a hand-tuned or separately-scripted render.
-8. omni doctor and omni graph build/trace/show continue to pass after these changes; .ai/project-graph.svg (the default output path) is gitignored the same way .ai/project-graph.json is, since it's a heavy, regeneratable, opt-in artifact, not a committed navigation aid.
-
-Validation: `doctor`; `python_compile`; `manual_verification`
-
-#### REQ-021: omni graph show --all and an offline interactive 3D graph viewer (omni graph view)
-
-- **Priority:** medium  **Status:** completed
-
-The code graph could only be inspected one symbol at a time (show) or as a static 2D SVG capped at 300 nodes (render). Adds omni graph show --all (every node grouped by file with in/out degree; filter by kind/language/file glob; --edges; --sort; --limit; --json) and omni graph view, which writes one self-contained offline HTML page built on the unmodified vendored 3d-force-graph bundle (MIT; three.js and 33 other permissively licensed packages) with orbit/pan/zoom, search, language/edge-type filters, colour by language/kind/directory, click-to-read detail panel listing callers and callees, and double-click expand-neighbours. Attribution: NOTICE, .ai/graph-viewer/THIRD_PARTY_NOTICES.md generated from each package's own license file, and the same notices embedded in every generated page.
-
-Acceptance criteria:
-
-1. show --all lists all nodes with degree and supports kind/language/file/edges/sort/limit/json
-2. view writes a self-contained HTML that loads with no network
-3. viewer renders in WebGL and supports search and select and expand and isolate
-4. notices for all 35 bundled packages are embedded in the page and the repository
-5. assets are copied by adopt --include-cli and excluded from assistant prompt context
-6. graph build never parses the vendored bundle
-
-Validation: `56-check end-to-end script including graph show and view and adopt`; `headless Chromium WebGL run with search and select and expand and isolate and screenshots`; `omni doctor`; `omni gate`
-
-#### REQ-022: Five-layer code graph (code, governance, history, assurance, workspace) with a failure ledger, project-focused test suites, and configuration that works for any project
-
-- **Priority:** high  **Status:** completed
-
-The code graph showed only what the code says. It now has five layers: code; governance (requirements, changelog); history (every commit, tied to the changelog entries it wrote, the requirements it delivered and the files it changed); assurance (the project's tests and test suites, the failure ledger with root-cause reasoning and regression tests); and workspace (OmniEngineering's rules, playbooks, checklists and own code). omni graph why and timeline traverse them, omni failure and omni test manage the ledger and suite registry, the viewer has layer/kind filters with All/None and a kind-filtered search, and an optional graph-config makes the whole thing work for any project layout. Rules and playbooks make recording, testing and preventing failures part of the standard workflow.
-
-Acceptance criteria:
-
-1. graph build adds governance and assurance layers with per-layer stats
-2. omni graph why joins requirements changelog commits tests failures and rules for a file or symbol
-3. omni failure add\|update\|show\|list\|search\|check work and doctor rejects an incomplete fixed failure
-4. omni requirement complete refuses defect requirements with no failure entry
-5. viewer has layer toggles and a stacked-planes mode
-6. completion and controlled-implementation rulepacks and the playbooks and checklists require recording and consulting failures
-7. unit tests cover the layers ledger why and CLI
-
-Validation: `python3 -m unittest discover -s tests`; `omni doctor`; `omni gate`; `graph build against STEP_App (6450 nodes / 24250 edges)`; `viewer driven in headless Chromium`
-
-#### REQ-023: Graph viewer: real 2D view (no GPU), views instead of layers, chain highlight, path tracing, better search, collapsible menus, tooltips, light theme
-
-- **Priority:** medium  **Status:** completed
-
-Adds a flat Canvas 2D renderer (pan and zoom, no tilt, no WebGL context) as the default beside the existing 3D view with a large 2D/3D switch; replaces layer checkboxes with views (Everything, Code, Requirements, History, Tests and failures, Rules and playbooks, Database) and a strip that names the current view and its colour key; strong per-layer colours and per-kind shapes; Network, Layers and Tree layouts; selecting a node highlights its whole parent-to-child chain and zooms to it; shortest-path tracing between two nodes; multi-word search with kind/layer/lang/file filters and closest-match suggestions; collapsible menu sections; tooltips on every option; a soft-grey light theme. omni graph view gains --mode.
-
-Acceptance criteria:
-
-1. 2D view creates no WebGL context and 3D releases it when switching back
-2. views replace layer toggles and the strip names the current view
-3. selecting a node highlights its chain and zooms to it
-4. a path can be traced between any two nodes
-5. menus collapse and every option has a tooltip
-6. light theme is not pure white
-7. tests pass
-
-Validation: `python3 -m unittest discover -s tests`; `headless Chromium against the 6980-node host graph`; `omni doctor`; `omni gate`
-
-#### REQ-039: omni graph impact: changed files to requirements, tests, failures and rules
-
-- **Priority:** high  **Status:** completed
-
-The graph could answer why for one node but not what a change touches. omni graph impact [--changed BASE] [--depth N] [--json] resolves the changed set like the gate, walks the governance, history, assurance and workspace edges and buckets what it reaches; omni gate prints a one-line impact summary when the graph exists; the omni MCP server exposes graph_impact.
-
-Acceptance criteria:
-
-1. a changed file reaches its requirement failure and suite
-2. unknown paths are listed as unresolved
-3. MCP returns the same structure
-4. gate prints impact:
-
-Validation: `python3 -m unittest discover -s tests`
-
-#### REQ-043: Arbiter findings are graph nodes, traceable by id, category, severity, depth and directory, interactively
-
-- **Priority:** high  **Status:** completed
-
-An Arbiter finding was traceable only through its file path and only after adjudication. omni graph build reads the newest gate report and adds finding nodes with flags, cites and recorded_as edges; directories contain their files so the tree reads root to finding; omni graph findings rolls findings up by directory with filters and depth; the viewer gains a Findings tab, colour by category and severity, findings filters, search prefixes, a source row with copy and editor links, and one-click traces to the requirement or failure; the MCP server exposes graph_findings.
-
-Acceptance criteria:
-
-1. finding nodes with the three edge types
-2. why on a finding id
-3. findings --tree with filters
-4. lineage by depth
-5. viewer tab colours filters and source row
-6. no report means no nodes and no tab
-7. no evidence in nodes or viewer
-
-Validation: `python3 -m unittest discover -s tests`; `./omni graph build`; `./omni graph findings --tree`
-
-#### REQ-051: A finding traces to the requirement that introduced its line, through git blame and the history layer
-
-- **Priority:** high  **Status:** completed
-
-The governance probe tags a finding with every requirement open when the scan ran, so a finding cited all five of a round's requirements. omni graph build now blames each finding's line (git blame -L on the path at the scanned commit), links the finding to that commit with an introduced_by edge, and through the history layer's commit-to-requirement edges to the one requirement whose commit wrote the line. omni graph why f:<id> prints introduced by <commit> (<requirement>); the viewer's finding panel gains an Introduced by row with its own trace button; the cites edges from the req: tags stay and are labelled as context (being worked when the scan ran). A line with no blame (uncommitted, or a path outside git) has no edge and says so.
-
-Acceptance criteria:
-
-1. a finding on a committed line has exactly one introduced_by commit and the requirement that commit cites
-2. omni graph why prints it
-3. the browser test clicks the Introduced by trace
-4. an uncommitted line yields no edge and no error
-
-Validation: `./omni doctor`; `./omni gate`; `python3 -m unittest discover -s tests`
-
-#### REQ-052: Vendored workspaces' ledgers and registries join the graph, namespaced, so a finding traces to the entry that fixed it wherever it lives
-
-- **Priority:** high  **Status:** completed
-
-A failure recorded in the vendored Arbiter workspace's ledger (arbiter/.ai/failures/failure-ledger.json) was invisible to this repository's graph, so the stub finding from pull request #5 had no recorded_as edge although FAIL-042 fixed it. omni graph build reads every vendored workspace's failure ledger and requirements registry, adds their nodes with a workspace prefix (arbiter/FAIL-042, arbiter/ARB-048) because both ledgers number from FAIL-001, resolves recorded_as edges across workspaces by finding id, and the viewer shows the workspace on the node and in the breadcrumb. omni graph findings and why print the prefixed ids. Entries name the finding id in how_detected for the edge to exist; the handbook states the convention.
-
-Acceptance criteria:
-
-1. a ledger entry in arbiter/.ai whose how_detected names a finding id yields a recorded_as edge
-2. prefixed ids never collide with the root ledger
-3. the viewer shows the workspace
-4. omni graph why f:<id> lists the vendored entry
-
-Validation: `./omni doctor`; `./omni gate`; `python3 -m unittest discover -s tests`
-
-#### REQ-053: Arbiter Phase 1 pulled in: rule packs for all five languages, and every finding traceable to its rule and CWE in the graph
-
-- **Priority:** high  **Status:** completed
-
-Pulls Arbiter main (paukennick/arbiter PR #9, ARB-061 and ARB-064) into the arbiter/ subtree: tree-sitter rule packs for Python, TypeScript/JavaScript, Go, Java and Ruby, a planted corpus with correct twins, and precision fixes from runs on real repositories. Replays ARB-064's graph changes onto this workspace's omni_graph.py, make_ai.py, omni_mcp.py and viewer: arbiter_rule and cwe nodes, violates and classified_as edges, full and gate reports merged, omni graph build --if-stale, findings --cwe/--rule, impact by file or CWE, MCP graph_cwe.
-
-Acceptance criteria:
-
-1. arbiter/src matches paukennick/arbiter main exactly
-2. omni graph why f:<id> shows the finding's rule and CWE
-3. omni graph impact <file> lists findings
-4. tests/test_omni_graph_findings.py and tests/test_graph_findings.py pass
-
-Validation: `./omni doctor`; `./omni gate`; `python3 -m unittest discover -s tests`
-
-#### REQ-054: Arbiter findings show the finding text and the fix, and trace to the ARB requirement behind their rule
-
-- **Priority:** high  **Status:** completed
-
-omni graph showed a finding's title, rule and location but not what Arbiter found or how to fix it, and a full scan (no req: tags) left every finding with no route to an ARB id. Findings now carry the rule author's description and remediation (trimmed, never the evidence) in the graph, the viewer's Finding and Fix blocks, omni graph why/findings and MCP graph_findings. Each arbiter_rule is specified_by the requirement behind it: EXTRACTED from a requirements field on the report's finding or rule metadata, else INFERRED from a change-log bullet that names the rule (or its rule pack) under ARB ids, a rule pack header, or a registry entry's text; the vendored arbiter/CHANGELOG.md joins the graph with mentions_rule edges. The finding lists traced_to ids; why, lineage and viewer search reach an ARB id's rules and findings.
-
-Acceptance criteria:
-
-1. finding description and remediation reach the graph and viewer and evidence does not
-2. a full-scan finding traces to the ARB id a changelog bullet names beside its rule
-3. bare and arbiter/ prefixed rule ids resolve and unknown ids are ignored
-4. a requirements field in the report is read as EXTRACTED
-5. omni graph why and lineage of an ARB id list its rules and findings
-
-Validation: `unittest`; `gate`
-
-#### REQ-055: The code graph stays connected: imports, same-package references, tests and docs resolve to project files
-
-- **Priority:** high  **Status:** completed
-
-A user reported graph nodes not parsed for symbols or detached from their obvious upstream/downstream. On the five interview starters 9 of 14 code files had no resolved edge: TypeScript ESM './app.js' specifiers, Python src-layout imports, Go same-package calls, Java same-package type references (@WebMvcTest(X.class)) did not resolve; resolved imports kept a duplicate external placeholder; bare unresolved calls (Ruby/RSpec DSL, methods on locals) made half the nodes external placeholders; only Ruby and Go tests verified code; markdown docs had no edges. Resolution now covers all of these and docs get mentions edges.
-
-Acceptance criteria:
-
-1. a .js specifier in TypeScript resolves to the .ts source
-2. a src-layout or declared-root python import resolves inside its own project
-3. Go same-package and go.mod module-path references resolve
-4. a Java test referencing a same-package class verifies it
-5. resolved references and bare unresolved calls leave no external placeholder
-6. test files verify code in python typescript go java and ruby
-7. markdown docs mention the repository files they name
-
-Validation: `unittest`; `gate`
+| ID | Requirement | Status | Priority | Tests | Statement |
+| --- | --- | --- | --- | --- | --- |
+| REQ-015 | Add omni graph: a deterministic tree-sitter AST code graph, not a vector index | completed | high | 0 | Adds `omni graph build/trace/show`, a new omni_graph.py module holding a local, deterministic code graph parsed from source with tree-sitter -- no embeddings, no vector store. |
+| REQ-019 | Add omni graph render: a permanent, stdlib-only SVG visualization command | completed | high | 0 | REQ-018's node-link graph was a one-off script requiring networkx+numpy, run by hand and copied into the repo. |
+| REQ-021 | omni graph show --all and an offline interactive 3D graph viewer (omni graph view) | completed | medium | 1 | The code graph could only be inspected one symbol at a time (show) or as a static 2D SVG capped at 300 nodes (render). |
+| REQ-022 | Five-layer code graph (code, governance, history, assurance, workspace) with a failure ledger, project-focused test suites, and configuration that works for any project | completed | high | 3 | The code graph showed only what the code says. |
+| REQ-023 | Graph viewer: real 2D view (no GPU), views instead of layers, chain highlight, path tracing, better search, collapsible menus, tooltips, light theme | completed | medium | 1 | Adds a flat Canvas 2D renderer (pan and zoom, no tilt, no WebGL context) as the default beside the existing 3D view with a large 2D/3D switch; replaces layer checkboxes with views (Everything, Code... |
+| REQ-039 | omni graph impact: changed files to requirements, tests, failures and rules | completed | high | 5 | The graph could answer why for one node but not what a change touches. omni graph impact [--changed BASE] [--depth N] [--json] resolves the changed set like the gate, walks the governance, history,... |
+| REQ-043 | Arbiter findings are graph nodes, traceable by id, category, severity, depth and directory, interactively | completed | high | 6 | An Arbiter finding was traceable only through its file path and only after adjudication. omni graph build reads the newest gate report and adds finding nodes with flags, cites and recorded_as edges... |
+| REQ-051 | A finding traces to the requirement that introduced its line, through git blame and the history layer | completed | high | 2 | The governance probe tags a finding with every requirement open when the scan ran, so a finding cited all five of a round's requirements. omni graph build now blames each finding's line (git blame... |
+| REQ-052 | Vendored workspaces' ledgers and registries join the graph, namespaced, so a finding traces to the entry that fixed it wherever it lives | completed | high | 2 | A failure recorded in the vendored Arbiter workspace's ledger (arbiter/.ai/failures/failure-ledger.json) was invisible to this repository's graph, so the stub finding from pull request #5 had no re... |
+| REQ-053 | Arbiter Phase 1 pulled in: rule packs for all five languages, and every finding traceable to its rule and CWE in the graph | completed | high | 5 | Pulls Arbiter main (paukennick/arbiter PR #9, ARB-061 and ARB-064) into the arbiter/ subtree: tree-sitter rule packs for Python, TypeScript/JavaScript, Go, Java and Ruby, a planted corpus with corr... |
+| REQ-054 | Arbiter findings show the finding text and the fix, and trace to the ARB requirement behind their rule | completed | high | 1 | omni graph showed a finding's title, rule and location but not what Arbiter found or how to fix it, and a full scan (no req: tags) left every finding with no route to an ARB id. |
+| REQ-055 | The code graph stays connected: imports, same-package references, tests and docs resolve to project files | completed | high | 1 | A user reported graph nodes not parsed for symbols or detached from their obvious upstream/downstream. |
 
 ### Compatibility
 
-#### REQ-010: Remove tomllib dependency
-
-- **Priority:** medium  **Status:** completed
-
-Remove the Python 3.11-only tomllib import so editors using Python 3.10 do not report unresolved imports.
-
-Acceptance criteria:
-
-1. make_ai.py has no tomllib import
-2. Doctor treats the pyproject console script as optional
-3. Package metadata supports Python 3.10 or newer
-4. Validation passes
-
-Validation: `doctor`; `validate`; `json`; `python_compile`
+| ID | Requirement | Status | Priority | Tests | Statement |
+| --- | --- | --- | --- | --- | --- |
+| REQ-010 | Remove tomllib dependency | completed | medium | 0 | Remove the Python 3.11-only tomllib import so editors using Python 3.10 do not report unresolved imports. |
 
 ### Defect
 
-#### REQ-030: Fix CI: graph build needs tree-sitter for every language, python included -- no ast fallback exists
-
-- **Priority:** high  **Status:** completed
-
-The CI matrix's main test job (no [graph] extra installed, by design) failed 6/6 jobs: 3 real test failures (test_benchmark.py::TestBenchmarkCLI x2, test_gate_hook.py's background-rebuild test). Root cause: parse_python_file() calls load_language('python') unconditionally -- Python parsing has always gone through tree-sitter, there is no stdlib-ast fallback anywhere in this codebase, contrary to build_graph()'s own stats label which defaulted to the string 'mode: ast' (misleading; fixed to 'tree-sitter'). This mislabel is what let local verification pass silently: this machine's ~/.venvs/omni-graph venv was always auto-detected and re-exec'd into, so the true no-extras path was never actually exercised locally, only in CI. Fixed the 2 TestBenchmarkCLI tests to use a hand-built fixture graph (same pattern as TestBenchmark) instead of invoking omni graph build for real, so they need no extra. Skipped the one test that must invoke a real build when tree-sitter is unavailable, and made the graph-extra CI job (which does install [graph]) also run the full test suite, so that skipped test is exercised there instead.
-
-Acceptance criteria:
-
-1. CI's main test matrix (6 jobs) passes with no [graph] extra installed
-2. The graph-extra job installs the extra and runs the full suite too
-3. exercising the previously-skipped test
-4. build_graph's stats no longer claims ast when tree-sitter is what actually runs
-5. Reproduced locally with HOME overridden so ~/.venvs/omni-graph is not found
-6. matching CI's real environment
-
-Validation: `python3 -m unittest discover -s tests under a forced no-tree-sitter HOME (reproduces CI exactly)`; `gh run watch after pushing`
+| ID | Requirement | Status | Priority | Tests | Statement |
+| --- | --- | --- | --- | --- | --- |
+| REQ-030 | Fix CI: graph build needs tree-sitter for every language, python included -- no ast fallback exists | completed | high | 2 | The CI matrix's main test job (no [graph] extra installed, by design) failed 6/6 jobs: 3 real test failures (test_benchmark.py::TestBenchmarkCLI x2, test_gate_hook.py's background-rebuild test). |
 
 ### Developer tooling
 
-#### REQ-046: Posture reads the newest full and the newest partial Arbiter report separately
-
-- **Priority:** high  **Status:** completed
-
-The Posture line showed grade withheld (coverage 15%) because the gate's --changed report is partial by design. arbiter_report_state finds the newest full report (grade, coverage, existing highs, when it ran) and the newest partial one (gate result, new highs, freshness judged against the rule's scope) and the line says which is which; when one kind is missing it names the command that makes it. --json schema_version 2 carries arbiter.full and arbiter.gate.
-
-Acceptance criteria:
-
-1. posture shows the full scan's grade and the gate's freshness at once
-2. a missing full scan says to run ./omni arbiter baseline
-3. a missing gate report says to run ./omni gate
-4. doctor --json has arbiter.full and arbiter.gate
-
-Validation: `./omni doctor`; `./omni gate`; `python3 -m unittest discover -s tests`
-
-#### REQ-047: The registered test suites are required in the gate, with impact selection and a per-rule pass memo
-
-- **Priority:** high  **Status:** completed
-
-completion.tests becomes required on this repository and in the vendored Arbiter workspace, running omni test run --impacted so only suites the change reaches run. omni gate --hook does not re-run a command rule that passed on the same scoped change set (per-rule pass records in the gate state file keyed on the scoped files and their mtimes); a scoped file change invalidates the memo. The adopt-loop CI script asserts the rule passes on a repository with no suites.
-
-Acceptance criteria:
-
-1. omni gate fails when a reached suite fails
-2. a passed rule is not re-run by the hook until a scoped file changes
-3. the adopt loop stays green
-4. the unit suite covers the memo
-
-Validation: `./omni doctor`; `./omni gate`; `python3 -m unittest discover -s tests`
-
-#### REQ-050: Doctor's live MCP probe is memoised on the registration and the server executables; omni gate uses the memo
-
-- **Priority:** high  **Status:** completed
-
-omni gate ran both MCP servers for real on every commit. The probe result is stored in the local gate state directory keyed on the .mcp.json digest, each stdio server's resolved executable (path, mtime, size) and PATH; a hit within 24 hours skips the launch and the doctor line says when it was probed. omni doctor --probe forces a live probe; omni gate never forces one; a changed executable or registration invalidates the memo.
-
-Acceptance criteria:
-
-1. a second omni doctor within 24 hours does not launch the servers
-2. --probe launches them
-3. a changed executable invalidates the memo
-4. the memo file is git-ignored
-
-Validation: `./omni doctor`; `./omni gate`; `python3 -m unittest discover -s tests`
+| ID | Requirement | Status | Priority | Tests | Statement |
+| --- | --- | --- | --- | --- | --- |
+| REQ-046 | Posture reads the newest full and the newest partial Arbiter report separately | completed | high | 1 | The Posture line showed grade withheld (coverage 15%) because the gate's --changed report is partial by design. arbiter_report_state finds the newest full report (grade, coverage, existing highs, w... |
+| REQ-047 | The registered test suites are required in the gate, with impact selection and a per-rule pass memo | completed | high | 3 | completion.tests becomes required on this repository and in the vendored Arbiter workspace, running omni test run --impacted so only suites the change reaches run. omni gate --hook does not re-run... |
+| REQ-050 | Doctor's live MCP probe is memoised on the registration and the server executables; omni gate uses the memo | completed | high | 1 | omni gate ran both MCP servers for real on every commit. |
 
 ### Doctor / drift detection
 
-#### REQ-011: Add project-map freshness and changelog-drift checks to omni doctor
-
-- **Priority:** high  **Status:** completed
-
-Two generic omni doctor checks, developed while auditing an adopter project (STEP) for OmniEngineering alignment and ported back here so every adopter benefits: validate_project_map_freshness warns when a top-level directory that exists on disk is missing from .ai/project-map.md's tree (catches a map that was never regenerated after a structural change); validate_recent_commits_tracked warns when commits postdate -- by commit timestamp, not git log X..HEAD DAG reachability, which squash-merge PR histories make misleading -- the last commit that touched CHANGELOG.md, naming each one so untracked work is caught automatically instead of by manual audit.
-
-Acceptance criteria:
-
-1. omni doctor warns when an ALLOWED_ROOT_DIRS directory present on disk is absent from the generated project map's directory tree.
-2. omni doctor warns, listing each commit, when commits postdate (by commit date) the last commit that touched CHANGELOG.md.
-3. Both checks are no-ops (skip silently) when git or the relevant files are unavailable, so they never turn into false errors on a non-git or freshly-adopted workspace.
-
-Validation: `manual_verification`
-
-#### REQ-036: omni doctor prints an assurance posture and offers --json
-
-- **Priority:** high  **Status:** completed
-
-Doctor reported checks but no posture. After the Result line it prints Posture: the newest Arbiter report under the completion.arbiter_gate rule's output directory (grade, coverage, new high-or-above, gate result, fresh or stale against HEAD and the changed files), the count of open or mitigated failures and the open requirements by status. omni doctor --json emits the same report as a versioned JSON document. Doctor also errors on duplicate requirement ids across the root registry, its archive and every vendored workspace registry.
-
-Acceptance criteria:
-
-1. Posture line after Result with the Result line unchanged
-2. --json round-trips with schema_version and errors
-3. stale and missing reports are named as such
-4. duplicate requirement ids are a doctor error
-
-Validation: `python3 -m unittest discover -s tests`; `./omni doctor`; `./omni doctor --json`
+| ID | Requirement | Status | Priority | Tests | Statement |
+| --- | --- | --- | --- | --- | --- |
+| REQ-011 | Add project-map freshness and changelog-drift checks to omni doctor | completed | high | 0 | Two generic omni doctor checks, developed while auditing an adopter project (STEP) for OmniEngineering alignment and ported back here so every adopter benefits: validate_project_map_freshness warns... |
+| REQ-036 | omni doctor prints an assurance posture and offers --json | completed | high | 1 | Doctor reported checks but no posture. |
 
 ### Documentation
 
-#### REQ-002: Create OmniContext README and visual
-
-- **Priority:** medium  **Status:** completed
-
-Build the public-facing README around OmniContext and include an architecture diagram.
-
-Acceptance criteria:
-
-1. README explains the OmniContext problem, pattern, setup, daily use, and validation workflow.
-2. README includes an SVG architecture diagram.
-3. Changelog records the documentation update.
-
-Validation: `svg_xml_parse`; `json`; `python_compile`; `bootstrap`
-
-#### REQ-045: Integration handbook and dated release notes for the Arbiter loop
-
-- **Priority:** high  **Status:** completed
-
-The README and PR bodies described pieces; nothing explained how Arbiter and OmniEngineering run as one loop. docs/arbiter-integration.md covers the division of labour, the three topologies, the wiring written at install, the edit-to-adjudication loop, findings in the graph and how to trace one along four axes, impact and test selection, PR output, what each CI job proves, keeping both level, requirement ids across the two, and the off switches. docs/release-notes-2026-10-09.md lists every requirement landed on the date and the adopter steps. Both are linked from the README design list, the Arbiter section and the context brief.
-
-Acceptance criteria:
-
-1. both documents exist and are linked from README and the context brief
-2. every command named in them exists
-3. doctor's markdown checks pass
-
-Validation: `./omni doctor`; `./omni gate`
-
-#### REQ-057: Documentation matches the CLI and code
-
-- **Priority:** medium  **Status:** completed
-
-README, docs/, .ai context files, entrypoints, playbooks, adapters, checklists and CLI help describe the commands, flags, paths, config keys and behaviour that exist today; a new adopter can go from clone to adopt to a first passing gate by following the README; context files loaded on every task carry no stale or duplicated text.
-
-Acceptance criteria:
-
-1. every omni subcommand appears in the README command reference
-2. internal markdown links and anchors resolve
-3. the README quick start reaches a passing omni gate in a fresh repository
-4. unit tests and omni gate pass
-
-Validation: `python3 -m unittest discover -s tests`; `./omni gate`
+| ID | Requirement | Status | Priority | Tests | Statement |
+| --- | --- | --- | --- | --- | --- |
+| REQ-002 | Create OmniContext README and visual | completed | medium | 0 | Build the public-facing README around OmniContext and include an architecture diagram. |
+| REQ-045 | Integration handbook and dated release notes for the Arbiter loop | completed | high | 0 | The README and PR bodies described pieces; nothing explained how Arbiter and OmniEngineering run as one loop. docs/arbiter-integration.md covers the division of labour, the three topologies, the wi... |
+| REQ-057 | Documentation matches the CLI and code | completed | medium | 6 | README, docs/, .ai context files, entrypoints, playbooks, adapters, checklists and CLI help describe the commands, flags, paths, config keys and behaviour that exist today; a new adopter can go fro... |
 
 ### Documentation clarity
 
-#### REQ-005: Clarify OmniContext purpose and make_ai role
-
-- **Priority:** high  **Status:** completed
-
-Update README positioning to explain the unique context-drift use case and clarify that make_ai.py is optional maintenance tooling, not required for normal cloned-repo usage.
-
-Acceptance criteria:
-
-1. README explains OmniContext as a repo-local control plane for AI coding assistants.
-2. README explicitly states the unique problem is AI context drift across tools.
-3. README explains that cloned repositories do not require make_ai.py for normal usage.
-4. make_ai.py help text describes the script as maintenance tooling.
-5. Changelog records the documentation clarification.
-
-Validation: `doctor`; `validate`; `json`; `python_compile`
+| ID | Requirement | Status | Priority | Tests | Statement |
+| --- | --- | --- | --- | --- | --- |
+| REQ-005 | Clarify OmniContext purpose and make_ai role | completed | high | 0 | Update README positioning to explain the unique context-drift use case and clarify that make_ai.py is optional maintenance tooling, not required for normal cloned-repo usage. |
 
 ### Documentation tooling
 
-#### REQ-060: omni docs build: generated engineering docs and diagrams
-
-- **Priority:** high  **Status:** completed
-
-omni docs build regenerates deterministic engineering documents (SAD, SDD, SRS, traceability, test plan, module reference, class diagram, changes summary, index) with Mermaid diagrams from the code graph, requirement registry, failure ledger and git history, without model calls; requirement add/update/complete regenerate them automatically
-
-Acceptance criteria:
-
-1. omni docs build writes the document set to a configurable directory
-2. same inputs give byte-identical output
-3. every Mermaid block passes the structural validator
-4. requirement add/update/complete regenerate docs unless --no-docs or docs_auto_regenerate is false
-5. the gate checks docs freshness only when docs_gate_freshness is true
-
-Validation: `python3 -m unittest tests.test_docs_build`; `./omni gate`
+| ID | Requirement | Status | Priority | Tests | Statement |
+| --- | --- | --- | --- | --- | --- |
+| REQ-060 | omni docs build: generated engineering docs and diagrams | completed | high | 17 | omni docs build regenerates deterministic engineering documents (SAD, SDD, SRS, traceability, test plan, module reference, class diagram, changes summary, index) with Mermaid diagrams from the code... |
 
 ### Enforcement
 
-#### REQ-020: Make completion enforcement real: executable gates, registry CLI, typed validation, config-driven banner
-
-- **Priority:** high  **Status:** completed
-
-Rulepack validation blocks were never executed and omni doctor checked that registry keys existed but never their types, so assistants could skip changelog/registry updates and hand-write malformed requirement entries (25 schema violations in one adopter) without any check failing. The 531 KB adopter registry was also pushed into every context profile. Adds omni gate (co_changed rule execution against the git change set plus doctor errors) with auditable waivers and a Claude Code Stop hook, requirement show/list/search/update/complete/archive so nobody reads or hand-edits the registry JSON, type and enum validation of the registry and its archive, and config-driven classification_banner and allowed_root_paths.
-
-Acceptance criteria:
-
-1. omni gate fails when files change without CHANGELOG and registry updates
-2. Waivers need a reason and only count when added in the current change set
-3. Stop hook exits 2 at most once per failing state and never when stop_hook_active is set
-4. doctor rejects string-instead-of-array registry fields
-5. requirement archive keeps ids unique and archived entries queryable
-6. classification banner rendered into every shim and enforced by doctor
-7. git-ignored root paths are not flagged by doctor
-
-Validation: `42-check end-to-end script in a throwaway git repo`; `omni doctor`; `omni gate`
-
-#### REQ-037: omni requirement complete refuses while the branch's Arbiter gate is missing, stale or red
-
-- **Priority:** high  **Status:** completed
-
-Completing a requirement implied the product-side gate had run, but nothing checked. When the completion rulepack carries completion.arbiter_gate, complete refuses unless the newest report under its output directory was scanned at HEAD, after the newest changed file, and passed; the refusal prints the exact omni gate command. --no-arbiter-check REASON (10+ chars) records the reason in the note.
-
-Acceptance criteria:
-
-1. no rule means no check
-2. missing stale and failed reports each refuse with their reason
-3. the escape hatch records its reason
-
-Validation: `python3 -m unittest discover -s tests`
+| ID | Requirement | Status | Priority | Tests | Statement |
+| --- | --- | --- | --- | --- | --- |
+| REQ-020 | Make completion enforcement real: executable gates, registry CLI, typed validation, config-driven banner | completed | high | 0 | Rulepack validation blocks were never executed and omni doctor checked that registry keys existed but never their types, so assistants could skip changelog/registry updates and hand-write malformed... |
+| REQ-037 | omni requirement complete refuses while the branch's Arbiter gate is missing, stale or red | completed | high | 2 | Completing a requirement implied the product-side gate had run, but nothing checked. |
 
 ### Executable validation
 
-#### REQ-003: Add OmniContext doctor and requirement registry
-
-- **Priority:** high  **Status:** completed
-
-Make the workspace more powerful by adding a dependency-free CLI doctor, requirement registry, and schema-backed validation documents.
-
-Acceptance criteria:
-
-1. CLI supports sync, doctor, and validate commands.
-2. Doctor validates required files, JSON parsing, ruleset keys, requirements structure, assistant pointer drift, README architecture reference, and changelog presence.
-3. Requirements registry tracks completed project requirements.
-4. README documents the new CLI workflow.
-
-Validation: `doctor`; `json`; `python_compile`; `bootstrap`
-
-#### REQ-040: omni test run executes registered suites, optionally only the impacted ones
-
-- **Priority:** medium  **Status:** completed
-
-omni test only registered suites; nothing ran them. omni test run [NAMES] [--impacted] [--changed BASE] [--json] [--timeout] runs each suite's command at the root and reports PASS, FAIL or SKIP with the last lines; --impacted selects suites whose paths intersect the impact set and falls back to all suites without a graph. The upstream completion rulepack gains a recommended completion.tests rule as a documented example.
-
-Acceptance criteria:
-
-1. pass and fail propagate to the exit code
-2. selection by name and by impact
-3. JSON shape
-4. the example rule is recommended not required
-
-Validation: `python3 -m unittest discover -s tests`; `./omni test run`
+| ID | Requirement | Status | Priority | Tests | Statement |
+| --- | --- | --- | --- | --- | --- |
+| REQ-003 | Add OmniContext doctor and requirement registry | completed | high | 0 | Make the workspace more powerful by adding a dependency-free CLI doctor, requirement registry, and schema-backed validation documents. |
+| REQ-040 | omni test run executes registered suites, optionally only the impacted ones | completed | medium | 2 | omni test only registered suites; nothing ran them. omni test run [NAMES] [--impacted] [--changed BASE] [--json] [--timeout] runs each suite's command at the root and reports PASS, FAIL or SKIP wit... |
 
 ### Feature
 
-#### REQ-024: Lineage: pick any node and trace up and down with no second endpoint (CLI and viewer)
-
-- **Priority:** high  **Status:** completed
-
-omni graph lineage <node> and the viewer's selection now trace everything upstream (what led to a node) and downstream (what came from it) from a single pick: a requirement, commit, change-log entry, failure, file or symbol. Each edge type has a flow direction (intent -> delivery -> code -> assurance). Up/Both/Down, depth, and an opt-in for code calls/imports; upstream draws cyan and downstream gold. The viewer's flow table is checked against the CLI's by a test.
-
-Acceptance criteria:
-
-1. A requirement
-2. commit and failure each trace up and down with one argument
-3. Direction
-4. depth and node cap bound the result
-5. Viewer and CLI agree on flow directions
-6. Contents of a module are not expanded from a requirement
-
-Validation: `python3 -m unittest discover -s tests`; `omni graph lineage on a real graph`; `headless-Chromium check of a requirement and a commit`
-
-#### REQ-027: MCP server: the graph and registries as tools for any assistant, not only Claude
-
-- **Priority:** high  **Status:** completed
-
-omni mcp serve exposes graph_why, graph_lineage, graph_trace, graph_timeline, graph_show, graph_sources, requirement_show, requirement_list, requirement_search, failure_show and gate_status as MCP (Model Context Protocol) tools over stdio (JSON-RPC 2.0, newline-delimited), hand-rolled against the wire protocol in stdlib only (no SDK dependency), so any MCP-speaking assistant can query this project's requirements, changelog, commits, tests and failures directly instead of shelling out to the CLI. Every tool is read-only (gate_status runs the same check as omni gate but never writes a waiver or blocks); nothing here writes a requirement, changelog entry or waiver. omni mcp tools [--json] lists the tools without starting the server. Added to the root allowlist, the adopt/update copy list (ADOPTION_CLI_FILES) and pyproject.toml's py-modules, since omni doctor caught it missing from all three on first build.
-
-Acceptance criteria:
-
-1. initialize/tools list/tools call all work over a real stdio pipe and over the real CLI subprocess
-2. Every tool is read-only
-3. A not-found result (ok:false) and a raised ToolError both surface as isError:true
-4. A tool that raises unexpectedly does not crash the server
-5. omni adopt --include-cli copies omni_mcp.py
-6. omni doctor has 0 errors
-
-Validation: `python3 -m unittest discover -s tests (149 tests)`; `omni gate PASS in the real repo`; `end-to-end JSON-RPC session against the real STEP_App-scale graph (initialize`; `tools/list`; `tools/call for lineage/requirement/gate_status/error cases)`
-
-#### REQ-029: omni graph benchmark: measure the token-savings claim instead of just asserting it
-
-- **Priority:** medium  **Status:** completed
-
-omni graph benchmark [--json] runs a targeted graph query (why/lineage) against the naive alternative (grep -l -F for the name, then read every matching file whole; a commit compares against git show, the actual diff) for one real requirement, commit, failure and file the current project's own graph and registries already have -- never invented, never hardcoded to a specific project's IDs, so any adopter gets their own honest numbers. Tokens are reported as chars/4, explicitly labelled a rough estimate, not a real tokenizer. Two data-quality bugs were found and fixed while building this: the file case first picked a 290MB gitignored .expo build log (a generic 'file' graph node existed for it despite it being gitignored), then a 5.5MB .pptx after tracked-only filtering (a binary asset). Fixed by restricting the file pick to git-tracked, already-parsed source modules only -- never a generic file node, which can be a binary or an ignored artifact.
-
-Acceptance criteria:
-
-1. Picks a real requirement/commit/failure/file from whatever graph is passed in
-2. A gitignored file is never picked
-3. A binary or unparsed file is never picked (module nodes only)
-4. A commit's naive cost is git show
-5. not a grep
-6. Reported ratio equals naive_chars/graph_chars
-7. Live run against both STEP_App and OmniEngineering's own graphs produces sane
-8. non-degenerate numbers
-
-Validation: `python3 -m unittest discover -s tests (178 tests)`; `omni gate PASS`; `live omni graph benchmark run against STEP_App (88x-630x) and OmniEngineering (40x-91x) after the fix`
-
-#### REQ-031: Terminal 'withdrawn' status, targeted archiving, and a live check of registered MCP servers
-
-- **Priority:** medium  **Status:** completed
-
-Ported from the arbiter adopter's fork of make_ai.py, where both had proven useful: (1) a requirement can be withdrawn (terminal, like completed) and archive moves withdrawn entries too; archive --id names specific entries and refuses pending, blocked or proposed work instead of silently hiding it. (2) omni doctor launches every stdio MCP server .mcp.json registers, runs the real initialize + tools/list handshake, and fails if the server does not start or lists no tools -- a static read of the file cannot tell that a server's SDK or entry point has moved. Remote (url) servers are not probed. .mcp.json is an allowed root file.
-
-Acceptance criteria:
-
-1. withdrawn is accepted by requirement update/add and the schema
-2. archive moves completed-beyond-keep-recent plus withdrawn and --id refuses non-terminal ids
-3. doctor probes each stdio server in .mcp.json and reports a FAIL when it cannot start or lists no tools
-4. new tests pass under python3 -m unittest
-
-Validation: `python3 -m unittest discover -s tests`; `./omni doctor`; `./omni gate`
-
-#### REQ-032: A command validation type for the gate, and a configurable defect-category pattern
-
-- **Priority:** medium  **Status:** completed
-
-omni gate could only check co-change, registry citations and forbidden content; a project's own scanner or test suite had to be wired into CI separately. The command validation type runs it inside the gate when a changed path matches, with {base} substituted, a timeout, and failure on non-zero exit or a missing executable. omni requirement complete recognised defect work by a hardcoded regex over the category name; configuration.defect_category_pattern now overrides it.
-
-Acceptance criteria:
-
-1. a command rule passes on exit 0 and fails with the output tail on non-zero
-2. missing executable and timeout are failures
-3. when_changed and ignore gate whether it runs
-4. defect_category_pattern from configuration is honoured and an invalid one falls back
-
-Validation: `python3 -m unittest discover -s tests`; `./omni doctor`; `./omni gate`
-
-#### REQ-033: Arbiter installs alongside the workspace: omni adopt --with-arbiter and omni arbiter install
-
-- **Priority:** medium  **Status:** completed
-
-Adopting the workspace should bring the evaluator it pairs with. omni adopt --with-arbiter [SOURCE] and omni arbiter install pip-install arbiter-eval[mcp] from a checkout or the GitHub URL and write the wiring: the arbiter MCP server in .mcp.json, a completion.arbiter_gate command rule so omni gate runs arbiter gate --changed, a starter arbiter.yaml, and arbiter-out/ in .gitignore. Idempotent, never overwrites, --skip-pip and --dry-run.
-
-Acceptance criteria:
-
-1. omni arbiter install writes the four wiring artefacts and reports each as already present on rerun
-2. existing .mcp.json servers and an existing arbiter.yaml are kept
-3. --dry-run writes nothing
-4. adopt --with-arbiter accepts a source or defaults to the GitHub URL
-5. omni doctor in an adopted directory starts arbiter mcp and lists its tools
-
-Validation: `python3 -m unittest tests.test_arbiter_install`; `end-to-end adopt into a scratch directory with a local arbiter checkout`; `./omni doctor`; `./omni gate`
-
-#### REQ-038: Arbiter baseline at install and omni arbiter baseline
-
-- **Priority:** high  **Status:** completed
-
-Without a committed baseline every Arbiter finding counted as new, so fail_on new: high failed any legacy repository on adoption. arbiter_install writes .arbiter/baseline.json from a full offline scan and says to commit it; the generated completion.arbiter_gate rule passes --baseline and asks for json,sarif,pr-comment output; omni arbiter baseline [--refresh] re-baselines only when the last gate passed and refuses partial-scan reports; doctor warns when the rule exists without a baseline, when the baseline predates the newest fixed ledger entry, or when its config hash no longer matches arbiter.yaml.
-
-Acceptance criteria:
-
-1. install writes the baseline when arbiter is on PATH and skips otherwise
-2. refresh requires a green last report and prunes vanished ids
-3. partial reports are refused
-4. doctor warns on the three conditions
-5. the rule carries --baseline
-
-Validation: `python3 -m unittest discover -s tests`
+| ID | Requirement | Status | Priority | Tests | Statement |
+| --- | --- | --- | --- | --- | --- |
+| REQ-024 | Lineage: pick any node and trace up and down with no second endpoint (CLI and viewer) | completed | high | 7 | omni graph lineage <node> and the viewer's selection now trace everything upstream (what led to a node) and downstream (what came from it) from a single pick: a requirement, commit, change-log entr... |
+| REQ-027 | MCP server: the graph and registries as tools for any assistant, not only Claude | completed | high | 5 | omni mcp serve exposes graph_why, graph_lineage, graph_trace, graph_timeline, graph_show, graph_sources, requirement_show, requirement_list, requirement_search, failure_show and gate_status as MCP... |
+| REQ-029 | omni graph benchmark: measure the token-savings claim instead of just asserting it | completed | medium | 7 | omni graph benchmark [--json] runs a targeted graph query (why/lineage) against the naive alternative (grep -l -F for the name, then read every matching file whole; a commit compares against git sh... |
+| REQ-031 | Terminal 'withdrawn' status, targeted archiving, and a live check of registered MCP servers | completed | medium | 3 | Ported from the arbiter adopter's fork of make_ai.py, where both had proven useful: (1) a requirement can be withdrawn (terminal, like completed) and archive moves withdrawn entries too; archive --... |
+| REQ-032 | A command validation type for the gate, and a configurable defect-category pattern | completed | medium | 1 | omni gate could only check co-change, registry citations and forbidden content; a project's own scanner or test suite had to be wired into CI separately. |
+| REQ-033 | Arbiter installs alongside the workspace: omni adopt --with-arbiter and omni arbiter install | completed | medium | 1 | Adopting the workspace should bring the evaluator it pairs with. omni adopt --with-arbiter [SOURCE] and omni arbiter install pip-install arbiter-eval[mcp] from a checkout or the GitHub URL and writ... |
+| REQ-038 | Arbiter baseline at install and omni arbiter baseline | completed | high | 1 | Without a committed baseline every Arbiter finding counted as new, so fail_on new: high failed any legacy repository on adoption. arbiter_install writes .arbiter/baseline.json from a full offline s... |
 
 ### feature
 
-#### REQ-056: Requirements-gathering skill for plan mode, shipped by omni adopt
-
-- **Priority:** medium  **Status:** completed
-
-A Claude Code skill (.claude/skills/clarify) turns a request into testable REQ entries: frame the problem, read the code before asking, ask at most 4 ranked AskUserQuestion questions per round (2 rounds), state assumptions with consequences, draft requirements with measurable acceptance criteria checked against the requirements quality checklist, order them into slices, write it all into the plan, and register with ./omni requirement add only after approval. A time-boxed form covers interviews. omni adopt --tools claude copies it beside CLAUDE.md.
-
-Acceptance criteria:
-
-1. omni adopt --tools claude copies .claude/skills/clarify/SKILL.md
-2. the skill names plan mode as its default form and writes nothing before approval
-3. the skill registers requirements only through ./omni requirement
-
-Validation: `python3 -m unittest tests.test_adopt_loop`
+| ID | Requirement | Status | Priority | Tests | Statement |
+| --- | --- | --- | --- | --- | --- |
+| REQ-056 | Requirements-gathering skill for plan mode, shipped by omni adopt | completed | medium | 1 | A Claude Code skill (.claude/skills/clarify) turns a request into testable REQ entries: frame the problem, read the code before asking, ask at most 4 ranked AskUserQuestion questions per round (2 r... |
 
 ### Presentation / brand identity
 
-#### REQ-016: Restyle OmniEngineering's brand assets to match the ctxrelay/PathBox family
-
-- **Priority:** low  **Status:** completed
-
-OmniEngineering's presentation assets (assets/banners/omniengineering-*.svg, assets/identity/omniengineering-*.svg) used an unrelated warm-gradient/forged-OE-monogram visual system, while the two sibling projects in the same account (context-relay-mcp's CtxRelay, PathBox) share one visual family: a dark #0f0f12 ground, single #e0475c accent, monospace wordmark, a 48x48 panel-plus-corner-nodes-plus-beacon mark shape, and a matching 820x180 grid/mesh/scanline banner, all under assets/brand/. Replaced OmniEngineering's assets with a new set in that same family -- assets/brand/omni-mark.svg, omni-wordmark.svg, omni-banner.svg -- keeping the shared chrome (panel, corner nodes, beacon, banner grid/mesh/scanline/signature) pixel-identical to the siblings and giving OmniEngineering its own mark content: a central hub fanned out to five small nodes, representing the actual product (one repo-local .ai/ control plane synced out to many AI assistant entrypoints), distinct from CtxRelay's two-endpoint relay and PathBox's chat panel. The wordmark uses the literal `omni` CLI name rather than the full 'OmniEngineering' repo name, matching how the sibling brands use their short product/command name.
-
-Acceptance criteria:
-
-1. New assets/brand/omni-{mark,wordmark,banner}.svg exist, are well-formed XML, and reuse the exact shared chrome (colors, panel/corner-node/beacon geometry, banner grid/mesh/scanline/signature) from context-relay-mcp's and PathBox's own assets/brand/*.svg, verified by diffing the shared elements against both sibling repos.
-2. The old assets/banners/ and assets/identity/ directories and their omniengineering-*.svg files are removed.
-3. README.md's top banner and its 'optional presentation assets' listing point at assets/brand/ instead of the removed directories.
-4. make_ai.py's ADOPTION_PRESENTATION_FILES points at assets/brand instead of the removed assets/identity and assets/banners paths, so omni adopt --include-presentation still works.
-5. .gitignore no longer excludes assets/brand/ (it silently ignored this exact directory since a June 2026 commit, which would have made the new canonical brand assets untrackable).
-6. omni doctor and omni map both run clean after the change (the architecture diagram at assets/omni-context.svg, which doctor validates by name, is untouched).
-
-Validation: `doctor`; `manual_verification`
+| ID | Requirement | Status | Priority | Tests | Statement |
+| --- | --- | --- | --- | --- | --- |
+| REQ-016 | Restyle OmniEngineering's brand assets to match the ctxrelay/PathBox family | completed | low | 0 | OmniEngineering's presentation assets (assets/banners/omniengineering-*.svg, assets/identity/omniengineering-*.svg) used an unrelated warm-gradient/forged-OE-monogram visual system, while the two s... |
 
 ### Presentation / documentation
 
-#### REQ-018: Replace the hierarchical code-map diagram with a real node-link graph
-
-- **Priority:** low  **Status:** completed
-
-The first design/diagrams/omni-code-map.svg (REQ-015 follow-up) was a hierarchical org-chart-style diagram (boxes, arrows, a text-list panel for doctor checks) built from omni graph build's own output. User feedback: it didn't read as 'a graph' in the conventional sense. Replaced it with design/diagrams/omni-code-graph.svg -- a real force-directed node-link layout (networkx spring_layout) over all 106 real (non-external) symbols and 277 resolved calls/defines edges from the same .ai/project-graph.json, rendered as circles (sized by kind, colored by source module) and lines (calls vs. defines distinguished). No fabricated structure: same underlying data, different -- and correctly graph-shaped -- visual form.
-
-Acceptance criteria:
-
-1. design/diagrams/omni-code-map.svg (the org-chart version) is removed.
-2. design/diagrams/omni-code-graph.svg exists, is well-formed XML, and renders as a force-directed node-link graph (verified via a local cairosvg render) rather than a hierarchical chart.
-3. README's Design Documents list points at the new file with an accurate description.
-
-Validation: `doctor`; `manual_verification`
+| ID | Requirement | Status | Priority | Tests | Statement |
+| --- | --- | --- | --- | --- | --- |
+| REQ-018 | Replace the hierarchical code-map diagram with a real node-link graph | completed | low | 0 | The first design/diagrams/omni-code-map.svg (REQ-015 follow-up) was a hierarchical org-chart-style diagram (boxes, arrows, a text-list panel for doctor checks) built from omni graph build's own out... |
 
 ### Process
 
-#### REQ-025: Portable enforcement: a real CI matrix and a git pre-commit hook, not just the Claude Stop hook
-
-- **Priority:** high  **Status:** completed
-
-The completion gate previously enforced only inside Claude Code (a Stop hook) and CI only ran omni doctor on ubuntu-latest. Added: (1) omni hook install-git, a portable .githooks/pre-commit + core.hooksPath install that runs omni gate on every commit, any assistant or none, on Linux/macOS/Windows (Git for Windows runs hooks through its own bundled sh); (2) a CI matrix across ubuntu-latest/macos-latest/windows-latest x Python 3.10/3.12 that runs the full test suite, omni doctor and omni gate with plain 'python' so it doesn't depend on the executable bit or which of python/python3 is on PATH; (3) a separate CI job that installs the optional [graph] extra and builds/renders the graph, so that path is also checked in CI.
-
-Acceptance criteria:
-
-1. omni hook install-git writes a working LF-only pre-commit hook and sets core.hooksPath
-2. A foreign pre-commit hook is not overwritten without --force
-3. CI runs tests/doctor/gate on all three OSes
-4. graph build and graph view are exercised in CI via the [graph] extra
-
-Validation: `python3 -m unittest discover -s tests (97 tests)`; `omni gate PASS in the real repo`; `omni hook install-git verified end to end in a scratch repo (blocks an unscaffolded commit`; `passes once adopted)`; `graph-extra job simulated locally in a clean venv`
-
-#### REQ-026: Cut manual process: draft requirements/changelog from a commit, and rebuild the graph on commit
-
-- **Priority:** high  **Status:** completed
-
-Two of the workspace's remaining manual steps: (1) omni requirement draft [--commit REF] infers a category from the changed paths, takes the title from the commit subject (or a placeholder), and writes a proposed (never completed) requirement plus a matching CHANGELOG.md Proposed stub, so review replaces hand-authoring; it refuses to draft a duplicate when the commit message already cites a requirement ID. (2) omni hook install-git --with-graph-rebuild adds a post-commit hook that rebuilds the graph in the background after every commit (a lock directory skips an overlapping run; output goes to .ai/.graph-build.log; a full rebuild never blocks git commit, which matters since a real rebuild can take well over a minute on a large repo).
-
-Acceptance criteria:
-
-1. omni requirement draft produces a proposed entry and a changelog stub from both the working tree and a named commit
-2. A commit that already cites a requirement is not re-drafted
-3. The post-commit hook rebuilds the graph in the background without blocking git commit
-4. A build already in flight is not duplicated
-
-Validation: `python3 -m unittest discover -s tests (118 tests)`; `omni gate PASS in the real repo`; `end-to-end scratch-repo verification of both features (including a real timed git commit and a directly-run post-commit hook)`
-
-#### REQ-028: Make declared rule validations real: a dead check fixed, one new honest safety net added
-
-- **Priority:** high  **Status:** completed
-
-gate_rules() only ever selected validation.type == co_changed, so controlled.requirement_id's declared requirement_registry_entry validation was silently never executed -- a rule that looked machine-checked but was not. Fixed by implementing it for real: every REQ-###-shaped ID cited in a commit message since the base, or newly added to CHANGELOG.md, must exist in the registry (catches a typo'd/invented id that the registry's own schema validation cannot see, since that only checks the registry's own shape). Added one new, honestly-scoped validation type, content_forbidden: changed files are scanned for a short list of regexes (private-key header, AWS-shaped access key, obviously hardcoded credential), applied to data.privacy. Deliberately did not try to mechanize the other ~55 unvalidated rules (cognitive load, composition vs inheritance, naming, ...): those are real judgment calls with no honest mechanical proxy, and faking one would be worse than leaving it a judgment call. EXECUTABLE_VALIDATION_TYPES now documents the matched pair (gate_rules selection + gate_evaluate dispatch) so a new type added to one and not the other fails loudly instead of silently doing nothing, which is exactly the bug this fixes.
-
-Acceptance criteria:
-
-1. requirement_registry_entry actually runs and catches a cited-but-nonexistent requirement id
-2. content_forbidden catches a private-key header and an AWS-shaped key with a line number
-3. A rulepack's own files never self-match their own pattern source text
-4. Every existing gate behavior (co_changed) is unchanged
-5. omni gate PASS on the real repo
-
-Validation: `python3 -m unittest discover -s tests (165 tests)`; `omni gate PASS in the real repo`; `omni doctor 0 errors`
-
-#### REQ-034: Vendored workspaces: gate, doctor and CI treat a subtree with its own .ai/ as its own workspace
-
-- **Priority:** medium  **Status:** completed
-
-A directory below the root carrying .ai/omni-version.json is a workspace of its own. The requirement-id gate accepts ids from its registry (a subtree pull's commit messages cite them); omni doctor warns when its CLI copies differ from the root's and names the omni update command; CI runs a vendored Arbiter's suite, integrity and mutation checks when arbiter/pyproject.toml exists. Dependency folders are never read as workspaces.
-
-Acceptance criteria:
-
-1. an id from a vendored registry passes the requirement-id gate without a waiver
-2. a directory without the adoption marker is not a workspace
-3. doctor warns on tooling drift and passes when identical
-4. ci.yml parses and the vendored job skips when arbiter/ is absent
-
-Validation: `python3 -m unittest discover -s tests`; `./omni doctor`; `./omni gate`
-
-#### REQ-035: Publish Arbiter into this repository as a subtree on the arbiter branch
-
-- **Priority:** low  **Status:** completed
-
-The arbiter branch vendors Arbiter's source under arbiter/ as a git subtree with its full history, so the workspace and the evaluator can be read, cloned and run from one place. main carries only the workspace. The branch allows arbiter as a root path, exempts arbiter/** from the data.privacy content check (Arbiter's fixture corpus is planted secrets by design), excludes arbiter/ from this repository's code graph (the subtree has its own), states at the root that the Apache-2.0 grant does not extend to arbiter/, and wires Arbiter to gate this repository too. Arbiter keeps its own LICENSE and NOTICE.md under arbiter/. Merged to main on 2026-10-09 (pull request #3).
-
-Acceptance criteria:
-
-1. git log --oneline arbiter/ shows Arbiter's history
-2. ./omni doctor reports no errors and the vendored workspace runs the same tooling
-3. ./omni gate passes without a waiver
-4. arbiter gate . passes natively on this repository
-5. the subtree's own suite passes
-
-Validation: `./omni doctor`; `./omni gate`; `arbiter gate . --no-adapters`; `cd arbiter && python -m pytest -q`
+| ID | Requirement | Status | Priority | Tests | Statement |
+| --- | --- | --- | --- | --- | --- |
+| REQ-025 | Portable enforcement: a real CI matrix and a git pre-commit hook, not just the Claude Stop hook | completed | high | 1 | The completion gate previously enforced only inside Claude Code (a Stop hook) and CI only ran omni doctor on ubuntu-latest. |
+| REQ-026 | Cut manual process: draft requirements/changelog from a commit, and rebuild the graph on commit | completed | high | 2 | Two of the workspace's remaining manual steps: (1) omni requirement draft [--commit REF] infers a category from the changed paths, takes the title from the commit subject (or a placeholder), and wr... |
+| REQ-028 | Make declared rule validations real: a dead check fixed, one new honest safety net added | completed | high | 6 | gate_rules() only ever selected validation.type == co_changed, so controlled.requirement_id's declared requirement_registry_entry validation was silently never executed -- a rule that looked machin... |
+| REQ-034 | Vendored workspaces: gate, doctor and CI treat a subtree with its own .ai/ as its own workspace | completed | medium | 1 | A directory below the root carrying .ai/omni-version.json is a workspace of its own. |
+| REQ-035 | Publish Arbiter into this repository as a subtree on the arbiter branch | completed | low | 0 | The arbiter branch vendors Arbiter's source under arbiter/ as a git subtree with its full history, so the workspace and the evaluator can be read, cloned and run from one place. main carries only t... |
 
 ### Ruleset refinement
 
-#### REQ-006: Replace Python data rules with data governance rules
-
-- **Priority:** medium  **Status:** completed
-
-Rename the Python-specific data rule file and refocus it on bounded, framework-agnostic data governance.
-
-Acceptance criteria:
-
-1. Python-specific data rules are removed from the universal ruleset surface.
-2. A data-governance rule file covers data boundaries, contracts, validation, transformations, privacy, persistence, migrations, and testing.
-3. Doctor validates the renamed rule file as required.
-4. README references the new data governance rule name.
-5. Changelog records the ruleset refinement.
-
-Validation: `doctor`; `validate`; `json`; `python_compile`
+| ID | Requirement | Status | Priority | Tests | Statement |
+| --- | --- | --- | --- | --- | --- |
+| REQ-006 | Replace Python data rules with data governance rules | completed | medium | 0 | Rename the Python-specific data rule file and refocus it on bounded, framework-agnostic data governance. |
 
 ### Structured rulepacks
 
-#### REQ-007: Convert enforceable rule files to JSON
+| ID | Requirement | Status | Priority | Tests | Statement |
+| --- | --- | --- | --- | --- | --- |
+| REQ-007 | Convert enforceable rule files to JSON | completed | high | 0 | Replace Markdown rule implementations with schema-backed JSON rulepacks so doctor can validate rule IDs, severities, scopes, and statements. |
 
-- **Priority:** high  **Status:** completed
-
-Replace Markdown rule implementations with schema-backed JSON rulepacks so doctor can validate rule IDs, severities, scopes, and statements.
-
-Acceptance criteria:
-
-1. Enforceable companion rule files are represented as JSON rulepacks.
-2. Old Markdown rule implementation files are removed from .ai/rules.
-3. Each JSON rulepack contains stable rule IDs, severities, scopes, and statements.
-4. A rulepack schema documents the structured rule format.
-5. Doctor validates structured rulepacks.
-6. README documents JSON rulepacks instead of Markdown rule implementations.
-
-Validation: `doctor`; `validate`; `sync`; `json`; `python_compile`
-
-## 4. Non-functional requirements
+## Non-functional requirements
 
 ### CLI / template maintainability
 
-#### REQ-013: Add omni update: 3-way-merge template improvements into adopted workspaces
+| ID | Requirement | Status | Priority | Tests | Statement |
+| --- | --- | --- | --- | --- | --- |
+| REQ-013 | Add omni update: 3-way-merge template improvements into adopted workspaces | completed | high | 0 | The single biggest 'clunky' gap raised this session: once a project adopts OmniEngineering and customizes its rules/playbooks/checklists, there was no way to pull later template improvements in exc... |
+| REQ-014 | Fix: omni update must not re-run sync when make_ai.py itself has an unresolved conflict | completed | medium | 0 | Found live while dogfooding REQ-013 against STEP_App's genuinely diverged make_ai.py: when make_ai.py's own merge produced a conflict, the file was written with unresolved <<<<<<< markers (correct)... |
+| REQ-017 | Fix: adopting or updating omni_graph.py must not be able to break every other command | completed | high | 0 | Found by end-to-end testing REQ-015 against a simulated pre-existing application: (1) ADOPTION_CLI_FILES only listed omni/make_ai.py, so `omni adopt --include-cli` copied a make_ai.py that uncondit... |
+| REQ-042 | Arbiter version tracking and omni arbiter update | completed | medium | 1 | omni update never touched an installed or vendored Arbiter. arbiter_install records {source, version} under arbiter in .ai/omni-version.json (other keys preserved); doctor warns when the installed... |
+| REQ-044 | Requirement id aliases and omni requirement renumber | completed | high | 1 | Two workspaces that both use the REQ prefix collide the moment one is vendored into the other. |
+| REQ-049 | omni arbiter sync levels the subtree, the installed package, the recorded version and the baseline in one command; doctor warns on a mismatched commit identity | completed | high | 2 | The three-way sync (subtree pull, pip install, version record, baseline refresh, doctor) was manual and error-prone. omni arbiter sync runs the steps in order and stops at the first failure naming... |
 
-- **Priority:** high  **Status:** completed
+## Acceptance criteria of open requirements
 
-The single biggest 'clunky' gap raised this session: once a project adopts OmniEngineering and customizes its rules/playbooks/checklists, there was no way to pull later template improvements in except a manual hand-diff-and-port (done twice by hand earlier this session). Adds .ai/omni-version.json (written by omni adopt, recording the source path and git ref at last sync) and a new 'omni update --source <checkout>' command that 3-way-merges every template-managed file via git merge-file: files the adopter never touched are fast-path overwritten, files only the template changed are left alone, files both sides changed are merged (or left with conflict markers on a genuine collision), and .ai/project-configuration.md, .ai/project-map.md, .ai/requirements/requirements.json, and CHANGELOG.md are never touched since those are adopter-owned. If make_ai.py itself changes, update automatically re-runs sync in a fresh process so entrypoint/pointer/ignore files regenerate from the new templates. omni doctor gained a matching check warning when .ai/omni-version.json is missing. Also adds `--bootstrap` to `omni update` (records --source's current ref as the starting point without merging anything, for a workspace adopted before update-tracking existed) and a README Quick Start section covering the adopt/doctor/update loop end to end, including the bootstrap path, since a working feature nobody can find or follow doesn't solve the 'clunky to integrate' complaint either.
-
-Acceptance criteria:
-
-1. omni adopt writes .ai/omni-version.json on success.
-2. omni update fast-path-overwrites adopter-untouched files, no-ops on adopter-only changes, cleanly merges non-overlapping changes on both sides, and leaves conflict markers on overlapping changes -- verified end to end in a scratch adopter workspace covering all four cases plus confirming requirements.json/project-map.md/project-configuration.md/CHANGELOG.md are never touched.
-3. omni update --bootstrap writes .ai/omni-version.json against --source's current ref and merges nothing, verified end to end.
-4. omni doctor warns when .ai/omni-version.json is missing.
-5. README Quick Start section documents adopt, doctor, update, and the bootstrap path for pre-existing adopters.
-
-Validation: `manual_verification`
-
-#### REQ-014: Fix: omni update must not re-run sync when make_ai.py itself has an unresolved conflict
-
-- **Priority:** medium  **Status:** completed
-
-Found live while dogfooding REQ-013 against STEP_App's genuinely diverged make_ai.py: when make_ai.py's own merge produced a conflict, the file was written with unresolved <<<<<<< markers (correct), but run_update still treated that as make_ai.py having 'changed' and re-ran sync in a fresh subprocess against the now-syntactically-invalid file, producing a raw Python SyntaxError traceback instead of a clean message. Excluded the conflict outcome from the make_ai_changed re-sync trigger, and added an explicit message telling the user sync was skipped and why, and to run it themselves once the conflict is resolved.
-
-Acceptance criteria:
-
-1. omni update no longer attempts to re-run sync when make_ai.py itself has an unresolved conflict; prints a clear explanatory message instead of a raw traceback. Verified by reproducing the original crash against STEP_App before the fix and confirming a clean message after.
-
-Validation: `manual_verification`
-
-#### REQ-017: Fix: adopting or updating omni_graph.py must not be able to break every other command
-
-- **Priority:** high  **Status:** completed
-
-Found by end-to-end testing REQ-015 against a simulated pre-existing application: (1) ADOPTION_CLI_FILES only listed omni/make_ai.py, so `omni adopt --include-cli` copied a make_ai.py that unconditionally imports omni_graph without ever copying omni_graph.py itself, crashing every single omni command (not just `graph`) in the adopted project with a raw ModuleNotFoundError. (2) Testing the upgrade path (a project adopted before omni_graph.py existed, running `omni update` against a source that now has it) surfaced a deeper, structural gap: `omni update`'s file list (TEMPLATE_MANAGED_FILES) is evaluated by the OLD make_ai.py that is currently running the update, not by the newer --source -- so a target can never discover a brand-new template-managed file on the very first update after it's introduced, no matter what that file list contains by the time of a *later* update. Fixed both: added omni_graph.py to ADOPTION_CLI_FILES (fixes fresh `omni adopt --include-cli` immediately, and fixes `omni update` from the second update onward once a target is running post-fix code), and made make_ai.py's own `import omni_graph` defensive (try/except, falls back to None) with a shared require_omni_graph() guard on every `omni graph ...` subcommand and a doctor warning -- so a target still missing omni_graph.py (the unavoidable one-time gap on that very first update, or any other reason the file might be absent) degrades to 'omni graph is unavailable' instead of taking down doctor/sync/map/every other command.
-
-Acceptance criteria:
-
-1. omni adopt --target <dir> --include-cli copies omni_graph.py alongside make_ai.py, verified against a scratch pre-existing application directory whose own pre-existing files (README, source, .gitignore) are confirmed byte-for-byte unchanged after adoption.
-2. A project simulated as adopted before omni_graph.py existed (sourced from OmniEngineering@523c47b) that runs `omni update` against a current source no longer crashes: omni doctor, omni sync, and every non-graph command work immediately after that update even though omni_graph.py is still absent on that specific first pass, with a clear doctor warning naming the gap and the fix (re-run omni adopt --include-cli or omni update).
-3. The same project's second `omni update` (now running the fixed make_ai.py) reports 'added: omni_graph.py', after which omni graph build/trace/show all work against the adopted project's own source files.
-4. Adopter-owned files (.ai/project-configuration.md, .ai/project-map.md, .ai/requirements/requirements.json, CHANGELOG.md) verified untouched by both update passes in this test, including a deliberately added custom note/entry in each.
-5. omni doctor and omni graph both continue to work correctly in this repo's own working copy (which always has omni_graph.py) after these changes.
-
-Validation: `doctor`; `python_compile`; `manual_verification`
-
-#### REQ-042: Arbiter version tracking and omni arbiter update
-
-- **Priority:** medium  **Status:** completed
-
-omni update never touched an installed or vendored Arbiter. arbiter_install records {source, version} under arbiter in .ai/omni-version.json (other keys preserved); doctor warns when the installed version differs; omni update warns when the installed completion.arbiter_gate rule drifted from the template; omni arbiter update [--source] [--keep-rule] [--squash] [--force] upgrades the package, rewrites the rule, pulls the subtree when one is vendored (refusing to mix squash modes unless forced), re-records the version and suggests a baseline refresh.
-
-Acceptance criteria:
-
-1. the version is recorded and preserved across omni update
-2. doctor warns on mismatch
-3. subtree mode mismatch is refused unless forced
-4. the pip and subtree commands are built as documented
-
-Validation: `python3 -m unittest discover -s tests`
-
-#### REQ-044: Requirement id aliases and omni requirement renumber
-
-- **Priority:** high  **Status:** completed
-
-Two workspaces that both use the REQ prefix collide the moment one is vendored into the other. The registry gains an optional id_aliases map (old id to new id). The gate's requirement-id check, requirement show/update/complete, the failure ledger check and doctor resolve an alias to its target, and doctor errors on an alias that points nowhere. omni requirement renumber --prefix NEW [--dry-run] changes the prefix, renumbers the registry and archive keeping the numbers, writes the aliases, and rewrites references in the workspace's governance text (ledger, changelog, .ai, root and docs markdown, .claude) but never in code, tests or git history, so Arbiter can move to ARB-### while its commits that cite REQ-### stay valid.
-
-Acceptance criteria:
-
-1. a commit citing an aliased id passes the gate
-2. an unknown id still fails
-3. requirement show resolves an alias
-4. doctor errors on a dangling alias
-5. renumber rewrites registry archive ledger and governance text and is idempotent and dry-runnable
-6. code and tests are never rewritten
-
-Validation: `python3 -m unittest discover -s tests`; `./omni doctor`; `./omni gate`
-
-#### REQ-049: omni arbiter sync levels the subtree, the installed package, the recorded version and the baseline in one command; doctor warns on a mismatched commit identity
-
-- **Priority:** high  **Status:** completed
-
-The three-way sync (subtree pull, pip install, version record, baseline refresh, doctor) was manual and error-prone. omni arbiter sync runs the steps in order and stops at the first failure naming the step; --dry-run prints the commands; in pip mode it updates and re-baselines. Doctor warns (never errors) when a commit since the gate base carries an author or committer email that differs from git config user.email or ends in .local or localhost.
-
-Acceptance criteria:
-
-1. omni arbiter sync --dry-run lists the steps
-2. a failing step stops the sequence with its name
-3. doctor warns on an omni@local author
-4. the adopt loop stays quiet
-
-Validation: `./omni doctor`; `./omni gate`; `python3 -m unittest discover -s tests`
+No requirement is open.

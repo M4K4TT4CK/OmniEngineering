@@ -10,6 +10,7 @@ here is independent of the generator on purpose. Stdlib only:
 
 from __future__ import annotations
 
+import difflib
 import io
 import json
 import os
@@ -141,15 +142,18 @@ def validate_mermaid(lines: list[str]) -> list[str]:
     return problems
 
 
-def render_fixture(out_dir: Path) -> dict[str, str]:
-    return omni_docs.render_all(FIXTURE, out_dir, FIXTURE / ".ai/project-graph.json")
+def render_fixture(out_dir: Path, detail: str | None = None) -> dict[str, str]:
+    return omni_docs.render_all(FIXTURE, out_dir, FIXTURE / ".ai/project-graph.json", detail)
 
 
 class FixtureDocs(unittest.TestCase):
+    """The default (summary) documents."""
+
     @classmethod
     def setUpClass(cls) -> None:
         cls.out = FIXTURE / "docs" / "generated"  # links are resolved relative to here; nothing is written
         cls.docs = render_fixture(cls.out)
+        cls.full = render_fixture(cls.out, "full")
 
 
 class TestDocumentSet(FixtureDocs):
@@ -172,7 +176,7 @@ class TestDocumentSet(FixtureDocs):
 
 class TestArchitecture(FixtureDocs):
     def test_sad_sections_and_views(self) -> None:
-        sad = self.docs["architecture.md"]
+        sad = self.full["architecture.md"]
         for heading in ("1. Introduction and goals", "2. Constraints", "3. System context", "4. Building-block view",
                         "5. Runtime view", "6. Deployment view", "7. Cross-cutting concepts", "8. Architecture decisions",
                         "9. Quality requirements", "10. Risks and technical debt", "11. Glossary"):
@@ -189,8 +193,21 @@ class TestArchitecture(FixtureDocs):
         self.assertIn("FAIL-001", sad)  # open failure as a risk
         self.assertIn("_Not derived: no ADR directory", sad)
 
+    def test_sad_summary_keeps_the_views_and_links_the_detail(self) -> None:
+        sad = self.docs["architecture.md"]
+        for heading in ("3. System context", "4.2 Components (level 2)", "5. Runtime view", "6. Deployment view", "10. Risks and technical debt"):
+            self.assertIn(f"## {heading}", sad.replace("### 4.2", "## 4.2"))
+        self.assertIn('x_deps["1 declared dependencies:<br/>requests"]', sad)  # one node, every name kept
+        self.assertIn("m_shop_cli_py --> m_shop_service_py", sad)
+        self.assertIn("f_shop_cli_py_main --> f_shop_service_py_checkout", sad)
+        self.assertIn("service web", sad)
+        self.assertIn("1 still open: REQ-003.", sad)  # quality requirements: ids here, rows in the SRS
+        self.assertNotIn("| REQ-003 |", sad)
+        self.assertIn("1 open failure(s) of 1 in the failure ledger: FAIL-001; severity", sad)  # detail lives in the RTM
+        self.assertIn("- REQ-002 (pending): CLI output format may change", sad)
+
     def test_component_diagram_collapses_past_the_cap(self) -> None:
-        model = omni_docs.load_model(FIXTURE, FIXTURE / ".ai/project-graph.json", self.out)
+        model = omni_docs.load_model(FIXTURE, FIXTURE / ".ai/project-graph.json", self.out, "full")
         old = omni_docs.MAX_COMPONENT_NODES
         omni_docs.MAX_COMPONENT_NODES = 3
         try:
@@ -205,8 +222,22 @@ class TestArchitecture(FixtureDocs):
 
 
 class TestDesign(FixtureDocs):
-    def test_sdd_per_module_design(self) -> None:
+    def test_sdd_summary_one_line_per_module(self) -> None:
         sdd = self.docs["design.md"]
+        self.assertIn("| [shop](#package-shop) | 4 | Shop: take orders and price them. | - |", sdd)
+        self.assertIn("## Package shop", sdd)
+        self.assertIn(
+            "- [models.py](../../shop/models.py): Domain objects for orders. Defines `Base`, `Item`, `Order`. "
+            "Imported by 2 modules. Why: Kept free of I/O so pricing stays testable.", sdd)
+        self.assertIn("- [cli.py](../../shop/cli.py): Command-line entry point. 1 public function.\n", sdd)
+        self.assertNotIn("checkout(names", sdd)  # signatures only at --detail full
+        self.assertNotIn("classDiagram", sdd)  # class relations live in class-diagram.md
+        self.assertIn("](class-diagram.md)", sdd)
+        for path in ("__init__.py", "cli.py", "models.py", "service.py"):  # no module dropped
+            self.assertIn(f"[{path}](../../shop/{path})", sdd)
+
+    def test_sdd_per_module_design(self) -> None:
+        sdd = self.full["design.md"]
         self.assertIn("### Module shop/service.py", sdd)
         self.assertIn("`checkout(names: list[str]) -> int`: Price a list of item names", sdd)
         self.assertIn("`class Order(Base)`: A customer's basket of items.", sdd)
@@ -216,8 +247,10 @@ class TestDesign(FixtureDocs):
         self.assertIn("classDiagram", sdd)  # per-package class diagram
 
     def test_modules_reference(self) -> None:
+        self.assertIn("| [shop/models.py](../../shop/models.py) | shop | Domain objects for orders. | 3 |", self.full["modules.md"])
         mods = self.docs["modules.md"]
-        self.assertIn("| [shop/models.py](../../shop/models.py) | shop | Domain objects for orders. | 3 |", mods)
+        self.assertIn("| [shop/models.py](../../shop/models.py) | shop | 3 | - | shop/cli.py, shop/service.py |", mods)
+        self.assertNotIn("Domain objects for orders.", mods)  # the purpose is stated once, in the SDD
 
     def test_class_diagram(self) -> None:
         text = self.docs["class-diagram.md"]
@@ -227,8 +260,20 @@ class TestDesign(FixtureDocs):
 
 
 class TestRequirementsDocs(FixtureDocs):
-    def test_srs(self) -> None:
+    def test_srs_summary(self) -> None:
         srs = self.docs["requirements.md"]
+        self.assertIn("| REQ-001 | Price an order | completed | high | 1 | Checkout returns the order total. |", srs)
+        self.assertIn("| REQ-004 | Discount codes | proposed | low | 0 | Apply a <percent> \"discount\" \\| code. |", srs)
+        self.assertLess(srs.index("## Non-functional requirements"), srs.index("| REQ-003 |"))
+        open_part = srs.split("## Acceptance criteria of open requirements")[1]
+        self.assertIn("### REQ-002: Command-line checkout\n\n1. prints a total", open_part)
+        self.assertNotIn("REQ-001", open_part)  # completed: its criteria stay in the registry
+        self.assertNotIn("total equals the sum of item prices", srs)
+        self.assertNotIn("python -m tests.service_checks", srs)  # validation is stated once, in the test plan
+        self.assertIn("| pending | 1 |", srs)
+
+    def test_srs(self) -> None:
+        srs = self.full["requirements.md"]
         self.assertIn("#### REQ-001: Price an order", srs)
         self.assertIn("1. total equals the sum of item prices", srs)
         self.assertIn("## 4. Non-functional requirements", srs)
@@ -250,7 +295,8 @@ class TestRequirementsDocs(FixtureDocs):
         self.assertIn("_Not derived: omni keeps no stored test-run results", plan)
 
     def test_changes_summary(self) -> None:
-        summary = self.docs["CHANGES-SUMMARY.md"]
+        self.assertIn("- FAIL-001 (REQ-001)", self.docs["CHANGES-SUMMARY.md"])  # severity and title live in the RTM
+        summary = self.full["CHANGES-SUMMARY.md"]
         self.assertIn("## Recently completed\n\n_The last 10 completed, newest registry entry first._\n\n- REQ-001: Price an order", summary)
         self.assertIn("- REQ-002: Command-line checkout (pending)", summary)
         self.assertIn("## Blocked\n\n- REQ-003", summary)
@@ -286,19 +332,21 @@ class TestMermaidValidity(FixtureDocs):
 
 class TestDeterminism(unittest.TestCase):
     def test_two_processes_with_different_hash_seeds_write_identical_bytes(self) -> None:
-        digests = []
-        with tempfile.TemporaryDirectory() as tmp:
-            for seed in ("1", "4242"):
-                out = Path(tmp) / f"out{seed}"
-                env = {**os.environ, "PYTHONHASHSEED": seed}
-                result = subprocess.run(
-                    [sys.executable, str(ROOT / "omni"), "docs", "build", "--root", str(FIXTURE), "--output", str(out), "--no-graph-rebuild"],
-                    capture_output=True, text=True, env=env, cwd=tmp,
-                )
-                self.assertEqual(result.returncode, 0, result.stderr)
-                digests.append({p.name: p.read_bytes() for p in sorted(out.iterdir())})
-        self.assertEqual(set(digests[0]), EXPECTED_FILES)
-        self.assertEqual(digests[0], digests[1])
+        for detail in omni_docs.DETAIL_LEVELS:
+            digests = []
+            with tempfile.TemporaryDirectory() as tmp:
+                for seed in ("1", "4242"):
+                    out = Path(tmp) / f"out{seed}"
+                    env = {**os.environ, "PYTHONHASHSEED": seed}
+                    result = subprocess.run(
+                        [sys.executable, str(ROOT / "omni"), "docs", "build", "--root", str(FIXTURE), "--output", str(out),
+                         "--no-graph-rebuild", "--detail", detail],
+                        capture_output=True, text=True, env=env, cwd=tmp,
+                    )
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    digests.append({p.name: p.read_bytes() for p in sorted(out.iterdir())})
+            self.assertEqual(set(digests[0]), EXPECTED_FILES, detail)
+            self.assertEqual(digests[0], digests[1], detail)
 
     def test_second_build_writes_nothing_and_check_passes(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -316,13 +364,76 @@ class TestDeterminism(unittest.TestCase):
             self.assertEqual(omni_docs.check_docs(FIXTURE, out, graph), ["design.md"])
 
 
+class TestSmallDiffs(unittest.TestCase):
+    """A change to one requirement changes only the lines about that requirement, plus status counts."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name) / "proj"
+        shutil.copytree(FIXTURE, self.root)
+        self.registry = self.root / ".ai/requirements/requirements.json"
+
+    def render(self, detail: str) -> dict[str, str]:
+        return omni_docs.render_all(self.root, self.root / "docs/generated", self.root / ".ai/project-graph.json", detail)
+
+    def change(self, req_id: str, **fields: str) -> None:
+        data = json.loads(self.registry.read_text(encoding="utf-8"))
+        for req in data["requirements"]:
+            if req["id"] == req_id:
+                req.update(fields)
+        self.registry.write_text(json.dumps(data), encoding="utf-8")
+
+    def changed_lines(self, before: dict[str, str], after: dict[str, str]) -> dict[str, list[str]]:
+        out: dict[str, list[str]] = {}
+        for name in sorted(before):
+            diff = difflib.unified_diff(before[name].splitlines(), after[name].splitlines(), lineterm="", n=0)
+            lines = [l for l in diff if l[:1] in "+-" and not l.startswith(("+++", "---"))]
+            if lines:
+                out[name] = lines
+        return out
+
+    def test_unchanged_inputs_render_identically(self) -> None:
+        for detail in omni_docs.DETAIL_LEVELS:
+            self.assertEqual(self.render(detail), self.render(detail), detail)
+
+    def test_retitling_one_requirement_touches_only_its_lines(self) -> None:
+        for detail in omni_docs.DETAIL_LEVELS:
+            before = self.render(detail)
+            self.change("REQ-002", title="Terminal checkout")
+            changed = self.changed_lines(before, self.render(detail))
+            self.change("REQ-002", title="Command-line checkout")
+            self.assertIn("requirements.md", changed, detail)
+            for name, lines in changed.items():
+                for line in lines:
+                    self.assertIn("REQ-002", line, f"{detail} {name}: {line}")
+            self.assertLessEqual(sum(len(v) for v in changed.values()), 16, f"{detail}: {changed}")
+
+    def test_completing_one_requirement_touches_its_lines_and_the_counts(self) -> None:
+        before = self.render("summary")
+        self.change("REQ-002", status="completed")
+        changed = self.changed_lines(before, self.render("summary"))
+        allowed = (
+            "REQ-002",
+            "| pending |", "| completed |",  # the SRS status table
+            "### REQ-002", "1. prints a total",  # its acceptance criteria leave the open list
+            "None.",  # an emptied CHANGES-SUMMARY group
+            "1 still open", "0 still open",
+            "risk note",  # the SAD's risk-note list empties
+        )
+        for name, lines in changed.items():
+            for line in lines:
+                self.assertTrue(any(a in line for a in allowed) or not line[1:].strip(), f"{name}: {line}")
+        self.assertLessEqual(sum(len(v) for v in changed.values()), 24, changed)
+
+
 class TestNoGraph(unittest.TestCase):
     def test_missing_graph_marks_code_views_not_derived(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             docs = omni_docs.render_all(FIXTURE, Path(tmp), Path(tmp) / "missing.json")
         self.assertIn("_Not derived: no code graph._", docs["architecture.md"])
         self.assertIn("No code graph", docs["index.md"])
-        self.assertIn("#### REQ-001", docs["requirements.md"])  # registry-only documents still render
+        self.assertIn("| REQ-001 |", docs["requirements.md"])  # registry-only documents still render
 
 
 class TestRequirementHook(unittest.TestCase):
@@ -348,11 +459,25 @@ class TestRequirementHook(unittest.TestCase):
         return (self.root / "docs/generated/requirements.md").read_text(encoding="utf-8")
 
     def test_complete_regenerates(self) -> None:
-        self.assertIn("**Status:** pending", self.srs().split("#### REQ-002")[1].split("####")[0])
+        self.assertIn("| REQ-002 | Command-line checkout | pending |", self.srs())
         code, output = self.run_cli("requirement", "complete", "REQ-002")
         self.assertEqual(code, 0, output)
         self.assertIn("docs: regenerated", output)
-        self.assertIn("**Status:** completed", self.srs().split("#### REQ-002")[1].split("####")[0])
+        self.assertIn("| REQ-002 | Command-line checkout | completed |", self.srs())
+
+    def test_full_detail_survives_regeneration_and_check(self) -> None:
+        out, graph = self.root / "docs/generated", self.root / ".ai/project-graph.json"
+        omni_docs.build_docs(self.root, out, graph, "full")
+        self.assertIn("Detail level: full", (out / "index.md").read_text(encoding="utf-8"))
+        code, output = self.run_cli("requirement", "complete", "REQ-002")
+        self.assertEqual(code, 0, output)
+        self.assertIn("**Status:** completed", self.srs().split("#### REQ-002")[1].split("####")[0])  # still full
+        code, output = self.run_cli("docs", "build", "--check", "--no-graph-rebuild")
+        self.assertEqual(code, 0, output)
+        code, output = self.run_cli("docs", "build", "--detail", "summary", "--no-graph-rebuild")
+        self.assertEqual(code, 0, output)
+        self.assertIn("(summary detail)", output)
+        self.assertIn("| REQ-002 | Command-line checkout | completed |", self.srs())
 
     def test_add_and_status_update_regenerate(self) -> None:
         code, output = self.run_cli("requirement", "add", "--title", "Gift wrap", "--description", "Wrap it")

@@ -4,24 +4,26 @@
 
 Related assistant workflow: [swe-docs](../../.claude/skills/swe-docs/SKILL.md) to when to rebuild and how to read these documents.
 
-Generated from commit `f360d755c6728ad19b72f484676d35ada0deab8c`.
+Generated from commit `51f083293e01e71a3e7784cf25e9af77331bdae1`; code graph built at `51f083293e01`.
+
+Detail level: summary (`omni docs build --detail summary|full`; later rebuilds keep it).
 
 Regenerate with `omni docs build`; `omni requirement add|update|complete` regenerate it automatically. Nothing here is written by a model: every line comes from the code graph, the requirement registry, the failure ledger, the test-suite registry, git history and source docstrings.
 
 | Document | What it covers |
 | --- | --- |
 | [Software Architecture Document (SAD)](architecture.md) | arc42 / ISO/IEC/IEEE 42010 views: context, building blocks, runtime, deployment, risks. |
-| [Software Design Document (SDD)](design.md) | IEEE 1016-style per-module design: purpose, interfaces, data structures, dependencies, rationale. |
-| [Software Requirements Specification (SRS)](requirements.md) | Every registered requirement with description, acceptance criteria, priority and status. |
-| [Requirements Traceability Matrix](requirements-traceability.md) | Requirement -> files in scope -> tests -> status, plus failures linked to requirements. |
-| [Test Plan and Coverage Summary](test-plan.md) | Registered suites, validation each requirement asks for, and requirements with no linked test. |
-| [Module Reference](modules.md) | One row per module: purpose, public symbol count, inbound and outbound dependencies. |
+| [Software Design Document (SDD)](design.md) | IEEE 1016-style design: what each package and module is for, the types it defines, what it depends on (full detail adds every signature). |
+| [Software Requirements Specification (SRS)](requirements.md) | Every registered requirement by area: status, priority, statement, and acceptance criteria of the open ones (full detail: of all). |
+| [Requirements Traceability Matrix](requirements-traceability.md) | Requirement -> files in scope -> tests -> status, plus open failures and the files they affect. |
+| [Test Plan and Coverage Summary](test-plan.md) | Registered suites, test modules, validation each requirement asks for, and requirements with no linked test. |
+| [Module Reference](modules.md) | One row per module: container, public symbol count, inbound and outbound dependencies (full detail adds purpose). |
 | [Class Diagram](class-diagram.md) | The main classes across the project: inheritance and the instantiations the graph resolved. |
 | [Changes Summary](CHANGES-SUMMARY.md) | Completed, in-progress and blocked requirements, open failures, and required docs no commit touched. |
 
 ## Inputs
 
-- Code graph: 4 source module(s), 30 test module(s), built at commit `f360d755c672`.
+- Code graph: 4 source module(s), 30 test module(s).
 - Requirements: 60 active, 0 archived.
 - Failure ledger: 19 entries.
 - Test suites: 1 registered.

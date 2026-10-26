@@ -23,6 +23,11 @@ from typing import Any
 DOCS_DEFAULT_OUTPUT = "docs/generated"
 GRAPH_DEFAULT_PATH = ".ai/project-graph.json"
 SHA_LINE_PREFIX = "Generated from commit "
+# How much each document says. "summary" (the default) gives each module, requirement and risk one line and links to
+# the document that owns the detail; "full" writes every public signature, acceptance criterion and risk note.
+DETAIL_LEVELS = ("summary", "full")
+DETAIL_DEFAULT = "summary"
+DETAIL_LINE_PREFIX = "Detail level: "
 
 # Readability caps. A diagram past these sizes stops being read; what was cut is always stated under it.
 MAX_COMPONENT_NODES = 24
@@ -36,15 +41,23 @@ MAX_FLOW_NODES = 20
 MAX_RECENT = 10
 MAX_GLOSSARY = 30
 MIN_FLOW_CALLEES = 3
+# Tighter diagram caps for summary detail; full detail keeps the caps above.
+SUMMARY_COMPONENT_NODES = 16
+SUMMARY_DIAGRAM_EDGES = 24
+SUMMARY_FLOW_NODES = 14
+SUMMARY_GLOSSARY = 20
+MAX_KEY_TYPES = 4  # summary SDD: public classes named per module
+MAX_STATEMENT = 200  # summary SRS: characters of a requirement's first sentence
+MAX_RISK_NOTE = 180  # summary SAD: characters of a requirement's first risk note
 
 # (file name, title, one-line purpose) in index order.
 DOCUMENTS: list[tuple[str, str, str]] = [
     ("architecture.md", "Software Architecture Document (SAD)", "arc42 / ISO/IEC/IEEE 42010 views: context, building blocks, runtime, deployment, risks."),
-    ("design.md", "Software Design Document (SDD)", "IEEE 1016-style per-module design: purpose, interfaces, data structures, dependencies, rationale."),
-    ("requirements.md", "Software Requirements Specification (SRS)", "Every registered requirement with description, acceptance criteria, priority and status."),
-    ("requirements-traceability.md", "Requirements Traceability Matrix", "Requirement -> files in scope -> tests -> status, plus failures linked to requirements."),
-    ("test-plan.md", "Test Plan and Coverage Summary", "Registered suites, validation each requirement asks for, and requirements with no linked test."),
-    ("modules.md", "Module Reference", "One row per module: purpose, public symbol count, inbound and outbound dependencies."),
+    ("design.md", "Software Design Document (SDD)", "IEEE 1016-style design: what each package and module is for, the types it defines, what it depends on (full detail adds every signature)."),
+    ("requirements.md", "Software Requirements Specification (SRS)", "Every registered requirement by area: status, priority, statement, and acceptance criteria of the open ones (full detail: of all)."),
+    ("requirements-traceability.md", "Requirements Traceability Matrix", "Requirement -> files in scope -> tests -> status, plus open failures and the files they affect."),
+    ("test-plan.md", "Test Plan and Coverage Summary", "Registered suites, test modules, validation each requirement asks for, and requirements with no linked test."),
+    ("modules.md", "Module Reference", "One row per module: container, public symbol count, inbound and outbound dependencies (full detail adds purpose)."),
     ("class-diagram.md", "Class Diagram", "The main classes across the project: inheritance and the instantiations the graph resolved."),
     ("CHANGES-SUMMARY.md", "Changes Summary", "Completed, in-progress and blocked requirements, open failures, and required docs no commit touched."),
 ]
@@ -106,6 +119,7 @@ class PyClass:
 class PyInfo:
     doc: str = ""
     rationale: str = ""
+    why: str = ""  # first prose sentence after the summary line, for the summary SDD
     functions: list[PyFunc] = field(default_factory=list)
     classes: list[PyClass] = field(default_factory=list)
     has_main: bool = False
@@ -142,6 +156,7 @@ class Model:
     config: dict[str, Any]
     readme: str
     notes: list[str]
+    detail: str = DETAIL_DEFAULT
 
     def by_path(self) -> dict[str, Module]:
         cached = self.__dict__.get("_by_path")
@@ -175,6 +190,21 @@ def _one_line(text: str | None, limit: int = 200) -> str:
     para = re.split(r"\n\s*\n", text.strip(), maxsplit=1)[0]
     line = " ".join(para.split())
     return line if len(line) <= limit else line[: limit - 3].rstrip() + "..."
+
+
+def _why(text: str | None, limit: int = 240) -> str:
+    """The first sentence of the first prose paragraph after the docstring's summary line. Headings, usage lines,
+    shell commands and paragraphs that only introduce a list are skipped: they are not a reason."""
+    if not text:
+        return ""
+    for para in re.split(r"\n\s*\n", text.strip())[1:]:
+        line = " ".join(para.split())
+        if not re.match(r"[A-Z][a-z'’]*[ ,]", line) or line.endswith(":") or re.match(r"(Usage|Example|Run|Python)\b", line):
+            continue
+        sentence = _first_sentence(line, limit)
+        if len(sentence.split()) >= 6 and not sentence.endswith("?"):
+            return sentence
+    return ""
 
 
 def _rationale(text: str | None, limit: int = 400) -> str:
@@ -218,7 +248,7 @@ def parse_python(path: Path) -> PyInfo | None:
     except (SyntaxError, ValueError):
         return None
     doc = ast.get_docstring(tree)
-    info = PyInfo(doc=_one_line(doc), rationale=_rationale(doc))
+    info = PyInfo(doc=_one_line(doc), rationale=_rationale(doc), why=_why(doc))
     for node in tree.body:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and not node.name.startswith("_"):
             info.functions.append(PyFunc(node.name, _signature(node), _one_line(ast.get_docstring(node)), _params(node)))
@@ -344,7 +374,7 @@ def _project_name(root: Path, readme: str) -> str:
     return root.name
 
 
-def load_model(root: Path, graph_path: Path | None, out_dir: Path) -> Model:
+def load_model(root: Path, graph_path: Path | None, out_dir: Path, detail: str = DETAIL_DEFAULT) -> Model:
     root = root.resolve()
     graph_path = graph_path if graph_path is not None else root / GRAPH_DEFAULT_PATH
     graph = _read_json(graph_path) if graph_path.is_file() else None
@@ -411,6 +441,7 @@ def load_model(root: Path, graph_path: Path | None, out_dir: Path) -> Model:
         config=config,
         readme=readme,
         notes=notes,
+        detail=detail if detail in DETAIL_LEVELS else DETAIL_DEFAULT,
     )
 
 
@@ -693,14 +724,21 @@ class Diagram:
     notes: list[str]
 
 
-def _aggregate(pairs: set[tuple[str, str]], unit: dict[str, str]) -> tuple[list[tuple[str, str, int]], int]:
+def _caps(model: Model) -> tuple[int, int, int]:
+    """(component nodes, diagram edges, runtime-flow nodes) for the model's detail level."""
+    if model.detail == "full":
+        return MAX_COMPONENT_NODES, MAX_DIAGRAM_EDGES, MAX_FLOW_NODES
+    return SUMMARY_COMPONENT_NODES, SUMMARY_DIAGRAM_EDGES, SUMMARY_FLOW_NODES
+
+
+def _aggregate(pairs: set[tuple[str, str]], unit: dict[str, str], limit: int = MAX_DIAGRAM_EDGES) -> tuple[list[tuple[str, str, int]], int]:
     weights: dict[tuple[str, str], int] = {}
     for a, b in pairs:
         ua, ub = unit.get(a), unit.get(b)
         if ua and ub and ua != ub:
             weights[(ua, ub)] = weights.get((ua, ub), 0) + 1
     ranked = sorted(weights.items(), key=lambda kv: (-kv[1], kv[0]))
-    return [(a, b, w) for (a, b), w in ranked[:MAX_DIAGRAM_EDGES]], max(0, len(ranked) - MAX_DIAGRAM_EDGES)
+    return [(a, b, w) for (a, b), w in ranked[:limit]], max(0, len(ranked) - limit)
 
 
 def _edge_line(ids: Ids, a: str, b: str, weight: int) -> str:
@@ -712,7 +750,7 @@ def container_diagram(model: Model) -> Diagram | None:
     if not mods:
         return None
     unit = {m.path: m.container for m in mods}
-    edges, dropped = _aggregate(internal_imports(model), unit)
+    edges, dropped = _aggregate(internal_imports(model), unit, _caps(model)[1])
     ids = Ids("c_")
     counts: dict[str, int] = {}
     for m in mods:
@@ -733,7 +771,8 @@ def component_diagram(model: Model) -> Diagram | None:
         return None
     pairs = internal_imports(model)
     notes: list[str] = []
-    if len(mods) <= MAX_COMPONENT_NODES:
+    node_cap, edge_cap, _ = _caps(model)
+    if len(mods) <= node_cap:
         unit = {m.path: m.path for m in mods}
     else:
         live = {m.path for m in mods}
@@ -747,7 +786,7 @@ def component_diagram(model: Model) -> Diagram | None:
         for m in ranked:
             trial = keep | {m.path}
             leftover = {(x.container, x.package) for x in mods if x.path not in trial}
-            if len(trial) + len(leftover) > MAX_COMPONENT_NODES:
+            if len(trial) + len(leftover) > node_cap:
                 break
             keep = trial
         unit = {m.path: (m.path if m.path in keep else f"pkg:{m.container}:{m.package}") for m in mods}
@@ -756,11 +795,11 @@ def component_diagram(model: Model) -> Diagram | None:
             if m.path not in keep:
                 collapsed[m.package] = collapsed.get(m.package, 0) + 1
         notes.append(
-            f"{len(mods)} modules exceed the {MAX_COMPONENT_NODES}-node cap: the {len(keep)} most connected are shown; "
+            f"{len(mods)} modules exceed the {node_cap}-node cap: the {len(keep)} most connected are shown; "
             + ", ".join(f"{n} in `{pkg}`" for pkg, n in sorted(collapsed.items()))
             + " are collapsed into one node per package."
         )
-    edges, dropped = _aggregate(pairs, unit)
+    edges, dropped = _aggregate(pairs, unit, edge_cap)
     ids = Ids("m_")
     groups: dict[str, list[str]] = {}
     labels: dict[str, str] = {}
@@ -783,7 +822,7 @@ def component_diagram(model: Model) -> Diagram | None:
     lines += [_edge_line(ids, a, b, w) for a, b, w in edges]
     notes.append("Arrows point from the importing module to the imported one; labels count imports when more than one.")
     if dropped:
-        notes.append(f"{dropped} weaker edge(s) omitted to stay under {MAX_DIAGRAM_EDGES} edges.")
+        notes.append(f"{dropped} weaker edge(s) omitted to stay under {edge_cap} edges.")
     tests = [m for m in model.modules if m.test]
     if tests:
         notes.append(f"{len(tests)} test module(s) are left out; see the test plan.")
@@ -800,10 +839,14 @@ def context_diagram(model: Model) -> Diagram:
         lines.append(f'    {ids("user")}["User / developer<br/>{len(entries)} entry point(s)"]')
         lines.append(f"    {ids('user')} -->|runs| {system}")
     deps = declared_dependencies(model.root)
-    for dep in deps[:MAX_CONTEXT_DEPS]:
+    if deps and model.detail != "full":
+        names = ", ".join(deps[:MAX_CONTEXT_DEPS]) + (f" and {len(deps) - MAX_CONTEXT_DEPS} more" if len(deps) > MAX_CONTEXT_DEPS else "")
+        lines.append(f'    {ids("deps")}["{len(deps)} declared dependencies:<br/>{mlabel(names)}"]')
+        lines.append(f"    {system} -->|uses| {ids('deps')}")
+    for dep in (deps[:MAX_CONTEXT_DEPS] if model.detail == "full" else []):
         lines.append(f'    {ids("dep:" + dep)}["{mlabel(dep)}"]')
         lines.append(f"    {system} -->|uses| {ids('dep:' + dep)}")
-    if len(deps) > MAX_CONTEXT_DEPS:
+    if len(deps) > MAX_CONTEXT_DEPS and model.detail == "full":
         lines.append(f'    {ids("dep:more")}["{len(deps) - MAX_CONTEXT_DEPS} more declared dependencies"]')
         lines.append(f"    {system} -->|uses| {ids('dep:more')}")
     workflows = [d for d in deployment_descriptors(model.root) if d.startswith(".github/workflows/")]
@@ -923,8 +966,9 @@ def runtime_flow(model: Model, entry_id: str) -> tuple[Diagram | None, str]:
     shown = {entry_id}
     edges: list[tuple[str, str]] = []
     omitted = 0
+    flow_cap = _caps(model)[2]
     for callee in first:
-        if len(shown) >= MAX_FLOW_NODES:
+        if len(shown) >= flow_cap:
             omitted += 1
             continue
         shown.add(callee)
@@ -933,7 +977,7 @@ def runtime_flow(model: Model, entry_id: str) -> tuple[Diagram | None, str]:
         for second in sorted(calls.get(callee, set())):
             if second in shown:
                 edges.append((callee, second))
-            elif len(shown) < MAX_FLOW_NODES:
+            elif len(shown) < flow_cap:
                 shown.add(second)
                 edges.append((callee, second))
             else:
@@ -945,7 +989,7 @@ def runtime_flow(model: Model, entry_id: str) -> tuple[Diagram | None, str]:
             lines.append(f"    {ids(a)} --> {ids(b)}")
     notes = ["Static direct calls only (same-module, enclosing-class or import-resolved); call order and conditions are not shown."]
     if omitted:
-        notes.append(f"{omitted} further call(s) omitted at the {MAX_FLOW_NODES}-node cap.")
+        notes.append(f"{omitted} further call(s) omitted at the {flow_cap}-node cap.")
     return Diagram(lines, notes), ""
 
 
@@ -1091,7 +1135,19 @@ def render_architecture(model: Model) -> str:
     # 9. Quality requirements
     lines += section("9. Quality requirements")
     quality = [r for r in reqs if _QUALITY_PATTERN.search(f"{r.get('category', '')} {r.get('title', '')}")]
-    if quality:
+    if quality and model.detail != "full":
+        by_cat: dict[str, int] = {}
+        for r in quality:
+            by_cat[str(r.get("category") or "Uncategorised")] = by_cat.get(str(r.get("category") or "Uncategorised"), 0) + 1
+        open_q = [r for r in quality if r.get("status") not in _TERMINAL]
+        lines += [
+            f"{len(quality)} requirement(s) name a quality attribute in their category or title "
+            f"({', '.join(f'{c} {n}' for c, n in sorted(by_cat.items()))}); {len(open_q)} still open"
+            + (f": {', '.join(str(r['id']) for r in open_q)}. " if open_q else ". ")
+            + f"Each is a row in the {_doc_link('requirements.md')}.",
+            "",
+        ]
+    elif quality:
         lines += ["| ID | Status | Category | Requirement |", "| --- | --- | --- | --- |"]
         lines += [f"| {r['id']} | {cell(r.get('status'))} | {cell(r.get('category'))} | {cell(r.get('title'))} |" for r in quality]
         lines += ["", "Selected by category or title naming a quality attribute (performance, security, reliability, usability, ...).", ""]
@@ -1099,7 +1155,7 @@ def render_architecture(model: Model) -> str:
         lines += [not_derived("no registered requirement names a quality attribute in its category or title."), ""]
     # 10. Risks and technical debt
     lines += section("10. Risks and technical debt")
-    lines += _risks_section(model, reqs)
+    lines += _risks_section(model, reqs) if model.detail == "full" else _risks_summary(model, reqs)
     # 11. Glossary
     lines += section("11. Glossary")
     lines += _glossary_section(model)
@@ -1137,9 +1193,12 @@ def _constraints(model: Model) -> list[str]:
             languages[m.language] = languages.get(m.language, 0) + 1
     if languages:
         out.append("Languages in the code graph: " + ", ".join(f"{k} ({v} modules)" for k, v in sorted(languages.items())) + ".")
-    for key in ("allow_broad_refactor", "allow_dependency_changes", "allow_schema_changes", "allow_destructive_data_changes"):
-        if model.config.get(key) is False:
-            out.append(f"Project policy `{key}` is false: such changes need explicit approval.")
+    policy = [key for key in ("allow_broad_refactor", "allow_dependency_changes", "allow_schema_changes", "allow_destructive_data_changes")
+              if model.config.get(key) is False]
+    if model.detail == "full":
+        out += [f"Project policy `{key}` is false: such changes need explicit approval." for key in policy]
+    elif policy:
+        out.append("Project policy: " + ", ".join(code(k) for k in policy) + " are false, so such changes need explicit approval.")
     stack = model.config.get("primary_language_or_stack")
     if isinstance(stack, str) and stack and not stack.startswith("<"):
         out.append(f"Declared stack: {stack}.")
@@ -1197,8 +1256,10 @@ def _deployment_section(model: Model) -> list[str]:
         for key, label in sorted(groups[group]):
             lines.append(f'        {ids(key)}["{mlabel(label)}"]')
         lines.append("    end")
-    out = [*mermaid(lines), "", "Descriptors found:", ""]
-    out += [f"- {link(model, rel)}" for rel in descriptors]
+    out = [*mermaid(lines), ""]
+    if model.detail == "full":
+        out += ["Descriptors found:", ""]
+        out += [f"- {link(model, rel)}" for rel in descriptors]
     out += ["", "- Nodes are grouped by descriptor type; how they connect at run time is not derived (no edges are drawn).", ""]
     return out
 
@@ -1215,8 +1276,13 @@ def _crosscutting_section(model: Model) -> list[str]:
         lines += ["Shared modules (imported by three or more non-test modules) carry concerns used across the system:", ""]
         for n, p in hubs[:10]:
             mod = model.by_path()[p]
-            purpose = mod.py.doc if mod.py and mod.py.doc else "no module docstring"
-            lines.append(f"- {code(p)}: imported by {n}; {cell(purpose)}")
+            if model.detail == "full":
+                purpose = mod.py.doc if mod.py and mod.py.doc else "no module docstring"
+                lines.append(f"- {code(p)}: imported by {n}; {cell(purpose)}")
+            else:
+                lines.append(f"- {code(p)}: imported by {n}")
+        if model.detail != "full":
+            lines += ["", f"What each one is for is in the {_doc_link('design.md')}."]
         lines.append("")
     externals: dict[str, int] = {}
     for path, names in external_imports(model).items():
@@ -1275,6 +1341,31 @@ def _risks_section(model: Model, reqs: list[dict[str, Any]]) -> list[str]:
     return lines
 
 
+def _risks_summary(model: Model, reqs: list[dict[str, Any]]) -> list[str]:
+    open_failures = [f for f in model.failures if f.get("status") == "open"]
+    lines = [
+        f"{len(open_failures)} open failure(s) of {len(model.failures)} in the failure ledger"
+        + (f": {', '.join(str(f['id']) for f in open_failures)}; severity, requirement and affected files are in the "
+           f"{_doc_link('requirements-traceability.md')}." if open_failures else "."),
+        "",
+    ]
+    recurring = [f for f in model.failures if f.get("recurrence_of")]
+    if recurring:
+        lines += [f"{len(recurring)} recorded failure(s) recurred after an earlier fix (technical debt that came back): "
+                  + ", ".join(f"{f['id']} repeats {f['recurrence_of']}" for f in recurring) + ".", ""]
+    risky = [(r, [str(n) for n in r.get("risk_notes") or [] if str(n).strip()]) for r in reqs if r.get("status") not in _TERMINAL]
+    risky = [(r, notes) for r, notes in risky if notes]
+    if risky:
+        lines += ["Open requirements that carry risk notes, with the first note (all notes: `omni requirement show <id>`, or `--detail full`):", ""]
+        for r, notes in risky:
+            more = f" (+{len(notes) - 1} more note{'' if len(notes) == 2 else 's'})" if len(notes) > 1 else ""
+            lines.append(f"- {r['id']} ({r.get('status')}): {cell(_first_sentence(notes[0], MAX_RISK_NOTE))}{more}")
+        lines.append("")
+    else:
+        lines += ["No open requirement carries a risk note.", ""]
+    return lines
+
+
 def _glossary_section(model: Model) -> list[str]:
     terms: list[tuple[str, str, str]] = []
     for m in code_modules(model):
@@ -1285,13 +1376,112 @@ def _glossary_section(model: Model) -> list[str]:
     if not terms:
         return [not_derived("no documented public classes to draw terms from, and no glossary file is generated from prose."), ""]
     lines = ["Terms defined in code (public classes with a docstring):", "", "| Term | Meaning | Defined in |", "| --- | --- | --- |"]
-    lines += [f"| {cell(n)} | {cell(d)} | {code(p)} |" for n, d, p in terms[:MAX_GLOSSARY]]
-    if len(terms) > MAX_GLOSSARY:
-        lines.append(f"\n{len(terms) - MAX_GLOSSARY} more documented classes are listed in the SDD.")
+    short = model.detail != "full"
+    cap = SUMMARY_GLOSSARY if short else MAX_GLOSSARY
+    lines += [f"| {cell(n)} | {cell(_first_sentence(d, 140) if short else d)} | {code(p)} |" for n, d, p in terms[:cap]]
+    if len(terms) > cap:
+        where = "are documented in the source (`--detail full` lists them in the SDD)" if short else "are listed in the SDD"
+        lines.append(f"\n{len(terms) - cap} more documented classes {where}.")
     return [*lines, ""]
 
 
 def render_design(model: Model) -> str:
+    return _render_design_full(model) if model.detail == "full" else _render_design_summary(model)
+
+
+def _first_sentence(text: Any, limit: int) -> str:
+    """The first sentence of a text, collapsed to one line and cut at `limit` characters."""
+    line = " ".join(str(text or "").split())
+    match = re.search(r"(?<=[.!?])\s+(?=[A-Z(`\"'])", line)
+    if match:
+        line = line[: match.start()]
+    return line if len(line) <= limit else line[: limit - 3].rstrip() + "..."
+
+
+def _names(names: list[str], limit: int) -> str:
+    """`a`, `b`, `c` (+N more), for lists that must stay one short line."""
+    shown = ", ".join(code(n) for n in names[:limit])
+    return shown + (f" (+{len(names) - limit} more)" if len(names) > limit else "")
+
+
+def _package_label(package: str) -> str:
+    return "repository root" if package == "(root)" else package
+
+
+def _render_design_summary(model: Model) -> str:
+    lines = header(model, "design.md", "Software Design Document (SDD)")
+    mods = code_modules(model)
+    if not mods:
+        return finish(lines + [not_derived("no source modules in the code graph (run `omni graph build`)."), ""])
+    by_package: dict[str, list[Module]] = {}
+    for m in mods:
+        by_package.setdefault(m.package, []).append(m)
+    lines += [
+        f"What each part of {model.project} is for: {len(mods)} module(s) in {len(by_package)} package(s). Each package "
+        "gets one line in the table below, then one line per module: its purpose (from the module docstring), the "
+        "public types it defines, how many project modules import it, and the design reason when the docstring gives one.",
+        "",
+        f"Where the rest lives: per-module import lists in the {_doc_link('modules.md')}, class relationships in the "
+        f"{_doc_link('class-diagram.md')}, which files and tests belong to each requirement in the "
+        f"{_doc_link('requirements-traceability.md')}. `omni docs build --detail full` writes every public signature, "
+        "class and method here instead.",
+        "",
+    ]
+    tooling = [m for m in model.modules if m.tooling]
+    if tooling:
+        lines += [f"Embedded OmniEngineering tooling is not described here: {', '.join(code(m.path) for m in tooling)}.", ""]
+    imports = internal_imports(model)
+    package_of = {m.path: m.package for m in mods}
+    pkg_deps: dict[str, set[str]] = {}
+    inbound: dict[str, int] = {}
+    for a, b in sorted(imports):
+        if a in package_of and b in package_of and package_of[a] != package_of[b]:
+            pkg_deps.setdefault(package_of[a], set()).add(package_of[b])
+        if not model.by_path()[a].test and a != b:
+            inbound[b] = inbound.get(b, 0) + 1
+    lines += section("Packages")
+    lines += ["| Package | Modules | What it is for | Uses packages |", "| --- | --- | --- | --- |"]
+    for package in sorted(by_package):
+        init = model.by_path().get(f"{package}/__init__.py" if package != "(root)" else "__init__.py")
+        purpose = init.py.doc if init and init.py and init.py.doc else "-"
+        lines.append(
+            f"| [{cell(_package_label(package))}](#{_anchor('package ' + _package_label(package))}) | {len(by_package[package])} "
+            f"| {cell(purpose)} | {cell(', '.join(sorted(pkg_deps.get(package, set()))))} |"
+        )
+    lines.append("")
+    for package in sorted(by_package):
+        lines += section(f"Package {_package_label(package)}")
+        for m in sorted(by_package[package], key=lambda x: x.path):
+            name = m.path[len(package) + 1 :] if package != "(root)" else m.path
+            purpose = m.py.doc if m.py and m.py.doc else "_No module docstring._"
+            if m.py:
+                types = [c.name for c in m.py.classes]
+                n_funcs = len(m.py.functions)
+            else:
+                types = [n for k, n in m.symbols if k == "class" and not n.startswith("_")]
+                n_funcs = len([n for k, n in m.symbols if k == "function" and not n.startswith("_")])
+            facts = []
+            if types:
+                facts.append(f"Defines {_names(types, MAX_KEY_TYPES)}.")
+            if n_funcs:
+                facts.append(f"{n_funcs} public function{'' if n_funcs == 1 else 's'}.")
+            used = inbound.get(m.path, 0)
+            if used:
+                facts.append(f"Imported by {used} module{'' if used == 1 else 's'}.")
+            why = m.py.why if m.py else ""
+            if why:
+                facts.append(f"Why: {why}")
+            lines.append(" ".join([f"- {link(model, m.path, name)}: {purpose}", *facts]))
+        lines.append("")
+    return finish(lines)
+
+
+def _anchor(heading: str) -> str:
+    """GitHub's anchor for a Markdown heading."""
+    return re.sub(r"[^\w\- ]", "", heading.strip().lower()).replace(" ", "-")
+
+
+def _render_design_full(model: Model) -> str:
     lines = header(model, "design.md", "Software Design Document (SDD)")
     lines += [
         "Organised after IEEE 1016: for each module, its purpose, interfaces, data structures, dependencies and the "
@@ -1381,14 +1571,22 @@ def render_modules(model: Model) -> str:
     if not mods:
         return finish(lines + [not_derived("no source modules in the code graph."), ""])
     imports = internal_imports(model)
-    lines += [f"{len(mods)} source module(s); full interfaces are in the {_doc_link('design.md')}.", ""]
-    lines += ["| Module | Container | Purpose | Public symbols | Imports | Imported by |", "| --- | --- | --- | --- | --- | --- |"]
+    full = model.detail == "full"
+    if full:
+        lines += [f"{len(mods)} source module(s); full interfaces are in the {_doc_link('design.md')}.", ""]
+        lines += ["| Module | Container | Purpose | Public symbols | Imports | Imported by |", "| --- | --- | --- | --- | --- | --- |"]
+    else:
+        lines += [f"{len(mods)} source module(s): which project modules each one imports and is imported by. What each module is for is in the {_doc_link('design.md')}.", ""]
+        lines += ["| Module | Container | Public symbols | Imports | Imported by |", "| --- | --- | --- | --- | --- |"]
     for m in sorted(mods, key=lambda x: x.path):
         count = (len(m.py.functions) + len(m.py.classes)) if m.py else len([s for s in m.symbols if not s[1].startswith("_")])
         out = sorted(b for a, b in imports if a == m.path)
         inn = sorted(a for a, b in imports if b == m.path)
         purpose = m.py.doc if m.py and m.py.doc else "-"
-        lines.append(f"| {link(model, m.path)} | {cell(m.container)} | {cell(purpose)} | {count} | {cell(', '.join(out))} | {cell(', '.join(inn))} |")
+        if full:
+            lines.append(f"| {link(model, m.path)} | {cell(m.container)} | {cell(purpose)} | {count} | {cell(', '.join(out))} | {cell(', '.join(inn))} |")
+        else:
+            lines.append(f"| {link(model, m.path)} | {cell(m.container)} | {count} | {cell(', '.join(out))} | {cell(', '.join(inn))} |")
     tests = [m for m in model.modules if m.test]
     if tests:
         lines += ["", f"{len(tests)} test module(s) are listed in the {_doc_link('test-plan.md')}."]
@@ -1410,6 +1608,82 @@ def render_class_diagram(model: Model) -> str:
 
 
 def render_requirements(model: Model) -> str:
+    return _render_requirements_full(model) if model.detail == "full" else _render_requirements_summary(model)
+
+
+def _status_rank(status: str) -> tuple[int, str]:
+    return (_STATUS_ORDER.index(status) if status in _STATUS_ORDER else 99, status)
+
+
+def _render_requirements_summary(model: Model) -> str:
+    lines = header(model, "requirements.md", "Software Requirements Specification (SRS)")
+    reqs = active_requirements(model)
+    archived = sorted((r for r in model.requirements if r["_archived"]), key=_req_sort_key)
+    lines += [
+        f"What {model.project} must do. One row per requirement in `.ai/requirements/requirements.json`, grouped by "
+        "area: its status, priority, how many tests are linked to it, and the first sentence of its description. "
+        "Acceptance criteria follow for the requirements that are still open.",
+        "",
+        f"Which tests and files belong to each requirement is in the {_doc_link('requirements-traceability.md')}; the "
+        f"validation each one asks for is in the {_doc_link('test-plan.md')}. For a single requirement in full run "
+        "`omni requirement show <id>`; `omni docs build --detail full` writes every requirement in full here. Change "
+        "requirements with `omni requirement add|update|complete`, never here.",
+        "",
+    ]
+    if not reqs and not archived:
+        return finish(lines + [not_derived("the requirement registry is empty."), ""])
+    counts: dict[str, int] = {}
+    for r in reqs:
+        counts[str(r.get("status"))] = counts.get(str(r.get("status")), 0) + 1
+    categories: dict[str, list[dict[str, Any]]] = {}
+    for r in reqs:
+        categories.setdefault(str(r.get("category") or "Uncategorised"), []).append(r)
+    lines += section("Status")
+    lines += [f"{len(reqs)} active requirement(s) in {len(categories)} area(s); {len(archived)} archived.", ""]
+    lines += ["| Status | Requirements |", "| --- | --- |"]
+    lines += [f"| {s} | {counts[s]} |" for s in sorted(counts, key=_status_rank)]
+    lines.append("")
+    functional = {c: rs for c, rs in categories.items() if not _QUALITY_PATTERN.search(c)}
+    quality = {c: rs for c, rs in categories.items() if _QUALITY_PATTERN.search(c)}
+    lines += section("Functional requirements")
+    lines += _req_tables(model, functional) if functional else [not_derived("every category names a quality attribute."), ""]
+    lines += section("Non-functional requirements")
+    lines += _req_tables(model, quality) if quality else [not_derived("no requirement category names a quality attribute (performance, security, reliability, ...)."), ""]
+    open_reqs = [r for r in reqs if r.get("status") not in _TERMINAL]
+    lines += section("Acceptance criteria of open requirements")
+    if open_reqs:
+        lines += ["Completed and withdrawn requirements are left out; their criteria are in the registry.", ""]
+        for r in open_reqs:
+            lines += section(f"{r['id']}: {cell(r.get('title'))}", 3)
+            acceptance = [str(a) for a in r.get("acceptance_criteria") or [] if str(a).strip()]
+            lines += [f"{i}. {cell(a)}" for i, a in enumerate(acceptance, 1)] or ["_None recorded._"]
+            lines.append("")
+    else:
+        lines += ["No requirement is open.", ""]
+    if archived:
+        lines += section("Archived requirements")
+        lines += ["| ID | Status | Title |", "| --- | --- | --- |"]
+        lines += [f"| {r['id']} | {cell(r.get('status'))} | {cell(r.get('title'))} |" for r in archived]
+        lines.append("")
+    return finish(lines)
+
+
+def _req_tables(model: Model, categories: dict[str, list[dict[str, Any]]]) -> list[str]:
+    lines: list[str] = []
+    for category in sorted(categories, key=str.lower):
+        lines += section(category, 3)
+        lines += ["| ID | Requirement | Status | Priority | Tests | Statement |", "| --- | --- | --- | --- | --- | --- |"]
+        for r in categories[category]:
+            statement = _first_sentence(r.get("description"), MAX_STATEMENT) or "-"
+            lines.append(
+                f"| {r['id']} | {cell(r.get('title'))} | {cell(r.get('status'))} | {cell(r.get('priority'))} "
+                f"| {len(linked_tests(model, r))} | {cell(statement)} |"
+            )
+        lines.append("")
+    return lines
+
+
+def _render_requirements_full(model: Model) -> str:
     lines = header(model, "requirements.md", "Software Requirements Specification (SRS)")
     reqs = active_requirements(model)
     archived = sorted((r for r in model.requirements if r["_archived"]), key=_req_sort_key)
@@ -1584,7 +1858,11 @@ def render_changes(model: Model) -> str:
         lines.append("")
     lines += section("Open failures")
     open_failures = [f for f in model.failures if f.get("status") == "open"]
-    lines += [f"- {f['id']} ({cell(f.get('severity'))}, {cell(f.get('requirement'))}): {cell(f.get('title'))}" for f in open_failures] or [f"None ({len(model.failures)} recorded)."]
+    if model.detail == "full" or not open_failures:
+        lines += [f"- {f['id']} ({cell(f.get('severity'))}, {cell(f.get('requirement'))}): {cell(f.get('title'))}" for f in open_failures] or [f"None ({len(model.failures)} recorded)."]
+    else:
+        lines += [f"{len(open_failures)} open of {len(model.failures)} recorded; severity, title and affected files are in the {_doc_link('requirements-traceability.md')}:", ""]
+        lines += [f"- {f['id']} ({cell(f.get('requirement'))})" for f in open_failures]
     lines.append("")
     lines += section("Required documentation not touched")
     if not model.has_history:
@@ -1618,10 +1896,23 @@ def render_changes(model: Model) -> str:
     return finish(lines)
 
 
+def _sha_line(model: Model) -> str:
+    """The one line that changes from run to run: the commit documented and the commit the graph was built at.
+    `check_docs` ignores it, so committing the docs (which moves HEAD) never makes them stale."""
+    line = f"{SHA_LINE_PREFIX}`{model.sha}`" if model.sha else f"{SHA_LINE_PREFIX}(not a git checkout)"
+    if model.graph_head:
+        line += f"; code graph built at `{model.graph_head[:12]}`"
+        if model.sha and model.graph_head != model.sha:
+            line += " (older than HEAD: `omni docs build` rebuilds a stale graph)"
+    return line + "."
+
+
 def render_index(model: Model) -> str:
     lines = header(model, "index.md", f"{model.project}: generated engineering documentation")
     lines += [
-        f"{SHA_LINE_PREFIX}`{model.sha}`." if model.sha else f"{SHA_LINE_PREFIX}(not a git checkout).",
+        _sha_line(model),
+        "",
+        f"{DETAIL_LINE_PREFIX}{model.detail} (`omni docs build --detail summary|full`; later rebuilds keep it).",
         "",
         "Regenerate with `omni docs build`; `omni requirement add|update|complete` regenerate it automatically. "
         "Nothing here is written by a model: every line comes from the code graph, the requirement registry, the "
@@ -1634,14 +1925,11 @@ def render_index(model: Model) -> str:
     lines += ["", *section("Inputs")]
     code_count = len([m for m in model.modules if not m.test])
     lines += [
-        f"- Code graph: {code_count} source module(s), {len([m for m in model.modules if m.test])} test module(s)"
-        + (f", built at commit `{model.graph_head[:12]}`" if model.graph_head else "") + ".",
+        f"- Code graph: {code_count} source module(s), {len([m for m in model.modules if m.test])} test module(s).",
         f"- Requirements: {len([r for r in model.requirements if not r['_archived']])} active, {len([r for r in model.requirements if r['_archived']])} archived.",
         f"- Failure ledger: {len(model.failures)} entr{'y' if len(model.failures) == 1 else 'ies'}.",
         f"- Test suites: {len(model.suites)} registered.",
     ]
-    if model.sha and model.graph_head and model.graph_head != model.sha:
-        lines.append("- The code graph was built at an older commit than HEAD; run `omni graph build` (or `omni docs build`, which rebuilds a stale graph) for current code views.")
     for note in model.notes:
         lines.append(f"- Note: {note}")
     return finish(lines)
@@ -1665,8 +1953,23 @@ RENDERERS = {
 # --------------------------------------------------------------------------
 
 
-def render_all(root: Path, out_dir: Path, graph_path: Path | None = None) -> dict[str, str]:
-    model = load_model(root, graph_path, out_dir)
+def recorded_detail(out_dir: Path) -> str | None:
+    """The detail level the documents in `out_dir` were last built at, read from index.md."""
+    text = _read_text(out_dir / "index.md") or ""
+    match = re.search(rf"^{re.escape(DETAIL_LINE_PREFIX)}([a-z]+)", text, re.M)
+    return match.group(1) if match and match.group(1) in DETAIL_LEVELS else None
+
+
+def resolve_detail(out_dir: Path, detail: str | None = None) -> str:
+    """An explicit level wins; otherwise the level the docs were last built at, so a regeneration after
+    `omni requirement complete` or a `--check` never switches a full build back to summary."""
+    if detail in DETAIL_LEVELS:
+        return str(detail)
+    return recorded_detail(out_dir) or DETAIL_DEFAULT
+
+
+def render_all(root: Path, out_dir: Path, graph_path: Path | None = None, detail: str | None = None) -> dict[str, str]:
+    model = load_model(root, graph_path, out_dir, resolve_detail(out_dir, detail))
     return {name: RENDERERS[name](model) for name in sorted(RENDERERS)}
 
 
@@ -1674,9 +1977,11 @@ def _comparable(text: str) -> str:
     return "\n".join(line for line in text.splitlines() if not line.startswith(SHA_LINE_PREFIX))
 
 
-def build_docs(root: Path, out_dir: Path, graph_path: Path | None = None) -> dict[str, list[str]]:
-    """Write every document whose bytes changed; returns {"written": [...], "unchanged": [...]}."""
-    docs = render_all(root, out_dir, graph_path)
+def build_docs(root: Path, out_dir: Path, graph_path: Path | None = None, detail: str | None = None) -> dict[str, list[str]]:
+    """Write every document whose bytes changed; returns {"written": [...], "unchanged": [...]}. Rendering is pure
+    (sorted, no timestamps), so unchanged inputs give byte-identical files and a small input change touches only
+    the lines that depend on it; that is why whole documents are re-rendered rather than patched per section."""
+    docs = render_all(root, out_dir, graph_path, detail)
     out_dir.mkdir(parents=True, exist_ok=True)
     result: dict[str, list[str]] = {"written": [], "unchanged": []}
     for name, text in docs.items():
@@ -1694,10 +1999,10 @@ def build_docs(root: Path, out_dir: Path, graph_path: Path | None = None) -> dic
     return result
 
 
-def check_docs(root: Path, out_dir: Path, graph_path: Path | None = None) -> list[str]:
+def check_docs(root: Path, out_dir: Path, graph_path: Path | None = None, detail: str | None = None) -> list[str]:
     """Names of documents that are missing or differ from a fresh render (the commit-SHA line is ignored)."""
     stale = []
-    for name, text in render_all(root, out_dir, graph_path).items():
+    for name, text in render_all(root, out_dir, graph_path, detail).items():
         current = _read_text(out_dir / name)
         if current is None or _comparable(current.replace("\r\n", "\n")) != _comparable(text):
             stale.append(name)
