@@ -1395,7 +1395,11 @@ def _first_sentence(text: Any, limit: int) -> str:
     match = re.search(r"(?<=[.!?])\s+(?=[A-Z(`\"'])", line)
     if match:
         line = line[: match.start()]
-    return line if len(line) <= limit else line[: limit - 3].rstrip() + "..."
+    if len(line) <= limit:
+        return line
+    cut = line[: limit - 3]
+    cut = cut[: cut.rfind(" ")] if " " in cut else cut  # never end mid-word
+    return cut.rstrip(" ,;:-") + "..."
 
 
 def _names(names: list[str], limit: int) -> str:
