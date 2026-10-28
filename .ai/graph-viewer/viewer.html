@@ -384,7 +384,8 @@
   // Each edge type flows one way: intent -> delivery -> code -> assurance. Up follows only upstream links, down only downstream ones.
   // Keep in step with LINEAGE_FLOW in omni_graph.py, which `omni graph lineage` uses.
   var LFLOW = { defines: 'down', contains: 'down', touches: 'down', modifies: 'down', mentions: 'down', delivers: 'up', records: 'up', logged_in: 'down',
-    arose_in: 'up', affects: 'up', guards: 'up', prevented_by: 'down', fixed_by: 'down', covers: 'up', verifies: 'up' };
+    arose_in: 'up', affects: 'up', guards: 'up', prevented_by: 'down', fixed_by: 'down', covers: 'up', verifies: 'up',
+    flags: 'up', waived_by: 'down', recorded_for: 'up' };
   var LCODE = { calls: 'up', imports: 'up', inherits: 'up', implements: 'up', uses: 'up', references: 'up', maps_to: 'up' };
   var LHOP = { follows: 'up', recurs: 'up' };            // sequence links: shown one step from the node asked about, never walked on
   var lineageOpts = { dir: 'both', depth: 4, code: false }, LINEAGE_CAP = 400;

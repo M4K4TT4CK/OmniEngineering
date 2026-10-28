@@ -1261,6 +1261,48 @@
         "never checklists",
         "playbooks or agent definitions."
       ]
+    },
+    {
+      "id": "REQ-036",
+      "category": "Agent tooling",
+      "title": "Make Arbiter findings graph-traceable, waivable, and mechanically gated",
+      "description": "REQ-035 wired Arbiter into agent/checklist prose but left it invisible to the code graph (five layers, zero Arbiter node/edge kinds -- confirmed by grep), left omni waive unable to record an Arbiter finding id (run_waive rejected anything outside the fixed completion-workflow rule set), and left the new Arbiter-gating instruction purely advisory (only 2 of 14 completion-workflow rules had a mechanical validation block). This closes all three, verified against the real arbiter 0.1.0 CLI and its actual JSON report schema (arbiter/core.py Finding/Location dataclasses), not assumed: (1) a new add_arbiter_layer() in omni_graph.py reads arbiter-out/report.json and .arbiter/knowledge.json (both file-based, like every other layer -- it never invokes the arbiter binary itself) into arbiter_finding and waiver graph nodes with flags/waived_by/recorded_for edges, joined to existing file and requirement nodes; (2) run_waive() now accepts a 12-hex-char Arbiter finding id alongside the existing rule-id path, tagging subject_type so the graph can tell them apart, with an explicit disclaimer that this only affects traceability, not Arbiter's own gate outcome; (3) a new arbiter_gate validation type runs \"arbiter gate --changed <base> --no-adapters --profile offline\" inside omni gate itself (native probes only, no network, so a hook firing on every commit stays fast and never hangs on a missing tool), registered as completion.arbiter_gate, skipping rather than failing when arbiter is absent or base is unresolvable. Found and fixed one regression along the way: the offline 3D graph viewer (.ai/graph-viewer/viewer.html) hand-mirrors omni_graph.py's LINEAGE_FLOW table in JS and the existing test suite (tests/test_viewer.py) caught it falling out of sync the moment the three new edge types were added to the Python side.",
+      "priority": "medium",
+      "status": "completed",
+      "minimum_access_scope": [
+        "omni_graph.py",
+        "make_ai.py",
+        ".ai/rules/completion-workflow.json",
+        ".ai/graph-viewer/viewer.html",
+        ".ai/checklists/pre-completion.md",
+        "README.md",
+        ".gitignore",
+        "tests/"
+      ],
+      "acceptance_criteria": [
+        "add_arbiter_layer, unit-tested directly against a real arbiter-out/report.json and a synthetic report matching arbiter's real Finding/Location schema, creates arbiter_finding and waiver nodes with correct flags/waived_by/recorded_for edges and JSON-serializes cleanly",
+        "omni graph why and omni graph lineage (verified against a real built graph.json, not just node/edge construction) correctly surface an arbiter_finding from its file and vice versa, and a waiver from its finding and its requirement",
+        "omni waive accepts a 12-hex finding id and rejects malformed ids with a clear error, verified against the live CLI",
+        "omni gate mechanically runs arbiter gate --changed and fails on a nonzero exit, verified against the live CLI including two real bugs caught by that verification (an invalid --limit flag and a missing target path) and fixed before shipping",
+        "omni doctor and the full tests/ suite (178 tests) pass with 0 errors after all changes",
+        "omni waive completion.arbiter_gate and a fabricated finding id both round-tripped through the real CLI and were cleaned up after verification, leaving no test artifacts in the tracked tree"
+      ],
+      "validation_required": [
+        "unittest_discover_tests",
+        "omni_doctor",
+        "omni_gate",
+        "arbiter_cli_dry_run",
+        "graph_layer_direct_invocation"
+      ],
+      "documentation_required": [
+        "changelog",
+        "readme"
+      ],
+      "risk_notes": [
+        "completion.arbiter_gate shells out to a real external process on every omni gate call (manual, the Stop hook, and the git pre-commit hook alike) whenever arbiter is on PATH and in-scope files changed; bounded to --no-adapters --profile offline with a 120s timeout specifically to keep this safe, but it is a real behavior change from every other gate rule, which only ever diff files.",
+        "omni waive on an Arbiter finding id is traceability-only by design -- it does not suppress the finding in Arbiter's own knowledge.json or change completion.arbiter_gate's outcome; only arbiter feedback <id> --false-positive does that. This is stated in the CLI's own output but is an easy thing to assume works the other way.",
+        "The graph layer was verified by direct unit-style invocation (add_arbiter_layer, why, lineage against hand-built fixtures and a real report file), not through a full omni graph build in this shell, because tree-sitter is not installed here (a pre-existing, unrelated local environment gap) -- the one line wiring add_arbiter_layer into build_graph's existing LAYER_ASSURANCE branch was not exercised by the full CLI pipeline end to end."
+      ]
     }
   ]
 }

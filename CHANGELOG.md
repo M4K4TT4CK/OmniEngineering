@@ -1,5 +1,42 @@
 # Changelog
 
+## 2026-09-23 (2)
+
+
+### Completed
+
+- Agent tooling | REQ-036: REQ-035 wired Arbiter into agent and checklist
+  prose but left it invisible to the code graph, unwaivable through `omni
+  waive`, and purely advisory. Closed all three, verified against the real
+  `arbiter 0.1.0` CLI rather than assumed. `add_arbiter_layer()` in
+  `omni_graph.py` reads `arbiter-out/report.json` and
+  `.arbiter/knowledge.json` (file-based, like every other layer -- it never
+  invokes the `arbiter` binary itself) into `arbiter_finding` and `waiver`
+  graph nodes with `flags`/`waived_by`/`recorded_for` edges to the existing
+  file and requirement nodes. `omni waive` now accepts a 12-character
+  Arbiter finding id alongside a rule id, tagged with `subject_type` so the
+  graph can tell them apart -- with an explicit disclaimer that this only
+  affects `omni graph why`/`lineage` traceability, not Arbiter's own gate
+  outcome (only `arbiter feedback <id> --false-positive` does that). A new
+  `arbiter_gate` validation type, registered as `completion.arbiter_gate`,
+  runs `arbiter gate --changed <base> --no-adapters --profile offline`
+  inside `omni gate` itself -- native probes only, no network, so a hook
+  firing on every commit stays fast (6.8s total for `omni gate` on this
+  repo) and never hangs on a missing tool or an unreachable registry;
+  skipped, not failed, when arbiter is absent or the base ref can't be
+  resolved. Verifying this for real caught three real bugs before they
+  shipped: an `--limit` flag `arbiter gate` doesn't accept (only `scan`
+  does), a missing required target path, and the offline 3D graph viewer's
+  hand-mirrored `LINEAGE_FLOW` table (`.ai/graph-viewer/viewer.html`)
+  falling out of sync with `omni_graph.py` the moment the three new edge
+  types were added -- caught by the existing `tests/test_viewer.py`, not
+  invented for this change. Full suite: 178 tests, 0 failures (4 skipped,
+  unchanged from baseline). `arbiter-out/` and `.arbiter/` added to
+  `.gitignore`. The graph layer was verified by direct unit-style
+  invocation against hand-built fixtures and a real report file, not
+  through a full `omni graph build` in this shell, because tree-sitter
+  is not installed here (a pre-existing, unrelated local gap, see FAIL-009).
+
 ## 2026-09-23 (1)
 
 

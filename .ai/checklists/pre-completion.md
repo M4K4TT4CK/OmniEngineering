@@ -19,7 +19,10 @@
   characteristic of machine-drafted code, such as hallucinated imports) and
   any other blocking finding must be fixed or explicitly disputed through
   Arbiter's own review queue before completion; if `arbiter` is not
-  available, say so rather than skipping the check silently.
+  available, say so rather than skipping the check silently. `omni gate`
+  now runs this same check mechanically (native probes only, no network) as
+  a backstop -- fixing it here first is still worth doing, since it catches
+  the finding before the gate would.
 - Tests or validation run, or skipped with reason.
 - New test frameworks, test directories or check scripts are registered as test
   suites (`omni test detect`); `omni test check` passes.

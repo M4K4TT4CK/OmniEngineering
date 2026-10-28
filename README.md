@@ -1078,13 +1078,14 @@ cognitive load," "prefer composition," "use clear names" -- and stay that way
 on purpose: mechanizing them would mean checking a shallow proxy and letting
 the real judgment slide, which is worse than an honest "not machine-checked."
 A rule earns a `validation` block only when there is a real, non-fake check
-for it. Three types exist today:
+for it. Four types exist today:
 
 | `validation.type` | What it actually checks |
 | --- | --- |
 | `co_changed` | When any changed path matches `when_changed` (and not `ignore`), at least one changed path must also match `must_also_change` -- e.g. touching anything requires touching `CHANGELOG.md`. |
 | `requirement_registry_entry` | Every `REQ-###`-shaped ID cited in a commit message since the base, or newly added to `CHANGELOG.md`, must actually exist in the requirements registry -- catches a typo'd or invented ID that `omni doctor`'s registry-schema check cannot see, since that only validates the registry's own shape, never what other files claim about it. |
 | `content_forbidden` | Changed files are scanned for a short list of regex patterns (a private-key header, an AWS-shaped access key, an obviously hardcoded credential). A bounded, honest safety net for the most common accidental leaks, not a claim of exhaustive secret scanning. |
+| `arbiter_gate` | When arbiter is on PATH and a changed path matches `when_changed` (and not `ignore`), `arbiter gate --changed <base ref> --no-adapters --profile offline` must exit 0 -- native probes only, no external analyzer and no network, so this stays fast enough to run on every commit. Skips, never fails, when arbiter is not installed or the base ref cannot be resolved. |
 
 Add a rule to a rulepack:
 

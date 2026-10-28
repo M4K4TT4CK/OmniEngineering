@@ -31,6 +31,7 @@ import math
 import os
 import random
 import re
+import shutil
 import subprocess
 import urllib.error
 import urllib.request
@@ -106,6 +107,8 @@ NODE_KIND_LAYER = {
     "rulepack": LAYER_WORKSPACE,
     "playbook": LAYER_WORKSPACE,
     "checklist": LAYER_WORKSPACE,
+    "arbiter_finding": LAYER_ASSURANCE,
+    "waiver": LAYER_ASSURANCE,
 }
 
 EDGE_LAYER = {
@@ -125,6 +128,9 @@ EDGE_LAYER = {
     "recurs": LAYER_ASSURANCE,  # failure -> earlier failure it repeats
     "contains": LAYER_ASSURANCE,  # test suite -> test file it groups
     "covers": LAYER_ASSURANCE,  # test suite -> code it is declared or inferred to cover
+    "flags": LAYER_ASSURANCE,  # arbiter finding -> file/module it names
+    "waived_by": LAYER_ASSURANCE,  # arbiter finding, or a gated omni rule -> the waiver recorded against it
+    "recorded_for": LAYER_ASSURANCE,  # waiver -> requirement it was recorded under
 }
 
 FAILURE_LEDGER_PATH = ".ai/failures/failure-ledger.json"
@@ -140,6 +146,9 @@ _DEFAULT_GRAPH_CONFIG: dict[str, Any] = {
     "changelog_files": ["CHANGELOG.md", "CHANGELOG", "CHANGES.md", "HISTORY.md", "RELEASES.md", "NEWS.md", "docs/CHANGELOG.md"],
     "failure_ledger": FAILURE_LEDGER_PATH,
     "test_suites_file": ".ai/test-suites.json",
+    "arbiter_report": "arbiter-out/report.json",
+    "arbiter_knowledge": ".arbiter/knowledge.json",
+    "gate_waivers_file": ".ai/gate-waivers.jsonl",
     "test_globs": [],
     "exclude_test_globs": [],
     "ci_files": [],
@@ -2114,6 +2123,7 @@ def build_graph(
         add_history_layer(graph, root, max_commits)
     if LAYER_ASSURANCE in layers:
         add_assurance_layer(graph, root)
+        add_arbiter_layer(graph, root)
     graph.layer_stats[LAYER_CODE] = {
         "nodes": sum(1 for node in graph.nodes.values() if node.layer == LAYER_CODE and node.kind != "external"),
     }
@@ -2984,6 +2994,120 @@ def add_assurance_layer(graph: Graph, root: Path) -> dict[str, Any]:
     return stats
 
 
+def add_arbiter_layer(graph: Graph, root: Path) -> dict[str, Any]:
+    """Arbiter's own findings, joined to the files they name and to any waiver or adjudication on record.
+
+    Purely file-based like every other layer here: it never invokes the `arbiter` binary itself. Run
+    `arbiter scan --format json` (or let `omni gate` run `arbiter gate --changed <base>` -- see
+    completion.arbiter_gate) to produce the report this reads; this layer only makes an existing report
+    and its disposition traceable through `omni graph why` / `lineage`.
+    """
+    index = _LayerIndex(graph, root)
+    cfg = graph_config(root)
+    problems: list[str] = []
+    report_rel = cfg["arbiter_report"]
+    report = _read_json_file(root / report_rel, problems, report_rel)
+    graph.notes.extend(f"arbiter: {problem}" for problem in problems)
+    stats: dict[str, Any] = {"findings": 0, "flagged_files": 0, "waived": 0, "adjudicated": 0, "gate_passed": None}
+    if not isinstance(report, dict):
+        if report is None:
+            graph.notes.append(
+                f"arbiter: no report at {report_rel}; run `arbiter scan --format json` (or let `omni gate` "
+                f"run `arbiter gate --changed <base>`) to populate it, or point graph-config's arbiter_report elsewhere"
+            )
+        else:
+            graph.notes.append(f"arbiter: {report_rel} is not a JSON object; ignoring")
+        graph.layer_stats.setdefault(LAYER_ASSURANCE, {}).update(stats)
+        return stats
+
+    gate = report.get("gate") if isinstance(report.get("gate"), dict) else {}
+    stats["gate_passed"] = gate.get("passed")
+    scope = report.get("scan_scope") if isinstance(report.get("scan_scope"), dict) else {}
+    if scope:
+        basis = f", {scope['basis']}" if scope.get("basis") else ""
+        graph.notes.append(
+            f"arbiter: {report_rel} is a {scope.get('mode', 'unknown')}-scope report "
+            f"({scope.get('files_read', '?')} of {scope.get('files_total', '?')} file(s) read{basis})"
+        )
+
+    findings = report.get("findings") if isinstance(report.get("findings"), list) else []
+    finding_nodes: dict[str, str] = {}
+    unresolved: list[str] = []
+    for item in findings:
+        if not isinstance(item, dict) or not item.get("id"):
+            continue
+        fid = str(item["id"])
+        node_id = f"arbiter:{fid}"
+        finding_nodes[fid] = node_id
+        location = item.get("location") if isinstance(item.get("location"), dict) else {}
+        relpath = str(location.get("path") or "").strip().replace("\\", "/")
+        attrs = {
+            key: item.get(key)
+            for key in ("severity", "confidence", "provenance", "dimension", "probe", "status", "controls", "tags")
+            if item.get(key) not in (None, "", [])
+        }
+        graph.add_node(
+            GraphNode(
+                node_id, "arbiter_finding", str(item.get("rule_id") or fid), fid, relpath or None,
+                location.get("start_line") or None, location.get("end_line") or None, None,
+                _short(item.get("title") or item.get("description"), 300), attrs, LAYER_ASSURANCE,
+            )
+        )
+        stats["findings"] += 1
+        target = index.file_node(relpath) if relpath else None
+        if target is not None:
+            graph.add_edge(node_id, target.id, "flags", "EXTRACTED", "arbiter-report", f"{item.get('probe', 'arbiter')} probe finding")
+        elif relpath:
+            unresolved.append(f"{fid} location: '{relpath}' not found under {root}")
+    stats["flagged_files"] = len({e.target for e in graph.edges if e.type == "flags" and e.source in finding_nodes.values()})
+
+    knowledge = _read_json_file(root / cfg["arbiter_knowledge"], None, cfg["arbiter_knowledge"])
+    adjudicated = knowledge.get("adjudicated") if isinstance(knowledge, dict) and isinstance(knowledge.get("adjudicated"), dict) else {}
+    for fid, verdict in adjudicated.items():
+        node_id = finding_nodes.get(fid)
+        if node_id is None or not isinstance(verdict, dict):
+            continue
+        graph.nodes[node_id].attrs["adjudication"] = {key: verdict.get(key) for key in ("verdict", "reviewer", "note", "at") if verdict.get(key)}
+        stats["adjudicated"] += 1
+
+    waivers_rel = cfg["gate_waivers_file"]
+    req_nodes = {node.name: node.id for node in graph.nodes.values() if node.kind == "requirement"}
+    try:
+        waiver_lines = (root / waivers_rel).read_text(encoding="utf-8").splitlines()
+    except OSError:
+        waiver_lines = []
+    for i, line in enumerate(waiver_lines):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            entry = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(entry, dict) or not entry.get("rule") or not entry.get("reason"):
+            continue
+        subject = str(entry["rule"])
+        waiver_id = f"waiver:{waivers_rel}:{i}"
+        graph.add_node(
+            GraphNode(
+                waiver_id, "waiver", subject, subject, waivers_rel, None, None, None, _short(entry.get("reason"), 300),
+                {key: entry[key] for key in ("subject_type", "date") if entry.get(key)}, LAYER_ASSURANCE,
+            )
+        )
+        finding_node_id = finding_nodes.get(subject) if entry.get("subject_type") == "arbiter_finding" else None
+        if finding_node_id is not None:
+            graph.add_edge(finding_node_id, waiver_id, "waived_by", "EXTRACTED", "gate-waivers", "explicit waiver recorded against this finding")
+            stats["waived"] += 1
+        requirement = str(entry.get("requirement") or "")
+        if requirement in req_nodes:
+            graph.add_edge(waiver_id, req_nodes[requirement], "recorded_for", "EXTRACTED", "gate-waivers", "requirement the waiver was recorded under")
+
+    if unresolved:
+        graph.notes.append(f"arbiter: {len(unresolved)} finding location(s) did not resolve to a file (first: {unresolved[0]})")
+    graph.layer_stats.setdefault(LAYER_ASSURANCE, {}).update(stats)
+    return stats
+
+
 def _git_history_single(root: Path, ref: str) -> dict[str, Any] | None:
     if not re.fullmatch(r"[0-9a-fA-F]{6,40}", ref):
         return None
@@ -3498,6 +3622,9 @@ LINEAGE_FLOW: dict[str, str] = {
     "arose_in": "up", "affects": "up",                         # a failure comes from a requirement and from code
     "guards": "up", "prevented_by": "down", "fixed_by": "down",  # ...and produces tests, rules and fixes
     "covers": "up", "verifies": "up",                          # tests answer the code they exercise
+    "flags": "up",                                             # an Arbiter finding comes from the file it names
+    "waived_by": "down",                                       # a waiver is produced by addressing/disputing a finding
+    "recorded_for": "up",                                      # a waiver records against a requirement already in scope
 }
 # Structural dependencies between code symbols. Off by default: they would drown a requirement's lineage in call graphs.
 LINEAGE_CODE_FLOW: dict[str, str] = {
@@ -3681,6 +3808,19 @@ def why(graph_path: Path, query: str) -> dict[str, Any]:
                 add("failures it prevents", e["source"])
             elif e["type"] == "defines":
                 add("rules", e["source"], "declared in this rulepack")
+    elif kind == "arbiter_finding":
+        for e in outgoing.get(node["id"], []):
+            if e["type"] == "flags":
+                add("flagged file", e["target"])
+            elif e["type"] == "waived_by":
+                add("waiver", e["target"])
+    elif kind == "waiver":
+        for e in incoming.get(node["id"], []):
+            if e["type"] == "waived_by":
+                add("waives", e["source"])
+        for e in outgoing.get(node["id"], []):
+            if e["type"] == "recorded_for":
+                add("recorded under requirement", e["target"])
     else:
         # Rank the evidence: a requirement whose commits changed this file beats one that merely
         # declares it in scope, and a directory-wide scope is the weakest link of all.
@@ -3727,6 +3867,12 @@ def why(graph_path: Path, query: str) -> dict[str, Any]:
                             add("test suites", c["source"], (suite.get("attrs") or {}).get("command") or "run: see suite")
                 elif e["type"] == "affects":
                     add("failures", e["source"])
+                elif e["type"] == "flags":
+                    add("arbiter findings", e["source"])
+        for finding in sections.get("arbiter findings", []):
+            for e in outgoing.get(finding["id"], []):
+                if e["type"] == "waived_by":
+                    add("waivers", e["target"], f"waives {finding['name']}")
         for failure in sections.get("failures", []):
             for e in outgoing.get(failure["id"], []):
                 if e["type"] == "prevented_by":
@@ -3840,6 +3986,10 @@ def describe_sources(root: Path) -> dict[str, Any]:
         "detected_suites": [{"id": s["id"], "framework": s["framework"], "files": len(s["files"]), "command": s["command"]} for s in suites["auto"]],
         "failure_ledger": {"path": cfg["failure_ledger"], "exists": (root / cfg["failure_ledger"]).is_file()},
         "ci_commands": len(_ci_commands(root)),
+        "arbiter_report": {"path": cfg["arbiter_report"], "exists": (root / cfg["arbiter_report"]).is_file()},
+        "arbiter_knowledge": {"path": cfg["arbiter_knowledge"], "exists": (root / cfg["arbiter_knowledge"]).is_file()},
+        "gate_waivers_file": {"path": cfg["gate_waivers_file"], "exists": (root / cfg["gate_waivers_file"]).is_file()},
+        "arbiter_on_path": shutil.which("arbiter") is not None,
     }
     layers["workspace"] = {
         "rulepacks": len(list((root / cfg["rules_dir"]).glob("*.json"))) if (root / cfg["rules_dir"]).is_dir() else 0,
@@ -3864,6 +4014,11 @@ def describe_sources(root: Path) -> dict[str, Any]:
         hints.append("No tests found. If you have some, add a glob to test_globs in graph-config or register a suite with `omni test add`.")
     elif suites["auto"]:
         hints.append(f"{len(suites['auto'])} detected test suite(s) are not registered: `omni test detect --write`.")
+    if layers["assurance"]["arbiter_on_path"] and not layers["assurance"]["arbiter_report"]["exists"]:
+        hints.append(
+            f"arbiter is on PATH but {cfg['arbiter_report']} does not exist yet: run `arbiter scan --format json` "
+            f"(or `omni gate`, which runs `arbiter gate --changed <base>` itself) to populate it."
+        )
     report["hints"] = hints
     return report
 

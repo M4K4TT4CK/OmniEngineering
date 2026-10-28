@@ -76,6 +76,35 @@
       }
     },
     {
+      "id": "completion.arbiter_gate",
+      "severity": "required",
+      "statement": "When arbiter is on PATH and this change touches files in scope, `arbiter gate --changed <base ref> --no-adapters --profile offline` (native probes only, no network) must exit 0 before completion. This is a fast mechanical backstop, not a substitute for compliance-auditor's full-adapter Arbiter run when that is in scope. Dispute a specific finding with `arbiter feedback <id> --false-positive`, or waive the whole check with a reason if it genuinely does not apply. Skipped, not failed, when arbiter is not installed or the base ref is unavailable.",
+      "scope": [
+        "security",
+        "quality",
+        "completion"
+      ],
+      "validation": {
+        "type": "arbiter_gate",
+        "when_changed": [
+          "**"
+        ],
+        "ignore": [
+          "CHANGELOG.md",
+          ".ai/project-map.md",
+          ".ai/project-graph.json",
+          ".ai/project-graph.svg",
+          ".ai/omni-version.json",
+          ".ai/context-log.md",
+          ".ai/gate-waivers.jsonl",
+          ".ai/requirements/**",
+          "arbiter-out/**",
+          ".arbiter/**"
+        ],
+        "timeout_s": 120
+      }
+    },
+    {
       "id": "completion.validation",
       "severity": "required",
       "statement": "Run the most relevant validation available after changes and report command results.",

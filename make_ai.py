@@ -2270,6 +2270,10 @@ def run_graph_sources(args: argparse.Namespace) -> int:
           f"failure ledger {'present' if a['failure_ledger']['exists'] else 'absent'} ({a['failure_ledger']['path']}); {a['ci_commands']} CI test command(s) found")
     for s in a["detected_suites"]:
         print(f"      detected  {s['id']}  [{s['framework']}] {s['files']} file(s)  {s['command'] or '-'}")
+    print(f"    arbiter       {'on PATH' if a['arbiter_on_path'] else 'not on PATH'}; "
+          f"report {'present' if a['arbiter_report']['exists'] else 'absent'} ({a['arbiter_report']['path']}); "
+          f"knowledge {'present' if a['arbiter_knowledge']['exists'] else 'absent'} ({a['arbiter_knowledge']['path']}); "
+          f"waivers {'present' if a['gate_waivers_file']['exists'] else 'absent'} ({a['gate_waivers_file']['path']})")
     w = layers["workspace"]
     print(f"  workspace     {w['rulepacks']} rulepack file(s), {w['playbooks']} playbook(s), {w['checklists']} checklist(s)" + ("" if w["ai_dir"] else " (no .ai/ directory)"))
     print(f"  code          {layers['code']['source_files']} source file(s)")
@@ -3901,7 +3905,7 @@ def gate_changed_paths(base: str | None) -> set[str]:
 # Kept in step with every validation type a check function below actually implements. A rule can declare a
 # validation the gate does not (yet) execute; gate_rules() silently skips those rather than crashing on them,
 # but "declared and silently never checked" is exactly the trap this set exists to avoid falling into by accident.
-EXECUTABLE_VALIDATION_TYPES = {"co_changed", "requirement_registry_entry", "content_forbidden"}
+EXECUTABLE_VALIDATION_TYPES = {"co_changed", "requirement_registry_entry", "content_forbidden", "arbiter_gate"}
 
 
 def gate_rules() -> list[dict[str, Any]]:
@@ -4005,6 +4009,42 @@ def _gate_check_content_forbidden(rule: dict[str, Any], validation: dict[str, An
     return f"{rule_id}: {example}"
 
 
+def _gate_check_arbiter_gate(rule: dict[str, Any], validation: dict[str, Any], changed: set[str], base: str | None) -> str | None:
+    """Run `arbiter gate --changed <base>` over the changed set, when Arbiter's own scope for this
+    rule is actually touched. Deliberately `--no-adapters --profile offline`: native probes only, no
+    external analyzer (checkov/semgrep/bandit/ruff/gitleaks/osv-scanner) and no network, so a hook that
+    fires on every commit stays fast and never blocks on a missing tool or an unreachable registry --
+    compliance-auditor's own full-adapter run through Arbiter's MCP tools is the place for that deeper
+    pass, not this mechanical gate. Skips -- never fails -- when arbiter is not on PATH, `base` is
+    unavailable (e.g. an unborn HEAD), or the run times out. What it actually checks is Arbiter's own
+    exit code; disputing one specific finding is `arbiter feedback <id> --false-positive`, not this
+    repo's own waiver file -- `omni waive` records a finding id for traceability, but only Arbiter's
+    own knowledge file changes what this check sees."""
+    when = [str(p) for p in validation.get("when_changed", ["**"])]
+    ignore = [str(p) for p in validation.get("ignore", [])]
+    if not any(matches_any(p, when) and not matches_any(p, ignore) for p in changed):
+        return None
+    if not base or shutil.which("arbiter") is None:
+        return None
+    timeout_s = int(validation.get("timeout_s", 120))
+    try:
+        proc = subprocess.run(
+            ["arbiter", "gate", "--changed", base, "--no-adapters", "--profile", "offline", "--format", "console", "."],
+            capture_output=True, text=True, timeout=timeout_s,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if proc.returncode == 0:
+        return None
+    rule_id = str(rule["id"])
+    tail = "\n    ".join((proc.stdout or proc.stderr or "").strip().splitlines()[-8:])
+    return (
+        f"{rule_id}: `arbiter gate --changed {base}` exited {proc.returncode}.\n    {tail}\n"
+        f'  Dispute a specific finding with `arbiter feedback <id> --false-positive --note "..."`, or if this '
+        f'check genuinely does not apply here: ./omni waive {rule_id} --reason "<why>"'
+    )
+
+
 def gate_waivers(base: str | None) -> dict[str, str]:
     if not GATE_WAIVERS_PATH.is_file():
         return {}
@@ -4040,6 +4080,8 @@ def gate_evaluate(changed: set[str], waivers: dict[str, str], base: str | None =
             failure = _gate_check_requirement_registry_entry(rule, validation, changed, base)
         elif vtype == "content_forbidden":
             failure = _gate_check_content_forbidden(rule, validation, changed)
+        elif vtype == "arbiter_gate":
+            failure = _gate_check_arbiter_gate(rule, validation, changed, base)
         else:
             continue
         if failure is None:
@@ -4126,17 +4168,26 @@ def run_gate(args: argparse.Namespace) -> int:
     return 2
 
 
+ARBITER_FINDING_ID_PATTERN = re.compile(r"^[0-9a-f]{12}$")
+
+
 def run_waive(args: argparse.Namespace) -> int:
     reason = args.reason.strip()
     if len(reason) < 10:
         print("A waiver needs a real --reason (at least 10 characters).", file=sys.stderr)
         return 1
     known = {str(rule["id"]) for rule in gate_rules()}
-    if args.rule not in known:
-        print(f"Unknown gate rule: {args.rule}. Gated rules: {', '.join(sorted(known)) or 'none'}", file=sys.stderr)
+    is_finding = bool(ARBITER_FINDING_ID_PATTERN.match(args.rule))
+    if args.rule not in known and not is_finding:
+        print(
+            f"Unknown gate rule or Arbiter finding id: {args.rule}. Gated rules: {', '.join(sorted(known)) or 'none'}. "
+            "An Arbiter finding id is the 12-character hex id `arbiter explain` or a JSON report shows.",
+            file=sys.stderr,
+        )
         return 1
     entry = {
         "rule": args.rule,
+        "subject_type": "arbiter_finding" if is_finding else "omni_rule",
         "reason": reason,
         "requirement": args.requirement,
         "date": datetime.now(timezone.utc).date().isoformat(),
@@ -4145,6 +4196,13 @@ def run_waive(args: argparse.Namespace) -> int:
     with GATE_WAIVERS_PATH.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(entry) + "\n")
     print(f"Recorded waiver for {args.rule} in {GATE_WAIVERS_PATH}.")
+    if is_finding:
+        print(
+            "This records the disposition for `omni graph why`/`lineage` only. It does not suppress the "
+            "finding in Arbiter's own future scans (that needs `arbiter feedback " + args.rule + " "
+            "--false-positive --note \"...\"`), and completion.arbiter_gate still fails on it until Arbiter "
+            "itself no longer reports it as an active finding."
+        )
     return 0
 
 
@@ -4893,8 +4951,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     gate_parser.add_argument("--hook", action="store_true", help="Claude Code Stop-hook mode: read hook JSON on stdin, exit 2 to block.")
 
-    waive_parser = subparsers.add_parser("waive", help="Record an explicit, auditable waiver for a gate rule.")
-    waive_parser.add_argument("rule", help="Gate rule ID, e.g. completion.changelog_gate.")
+    waive_parser = subparsers.add_parser("waive", help="Record an explicit, auditable waiver for a gate rule or an Arbiter finding.")
+    waive_parser.add_argument("rule", help="Gate rule ID (e.g. completion.changelog_gate) or a 12-character Arbiter finding id.")
     waive_parser.add_argument("--reason", required=True, help="Why the gate does not apply to this change.")
     waive_parser.add_argument("--requirement", help="Requirement ID the waiver belongs to.")
 
