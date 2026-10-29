@@ -61,6 +61,10 @@ edges). Use that instead of guessing:
 
 ## Failing Tests Are Evidence
 
+For Markdown link checks, distinguish prose links from literal examples in fenced
+blocks and inline code spans. Cover both ignored examples and real links beside
+them, including multiple backtick delimiters and unmatched backticks.
+
 When a test, build or check fails, do not just make it green. Record what it
 showed:
 

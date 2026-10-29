@@ -1947,7 +1947,8 @@
         "CHANGELOG"
       ],
       "risk_notes": [
-        "Verified: unit tests exit 0 (512 tests), omni gate exit 0, README Quick Start run end to end in a fresh repository."
+        "Verified: unit tests exit 0 (512 tests), omni gate exit 0, README Quick Start run end to end in a fresh repository.",
+        "2026-10-29: Fixed inline-code false positives in Markdown link validation; added regression coverage for literal examples and neighboring real links (FAIL-020)."
       ]
     },
     {
