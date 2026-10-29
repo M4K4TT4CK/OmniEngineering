@@ -458,6 +458,33 @@
       "prevention_rules": [],
       "prevention_notes": "tests/test_graph_resolution.py builds a five-starter monorepo and asserts every test file verifies code in all five languages",
       "recurrence_of": ""
+    },
+    {
+      "id": "FAIL-020",
+      "date": "2026-10-29",
+      "title": "Markdown link checker treats inline code examples as real links",
+      "status": "fixed",
+      "severity": "medium",
+      "symptom": "test_relative_links_and_anchors fails: README.md: ... (no such file)",
+      "how_detected": "",
+      "root_cause": "The checker removed fenced blocks but extracted Markdown links from inline code, interpreting a literal placeholder as a filesystem target.",
+      "requirement": "REQ-057",
+      "affected": [
+        "tests/test_docs.py",
+        "README.md"
+      ],
+      "fix_summary": "Remove matching backtick spans before extracting link targets; retain real links and unmatched spans.",
+      "fix_commits": [],
+      "regression_tests": [
+        "tests/test_docs.py::TestLinkTargets",
+        "tests/test_docs.py::TestInternalLinksResolve"
+      ],
+      "no_test_reason": "",
+      "prevention_rules": [
+        ".ai/playbooks/testing.md"
+      ],
+      "prevention_notes": "Regression coverage checks inline and fenced examples, multiple backticks, real neighboring links and unmatched delimiters.",
+      "recurrence_of": ""
     }
   ]
 }

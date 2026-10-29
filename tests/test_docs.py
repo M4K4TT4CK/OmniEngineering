@@ -37,6 +37,28 @@ def _strip_code(text: str) -> str:
     return re.sub(r"```.*?```", "", text, flags=re.S)
 
 
+def _link_targets(text: str) -> list[str]:
+    """Ignore literal examples inside fenced blocks and matching backtick spans."""
+    text = re.sub(r"(?<!`)(`+)(?!`)(.*?)\1(?!`)", "", _strip_code(text), flags=re.S)
+    return re.findall(r"\]\(([^)\s]+)\)", text)
+
+
+class TestLinkTargets(unittest.TestCase):
+    def test_code_examples_are_ignored_but_real_links_remain(self) -> None:
+        text = """[before](README.md)
+`(more: [src/app.py](...) docstring)`
+``[example](missing.py) with a `backtick` ``
+```markdown
+[fenced](missing.md)
+```
+[after](README.md#quick-start)
+"""
+        self.assertEqual(_link_targets(text), ["README.md", "README.md#quick-start"])
+
+    def test_unclosed_backtick_does_not_hide_a_real_link(self) -> None:
+        self.assertEqual(_link_targets("`unfinished [real](missing.md)"), ["missing.md"])
+
+
 class TestReadmeCoversTheCli(unittest.TestCase):
     def test_every_subcommand_is_in_the_readme(self) -> None:
         missing = []
@@ -75,7 +97,7 @@ class TestInternalLinksResolve(unittest.TestCase):
             path = ROOT / name
             if not path.is_file():
                 continue
-            for target in re.findall(r"\]\(([^)\s]+)\)", _strip_code(path.read_text(encoding="utf-8"))):
+            for target in _link_targets(path.read_text(encoding="utf-8")):
                 if re.match(r"[a-z]+:", target):
                     continue  # http:, https:, mailto:
                 file_part, _, anchor = target.partition("#")

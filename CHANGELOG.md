@@ -1,4 +1,10 @@
 # Changelog
+## 2026-10-29
+### Fixed
+- `REQ-057` | Documentation validation | Ignore inline code examples when checking
+  Markdown links, including spans delimited by multiple backticks. Continue
+  validating real links beside examples and after unmatched backticks.
+
 ## 2026-10-26
 ### Changed
 - `REQ-060` | Documentation tooling | The generated documents are shorter, and a
