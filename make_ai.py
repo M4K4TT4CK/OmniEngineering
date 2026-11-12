@@ -7456,6 +7456,12 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _console(text: str) -> str:
+    """Text the current console can print: a Windows cp1252 console cannot encode every character in the map."""
+    encoding = getattr(sys.stdout, "encoding", None) or "utf-8"
+    return text.encode(encoding, errors="replace").decode(encoding, errors="replace")
+
+
 def _load_component_map(path: str) -> dict[str, Any] | None:
     try:
         return json.loads(Path(path).read_text(encoding="utf-8"))
@@ -7502,7 +7508,7 @@ def run_components_show(args: argparse.Namespace) -> int:
                 "reuse": c["reuse"]["category"], "grade": c["maintainability"]["grade"]} for cid, c in cmap["components"].items()}, indent=2))
             return 0
         for cid, c in sorted(cmap["components"].items(), key=lambda kv: (kv[1]["application"], kv[0])):
-            print(f"{c['maintainability']['grade']}  {c['reuse']['category']:<12} {c['module_count']:>4} files  {cid}")
+            print(_console(f"{c['maintainability']['grade']}  {c['reuse']['category']:<12} {c['module_count']:>4} files  {cid}"))
         return 0
     found = omni_components.find(cmap, args.name)
     if found is None:
@@ -7514,7 +7520,7 @@ def run_components_show(args: argparse.Namespace) -> int:
         print(json.dumps(record, indent=2))
         return 0
     lines = omni_components.component_section(cmap, ident, "#") if kind == "component" else omni_components.module_section(cmap, ident)
-    print("\n".join(lines))
+    print(_console("\n".join(lines)))
     return 0
 
 
@@ -7534,7 +7540,7 @@ def run_components_trace(args: argparse.Namespace) -> int:
     print(f"{cid}: {'what depends on it (change impact)' if args.up else 'what it depends on (downtrace)'}, {len(steps)} component(s)")
     for depth, other, links in steps:
         comp = cmap["components"][other]
-        print(f"{'  ' * depth}{other}  ({links} link{'s' if links != 1 else ''}; {comp['reuse']['category']}, grade {comp['maintainability']['grade']})")
+        print(_console(f"{'  ' * depth}{other}  ({links} link{'s' if links != 1 else ''}; {comp['reuse']['category']}, grade {comp['maintainability']['grade']})"))
     return 0
 
 
@@ -7554,7 +7560,7 @@ def run_components_reuse(args: argparse.Namespace) -> int:
         apps = f", also used by {', '.join(r['consumer_apps'])}" if r["consumer_apps"] else ""
         print(f"{m['file']}  [{r['category']}, {r['consumers']} consumer(s){apps}; grade {m['maintainability']['grade']}]")
         if m["exports"]:
-            print(f"    provides: {', '.join(m['exports'][:10])}")
+            print(_console(f"    provides: {', '.join(m['exports'][:10])}"))
     return 0
 
 

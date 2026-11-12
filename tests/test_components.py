@@ -8,6 +8,7 @@ Stdlib only (unittest), no tree-sitter: the project graph is hand-built. Run wit
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -272,8 +273,11 @@ class ComponentCliTest(unittest.TestCase):
             (root / ".ai" / "project-graph.json").write_text(json.dumps(graph), encoding="utf-8")
             omni = [sys.executable, str(ROOT / "omni")]
 
+            # a Windows console's cp1252 cannot encode every character in the map; output must still work there
+            env = dict(os.environ, PYTHONIOENCODING="cp1252")
+
             def run(*args: str) -> subprocess.CompletedProcess:
-                return subprocess.run(omni + list(args), cwd=root, capture_output=True, text=True)
+                return subprocess.run(omni + list(args), cwd=root, capture_output=True, text=True, env=env, encoding="cp1252", errors="replace")
 
             built = run("components", "build")
             self.assertEqual(built.returncode, 0, built.stderr)

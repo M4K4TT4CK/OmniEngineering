@@ -1388,7 +1388,7 @@ def component_section(component_map: dict[str, Any], cid: str, heading: str = "#
         if m["copies"]:
             name += f" (copied to {len(m['copies'])})"
         if m["duplicates"]:
-            name += " ⚠ " + ", ".join(m["duplicates"])
+            name += " (duplicate: " + ", ".join(m["duplicates"]) + ")"
         L.append(f"| {name} | {m['loc']} | {m['reuse']['category']} | {m['reuse']['consumers']} | {m['maintainability']['grade']} | "
                  f"{len(m['tests'])} | {', '.join(uses[:6]) + (f' +{len(uses) - 6}' if len(uses) > 6 else '') if uses else '—'} |")
     L.append("")
