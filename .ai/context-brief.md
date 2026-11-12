@@ -42,6 +42,7 @@ Read more context only when the task needs it:
 
 - Read indexes before deep files.
 - Prefer `.ai/project-map.md` over broad directory traversal.
+- Before writing new code, check `.ai/component-map.md` (reuse catalog, duplication suspects) or run `omni components reuse <words>`; before changing a component, read its change impact there.
 - Prefer one relevant playbook over all playbooks.
 - Prefer one relevant checklist over all checklists.
 - Prefer one SWEBOK checklist over full SWEBOK knowledge packs.

@@ -30,7 +30,15 @@ try:
 except ImportError:
     omni_docs = None
 
+try:
+    import omni_components
+except ImportError:
+    omni_components = None  # only `omni components ...` needs it
+
 GRAPH_DEFAULT_OUTPUT = ".ai/project-graph.json"
+COMPONENT_MAP_JSON_DEFAULT = ".ai/component-map.json"
+COMPONENT_MAP_MD_DEFAULT = ".ai/component-map.md"
+COMPONENT_MAP_HTML_DEFAULT = ".ai/component-map.html"
 GRAPH_SEMANTIC_API_URL_ENV = "OMNI_GRAPH_SEMANTIC_API_URL"
 RENDER_DEFAULT_OUTPUT = ".ai/project-graph.svg"
 RENDER_DEFAULT_MAX_NODES = 300
@@ -247,6 +255,9 @@ these fallback rules exactly:
 4. State the minimum access scope before inspecting files.
 5. Read `.ai/project-map.md` before broad traversal when it is available. If it
    is missing or stale after structural changes, run `omni map` or `./omni map`.
+   Before writing new code, check `.ai/component-map.md` (or
+   `omni components reuse <words>`) for something that already does it, and
+   before changing a component, read its change impact there.
 6. Inspect only files needed for the active requirement. Do not scan the whole
    repository unless the task cannot be completed safely without it.
 7. Do not read or expose `.env`, `.env.*`, private keys, certificates,
@@ -492,6 +503,7 @@ ALLOWED_ROOT_FILES = {
     "omni_docs.py",
     "omni_graph.py",
     "omni_mcp.py",
+    "omni_components.py",
     "pyproject.toml",
 }
 
@@ -554,6 +566,7 @@ ADOPTION_CLI_FILES = [
     "omni_graph.py",
     "omni_mcp.py",
     "omni_docs.py",
+    "omni_components.py",
     ".ai/graph-viewer/viewer.html",
     ".ai/graph-viewer/3d-force-graph.min.js",
     ".ai/graph-viewer/THIRD_PARTY_NOTICES.md",
@@ -1347,14 +1360,19 @@ def validate_context_manifest(manifest: Any, report: DoctorReport) -> None:
     if not isinstance(validation_commands, list) or not validation_commands:
         report.error("Context manifest validation_commands must be a non-empty array")
 
+    # The component map is generated on demand (`omni components build`), so a fresh workspace has none yet.
+    optional = set(manifest_paths({"component_map": manifest.get("component_map")})) if manifest.get("component_map") else set()
     missing_paths = sorted({
         path
         for path in manifest_paths(manifest)
         if path.startswith((".", "A", "C", "L", "R", "m", "o"))
         and not Path(path).is_file()
+        and path not in optional
     })
     for path in missing_paths:
         report.error(f"Context manifest references missing file: {path}")
+    if optional and not Path(COMPONENT_MAP_MD_DEFAULT).is_file():
+        report.warning("No component map yet: run `omni graph build` then `omni components build` to write .ai/component-map.md")
 
     if not missing_paths and not any(
         message.startswith("Context manifest") for message in report.errors
@@ -2383,6 +2401,12 @@ def run_graph_build(args: argparse.Namespace) -> int:
         print(
             f"  workspace   {w['rulepacks']} rulepacks, {w['rules']} rules, {w['playbooks']} playbooks, {w['checklists']} checklists"
             + (f", {w['tooling_nodes']} nodes of OmniEngineering's own code" if w.get("tooling_nodes") else "")
+        )
+    if omni_graph.LAYER_COMPONENTS in stats_by_layer:
+        c = stats_by_layer[omni_graph.LAYER_COMPONENTS]
+        print(
+            f"  components  {c['applications']} applications, {c['components']} components over {c['modules']} files, "
+            f"{c['duplicates']} duplication suspects, {c['cycles']} dependency cycles (`./omni components build` writes the map)"
         )
     for note in graph.notes:
         print(f"  note: {note}")
@@ -6700,6 +6724,37 @@ def build_parser() -> argparse.ArgumentParser:
         help="Include .ai internals in the generated map.",
     )
 
+    components_parser = subparsers.add_parser(
+        "components",
+        help="Map the code into applications, components and files, with reuse, maintainability, dependencies and duplication.",
+    )
+    components_subparsers = components_parser.add_subparsers(dest="components_command")
+    components_build = components_subparsers.add_parser(
+        "build", help=f"Analyse the project graph and write {COMPONENT_MAP_MD_DEFAULT} (people and LLMs) and {COMPONENT_MAP_JSON_DEFAULT} (tools).")
+    components_build.add_argument("--graph", default=GRAPH_DEFAULT_OUTPUT, help=f"Graph file to read. Defaults to {GRAPH_DEFAULT_OUTPUT}.")
+    components_build.add_argument("--root", default=".", help="Project root (source files are read for similarity). Defaults to the current directory.")
+    components_build.add_argument("--md-output", default=COMPONENT_MAP_MD_DEFAULT, help=f"Markdown output. Defaults to {COMPONENT_MAP_MD_DEFAULT}.")
+    components_build.add_argument("--json-output", default=COMPONENT_MAP_JSON_DEFAULT, help=f"JSON output. Defaults to {COMPONENT_MAP_JSON_DEFAULT}.")
+    components_build.add_argument("--json", action="store_true", help="Print a JSON summary.")
+    components_show = components_subparsers.add_parser("show", help="List components, or print one component or file with all its annotations.")
+    components_show.add_argument("name", nargs="?", help="Component id or name, or a file path or name. Omit to list every component.")
+    components_trace = components_subparsers.add_parser("trace", help="Walk a component's dependencies (downtrace), or with --up what depends on it (change impact).")
+    components_trace.add_argument("name", help="Component id or name.")
+    components_trace.add_argument("--up", action="store_true", help="Trace what depends on it instead of what it depends on.")
+    components_trace.add_argument("--depth", type=int, default=99, help="Maximum hops. Defaults to all.")
+    components_reuse = components_subparsers.add_parser("reuse", help="Search the reuse catalog: files other code already depends on. Check before writing something new.")
+    components_reuse.add_argument("words", nargs="+", help="Words that must all appear in the file path, its exports or its component.")
+    components_reuse.add_argument("--limit", type=int, default=25, help="Maximum results. Defaults to 25.")
+    components_view = components_subparsers.add_parser("view", help="Write a browsable HTML page of the component map (search, filters, one card per component, duplicates, watchlist).")
+    components_view.add_argument("--output", default=COMPONENT_MAP_HTML_DEFAULT, help=f"HTML output path. Defaults to {COMPONENT_MAP_HTML_DEFAULT}.")
+    components_view.add_argument("--open", action="store_true", help="Open it in the default browser.")
+    components_dupes = components_subparsers.add_parser("dupes", help="List duplication suspects: the same logic written in two places.")
+    components_dupes.add_argument("--min-confidence", choices=["low", "medium", "high"], default="medium", help="Defaults to medium.")
+    components_dupes.add_argument("--cross-app", action="store_true", help="Only pairs in different applications.")
+    for sub in (components_show, components_trace, components_reuse, components_dupes, components_view):
+        sub.add_argument("--map", default=COMPONENT_MAP_JSON_DEFAULT, help=f"Component map to read. Defaults to {COMPONENT_MAP_JSON_DEFAULT}.")
+        sub.add_argument("--json", action="store_true", help="Print JSON.")
+
     graph_parser = subparsers.add_parser(
         "graph",
         help="Build and query a deterministic tree-sitter AST code graph (no embeddings, no vector store).",
@@ -7401,6 +7456,144 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _load_component_map(path: str) -> dict[str, Any] | None:
+    try:
+        return json.loads(Path(path).read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        print(f"Component map not found: {path}; run ./omni components build first", file=sys.stderr)
+    except (OSError, ValueError) as exc:
+        print(f"Component map unreadable: {path} ({exc}); rerun ./omni components build", file=sys.stderr)
+    return None
+
+
+def run_components_build(args: argparse.Namespace) -> int:
+    if omni_components is None:
+        print("omni_components.py is missing next to make_ai.py; run ./omni update", file=sys.stderr)
+        return 1
+    graph_path = Path(args.graph)
+    if not graph_path.is_file():
+        print(f"Graph file not found: {graph_path}; run ./omni graph build first", file=sys.stderr)
+        return 1
+    root = Path(args.root).resolve()
+    graph = json.loads(graph_path.read_text(encoding="utf-8"))
+    tooling = omni_graph.graph_config(root)["tooling_paths"] if omni_graph else []
+    cmap = omni_components.analyze(graph, root, tooling_paths=tooling)
+    write_json(Path(args.json_output), cmap)
+    Path(args.md_output).write_text(omni_components.render_markdown(cmap, classification_banner()) + "\n", encoding="utf-8")
+    if args.json:
+        print(json.dumps({"json": args.json_output, "markdown": args.md_output, "summary": omni_components.summary_lines(cmap),
+                          "problems": cmap["problems"]}, indent=2))
+        return 0
+    print(f"Wrote {args.md_output} and {args.json_output}")
+    for line in omni_components.summary_lines(cmap):
+        print(f"  {line}")
+    for problem in cmap["problems"]:
+        print(f"  problem: {problem}")
+    return 0
+
+
+def run_components_show(args: argparse.Namespace) -> int:
+    cmap = _load_component_map(args.map)
+    if cmap is None:
+        return 1
+    if not args.name:
+        if args.json:
+            print(json.dumps({cid: {k: c[k] for k in ("name", "application", "role_label", "module_count", "loc")} | {
+                "reuse": c["reuse"]["category"], "grade": c["maintainability"]["grade"]} for cid, c in cmap["components"].items()}, indent=2))
+            return 0
+        for cid, c in sorted(cmap["components"].items(), key=lambda kv: (kv[1]["application"], kv[0])):
+            print(f"{c['maintainability']['grade']}  {c['reuse']['category']:<12} {c['module_count']:>4} files  {cid}")
+        return 0
+    found = omni_components.find(cmap, args.name)
+    if found is None:
+        print(f"No single component or file matches {args.name!r}; run `./omni components show` for the list", file=sys.stderr)
+        return 1
+    kind, ident = found
+    record = cmap["components" if kind == "component" else "modules"][ident]
+    if args.json:
+        print(json.dumps(record, indent=2))
+        return 0
+    lines = omni_components.component_section(cmap, ident, "#") if kind == "component" else omni_components.module_section(cmap, ident)
+    print("\n".join(lines))
+    return 0
+
+
+def run_components_trace(args: argparse.Namespace) -> int:
+    cmap = _load_component_map(args.map)
+    if cmap is None:
+        return 1
+    found = omni_components.find(cmap, args.name)
+    if found is None or found[0] != "component":
+        print(f"No single component matches {args.name!r}; run `./omni components show` for the list", file=sys.stderr)
+        return 1
+    cid = found[1]
+    steps = omni_components.trace(cmap, cid, up=args.up, depth=args.depth)
+    if args.json:
+        print(json.dumps([{"depth": d, "component": c, "links": n} for d, c, n in steps], indent=2))
+        return 0
+    print(f"{cid}: {'what depends on it (change impact)' if args.up else 'what it depends on (downtrace)'}, {len(steps)} component(s)")
+    for depth, other, links in steps:
+        comp = cmap["components"][other]
+        print(f"{'  ' * depth}{other}  ({links} link{'s' if links != 1 else ''}; {comp['reuse']['category']}, grade {comp['maintainability']['grade']})")
+    return 0
+
+
+def run_components_reuse(args: argparse.Namespace) -> int:
+    cmap = _load_component_map(args.map)
+    if cmap is None:
+        return 1
+    hits = omni_components.search_reuse(cmap, args.words, args.limit)
+    if args.json:
+        print(json.dumps(hits, indent=2))
+        return 0
+    if not hits:
+        print("Nothing reusable matches those words. Try fewer or different words, or `./omni components show`.")
+        return 0
+    for m in hits:
+        r = m["reuse"]
+        apps = f", also used by {', '.join(r['consumer_apps'])}" if r["consumer_apps"] else ""
+        print(f"{m['file']}  [{r['category']}, {r['consumers']} consumer(s){apps}; grade {m['maintainability']['grade']}]")
+        if m["exports"]:
+            print(f"    provides: {', '.join(m['exports'][:10])}")
+    return 0
+
+
+def run_components_view(args: argparse.Namespace) -> int:
+    cmap = _load_component_map(args.map)
+    if cmap is None:
+        return 1
+    output = Path(args.output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(omni_components.render_html(cmap, classification_banner(), f"{Path.cwd().name} component map"), encoding="utf-8")
+    if args.json:
+        print(json.dumps({"output": str(output)}))
+        return 0
+    print(f"Wrote {output} ({output.stat().st_size // 1024} KB). Open it in a browser; it needs no network access.")
+    if args.open:
+        import webbrowser
+        webbrowser.open(output.resolve().as_uri())
+    return 0
+
+
+def run_components_dupes(args: argparse.Namespace) -> int:
+    cmap = _load_component_map(args.map)
+    if cmap is None:
+        return 1
+    order = {"low": 0, "medium": 1, "high": 2}
+    dupes = [d for d in cmap["duplicates"] if order[d["confidence"]] >= order[args.min_confidence] and (d["cross_app"] or not args.cross_app)]
+    if args.json:
+        print(json.dumps(dupes, indent=2))
+        return 0
+    if not dupes:
+        print("No duplication suspects at that confidence.")
+        return 0
+    for d in dupes:
+        print(f"{d['id']}  {d['kind']} {d['name']}  similarity {d['similarity']} ({d['confidence']}{', across applications' if d['cross_app'] else ''})")
+        for m in d["modules"]:
+            print(f"    {m}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -7440,6 +7633,14 @@ def main(argv: list[str] | None = None) -> int:
         if args.graph_command == "findings":  # REQ-043
             return run_graph_findings(args)
         parser.error("graph requires a subcommand (build, trace, show, why, lineage, timeline, impact, sources, benchmark, render, view, schema, findings)")
+    if command == "components":
+        handlers = {
+            "build": run_components_build, "show": run_components_show, "trace": run_components_trace,
+            "reuse": run_components_reuse, "dupes": run_components_dupes, "view": run_components_view,
+        }
+        if args.components_command in handlers:
+            return handlers[args.components_command](args)
+        parser.error("components requires a subcommand (build, show, trace, reuse, dupes, view)")
     if command == "test":
         handlers = {
             "detect": run_test_detect, "add": run_test_add, "remove": run_test_remove,

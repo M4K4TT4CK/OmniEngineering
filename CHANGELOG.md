@@ -1,4 +1,44 @@
 # Changelog
+## 2026-11-12
+### Added
+- `REQ-061` | Component map | A component map, and a components layer in the graph and viewer.
+  - New `omni_components.py` (stdlib only) groups the graph's code into applications, components and
+    files, and annotates each with reusability (category, 0-100 score, consuming files, components and
+    applications), maintainability (A-E grade with its reasons), dependencies, transitive downtrace and
+    change impact, requirements, failures, external packages and duplication suspects.
+  - `omni components build` writes `.ai/component-map.md` (for people and LLMs: application summary,
+    reuse catalog, duplication suspects, maintainability watchlist, Mermaid dependency maps, one entry per
+    component with a sub-component table) and `.ai/component-map.json`. `show`, `trace [--up]`, `reuse`
+    and `dupes` query it, all with `--json`.
+  - `omni graph build` adds a `components` layer: `application` and `component` nodes, `groups`,
+    `composes` and `depends_on` edges, and reuse category, grade and component on every code module.
+    Without `omni_components.py` the layer is skipped with a note; the other layers still build.
+  - The viewer gains a **Components** view, "reusability" and "maintainability grade" colour modes,
+    component annotations in the detail panel, application > component > file in "Where it sits", and a
+    3D plane for the new layer.
+  - Imports the code graph left external (relative paths, `index` files, dotted names) are resolved;
+    `calls`/`uses` edges never create a dependency across language families, and links between
+    applications count only when they are imports. Found while testing on a real project, where
+    name-only call resolution tied mobile screens to web pages.
+  - Generated copies (`GENERATED from <source>` in the first lines) count as their source.
+  - Build output and hidden directories (`.cxx`, `build`, `dist`, `node_modules`, ...) are never
+    components. `omni_mcp.py` and `omni_components.py` join the default `tooling_paths`.
+  - The fallback contract (step 5), `.ai/context-brief.md` and `.ai/context-manifest.json`
+    (`component_map`) point assistants at the map: check the reuse catalog before writing new code, and a
+    component's change impact before changing it.
+  - Role detection reads a component's own directory name first, then its classes' framework stereotype,
+    then its parent's name, so `com/acme/api/domain` is a domain model, not an API. Shell scripts and
+    files under `public/` or `static/` count as entry points.
+  - A text pass recovers links the code graph does not record: JS/TS re-exports (`export { X } from
+    './X'`), imports it missed, and JVM same-package class references (no import needed). SQL migrations
+    count as framework-run, and `.d.ts` files and `scripts/`, `bin/` and `tools/` as entry points, so
+    "unreferenced" means what it says. On STEP_App this took false "possibly dead code" reports from 52 to 0.
+  - `omni components view [--open]` writes `.ai/component-map.html` (gitignored): a self-contained page
+    with search, filters by application, reuse and grade, one card per component, and duplicates and
+    watchlist tabs.
+  - Tests: `tests/test_components.py` (17) and a viewer template check. Built first against STEP_App, where it
+    mapped 6 applications, 55 components and 537 files and found 34 web/mobile duplicate pairs.
+
 ## 2026-10-29
 ### Fixed
 - `REQ-057` | Documentation validation | Ignore inline code examples when checking

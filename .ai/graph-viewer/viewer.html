@@ -200,7 +200,7 @@
       </div>
       <div style="margin-top:10px"><label for="colormode" class="hint">Colour nodes by</label>
         <select id="colormode" data-tip="What the node colours mean. The strip at the top always shows the key for what is on screen.">
-          <option value="layer">layer (recommended)</option><option value="kind">kind</option><option value="language">language</option><option value="directory">top-level directory</option><option value="role">role (Spring stereotype / table)</option><option value="dimension">finding category (Arbiter dimension)</option><option value="severity">finding severity</option>
+          <option value="layer">layer (recommended)</option><option value="kind">kind</option><option value="language">language</option><option value="directory">top-level directory</option><option value="role">role (Spring stereotype / table)</option><option value="reuse">reusability (components)</option><option value="grade">maintainability grade (components)</option><option value="dimension">finding category (Arbiter dimension)</option><option value="severity">finding severity</option>
         </select></div>
       <label class="chk"><input type="checkbox" id="inferred" checked><span data-tip="INFERRED links are derived from an extracted fact (for example a call resolved across files). Untick to see only links read directly from one source.">show INFERRED links</span></label>
       <label class="chk"><input type="checkbox" id="external"><span data-tip="Imported libraries, and calls into them, that the graph could not resolve to project code. Unresolved calls with no import behind them get no placeholder (they are listed on the caller as unresolved_calls).">show external placeholders</span></label>
@@ -278,34 +278,44 @@
 
   // ---- palettes ---------------------------------------------------------------------------------------------
   // Colour carries the main meaning: one strong hue per layer, so a glance says which layer a node is in.
-  var LAYER_ORDER = ['code', 'governance', 'history', 'assurance', 'workspace'];
-  var LAYER_COLORS = { code: '#3d8bfd', governance: '#ffb000', history: '#a06cff', assurance: '#ff4d4d', workspace: '#14c8b0' };
-  var LAYER_LABEL = { code: 'Code', governance: 'Requirements & change log', history: 'History (commits)', assurance: 'Tests & failures', workspace: 'Rules & playbooks' };
+  var LAYER_ORDER = ['code', 'governance', 'history', 'assurance', 'workspace', 'components'];
+  var LAYER_COLORS = { code: '#3d8bfd', governance: '#ffb000', history: '#a06cff', assurance: '#ff4d4d', workspace: '#14c8b0', components: '#9ece6a' };
+  var LAYER_LABEL = { code: 'Code', governance: 'Requirements & change log', history: 'History (commits)', assurance: 'Tests & failures', workspace: 'Rules & playbooks', components: 'Components' };
   var LAYER_TIP = {
+    components: 'Applications and the components they are made of, with how reusable and how maintainable each one is, and what depends on what.',
     code: 'Modules, classes, functions and database tables, and how they call, import and extend each other.',
     governance: 'Requirements and change-log entries: what was asked for and what was recorded as done.',
     history: 'Every commit, in order, tied to the requirement it delivered, the change-log entry it wrote and the files it changed.',
     assurance: 'The project\'s tests and test suites, the failure ledger (what broke, why, and the test that guards it) and the Arbiter findings from the newest gate report.',
     workspace: 'OmniEngineering itself in this project: rulepacks, rules, playbooks, checklists and its own tooling.' };
   var KIND_COLORS = { module: '#3d8bfd', 'class': '#5aa6ff', 'interface': '#8cc0ff', 'function': '#2f6fd0', method: '#2559b0', table: '#00c2ff', file: '#7f9fc9', external: '#7a8594',
-    requirement: '#ffb000', changelog: '#ffd166', commit: '#a06cff', failure: '#ff4d4d', suite: '#ff8a5c', rule: '#14c8b0', rulepack: '#0fa08c', playbook: '#5eead4', checklist: '#99f6e4', finding: '#ff8a3d', arbiter_rule: '#d98cff', cwe: '#ff5ca8' };
+    requirement: '#ffb000', changelog: '#ffd166', commit: '#a06cff', failure: '#ff4d4d', suite: '#ff8a5c', rule: '#14c8b0', rulepack: '#0fa08c', playbook: '#5eead4', checklist: '#99f6e4', finding: '#ff8a3d', arbiter_rule: '#d98cff', cwe: '#ff5ca8', application: '#c3e88d', component: '#9ece6a' };
   var KIND_SHAPE = { module: 'square', file: 'square', 'class': 'rsquare', 'interface': 'rsquare', 'function': 'circle', method: 'circle', table: 'hexagon', external: 'circle',
-    requirement: 'diamond', changelog: 'page', commit: 'triangle', failure: 'hexagon', suite: 'rsquare', rule: 'circle', rulepack: 'square', playbook: 'page', checklist: 'page', finding: 'tridown', arbiter_rule: 'circle', cwe: 'hexagon' };
-  var KIND_SCALE = { module: 1.5, file: 1.2, 'class': 1.25, 'interface': 1.25, table: 1.4, 'function': 0.9, method: 0.8, external: 0.6, requirement: 1.6, changelog: 1.15, commit: 1.0, failure: 1.7, suite: 1.5, rule: 1.0, rulepack: 1.4, playbook: 1.2, checklist: 1.1, finding: 1.1, arbiter_rule: 1.0, cwe: 1.4 };
-  var KIND_ORDER = ['requirement', 'commit', 'changelog', 'failure', 'finding', 'cwe', 'arbiter_rule', 'suite', 'rule', 'rulepack', 'playbook', 'checklist', 'module', 'file', 'class', 'interface', 'function', 'method', 'table'];
+    requirement: 'diamond', changelog: 'page', commit: 'triangle', failure: 'hexagon', suite: 'rsquare', rule: 'circle', rulepack: 'square', playbook: 'page', checklist: 'page', finding: 'tridown', arbiter_rule: 'circle', cwe: 'hexagon', application: 'hexagon', component: 'rsquare' };
+  var KIND_SCALE = { module: 1.5, file: 1.2, 'class': 1.25, 'interface': 1.25, table: 1.4, 'function': 0.9, method: 0.8, external: 0.6, requirement: 1.6, changelog: 1.15, commit: 1.0, failure: 1.7, suite: 1.5, rule: 1.0, rulepack: 1.4, playbook: 1.2, checklist: 1.1, finding: 1.1, arbiter_rule: 1.0, cwe: 1.4, application: 2.4, component: 1.9 };
+  var KIND_ORDER = ['application', 'component', 'requirement', 'commit', 'changelog', 'failure', 'finding', 'cwe', 'arbiter_rule', 'suite', 'rule', 'rulepack', 'playbook', 'checklist', 'module', 'file', 'class', 'interface', 'function', 'method', 'table'];
   var KIND_TIP = {
     requirement: 'A recorded requirement with a status and a declared scope of files.', changelog: 'One dated entry from the change log.', commit: 'One commit in the version-control history.',
     failure: 'A recorded defect with its symptom, root cause, regression test and prevention.', suite: 'A named group of tests with a framework and a run command.',
     finding: 'One Arbiter finding from the newest full or gate report: a rule, a severity and a category, raised on one line of one file.',
     arbiter_rule: 'One Arbiter rule id (ARB-064): the check that raised its findings, with its probe.', cwe: 'One MITRE CWE weakness class (ARB-064): every finding and rule classified as it points here.',
+    application: 'An application: a top-level part of the project (web app, mobile app, backend, ...).', component: 'A component: a group of files with one job, annotated with its reuse and maintainability.',
     rule: 'One rule from a rulepack.', rulepack: 'A file of rules.', playbook: 'A written procedure for one kind of task.', checklist: 'A completion checklist.',
     module: 'A source file.', file: 'A file that is not parsed for symbols (documents, configuration, directories).', 'class': 'A class.', 'interface': 'An interface.',
     'function': 'A function.', method: 'A method.', table: 'A database table rebuilt from the SQL migrations.', external: 'An imported library, or a call into one, that the graph could not resolve to project code.' };
+  // reuse: warm = most reused, grey = not reused; grade: green A to red E
+  var REUSE_COLORS = { 'cross-app': '#ff79c6', library: '#bd93f9', shared: '#bd93f9', reused: '#8be9fd', feature: '#8be9fd', 'single-use': '#f1fa8c',
+    'entry-point': '#6272a4', 'top-level': '#6272a4', 'framework-wired': '#6272a4', 'test-only': '#ffb86c', unreferenced: '#ff5555' };
+  var REUSE_TIP = { 'cross-app': 'Used by another application.', library: 'A component most of whose files are reused by two or more other components.', shared: 'A file used from two or more other components.',
+    reused: 'A file used by two or more files.', feature: 'A component used by one or two others: application-specific.', 'single-use': 'A file used by exactly one other file.',
+    'entry-point': 'Top of the tree (page, screen, controller, main): nothing imports it by design.', 'top-level': 'Nothing else uses this component (pages, controllers, the app shell).',
+    'framework-wired': 'Instantiated by a framework, not imported.', 'test-only': 'Only tests use it.', unreferenced: 'Nothing uses it: possibly dead code.' };
+  var GRADE_COLORS = { A: '#50fa7b', B: '#a3e635', C: '#f1fa8c', D: '#ffb86c', E: '#ff5555' };
   var ROLE_COLORS = { controller: '#e0475c', service: '#4fb3bf', repository: '#c9a869', entity: '#ffb454', component: '#9ece6a', configuration: '#b48ead', table: '#00c2ff' };
   var LANG_COLORS = { python: '#e0475c', javascript: '#4fb3bf', typescript: '#c9a869', java: '#f0a23c', sql: '#b48ead', go: '#5fd0e0', rust: '#e58b5a', csharp: '#8fbf6a' };
   var TYPE_COLORS = {
-    dark: { calls: '#d4d8e0', imports: '#7fd0dc', inherits: '#ff6b81', implements: '#ffc36b', defines: '#8d8d99', references: '#c792ea', maps_to: '#f78c6c', uses: '#8a8a99', touches: '#f2c14e', records: '#8fbf6a', mentions: '#6f9a55', delivers: '#c9d1d9', modifies: '#7d8590', verifies: '#5fd0e0', affects: '#ff5c5c', arose_in: '#ff9f6b', guards: '#7ee787', prevented_by: '#5fd0e0', fixed_by: '#7ee787', recurs: '#ff5c5c', logged_in: '#8fbf6a', follows: '#5a6270', contains: '#b48ead', covers: '#c9a0dc', flags: '#ff8a3d', cites: '#ffb000', recorded_as: '#ff4d4d', introduced_by: '#a06cff', specified_by: '#f2c14e', mentions_rule: '#6f9a55' },
-    light: { calls: '#4a5160', imports: '#1b7f96', inherits: '#c2334d', implements: '#b7791f', defines: '#8a92a0', references: '#7a4bb0', maps_to: '#c0562b', uses: '#8a92a0', touches: '#a67100', records: '#3f8a3f', mentions: '#5b8a4a', delivers: '#5a6472', modifies: '#7d8590', verifies: '#0f8aa0', affects: '#c92a2a', arose_in: '#c2611f', guards: '#1f9a53', prevented_by: '#0f8aa0', fixed_by: '#1f9a53', recurs: '#c92a2a', logged_in: '#3f8a3f', follows: '#8a92a0', contains: '#7a4bb0', covers: '#8b5cc4', flags: '#c2611f', cites: '#a67100', recorded_as: '#c92a2a', introduced_by: '#7a4bb0', specified_by: '#a67100', mentions_rule: '#5b8a4a' } };
+    dark: { calls: '#d4d8e0', imports: '#7fd0dc', inherits: '#ff6b81', implements: '#ffc36b', defines: '#8d8d99', references: '#c792ea', maps_to: '#f78c6c', uses: '#8a8a99', touches: '#f2c14e', records: '#8fbf6a', mentions: '#6f9a55', delivers: '#c9d1d9', modifies: '#7d8590', verifies: '#5fd0e0', affects: '#ff5c5c', arose_in: '#ff9f6b', guards: '#7ee787', prevented_by: '#5fd0e0', fixed_by: '#7ee787', recurs: '#ff5c5c', logged_in: '#8fbf6a', follows: '#5a6270', contains: '#b48ead', covers: '#c9a0dc', flags: '#ff8a3d', cites: '#ffb000', recorded_as: '#ff4d4d', introduced_by: '#a06cff', specified_by: '#f2c14e', mentions_rule: '#6f9a55', depends_on: '#9ece6a', composes: '#5f7a45', groups: '#c3e88d' },
+    light: { calls: '#4a5160', imports: '#1b7f96', inherits: '#c2334d', implements: '#b7791f', defines: '#8a92a0', references: '#7a4bb0', maps_to: '#c0562b', uses: '#8a92a0', touches: '#a67100', records: '#3f8a3f', mentions: '#5b8a4a', delivers: '#5a6472', modifies: '#7d8590', verifies: '#0f8aa0', affects: '#c92a2a', arose_in: '#c2611f', guards: '#1f9a53', prevented_by: '#0f8aa0', fixed_by: '#1f9a53', recurs: '#c92a2a', logged_in: '#3f8a3f', follows: '#8a92a0', contains: '#7a4bb0', covers: '#8b5cc4', flags: '#c2611f', cites: '#a67100', recorded_as: '#c92a2a', introduced_by: '#7a4bb0', specified_by: '#a67100', mentions_rule: '#5b8a4a', depends_on: '#4d7c0f', composes: '#7a8f63', groups: '#3f6212' } };
   var TYPE_TIP = {
     calls: 'A function or method calls another.', imports: 'A file imports another.', defines: 'Contains: a file defines a class, a class defines a method.', inherits: 'A class extends another.', implements: 'A class implements an interface.',
     references: 'A table has a foreign key to another.', maps_to: 'An entity class is mapped to a table.', uses: 'A weaker reference to another symbol.', touches: 'A requirement touches a file: declared in its scope, or changed by its commits.',
@@ -317,15 +327,16 @@
     introduced_by: 'REQ-051: git blame holds this commit for the finding\'s line; the requirement that commit delivers is the one that introduced it.',
     violates: 'ARB-064: the Arbiter rule that raised this finding.', classified_as: 'ARB-064: the CWE weakness class this finding (or rule) is classified as.',
     specified_by: 'REQ-054: the requirement (ARB-### or REQ-###) behind this Arbiter rule: a change-log entry or registry entry names the rule beside the id. Inferred, not declared.',
-    mentions_rule: 'REQ-054: a change-log entry names this Arbiter rule id.' };
+    mentions_rule: 'REQ-054: a change-log entry names this Arbiter rule id.',
+    depends_on: 'A component (or application) uses code from another; the detail says how many file links back it.', composes: 'A component is made of this file.', groups: 'An application contains this component.' };
   var THEMES = {
     dark: { stage: '#0f0f12', text: '#e8e8e8', dim: '#3a3a48', select: '#ffffff', chain: '#ffc300', up: '#35d0e6', path: '#ff4fd8', halo: '#0f0f12', edge: '#6b7280' },
     light: { stage: '#dde1e6', text: '#23272e', dim: '#b3b9c3', select: '#101318', chain: '#b07d00', up: '#0b7d92', path: '#c2189c', halo: '#dde1e6', edge: '#7b8492' } };
   var theme = 'dark';
   function TH() { return THEMES[theme]; }
   function typeColor(t) { return TYPE_COLORS[theme][t] || TH().edge; }
-  var TYPE_WIDTH = { calls: 1, imports: 1, inherits: 1.8, implements: 1.5, defines: 0.9, references: 1.6, maps_to: 1.5, uses: 0.7, touches: 1.1, records: 1.1, mentions: 0.8, delivers: 1.2, modifies: 0.7, verifies: 1, affects: 1.8, arose_in: 1.3, guards: 1.7, prevented_by: 1.6, fixed_by: 1.4, recurs: 1.9, logged_in: 1.4, follows: 0.8, contains: 1, covers: 1, flags: 1.5, cites: 1.2, recorded_as: 1.6, introduced_by: 1.3 };
-  var LANE_ORDER = ['workspace', 'governance', 'code', 'assurance', 'history'];
+  var TYPE_WIDTH = { calls: 1, imports: 1, inherits: 1.8, implements: 1.5, defines: 0.9, references: 1.6, maps_to: 1.5, uses: 0.7, touches: 1.1, records: 1.1, mentions: 0.8, delivers: 1.2, modifies: 0.7, verifies: 1, affects: 1.8, arose_in: 1.3, guards: 1.7, prevented_by: 1.6, fixed_by: 1.4, recurs: 1.9, logged_in: 1.4, follows: 0.8, contains: 1, covers: 1, flags: 1.5, cites: 1.2, recorded_as: 1.6, introduced_by: 1.3, depends_on: 1.8, composes: 0.7, groups: 1.2 };
+  var LANE_ORDER = ['workspace', 'governance', 'components', 'code', 'assurance', 'history'];
   // REQ-043: Arbiter findings are coloured by category (dimension) or severity; everything else keeps its layer colour under those modes.
   var FINDING_COLORS = { security: '#ff5c5c', quality: '#f2c14e', drift: '#c792ea', supply_chain: '#ff9f6b', assurance: '#5fd0e0', resource_policy: '#8fbf6a', judgement: '#b48ead', other: '#9a9a9a' };
   if (meta.finding_colors) Object.keys(meta.finding_colors).forEach(function (k) { FINDING_COLORS[k] = meta.finding_colors[k]; });
@@ -342,7 +353,7 @@
   edges.forEach(function (e, i) {
     (out[e.s] || (out[e.s] = [])).push(i); (inn[e.t] || (inn[e.t] = [])).push(i);
     if (byId[e.s]) byId[e.s].deg++; if (byId[e.t]) byId[e.t].deg++;
-    if (e.type === 'defines' || e.type === 'contains') { (childrenOf[e.s] || (childrenOf[e.s] = [])).push(e.t); (parentsOf[e.t] || (parentsOf[e.t] = [])).push(e.s); }
+    if (e.type === 'defines' || e.type === 'contains' || e.type === 'groups' || e.type === 'composes') { (childrenOf[e.s] || (childrenOf[e.s] = [])).push(e.t); (parentsOf[e.t] || (parentsOf[e.t] = [])).push(e.s); }
     // REQ-043: a finding is the child of the symbol it was raised in (preferred) or of its file, so the tree reads dir > file > symbol > finding
     if (e.type === 'flags' && byId[e.t]) { (childrenOf[e.t] || (childrenOf[e.t] = [])).push(e.s); var fp = parentsOf[e.s] || (parentsOf[e.s] = []); if (byId[e.t].kind === 'module' || byId[e.t].kind === 'file') fp.push(e.t); else fp.unshift(e.t); }
   });
@@ -388,6 +399,8 @@
     if (colorMode === 'kind') return KIND_COLORS[n.kind] || '#8a93a0';
     if (colorMode === 'directory') return hashColor(topDir(n));
     if (colorMode === 'role') return ROLE_COLORS[roleOf(n)] || '#7a8594';
+    if (colorMode === 'reuse') return REUSE_COLORS[(n.attrs || {}).reuse_category] || '#4a4f5c';
+    if (colorMode === 'grade') return GRADE_COLORS[(n.attrs || {}).grade] || '#4a4f5c';
     if (colorMode === 'language') return n.lang ? langColor(n.lang) : (KIND_COLORS[n.kind] || LAYER_COLORS[layerName(n)]);
     if (colorMode === 'dimension') return n.kind === 'finding' ? dimColor((n.attrs || {}).dimension) : (LAYER_COLORS[layerName(n)] || '#8a93a0');
     if (colorMode === 'severity') return n.kind === 'finding' ? sevColor((n.attrs || {}).severity) : (LAYER_COLORS[layerName(n)] || '#8a93a0');
@@ -487,8 +500,8 @@
     return set;
   }
   var VIEWS = [
-    { id: 'overview', name: 'Everything', sub: 'all five layers', color: '#e0475c', layers: LAYER_ORDER, colorMode: 'layer', layout: 'lanes',
-      desc: 'All five layers at once. The colour tells you which layer a node belongs to; use the other tabs to look at one part on its own.', seed: function () { return new Set(initial); } },
+    { id: 'overview', name: 'Everything', sub: 'all layers', color: '#e0475c', layers: LAYER_ORDER, colorMode: 'layer', layout: 'lanes',
+      desc: 'All layers at once. The colour tells you which layer a node belongs to; use the other tabs to look at one part on its own.', seed: function () { return new Set(initial); } },
     { id: 'code', name: 'Code', sub: 'files, classes, functions', color: LAYER_COLORS.code, layers: ['code'], colorMode: 'language', layout: 'network',
       desc: 'The project\'s code only: files, classes, functions and tables, and how they call and import each other.',
       seed: function () {
@@ -507,6 +520,9 @@
     { id: 'workspace', name: 'Rules & playbooks', sub: 'the workspace', color: LAYER_COLORS.workspace, layers: ['workspace', 'assurance'], colorMode: 'layer', layout: 'network',
       desc: 'OmniEngineering\'s rulepacks, rules, playbooks and checklists, and the failures that produced them.',
       seed: function () { var s = idsOf(nodes.filter(function (n) { return layerName(n) === 'workspace' && !(n.attrs && n.attrs.tooling); })).slice(0, 500); return withNeighbors(s, ['failure'], 100); } },
+    { id: 'components', name: 'Components', sub: 'reuse & maintainability', color: LAYER_COLORS.components, layers: ['components', 'code'], colorMode: 'reuse', layout: 'network',
+      desc: 'Applications and their components, coloured by how reused each one is (switch "Colour nodes by" to maintainability grade). Arrows point to what a component depends on. Click one to read its annotations; double-click to open its files.',
+      seed: function () { return new Set(idsOf(nodes.filter(function (n) { return n.kind === 'application' || n.kind === 'component'; }))); } },
     { id: 'schema', name: 'Database', sub: 'tables & keys', color: '#00c2ff', layers: ['code'], colorMode: 'kind', layout: 'network',
       desc: 'Database tables rebuilt from the SQL migrations, their foreign keys, and the classes mapped to them.',
       seed: function () { var s = new Set(); nodes.forEach(function (n) { if (n.kind === 'table') s.add(n.id); }); edges.forEach(function (e) { if (e.type === 'maps_to' && s.has(e.t)) s.add(e.s); }); return s; } },
@@ -829,7 +845,7 @@
   // =====================================================================================================================
   var R3 = (function () {
     var Graph = null, host = $('view'), api = { onNodeClick: null, onNodeDblClick: null, onBackground: null };
-    var RADIAL_GAIN = 0.9, DEPTH_EXP = 0.85, PLANE_Z = { workspace: 300, governance: 150, code: 0, assurance: -150, history: -300 };
+    var RADIAL_GAIN = 0.9, DEPTH_EXP = 0.85, PLANE_Z = { workspace: 360, governance: 240, components: 120, code: 0, assurance: -150, history: -300 };
     var sizeStats = { cx: 0, cy: 0, cz: 0, rmed: 1 }, sizeQueued = false, labelEls = Object.create(null), MAX_LABELS = 200, stackOn = false, lastClick = { id: null, t: 0 }, pendingFit = null, current = null;
     function median(a) { if (!a.length) return 0; var s = a.slice().sort(function (x, y) { return x - y; }); return s[s.length >> 1]; }
     function webglOk() {
@@ -1025,7 +1041,8 @@
     list.forEach(function (n) {
       var key = colorMode === 'layer' ? layerName(n) : colorMode === 'kind' ? n.kind : colorMode === 'directory' ? topDir(n) : colorMode === 'role' ? (roleOf(n) || '(other)')
         : colorMode === 'dimension' ? (n.kind === 'finding' ? 'dim:' + ((n.attrs || {}).dimension || 'other') : layerName(n))
-        : colorMode === 'severity' ? (n.kind === 'finding' ? 'sev:' + ((n.attrs || {}).severity || 'info') : layerName(n)) : (n.lang || n.kind);
+        : colorMode === 'severity' ? (n.kind === 'finding' ? 'sev:' + ((n.attrs || {}).severity || 'info') : layerName(n))
+        : colorMode === 'reuse' ? ((n.attrs || {}).reuse_category || '(not rated)') : colorMode === 'grade' ? ((n.attrs || {}).grade ? 'grade ' + n.attrs.grade : '(not rated)') : (n.lang || n.kind);
       counts[key] = (counts[key] || 0) + 1;
     });
     var chips = $('chips'); chips.textContent = '';
@@ -1038,6 +1055,8 @@
       else if (k.indexOf('dim:') === 0) { lab = k.slice(4); colr = dimColor(lab); shape = 'tridown'; tip = 'Arbiter findings in the ' + lab + ' category.'; }
       else if (k.indexOf('sev:') === 0) { lab = k.slice(4); colr = sevColor(lab); shape = 'tridown'; tip = 'Arbiter findings of ' + lab + ' severity.'; }
       else if (colorMode === 'dimension' || colorMode === 'severity') { colr = LAYER_COLORS[k] || '#8a93a0'; lab = LAYER_LABEL[k] || k; tip = LAYER_TIP[k]; }
+      else if (colorMode === 'reuse') { colr = REUSE_COLORS[k] || '#4a4f5c'; tip = REUSE_TIP[k] || 'Not part of a component (tests, tooling, non-code).'; }
+      else if (colorMode === 'grade') { var g = k.slice(-1); colr = GRADE_COLORS[g] || '#4a4f5c'; tip = GRADE_COLORS[g] ? 'Maintainability grade ' + g + ' (A easy to maintain, E high risk).' : 'Not rated.'; }
       else { colr = LANG_COLORS[k] || KIND_COLORS[k] || langColor(k); tip = 'Source language (or kind, for things that have none).'; }
       c.appendChild(chipIcon(colr, shape)); c.appendChild(document.createTextNode(lab + ' ')); c.appendChild(el('b', null, String(counts[k])));
       if (tip) c.setAttribute('data-tip', tip); chips.appendChild(c);
@@ -1223,7 +1242,7 @@
   function haystack(n) {
     if (n._h) return n._h; var a = n.attrs || {};
     n._h = [n.name, n.qn, n.file, n.summary, n.kind, layerName(n), n.lang, dateOf(n), (a.requirements || []).join(' '), a.workspace, a.bare_id, a.status, a.category, a.symptom, a.root_cause, a.command, a.framework, a.rule_id, a.severity, a.dimension, (a.tags || []).join(' '),
-      a.description, a.remediation, (a.traced_to || []).join(' ')].join(' ').toLowerCase(); return n._h;   // REQ-054: the finding text, its fix and the ids behind its rule
+      a.description, a.remediation, (a.traced_to || []).join(' '), a.reuse_category, a.role, a.component].join(' ').toLowerCase(); return n._h;   // REQ-054: the finding text, its fix and the ids behind its rule
   }
   function parseQuery(raw) {
     var f = {}, terms = [];
@@ -1330,6 +1349,14 @@
     if (a.requirements && a.requirements.length) m.push('requirements: ' + a.requirements.join(', '));
     ['hash', 'framework', 'command', 'suite', 'first_commit', 'last_commit', 'commits', 'files_changed', 'test_files', 'source'].forEach(function (k) { if (a[k] != null && a[k] !== '') m.push(k.replace('_', ' ') + ': ' + a[k]); });
     if (a.scope && a.scope.length) m.push('scope: ' + a.scope.join(', '));
+    if (a.reuse_category) m.push('reusability: ' + a.reuse_category + (a.reuse_score != null ? ' (' + a.reuse_score + '/100)' : '') + (a.consumers != null ? ', ' + a.consumers + ' consumer file(s)' : '') + (a.consumer_apps && a.consumer_apps.length ? ', also used by ' + a.consumer_apps.join(', ') : ''));
+    if (a.grade) m.push('maintainability: ' + a.grade + (a.maintainability_score != null ? ' (' + a.maintainability_score + '/100)' : '') + (a.maintainability_reasons ? ': ' + a.maintainability_reasons.join('; ') : ''));
+    if (a.role) m.push('role: ' + a.role + (a.modules ? ', ' + a.modules + ' files' : '') + (a.loc ? ', ' + a.loc + ' lines' : ''));
+    if (a.downtrace != null) m.push('downtrace: pulls in ' + a.downtrace + ' component(s); change impact: ' + a.impact + ' component(s) depend on it' + (a.in_cycle ? '; in a dependency cycle' : ''));
+    if (a.reusable_modules && a.reusable_modules.length) m.push('reusable files: ' + a.reusable_modules.join(', '));
+    if (a.component && n.kind !== 'component') m.push('component: ' + a.component);
+    if (a.generated_copy_of) m.push('generated copy of ' + a.generated_copy_of + ' (edit the source, not this file)');
+    if (a.annotation) Object.keys(a.annotation).forEach(function (k) { var v = a.annotation[k]; m.push('note (' + k + '): ' + (Array.isArray(v) ? v.join(' / ') : v)); });
     if (m.length) d.appendChild(styled(el('div', 'summary', m.join('\n')), 'max-height:none'));
     if (a.columns && a.columns.length) {
       var fk = {}; (a.foreign_keys || []).forEach(function (f) { f.columns.forEach(function (c) { fk[c] = f.table + '(' + (f.ref_columns.join(',') || '?') + ')'; }); });

@@ -100,7 +100,8 @@ LAYER_GOVERNANCE = "governance"
 LAYER_ASSURANCE = "assurance"
 LAYER_HISTORY = "history"
 LAYER_WORKSPACE = "workspace"
-LAYERS = (LAYER_CODE, LAYER_GOVERNANCE, LAYER_HISTORY, LAYER_ASSURANCE, LAYER_WORKSPACE)
+LAYER_COMPONENTS = "components"
+LAYERS = (LAYER_CODE, LAYER_GOVERNANCE, LAYER_HISTORY, LAYER_ASSURANCE, LAYER_WORKSPACE, LAYER_COMPONENTS)
 
 NODE_KIND_LAYER = {
     "requirement": LAYER_GOVERNANCE,
@@ -117,6 +118,8 @@ NODE_KIND_LAYER = {
     # OmniEngineering rulepack rule): one is a scanner check, the other a working agreement.
     "arbiter_rule": LAYER_ASSURANCE,  # one Arbiter rule id (arbiter/concurrency.check-then-act), with its probe
     "cwe": LAYER_ASSURANCE,  # one MITRE CWE id (CWE-362), named when the table below knows it
+    "application": LAYER_COMPONENTS,
+    "component": LAYER_COMPONENTS,
 }
 
 EDGE_LAYER = {
@@ -147,6 +150,9 @@ EDGE_LAYER = {
     "classified_as": LAYER_ASSURANCE,  # finding -> cwe, and arbiter_rule -> cwe (the rule's declared classification)
     # REQ-054: the requirement behind a rule, so every finding traces to an ARB-### id in one hop past its rule
     "specified_by": LAYER_ASSURANCE,  # arbiter_rule -> requirement a changelog entry names beside the rule id (INFERRED)
+    "groups": LAYER_COMPONENTS,  # application -> component
+    "composes": LAYER_COMPONENTS,  # component -> module (its sub-components)
+    "depends_on": LAYER_COMPONENTS,  # component -> component (or application -> application) it imports from
 }
 
 # ARB-064: names for the CWE ids Arbiter's own rules declare plus the CWE Top 25, so a `cwe` node reads as more than a
@@ -240,7 +246,7 @@ _DEFAULT_GRAPH_CONFIG: dict[str, Any] = {
     "requirement_id_pattern": None,
     # OmniEngineering's own files as embedded in a project. They join the workspace layer and are never counted as
     # the project's tests, suites or coverage targets. OmniEngineering's source repository sets this to [].
-    "tooling_paths": ["make_ai.py", "omni_graph.py", "omni_docs.py", "omni", ".ai/*"],
+    "tooling_paths": ["make_ai.py", "omni_graph.py", "omni_docs.py", "omni_components.py", "omni", ".ai/*"],
     # Paths the code layer never parses, on top of .gitignore and .ai/.ignore: test corpora with planted defects,
     # vendored examples, generated output. They are still readable by an assistant (unlike .ai/.ignore entries) and
     # still appear in git history; they just never contribute symbols that would be attributed to the project.
@@ -2608,6 +2614,8 @@ def build_graph(
         add_history_layer(graph, root, max_commits)
     if LAYER_ASSURANCE in layers:
         add_assurance_layer(graph, root)
+    if LAYER_COMPONENTS in layers:
+        add_components_layer(graph, root)
     graph.layer_stats[LAYER_CODE] = {
         "nodes": sum(1 for node in graph.nodes.values() if node.layer == LAYER_CODE and node.kind != "external"),
     }
@@ -3400,6 +3408,43 @@ _NO_FILE_NODE_NAMES = {"package-lock.json", "yarn.lock", "pnpm-lock.yaml", "CHAN
 _NO_FILE_NODE_PREFIXES = (".ai/project-", ".ai/context-log", ".ai/omni-version", ".ai/gate-waivers", "node_modules/")
 MAX_FILE_NODES_PER_COMMIT = 40
 MAX_INFERRED_TOUCH_FANOUT = 60  # a sweeping commit must not tie its requirement to every file in the repository
+
+
+def add_components_layer(graph: Graph, root: Path) -> dict[str, Any]:
+    """Applications and components over the code (see omni_components.py), with reuse and maintainability on each.
+
+    Built last because its annotations read the other layers: tests (assurance), commits (history), requirements
+    (governance). Each code module also gets its reuse category, grade and component in attrs, so the viewer can colour
+    plain code by them.
+    """
+    try:
+        import omni_components  # stdlib-only; imported here so a partial install still builds the other layers
+    except ImportError:
+        graph.notes.append("components: omni_components.py is missing next to omni_graph.py, so the components layer was skipped; run omni update")
+        return {}
+
+    data = {"generated_at": None, "nodes": [n.to_json() for n in graph.nodes.values()], "edges": [e.to_json() for e in graph.edges]}
+    cmap = omni_components.analyze(data, root, tooling_paths=graph_config(root)["tooling_paths"])
+    nodes, edges, module_attrs = omni_components.layer_nodes_and_edges(cmap)
+    for n in nodes:
+        graph.add_node(GraphNode(n["id"], n["kind"], n["name"], n["id"], n.get("file"), None, None, None,
+                                 _short(n.get("summary", ""), 300), n.get("attrs") or {}, LAYER_COMPONENTS))
+    for e in edges:
+        graph.add_edge(e["source"], e["target"], e["type"], INFERRED, "component-analysis", e.get("detail", ""))
+    for mid, attrs in module_attrs.items():
+        node = graph.nodes.get(mid)
+        if node is not None:
+            node.attrs.update(attrs)
+    graph.notes.extend(f"components: {p}" for p in cmap["problems"])
+    stats = {
+        "applications": len(cmap["applications"]),
+        "components": len(cmap["components"]),
+        "modules": len(cmap["modules"]),
+        "duplicates": len(cmap["duplicates"]),
+        "cycles": len(cmap["cycles"]),
+    }
+    graph.layer_stats[LAYER_COMPONENTS] = stats
+    return stats
 
 
 def is_tooling_path(relpath: str | None, root: Path) -> bool:
