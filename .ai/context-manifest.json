@@ -71,6 +71,13 @@
     "git": ".gitignore"
   },
   "project_map": ".ai/project-map.md",
+  "component_map": {
+    "markdown": ".ai/component-map.md",
+    "json": ".ai/component-map.json",
+    "annotations": ".ai/component-annotations.json",
+    "build_command": "omni components build",
+    "purpose": "Applications, components and files with reuse, maintainability, dependencies, change impact and duplication suspects. Check its reuse catalog before writing new code."
+  },
   "required_read_order": [
     ".ai/context-brief.md",
     ".ai/core-context.md",

@@ -2048,6 +2048,43 @@
       "risk_notes": [
         "Runtime view is not derived where dispatch goes through tables; call edges miss it"
       ]
+    },
+    {
+      "id": "REQ-061",
+      "category": "Feature",
+      "title": "Component map: applications, components and files with reuse, maintainability, dependencies, downtrace and duplication; components layer in the graph and viewer",
+      "description": "omni_components.py derives a component map from the project graph: applications -> components -> files, each annotated with reusability (category, score and consumers), maintainability (A-E grade with its reasons), dependencies, transitive downtrace and change impact, the requirements and failures that touched it, and duplication suspects. omni components build writes .ai/component-map.md and .ai/component-map.json; show, trace, reuse and dupes query them. omni graph build adds a components layer, and the viewer gains a Components view plus reuse and grade colour modes. Human knowledge goes in .ai/component-annotations.json.",
+      "priority": "high",
+      "status": "completed",
+      "minimum_access_scope": [
+        "omni_components.py",
+        "omni_graph.py",
+        "make_ai.py",
+        ".ai/graph-viewer/viewer.html",
+        "tests/test_components.py",
+        "tests/test_viewer.py",
+        "README.md",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "Every annotation is computed from graph facts and states its reasons",
+        "Imports the graph left external are resolved; name-only calls never create cross-language or cross-application dependencies",
+        "Generated copies (GENERATED from <source>) count as their source",
+        "Missing omni_components.py skips only the components layer",
+        "Full test suite passes"
+      ],
+      "validation_required": [
+        "python3 -m unittest discover -s tests"
+      ],
+      "documentation_required": [
+        "README.md",
+        "CHANGELOG.md"
+      ],
+      "risk_notes": [
+        "Reuse and maintainability thresholds are heuristics; tune with .ai/component-config.json",
+        "Similarity reads source files",
+        "so the map must be built in the project checkout"
+      ]
     }
   ]
 }

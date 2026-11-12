@@ -722,6 +722,7 @@ map.
 | `omni hook install-git [--force] [--with-graph-rebuild]` | Write `.githooks/pre-commit` (runs `omni gate`) and set `core.hooksPath`; commit `.githooks/` so other clones can opt in. Optionally a post-commit graph rebuild. |
 | `omni rule add --rulepack ALIAS --statement TEXT` | Add a rule to a rulepack. |
 | `omni graph build / show / trace / why / lineage / timeline / impact / findings / sources / schema / benchmark / render / view` | The project graph ([Code Graph](#code-graph-omni-graph)). |
+| `omni components build / show / trace / reuse / dupes / view` | The component map: applications, components and files with reusability, maintainability, dependencies, change impact and duplication suspects; `view` writes a browsable HTML page. See [Component map](#component-map). |
 | `omni docs build [--root DIR] [--output DIR] [--graph FILE] [--no-graph-rebuild] [--check] [--detail summary\|full]` | Generate the engineering documents and Mermaid diagrams ([Generated Docs](#generated-docs-omni-docs)). |
 | `omni mcp serve / tools` | The MCP server ([MCP server](#mcp-server-the-graph-as-tools-for-any-assistant)). |
 | `omni arbiter install / baseline / update / sync` | Install, baseline and upgrade Arbiter ([Arbiter alongside the workspace](#arbiter-alongside-the-workspace)). |
@@ -988,9 +989,9 @@ Every relation the API suggests is checked against known graph symbol names
 before being added as an edge, so a hallucinated relation can't be written
 into the graph silently.
 
-### Five layers: code, governance, history, assurance, workspace
+### Six layers: code, governance, history, assurance, workspace, components
 
-`omni graph build` builds five layers in one graph, each with its own nodes and
+`omni graph build` builds six layers in one graph, each with its own nodes and
 edge types, so a single traversal can go from a line of code to why it exists,
 when it changed, how it is proven, and which rule stops it breaking again. This
 is what keeps long histories manageable: instead of rereading a changelog or a
@@ -1003,6 +1004,7 @@ git log, ask the graph what is tied to the thing you are about to touch.
 | **history** | `commit` | `delivers`, `modifies`, `logged_in`, `follows` | the git log |
 | **assurance** | test files, `suite`, `failure`, `finding`, `arbiter_rule`, `cwe` | `verifies`, `contains`, `covers`, `affects`, `arose_in`, `guards`, `fixed_by`, `recurs`, `flags`, `cites`, `recorded_as`, `introduced_by`, `violates`, `classified_as`, `specified_by`, `mentions_rule` | tests, the suite registry, the failure ledger, the newest Arbiter reports |
 | **workspace** | `rulepack`, `rule`, `playbook`, `checklist`, and OmniEngineering's own code | `defines`, `prevented_by` | `.ai/rules`, `.ai/playbooks`, `.ai/checklists`, the `tooling_paths` files |
+| **components** | `application`, `component` | `groups`, `composes`, `depends_on` | derived from the other layers (see [Component map](#component-map)) |
 
 - A requirement `touches` the files in its declared scope (EXTRACTED) and the
   files changed by commits that deliver it (INFERRED). Changelog entries `record`
@@ -1037,6 +1039,56 @@ git log, ask the graph what is tied to the thing you are about to touch.
   [docs/arbiter-integration.md section 5](docs/arbiter-integration.md#5-findings-in-the-graph-and-how-to-trace-one).
 - Markdown docs (README, `docs/`, skills) `mention` the project files they name
   in backticks or link to; `omni graph why <file>` lists them under docs.
+
+### Component map
+
+`omni components build` turns the graph into a map an engineering team (or an
+LLM) can use to find what already exists before building it again. It groups
+the code into **applications** (top-level directories) and **components**
+(directories under each source root, split one level deeper when large), whose
+**sub-components** are the files. Every entry carries annotations computed from
+the graph, each with the facts behind it:
+
+- **Reusability**: who consumes it (files, other components, other
+  applications), as a category (`cross-app`, `shared`, `reused`, `single-use`,
+  `entry-point`, `framework-wired`, `test-only`, `unreferenced`; components are
+  `cross-app`, `library`, `feature`, `top-level` or `unreferenced`) and a
+  0-100 score.
+- **Maintainability**: an A-E grade with its reasons: file size, test reach,
+  churn in the last 90 days, recorded failures, coupling, dependency cycles,
+  duplication.
+- **Dependencies**: what it uses and what uses it, the transitive
+  **downtrace** (everything it pulls in) and **change impact** (everything that
+  depends on it), the requirements that touched it and its external packages.
+- **Duplication suspects**: same-named definitions or near-identical files in
+  different components, scored by token similarity. Across applications this is
+  usually the same logic written twice.
+
+```bash
+omni components build                 # writes .ai/component-map.md and .ai/component-map.json
+omni components reuse unit search     # what already exists? search the reuse catalog
+omni components show frontend/src/hooks   # one component (or file) with every annotation
+omni components trace backend/.../service --up   # change impact: what depends on it
+omni components dupes --cross-app     # the same logic written in two applications
+omni components view --open           # a browsable HTML page: search, filters, one card per component
+```
+
+The graph viewer's **Components** view draws applications and components,
+coloured by reusability or maintainability grade; double-click a component to
+open its files. Imports the code graph left unresolved (relative paths,
+directory index files, dotted Java/Python names) are resolved here, and calls
+resolved only by name never create a dependency across languages or
+applications. Files headed `GENERATED from <source>` (output of a sync script)
+count as their source, so a library copied into two apps shows as `cross-app`.
+
+Optional `.ai/component-config.json` sets explicit components (`components:
+[{"id", "name", "paths", "role", "description"}]`), `applications`,
+`split_threshold`, `exclude`, `entry_points`, `shared_paths`,
+`duplicate_ignore_names` and `similarity_threshold`. Knowledge the graph cannot
+see (owner, "platform-specific by design", deprecated) goes in
+`.ai/component-annotations.json` as `{"components": {"<id>": {"owner": "...",
+"status": "...", "notes": ["..."], "reuse": "<override>"}}, "modules": {...}}`
+and is merged into both outputs.
 
 Traverse across the layers:
 

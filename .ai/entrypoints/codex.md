@@ -25,6 +25,9 @@ these fallback rules exactly:
 4. State the minimum access scope before inspecting files.
 5. Read `.ai/project-map.md` before broad traversal when it is available. If it
    is missing or stale after structural changes, run `omni map` or `./omni map`.
+   Before writing new code, check `.ai/component-map.md` (or
+   `omni components reuse <words>`) for something that already does it, and
+   before changing a component, read its change impact there.
 6. Inspect only files needed for the active requirement. Do not scan the whole
    repository unless the task cannot be completed safely without it.
 7. Do not read or expose `.env`, `.env.*`, private keys, certificates,

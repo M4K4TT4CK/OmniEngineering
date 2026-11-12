@@ -66,6 +66,16 @@ class TestTemplate(unittest.TestCase):
         self.assertIn('id="ctxname"', TEMPLATE)
         self.assertIn('id="chips"', TEMPLATE)
 
+    def test_components_layer_has_a_view_colour_modes_and_a_hierarchy(self) -> None:
+        self.assertIn("id: 'components'", TEMPLATE)
+        self.assertIn("components: '#9ece6a'", TEMPLATE)
+        for mode in ('value="reuse"', 'value="grade"'):
+            self.assertIn(mode, TEMPLATE)
+        # application > component > file reads as a hierarchy in "Where it sits"
+        self.assertIn("e.type === 'groups' || e.type === 'composes'", TEMPLATE)
+        for edge_type in ("depends_on", "composes", "groups"):
+            self.assertIn(f"{edge_type}: '", TEMPLATE)
+
     def test_light_theme_is_soft_grey_not_white(self) -> None:
         light = re.search(r":root\[data-theme=light\]\{([^}]*)\}", TEMPLATE)
         self.assertIsNotNone(light)
